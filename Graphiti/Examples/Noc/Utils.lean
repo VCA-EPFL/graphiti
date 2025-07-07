@@ -7,6 +7,7 @@ Authors: Yann Herklotz, Gurvan Debaussart
 -- A bunch of random stuff which doesn't quite fit with the rest
 
 import Graphiti.Module
+import Graphiti.ModuleLemmas
 import Graphiti.Component
 
 open Batteries (AssocList)
@@ -17,17 +18,17 @@ namespace Graphiti.Noc
 
   -- fin_range -----------------------------------------------------------------
 
-  def fin_range (sz : Nat) : List (Fin sz) :=
-    List.replicate sz 0
-    |>.mapFinIdx (λ i _ h => ⟨i, by rwa [List.length_replicate] at h⟩)
-
   def lift_fin {sz : Nat} (n : Fin sz) : Fin (sz + 1) :=
     ⟨n.1 + 1, by simp only [Nat.add_lt_add_iff_right, Fin.is_lt] ⟩
 
-  def fin_range' (sz : Nat) : List (Fin sz) :=
+  def fin_range (sz : Nat) : List (Fin sz) :=
     match sz with
     | 0 => []
-    | sz' + 1 => ⟨0, Nat.zero_lt_succ _⟩ :: (fin_range' sz').map lift_fin
+    | sz' + 1 => ⟨0, Nat.zero_lt_succ _⟩ :: (fin_range sz').map lift_fin
+
+  def fin_range' (sz : Nat) : List (Fin sz) :=
+    List.replicate sz 0
+    |>.mapFinIdx (λ i _ h => ⟨i, by rwa [List.length_replicate] at h⟩)
 
   theorem map_mapFinIdx {α β δ} (l : List α) (f : (i : Nat) → α → (h : i < l.length) → β) (g : β → δ) :
     (l.mapFinIdx f).map g = l.mapFinIdx (λ i v h => g (f i v h)) := by
@@ -43,15 +44,18 @@ namespace Graphiti.Noc
       induction sz with
       | zero => rfl
       | succ n HR =>
-        dsimp [fin_range']; rw [←HR]; dsimp [fin_range]
+        dsimp [fin_range]; rw [HR]; dsimp [fin_range']
         simp only [
           List.replicate, List.length_cons, List.mapFinIdx_cons, Fin.zero_eta,
           map_mapFinIdx, lift_fin
         ]
 
-  theorem fin_in_fin_range (sz : Nat) (i : Fin sz) : i ∈ fin_range sz := by
-    simp only [fin_range, List.mem_mapFinIdx, List.length_replicate]
+  theorem fin_in_fin_range' (sz : Nat) (i : Fin sz) : i ∈ fin_range' sz := by
+    simp only [fin_range', List.mem_mapFinIdx, List.length_replicate]
     exists i.1, i.2
+
+  theorem fin_in_fin_range (sz : Nat) (i : Fin sz) : i ∈ fin_range sz := by
+    rw [fin_range_eq]; exact fin_in_fin_range' sz i
 
   theorem fin_range_len (sz : Nat) :
     (fin_range sz).length = sz := by
@@ -60,7 +64,7 @@ namespace Graphiti.Noc
       | succ sz HR => simpa [fin_range, HR]
 
   def fin_conv {sz : Nat} (i : Fin (fin_range sz).length) : Fin sz :=
-    Fin.mk i.1 (by cases i; rename_i v h; rw [fin_range_len] at h; simpa)
+    ⟨i.1, by cases i; rename_i v h; rw [fin_range_len] at h; simpa only⟩
 
   theorem mapFinIdx_length {α β} (l : List α) (f : (i : Nat) → α → (h : i < l.length) → β) :
     (List.mapFinIdx l f).length = l.length := by
@@ -72,8 +76,10 @@ namespace Graphiti.Noc
 
   theorem fin_range_get {sz : Nat} {i : Fin (fin_range sz).length} :
     (fin_range sz).get i = fin_conv i := by
-    dsimp [fin_range]
-    apply mapFinIdx_get
+    -- rw [fin_range_eq]
+    -- dsimp [fin_range]
+    -- apply mapFinIdx_get
+    sorry
 
   theorem fin_cast {sz sz' : Nat} (h : sz = sz' := by rfl) :
     Fin sz = Fin sz' := by subst h; rfl
@@ -292,6 +298,20 @@ namespace Graphiti.Noc
     theorem DPList_succ {hd : α} {tl : List α} {f : α → Type _} :
       DPList (hd :: tl) f = (f hd × (DPList tl f)) := by
         rfl
+
+    theorem DPList.mk_cast {l : List α} {f : α → Type _} {g : (i : α) → f i} :
+      (List.foldr (λ i acc => (⟨f i × acc.1, (g i, acc.2)⟩: Σ T, T)) ⟨Unit, ()⟩ l).fst
+    = DPList l f := by
+      induction l with
+      | nil => rfl
+      | cons hd tl HR => simpa only [List.foldr_cons, HR]
+
+    def DPList.mk (l : List α) (f : α → Type _) (g : (i : α) → f i) : DPList l f :=
+      Module.dep_foldr_1.mp
+        (List.foldr
+          (λ i acc => (⟨f i × acc.1, (g i, acc.2)⟩ : Σ T, T))
+          ⟨Unit, ()⟩ l
+        ).snd
 
     def DPList.get' {l : List α} {f} (pl : DPList l f) (i : Nat) (h : i < List.length l) : f (l.get (Fin.mk i h)) :=
       match l with

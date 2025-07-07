@@ -2076,7 +2076,7 @@ abbrev dep_foldr (acc : Σ S, β S) (l : List α) (f : α → Type _ → Type _)
   (g : (i : α) → (acc : Σ S, β S) → β (f i acc.1)) : Σ S, β S :=
   List.foldr (λ i acc => ⟨f i acc.1, g i acc⟩) acc l
 
-theorem dep_foldr_1 acc l (f : α → Type _ → Type _) (g : (i : α) → (acc : Σ S, β S) → β (f i acc.1)) :
+theorem dep_foldr_1 {acc} {l} {f : α → Type _ → Type _} {g : (i : α) → (acc : Σ S, β S) → β (f i acc.1)} :
   (dep_foldr acc l f g).1 = List.foldr f acc.1 l := by
     induction l generalizing acc with
     | nil => rfl

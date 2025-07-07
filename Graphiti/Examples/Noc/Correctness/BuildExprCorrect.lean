@@ -210,25 +210,15 @@ namespace Graphiti.Noc
         (I_cast_get n ε I rid)
         (S.get rid)
 
-  -- def r_noc : Noc Data (netsz - 1) :=
-  --   let _ := n
-  --   {
-  --     topology := sorry
-  --     routing_pol := sorry
-  --     routers := sorry
-  --   }
-  --
-  -- instance : EnvCorrect (r_noc n) ε := by sorry
-  --
-  -- def r_noc_init :
-  --   ∀ (rid : (r_noc n).RouterID) (i : (EnvCorrect.rmod ε rid).fst),
-  --   (EnvCorrect.rmod ε rid).snd.init_state i →
-  --   (EC.rmod _).snd.init_state i := by sorry
-
-  -- set_option pp.proofs true in
+  set_option pp.proofs true in
   def i_init_rid (i : expT n ε) (Hinit : (expM n ε).init_state i) :
     ∀ (rid : n.RouterID), (EC.rmod rid).2.init_state (I_cast_get n ε i rid) := by
       dsimp [drunfold_defs] at Hinit i
+      conv at Hinit =>
+        arg 2
+        -- This rewrite does not work, not sure why… Probably universe
+        -- constraints?
+        -- rw [←Module.dep_foldr]
       revert n
       induction netsz with
       | zero => intro _ _ _ _ ⟨_, _⟩; contradiction
@@ -237,13 +227,15 @@ namespace Graphiti.Noc
         intro n EC i Hinit ⟨ridv, Hrid⟩
         induction ridv with
         | zero =>
-          simp
-          -- TODO: This is true and should be provable but there is a lot of
+          dsimp [fin_range] at ⊢ Hinit i
+          obtain ⟨i1, i2⟩ := i
+          dsimp [I_cast_get, DPList.get']
+          -- TODO: This is true and shou:w
           -- annoying casts to handle everywhere
           sorry
         | succ ridv' HR' =>
           rw [add_lt_add_iff_right] at Hrid
-          -- FIXME: Process desribed below is not possible, init_state might
+          -- FIXME: Process described below is not possible, init_state might
           -- depend on the total number of router in the system, this is very
           -- annoying
           -- TODO: Trick here is probably to define a new noc but with one less
