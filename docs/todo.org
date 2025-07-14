@@ -8,18 +8,51 @@
 :END:
 
 *** TODO Section 1: introduction
+:PROPERTIES:
+:ID:       1fb12d0e-b929-40eb-b736-82b6e253c71e
+:END:
 
 **** TODO Add section structure to introduction
+:PROPERTIES:
+:ID:       8608b459-a8b3-4444-97f6-9bc0398d4f2b
+:END:
 
 **** TODO Add more references
+:PROPERTIES:
+:ID:       aaa2cf7c-fee2-4932-aa11-5179d7166339
+:END:
 
 *** TODO Section 2: reread the motivation section
+:PROPERTIES:
+:ID:       04758f02-e653-4bbb-bcaa-c1e6b769f4c4
+:END:
 
 *** TODO Section 3: Add signposting and address comments
+:PROPERTIES:
+:ID:       c15ffbe1-66e9-4c0c-855e-6f4de32de980
+:END:
 
+*** TODO Section 3: Rewrite introduction of syntax and semantics
+:PROPERTIES:
+:ID:       c679662d-d5e5-43ea-ad3d-25946025553a
+:END:
+*** TODO Section 3: Better introduce dot graph syntax in fork example
+:PROPERTIES:
+:ID:       422f6f5b-c59c-4770-a075-7338a97b4618
+:END:
+*** TODO Section 3: Add a concrete example of rewriting
+:PROPERTIES:
+:ID:       77a8ff18-7c47-4996-98dd-f461819db246
+:END:
 *** TODO Section 4: Add signposting and make refinement definition more concrete
+:PROPERTIES:
+:ID:       eded1830-d237-4f44-b399-70c799f7f177
+:END:
 
 *** TODO Section 5: Make sure overall rewriting algorithm is clear
+:PROPERTIES:
+:ID:       db1836a2-af41-44cf-8d61-a7e354cbc014
+:END:
 
 ** Framework development
 :PROPERTIES:
