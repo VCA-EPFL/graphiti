@@ -1,6 +1,6 @@
 #+title: TODOs
 #+options: toc:1
-#+columns: %EFFORT %ITEM
+#+columns: %17Effort(Estimated Effort){:} %ITEM
 #+macro: effort - Effort :: {{{property(Effort)}}} day(s)
 
 * Paper writing
@@ -98,7 +98,7 @@
 ** TODO Prove LHS specification given termination              :loop_rewrite:
 :PROPERTIES:
 :ID:       f2a8021c-7377-44ff-9c6c-e995b5b1dd65
-:Effort:   1
+:Effort:   1d
 :END:
 
 {{{effort}}}
@@ -106,7 +106,7 @@
 ** TODO Prove RHS Ghost to RHS                                 :loop_rewrite:
 :PROPERTIES:
 :ID:       073ca380-638e-4315-abd7-3e7ddbfde270
-:Effort:   1
+:Effort:   1d
 :END:
 
 {{{effort}}}
@@ -114,7 +114,7 @@
 ** TODO Prove φ holds for initial state                        :loop_rewrite:
 :PROPERTIES:
 :ID:       0ca6f802-8200-42a7-b349-1814720493e7
-:Effort:   0.25
+:Effort:   0.25d
 :END:
 
 {{{effort}}}
@@ -122,7 +122,7 @@
 ** TODO Lift loop rewrite into a verified rewrite              :loop_rewrite:
 :PROPERTIES:
 :ID:       b2ac6c91-d44f-405a-a01f-90ba2d680c9c
-:Effort:   0.5
+:Effort:   0.5d
 :END:
 
 {{{effort}}}
@@ -141,7 +141,7 @@ Either:
 :PROPERTIES:
 :ID:       a7ff20fb-0100-423d-8ee7-e7446f0379c3
 :ORDERED:  t
-:Effort:   2
+:Effort:   2d
 :END:
 
 {{{effort}}}
@@ -172,7 +172,7 @@ Either:
 ** WAIT Lift the rewriter correctness proof to support environment extensions :rewriter:
 :PROPERTIES:
 :ID:       95a363ef-53ad-4a0d-a23f-f115936d2a02
-:Effort:   1
+:Effort:   1d
 :END:
 
 {{{effort}}}
@@ -184,7 +184,7 @@ Either:
 ** TODO Minimise the number of nodes that are rewritten            :rewriter:
 :PROPERTIES:
 :ID:       1a970e70-16ce-41b1-b1bc-7e19e69ee503
-:Effort:   1
+:Effort:   1d
 :END:
 
 {{{effort}}}
@@ -193,7 +193,7 @@ Either:
 :PROPERTIES:
 :ID:       6a174e25-1b66-4dc8-b59b-ac870852ef85
 :ORDERED:  t
-:Effort:   4
+:Effort:   4d
 :END:
 
 {{{effort}}}
@@ -232,7 +232,7 @@ information.
 ** TODO Support rewriting of loop bodies with ~if~ statements      :rewriter:
 :PROPERTIES:
 :ID:       e22e63b0-e51e-45db-b620-424f68082838
-:Effort:   4
+:Effort:   4d
 :END:
 
 {{{effort}}}
@@ -243,7 +243,7 @@ information.
 * Preprocessing of dot-graph for Dynamatic
 :PROPERTIES:
 :ID:       8a81fbfa-03b9-4658-8d3b-3979df2be4b4
-:EFFORT:   1
+:EFFORT:   1d
 :END:
 
 {{{effort}}}
@@ -274,7 +274,7 @@ information.
 * Post processing of dot-graph for Dynamatic
 :PROPERTIES:
 :ID:       18ee918c-b9fe-4c97-a61e-d087a03b50e4
-:EFFORT:   2
+:EFFORT:   2d
 :END:
 
 {{{effort}}}

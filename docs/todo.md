@@ -1,12 +1,12 @@
-- [Paper writing](#org2d498a8)
-- [Framework development](#org0d2b586)
-- [Preprocessing of dot-graph for Dynamatic](#org16e50df)
-- [Post processing of dot-graph for Dynamatic](#org9b62e9b)
-- [Non-main-project todos](#orgc5631ea)
+- [Paper writing](#orgc068672)
+- [Framework development](#orgf71a856)
+- [Preprocessing of dot-graph for Dynamatic](#orgcfe0b28)
+- [Post processing of dot-graph for Dynamatic](#org2f68d5a)
+- [Non-main-project todos](#org2a54c1e)
 
 
 
-<a id="org2d498a8"></a>
+<a id="orgc068672"></a>
 
 # Paper writing
 
@@ -62,29 +62,29 @@
 ## TODO Section 8: add related work on graph rewriting (with applications in SSA), as well as term rewriting for hardware
 
 
-<a id="org0d2b586"></a>
+<a id="orgf71a856"></a>
 
 # Framework development
 
 
 ## TODO Prove LHS specification given termination     :loop_rewrite:
 
--   **Effort:** 1 day(s)
+-   **Effort:** 1d day(s)
 
 
 ## TODO Prove RHS Ghost to RHS     :loop_rewrite:
 
--   **Effort:** 1 day(s)
+-   **Effort:** 1d day(s)
 
 
 ## TODO Prove φ holds for initial state     :loop_rewrite:
 
--   **Effort:** 0.25 day(s)
+-   **Effort:** 0.25d day(s)
 
 
 ## TODO Lift loop rewrite into a verified rewrite     :loop_rewrite:
 
--   **Effort:** 0.5 day(s)
+-   **Effort:** 0.5d day(s)
 
 
 ## SMDY Prove termination of the loop     :loop_rewrite:
@@ -97,10 +97,10 @@ Either:
 
 ## TODO Adding environments to rewrites     :ORDERED:
 
--   **Effort:** 2 day(s)
+-   **Effort:** 2d day(s)
 
 
-<a id="org6e6e8ad"></a>
+<a id="orgb7f8686"></a>
 
 ### TODO Generate a new environment from the rewrite     :environment:
 
@@ -109,7 +109,7 @@ Either:
 
 1.  Dependencies
 
-    -   [Generate a new environment from the rewrite](#org6e6e8ad)
+    -   [Generate a new environment from the rewrite](#orgb7f8686)
 
 
 ## SMDY Make rewriter run in Lean 4     :rewriter:
@@ -121,22 +121,22 @@ Either:
 
 ## WAIT Lift the rewriter correctness proof to support environment extensions     :rewriter:
 
--   **Effort:** 1 day(s)
+-   **Effort:** 1d day(s)
 
 
 ### Dependencies
 
--   [Generate a new environment from the rewrite](#org6e6e8ad)
+-   [Generate a new environment from the rewrite](#orgb7f8686)
 
 
 ## TODO Minimise the number of nodes that are rewritten     :rewriter:
 
--   **Effort:** 1 day(s)
+-   **Effort:** 1d day(s)
 
 
 ## TODO Backwards rewriting     :ORDERED:
 
--   **Effort:** 4 day(s)
+-   **Effort:** 4d day(s)
 
 
 ### TODO Improve debugging information for renaming in rewrites
@@ -147,7 +147,7 @@ Currently it is difficult to trace renaming problems. Use existing infrastructur
 ### Rework renaming so that it is stable with respect to `higher` and `lower` transformations
 
 
-<a id="org1366e4f"></a>
+<a id="org1dae82f"></a>
 
 ### TODO Add option to rewrite without renaming     :rewriter:
 
@@ -159,22 +159,22 @@ Currently it is difficult to trace renaming problems. Use existing infrastructur
 
 1.  Dependencies
 
-    -   [Add option to rewrite without renaming](#org1366e4f)
+    -   [Add option to rewrite without renaming](#org1dae82f)
 
 
 ## TODO Support rewriting of loop bodies with `if` statements     :rewriter:
 
--   **Effort:** 4 day(s)
+-   **Effort:** 4d day(s)
 
 -   This is needed for `gsum-single` and `gsum-many`.
 -   We need to recursively generate pures and then apply the branch-merge to pure conversion.
 
 
-<a id="org16e50df"></a>
+<a id="orgcfe0b28"></a>
 
 # Preprocessing of dot-graph for Dynamatic
 
--   **Effort:** 1 day(s)
+-   **Effort:** 1d day(s)
 
 
 ## TODO Split up read-only memory controllers intro their own banks
@@ -192,11 +192,11 @@ Currently it is difficult to trace renaming problems. Use existing infrastructur
 -   I have found though that in all the cases for dot-graphs that you have sent me, the only thing I had to change is switch out2 which was feeding the init to out1. The rest of the fork tree then lined up. But having a more general solution would be useful too.
 
 
-<a id="org9b62e9b"></a>
+<a id="org2f68d5a"></a>
 
 # Post processing of dot-graph for Dynamatic
 
--   **Effort:** 2 day(s)
+-   **Effort:** 2d day(s)
 
 
 ## TODO Merge memories again
@@ -209,7 +209,7 @@ Currently it is difficult to trace renaming problems. Use existing infrastructur
 -   Either expand the tagger into the implementation of FPGA'24, or implement the tagger from scratch.
 
 
-<a id="orgc5631ea"></a>
+<a id="org2a54c1e"></a>
 
 # Non-main-project todos
 
