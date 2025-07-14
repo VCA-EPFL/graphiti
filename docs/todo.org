@@ -114,6 +114,16 @@
 :ID:       b2ac6c91-d44f-405a-a01f-90ba2d680c9c
 :END:
 
+*** SMDY Prove termination of the loop                         :loop_rewrite:
+:PROPERTIES:
+:ID:       30028627-b199-4fc8-b376-bd380237765d
+:END:
+
+Either:
+
+- prove that the loop terminates.
+- add fuel to the implementation which deadlocks when fuel is reached.
+
 *** TODO Adding environments to rewrites                            :ORDERED:
 :PROPERTIES:
 :ID:       a7ff20fb-0100-423d-8ee7-e7446f0379c3
