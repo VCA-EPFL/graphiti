@@ -1,11 +1,12 @@
-- [Paper writing](#orgaec8e29)
-- [Framework development](#org18654b3)
-- [Preprocessing of dot-graph for Dynamatic](#org90c3b4b)
-- [Post processing of dot-graph for Dynamatic](#org1104bd4)
+- [Paper writing](#org2d498a8)
+- [Framework development](#org0d2b586)
+- [Preprocessing of dot-graph for Dynamatic](#org16e50df)
+- [Post processing of dot-graph for Dynamatic](#org9b62e9b)
+- [Non-main-project todos](#orgc5631ea)
 
 
 
-<a id="orgaec8e29"></a>
+<a id="org2d498a8"></a>
 
 # Paper writing
 
@@ -61,7 +62,7 @@
 ## TODO Section 8: add related work on graph rewriting (with applications in SSA), as well as term rewriting for hardware
 
 
-<a id="org18654b3"></a>
+<a id="org0d2b586"></a>
 
 # Framework development
 
@@ -99,7 +100,7 @@ Either:
 -   **Effort:** 2 day(s)
 
 
-<a id="org447d643"></a>
+<a id="org6e6e8ad"></a>
 
 ### TODO Generate a new environment from the rewrite     :environment:
 
@@ -108,7 +109,7 @@ Either:
 
 1.  Dependencies
 
-    -   [Generate a new environment from the rewrite](#org447d643)
+    -   [Generate a new environment from the rewrite](#org6e6e8ad)
 
 
 ## SMDY Make rewriter run in Lean 4     :rewriter:
@@ -125,7 +126,7 @@ Either:
 
 ### Dependencies
 
--   [Generate a new environment from the rewrite](#org447d643)
+-   [Generate a new environment from the rewrite](#org6e6e8ad)
 
 
 ## TODO Minimise the number of nodes that are rewritten     :rewriter:
@@ -138,7 +139,15 @@ Either:
 -   **Effort:** 4 day(s)
 
 
-<a id="org34a18ba"></a>
+### TODO Improve debugging information for renaming in rewrites
+
+Currently it is difficult to trace renaming problems. Use existing infrastructure to add more detailed renaming information.
+
+
+### Rework renaming so that it is stable with respect to `higher` and `lower` transformations
+
+
+<a id="org1366e4f"></a>
 
 ### TODO Add option to rewrite without renaming     :rewriter:
 
@@ -150,7 +159,7 @@ Either:
 
 1.  Dependencies
 
-    -   [Add option to rewrite without renaming](#org34a18ba)
+    -   [Add option to rewrite without renaming](#org1366e4f)
 
 
 ## TODO Support rewriting of loop bodies with `if` statements     :rewriter:
@@ -161,7 +170,7 @@ Either:
 -   We need to recursively generate pures and then apply the branch-merge to pure conversion.
 
 
-<a id="org90c3b4b"></a>
+<a id="org16e50df"></a>
 
 # Preprocessing of dot-graph for Dynamatic
 
@@ -183,7 +192,7 @@ Either:
 -   I have found though that in all the cases for dot-graphs that you have sent me, the only thing I had to change is switch out2 which was feeding the init to out1. The rest of the fork tree then lined up. But having a more general solution would be useful too.
 
 
-<a id="org1104bd4"></a>
+<a id="org9b62e9b"></a>
 
 # Post processing of dot-graph for Dynamatic
 
@@ -198,3 +207,16 @@ Either:
 ## TODO Expand/Implement the tagger
 
 -   Either expand the tagger into the implementation of FPGA'24, or implement the tagger from scratch.
+
+
+<a id="orgc5631ea"></a>
+
+# Non-main-project todos
+
+
+## TODO Connect directly to bluespec back-end
+
+
+## TODO Explore implementation of buffer size 0
+
+-   Will require a reimplementation of

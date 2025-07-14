@@ -198,6 +198,19 @@ Either:
 
 {{{effort}}}
 
+*** TODO Improve debugging information for renaming in rewrites
+:PROPERTIES:
+:ID:       fb84ba01-340b-4ae7-86d2-29201d1e3830
+:END:
+
+Currently it is difficult to trace renaming problems.  Use existing infrastructure to add more detailed renaming
+information.
+
+*** Rework renaming so that it is stable with respect to ~higher~ and ~lower~ transformations
+:PROPERTIES:
+:ID:       e81db753-8814-4f0a-b6d3-6e27017e6b2c
+:END:
+
 *** TODO Add option to rewrite without renaming                    :rewriter:
 :PROPERTIES:
 :ID:       9a94c5c8-a876-481b-829a-7cf9ccffc12f
@@ -236,14 +249,23 @@ Either:
 {{{effort}}}
 
 ** TODO Split up read-only memory controllers intro their own banks
+:PROPERTIES:
+:ID:       63b61d0d-2dd0-4805-8091-e4bca0b621b8
+:END:
 
 - Attached to a single load.
 
 ** TODO Transform ~Merge~ into ~init Bool false~
+:PROPERTIES:
+:ID:       ea5156e3-b0bd-4c20-8bd0-854911287716
+:END:
 
 - Remove the unnecessary additional input, and rewire the conditional input from in2 to in1.
 
 ** TODO Rewire the fork trees
+:PROPERTIES:
+:ID:       32b50806-d235-4d27-8d32-f7c0dc8dce06
+:END:
 
 - I have found though that in all the cases for dot-graphs that you have sent me, the only thing I had to change is
   switch out2 which was feeding the init to out1. The rest of the fork tree then lined up. But having a more general
@@ -258,10 +280,30 @@ Either:
 {{{effort}}}
 
 ** TODO Merge memories again
+:PROPERTIES:
+:ID:       e83c39c1-3e8e-4f79-a393-518456ff35aa
+:END:
 
 - Ideally, we wouldn't need to do this, but I guess that this is because don't know how to synthesise the right
   arguments for the memory controllers.
 
 ** TODO Expand/Implement the tagger
+:PROPERTIES:
+:ID:       fbbe94b2-da1a-4223-9e61-e36226e6931c
+:END:
 
 - Either expand the tagger into the implementation of FPGA'24, or implement the tagger from scratch.
+
+* Non-main-project todos
+
+** TODO Connect directly to bluespec back-end
+:PROPERTIES:
+:ID:       688dfe7e-bd18-487e-ae61-40a227dfb9e9
+:END:
+
+** TODO Explore implementation of buffer size 0
+:PROPERTIES:
+:ID:       9928f45e-a1c0-44b4-af5a-73e8ea741c40
+:END:
+
+- Will require a reimplementation of
