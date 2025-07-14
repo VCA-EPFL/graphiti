@@ -1,120 +1,124 @@
 #+title: TODOs
+#+options: toc:1
+#+columns: %EFFORT %ITEM
 
-* Roadmap for Graphiti
-
-** Paper writing
+* Paper writing
 :PROPERTIES:
 :ID:       8e384547-06a9-4ae4-9936-92e32c2a8afb
 :END:
 
-*** TODO Section 1: introduction
+** TODO Section 1: introduction
 :PROPERTIES:
 :ID:       1fb12d0e-b929-40eb-b736-82b6e253c71e
 :END:
 
-**** TODO Add section structure to introduction
+*** TODO Add section structure to introduction
 :PROPERTIES:
 :ID:       8608b459-a8b3-4444-97f6-9bc0398d4f2b
 :END:
 
-**** TODO Add more references
+*** TODO Add more references
 :PROPERTIES:
 :ID:       aaa2cf7c-fee2-4932-aa11-5179d7166339
 :END:
 
-*** TODO Section 2: reread the motivation section
+** TODO Section 2: reread the motivation section
 :PROPERTIES:
 :ID:       04758f02-e653-4bbb-bcaa-c1e6b769f4c4
 :END:
 
-*** TODO Section 3: add signposting and address comments
+** TODO Section 3: add signposting and address comments
 :PROPERTIES:
 :ID:       c15ffbe1-66e9-4c0c-855e-6f4de32de980
 :END:
 
-*** TODO Section 3: rewrite introduction of syntax and semantics
+** TODO Section 3: rewrite introduction of syntax and semantics
 :PROPERTIES:
 :ID:       c679662d-d5e5-43ea-ad3d-25946025553a
 :END:
-*** TODO Section 3: better introduce dot graph syntax in fork example
+** TODO Section 3: better introduce dot graph syntax in fork example
 :PROPERTIES:
 :ID:       422f6f5b-c59c-4770-a075-7338a97b4618
 :END:
-*** TODO Section 3: add a concrete example of rewriting
+** TODO Section 3: add a concrete example of rewriting
 :PROPERTIES:
 :ID:       77a8ff18-7c47-4996-98dd-f461819db246
 :END:
-*** TODO Section 4: add signposting and make refinement definition more concrete
+** TODO Section 4: add signposting and make refinement definition more concrete
 :PROPERTIES:
 :ID:       eded1830-d237-4f44-b399-70c799f7f177
 :END:
 
-*** TODO Section 5: make sure overall rewriting algorithm is clear
+** TODO Section 5: make sure overall rewriting algorithm is clear
 :PROPERTIES:
 :ID:       db1836a2-af41-44cf-8d61-a7e354cbc014
 :END:
 
-*** TODO Section 5: describe pure generation in more detail
+** TODO Section 5: describe pure generation in more detail
 :PROPERTIES:
 :ID:       b65c395f-64ee-49e7-af01-decfb4cb5f4f
 :END:
 
-*** TODO Section 6: describe the use of ghost state
+** TODO Section 6: describe the use of ghost state
 :PROPERTIES:
 :ID:       e7a7fddb-4ab3-4a7c-9b98-a712618480fa
 :END:
 
-*** TODO Section 7: ensure text described experiments performed
+** TODO Section 7: ensure text described experiments performed
 :PROPERTIES:
 :ID:       1dd9cce6-a923-406e-9d31-424239820b88
 :END:
 
-*** TODO Section 7: describe the implementation of the tagger used
+** TODO Section 7: describe the implementation of the tagger used
 :PROPERTIES:
 :ID:       fe6072f5-b690-4401-83d5-bd575f37a664
 :END:
 
-*** TODO Section 8: describe Lean MLIR in related work
+** TODO Section 8: describe Lean MLIR in related work
 :PROPERTIES:
 :ID:       6f05c8a1-3c63-44cc-a15f-2bf5a5679f44
 :END:
 
-*** TODO Section 8: describe Cigr/Cilan more accurately
+** TODO Section 8: describe Cigr/Cilan more accurately
 :PROPERTIES:
 :ID:       f60d3d9f-f156-4c41-ac83-9a6d3ab056c1
 :END:
 
-*** TODO Section 8: add related work on graph rewriting (with applications in SSA), as well as term rewriting for hardware
+** TODO Section 8: add related work on graph rewriting (with applications in SSA), as well as term rewriting for hardware
 :PROPERTIES:
 :ID:       37700f4e-0f3c-425e-9f34-1d68726fe14d
 :END:
 
-** Framework development
+* Framework development
 :PROPERTIES:
 :ID:       d90489ca-4ca8-4d1c-913a-83695b611810
 :END:
 
-*** TODO Prove LHS specification given termination             :loop_rewrite:
+** TODO Prove LHS specification given termination              :loop_rewrite:
 :PROPERTIES:
 :ID:       f2a8021c-7377-44ff-9c6c-e995b5b1dd65
+:Effort:   1
 :END:
 
-*** TODO Prove RHS Ghost to RHS                                :loop_rewrite:
+** TODO Prove RHS Ghost to RHS                                 :loop_rewrite:
 :PROPERTIES:
 :ID:       073ca380-638e-4315-abd7-3e7ddbfde270
+:Effort:   1
 :END:
 
-*** TODO Prove φ holds for initial state                       :loop_rewrite:
+** TODO Prove φ holds for initial state                        :loop_rewrite:
 :PROPERTIES:
 :ID:       0ca6f802-8200-42a7-b349-1814720493e7
+:Effort:   0.25
 :END:
 
-*** TODO Lift loop rewrite into a verified rewrite             :loop_rewrite:
+** TODO Lift loop rewrite into a verified rewrite              :loop_rewrite:
 :PROPERTIES:
 :ID:       b2ac6c91-d44f-405a-a01f-90ba2d680c9c
+:Effort:   0.5
 :END:
 
-*** SMDY Prove termination of the loop                         :loop_rewrite:
+** SMDY Prove termination of the loop                          :loop_rewrite:
 :PROPERTIES:
 :ID:       30028627-b199-4fc8-b376-bd380237765d
 :END:
@@ -124,27 +128,28 @@ Either:
 - prove that the loop terminates.
 - add fuel to the implementation which deadlocks when fuel is reached.
 
-*** TODO Adding environments to rewrites                            :ORDERED:
+** TODO Adding environments to rewrites                             :ORDERED:
 :PROPERTIES:
 :ID:       a7ff20fb-0100-423d-8ee7-e7446f0379c3
 :ORDERED:  t
+:Effort:   2
 :END:
 
-**** TODO Generate a new environment from the rewrite           :environment:
+*** TODO Generate a new environment from the rewrite            :environment:
 :PROPERTIES:
 :ID:       f663996d-996d-4c50-8a92-e824f7a19840
 :END:
 
-**** TODO Prove environment changes are monotonic               :environment:
+*** TODO Prove environment changes are monotonic                :environment:
 :PROPERTIES:
 :ID:       3703bf90-e00a-4bc4-9084-23386e6e331a
 :END:
 
-***** Dependencies
+**** Dependencies
 
 - [[id:f663996d-996d-4c50-8a92-e824f7a19840][Generate a new environment from the rewrite]]
 
-*** SMDY Make rewriter run in Lean 4                               :rewriter:
+** SMDY Make rewriter run in Lean 4                                :rewriter:
 :PROPERTIES:
 :ID:       ce146d0a-95c5-439b-b0a7-e5844435e41e
 :END:
@@ -153,32 +158,35 @@ Either:
 - Allows the proof of transformations using the existing rewrite rules.
 - This could be done at runtime of the rewriter itself too, but this would provide more control.
 
-*** WAIT Lift the rewriter correctness proof to support environment extensions :rewriter:
+** WAIT Lift the rewriter correctness proof to support environment extensions :rewriter:
 :PROPERTIES:
 :ID:       95a363ef-53ad-4a0d-a23f-f115936d2a02
+:Effort:   1
 :END:
 
-**** Dependencies
+*** Dependencies
 
 - [[id:f663996d-996d-4c50-8a92-e824f7a19840][Generate a new environment from the rewrite]]
 
-*** TODO Minimise the number of nodes that are rewritten           :rewriter:
+** TODO Minimise the number of nodes that are rewritten            :rewriter:
 :PROPERTIES:
 :ID:       1a970e70-16ce-41b1-b1bc-7e19e69ee503
+:Effort:   1
 :END:
 
-*** TODO Backwards rewriting                                        :ORDERED:
+** TODO Backwards rewriting                                         :ORDERED:
 :PROPERTIES:
 :ID:       6a174e25-1b66-4dc8-b59b-ac870852ef85
 :ORDERED:  t
+:Effort:   4
 :END:
 
-**** TODO Add option to rewrite without renaming                   :rewriter:
+*** TODO Add option to rewrite without renaming                    :rewriter:
 :PROPERTIES:
 :ID:       9a94c5c8-a876-481b-829a-7cf9ccffc12f
 :END:
 
-**** TODO Backwards rewriting instead of abstraction               :rewriter:
+*** TODO Backwards rewriting instead of abstraction                :rewriter:
 :PROPERTIES:
 :ID:       821164f5-c5b4-407a-b32c-7569adfb9ba6
 :END:
@@ -187,47 +195,50 @@ Either:
 - Renaming should not be needed, the worst it will do is make the lower to higher conversion invalid, because some base
   components will not be able to be moved under some connections.
 
-***** Dependencies
+**** Dependencies
 
 - [[id:9a94c5c8-a876-481b-829a-7cf9ccffc12f][Add option to rewrite without renaming]]
 
-*** TODO Support rewriting of loop bodies with ~if~ statements     :rewriter:
+** TODO Support rewriting of loop bodies with ~if~ statements      :rewriter:
 :PROPERTIES:
 :ID:       e22e63b0-e51e-45db-b620-424f68082838
+:Effort:   4
 :END:
 
 - This is needed for ~gsum-single~ and ~gsum-many~.
 - We need to recursively generate pures and then apply the branch-merge to pure conversion.
 
-** Preprocessing of dot-graph for Dynamatic
+* Preprocessing of dot-graph for Dynamatic
 :PROPERTIES:
 :ID:       8a81fbfa-03b9-4658-8d3b-3979df2be4b4
+:EFFORT:   1
 :END:
 
-*** TODO Split up read-only memory controllers intro their own banks
+** TODO Split up read-only memory controllers intro their own banks
 
 - Attached to a single load.
 
-*** TODO Transform ~Merge~ into ~init Bool false~
+** TODO Transform ~Merge~ into ~init Bool false~
 
 - Remove the unnecessary additional input, and rewire the conditional input from in2 to in1.
 
-*** TODO Rewire the fork trees
+** TODO Rewire the fork trees
 
 - I have found though that in all the cases for dot-graphs that you have sent me, the only thing I had to change is
   switch out2 which was feeding the init to out1. The rest of the fork tree then lined up. But having a more general
   solution would be useful too.
 
-** Post processing of dot-graph for Dynamatic
+* Post processing of dot-graph for Dynamatic
 :PROPERTIES:
 :ID:       18ee918c-b9fe-4c97-a61e-d087a03b50e4
+:EFFORT:   2
 :END:
 
-*** TODO Merge memories again
+** TODO Merge memories again
 
 - Ideally, we wouldn't need to do this, but I guess that this is because don't know how to synthesise the right
   arguments for the memory controllers.
 
-*** TODO Expand/Implement the tagger
+** TODO Expand/Implement the tagger
 
 - Either expand the tagger into the implementation of FPGA'24, or implement the tagger from scratch.
