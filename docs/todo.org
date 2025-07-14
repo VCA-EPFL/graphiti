@@ -166,7 +166,8 @@
 :ID:       e22e63b0-e51e-45db-b620-424f68082838
 :END:
 
-- This is needed for gem-size
+- This is needed for ~gsum-single~ and ~gsum-many~.
+- We need to recursively generate pures and then apply the branch-merge to pure conversion.
 
 ** Preprocessing of dot-graph for Dynamatic
 :PROPERTIES:
