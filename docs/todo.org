@@ -54,6 +54,11 @@
 :ID:       db1836a2-af41-44cf-8d61-a7e354cbc014
 :END:
 
+*** TODO Section 5: describe pure generation in more detail
+:PROPERTIES:
+:ID:       b65c395f-64ee-49e7-af01-decfb4cb5f4f
+:END:
+
 *** TODO Section 6: describe the use of ghost state
 :PROPERTIES:
 :ID:       e7a7fddb-4ab3-4a7c-9b98-a712618480fa
@@ -67,6 +72,21 @@
 *** TODO Section 7: describe the implementation of the tagger used
 :PROPERTIES:
 :ID:       fe6072f5-b690-4401-83d5-bd575f37a664
+:END:
+
+*** TODO Section 8: describe Lean MLIR in related work
+:PROPERTIES:
+:ID:       6f05c8a1-3c63-44cc-a15f-2bf5a5679f44
+:END:
+
+*** TODO Section 8: describe Cigr/Cilan more accurately
+:PROPERTIES:
+:ID:       f60d3d9f-f156-4c41-ac83-9a6d3ab056c1
+:END:
+
+*** TODO Section 8: add related work on graph rewriting (with applications in SSA), as well as term rewriting for hardware
+:PROPERTIES:
+:ID:       37700f4e-0f3c-425e-9f34-1d68726fe14d
 :END:
 
 ** Framework development
