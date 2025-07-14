@@ -1,11 +1,11 @@
-- [Paper writing](#orge7def0a)
-- [Framework development](#orga0bd1c8)
-- [Preprocessing of dot-graph for Dynamatic](#orgb73bf34)
-- [Post processing of dot-graph for Dynamatic](#orgb7b0723)
+- [Paper writing](#orgaec8e29)
+- [Framework development](#org18654b3)
+- [Preprocessing of dot-graph for Dynamatic](#org90c3b4b)
+- [Post processing of dot-graph for Dynamatic](#org1104bd4)
 
 
 
-<a id="orge7def0a"></a>
+<a id="orgaec8e29"></a>
 
 # Paper writing
 
@@ -61,21 +61,29 @@
 ## TODO Section 8: add related work on graph rewriting (with applications in SSA), as well as term rewriting for hardware
 
 
-<a id="orga0bd1c8"></a>
+<a id="org18654b3"></a>
 
 # Framework development
 
 
 ## TODO Prove LHS specification given termination     :loop_rewrite:
 
+-   **Effort:** 1 day(s)
+
 
 ## TODO Prove RHS Ghost to RHS     :loop_rewrite:
+
+-   **Effort:** 1 day(s)
 
 
 ## TODO Prove φ holds for initial state     :loop_rewrite:
 
+-   **Effort:** 0.25 day(s)
+
 
 ## TODO Lift loop rewrite into a verified rewrite     :loop_rewrite:
+
+-   **Effort:** 0.5 day(s)
 
 
 ## SMDY Prove termination of the loop     :loop_rewrite:
@@ -88,8 +96,10 @@ Either:
 
 ## TODO Adding environments to rewrites     :ORDERED:
 
+-   **Effort:** 2 day(s)
 
-<a id="org0b44596"></a>
+
+<a id="org447d643"></a>
 
 ### TODO Generate a new environment from the rewrite     :environment:
 
@@ -98,7 +108,7 @@ Either:
 
 1.  Dependencies
 
-    -   [Generate a new environment from the rewrite](#org0b44596)
+    -   [Generate a new environment from the rewrite](#org447d643)
 
 
 ## SMDY Make rewriter run in Lean 4     :rewriter:
@@ -110,19 +120,25 @@ Either:
 
 ## WAIT Lift the rewriter correctness proof to support environment extensions     :rewriter:
 
+-   **Effort:** 1 day(s)
+
 
 ### Dependencies
 
--   [Generate a new environment from the rewrite](#org0b44596)
+-   [Generate a new environment from the rewrite](#org447d643)
 
 
 ## TODO Minimise the number of nodes that are rewritten     :rewriter:
 
+-   **Effort:** 1 day(s)
+
 
 ## TODO Backwards rewriting     :ORDERED:
 
+-   **Effort:** 4 day(s)
 
-<a id="org1be65ba"></a>
+
+<a id="org34a18ba"></a>
 
 ### TODO Add option to rewrite without renaming     :rewriter:
 
@@ -134,18 +150,22 @@ Either:
 
 1.  Dependencies
 
-    -   [Add option to rewrite without renaming](#org1be65ba)
+    -   [Add option to rewrite without renaming](#org34a18ba)
 
 
 ## TODO Support rewriting of loop bodies with `if` statements     :rewriter:
+
+-   **Effort:** 4 day(s)
 
 -   This is needed for `gsum-single` and `gsum-many`.
 -   We need to recursively generate pures and then apply the branch-merge to pure conversion.
 
 
-<a id="orgb73bf34"></a>
+<a id="org90c3b4b"></a>
 
 # Preprocessing of dot-graph for Dynamatic
+
+-   **Effort:** 1 day(s)
 
 
 ## TODO Split up read-only memory controllers intro their own banks
@@ -163,9 +183,11 @@ Either:
 -   I have found though that in all the cases for dot-graphs that you have sent me, the only thing I had to change is switch out2 which was feeding the init to out1. The rest of the fork tree then lined up. But having a more general solution would be useful too.
 
 
-<a id="orgb7b0723"></a>
+<a id="org1104bd4"></a>
 
 # Post processing of dot-graph for Dynamatic
+
+-   **Effort:** 2 day(s)
 
 
 ## TODO Merge memories again

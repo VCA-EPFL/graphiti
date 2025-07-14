@@ -1,6 +1,7 @@
 #+title: TODOs
 #+options: toc:1
 #+columns: %EFFORT %ITEM
+#+macro: effort - Effort :: {{{property(Effort)}}} day(s)
 
 * Paper writing
 :PROPERTIES:
@@ -100,11 +101,15 @@
 :Effort:   1
 :END:
 
+{{{effort}}}
+
 ** TODO Prove RHS Ghost to RHS                                 :loop_rewrite:
 :PROPERTIES:
 :ID:       073ca380-638e-4315-abd7-3e7ddbfde270
 :Effort:   1
 :END:
+
+{{{effort}}}
 
 ** TODO Prove φ holds for initial state                        :loop_rewrite:
 :PROPERTIES:
@@ -112,11 +117,15 @@
 :Effort:   0.25
 :END:
 
+{{{effort}}}
+
 ** TODO Lift loop rewrite into a verified rewrite              :loop_rewrite:
 :PROPERTIES:
 :ID:       b2ac6c91-d44f-405a-a01f-90ba2d680c9c
 :Effort:   0.5
 :END:
+
+{{{effort}}}
 
 ** SMDY Prove termination of the loop                          :loop_rewrite:
 :PROPERTIES:
@@ -134,6 +143,8 @@ Either:
 :ORDERED:  t
 :Effort:   2
 :END:
+
+{{{effort}}}
 
 *** TODO Generate a new environment from the rewrite            :environment:
 :PROPERTIES:
@@ -164,6 +175,8 @@ Either:
 :Effort:   1
 :END:
 
+{{{effort}}}
+
 *** Dependencies
 
 - [[id:f663996d-996d-4c50-8a92-e824f7a19840][Generate a new environment from the rewrite]]
@@ -174,12 +187,16 @@ Either:
 :Effort:   1
 :END:
 
+{{{effort}}}
+
 ** TODO Backwards rewriting                                         :ORDERED:
 :PROPERTIES:
 :ID:       6a174e25-1b66-4dc8-b59b-ac870852ef85
 :ORDERED:  t
 :Effort:   4
 :END:
+
+{{{effort}}}
 
 *** TODO Add option to rewrite without renaming                    :rewriter:
 :PROPERTIES:
@@ -205,6 +222,8 @@ Either:
 :Effort:   4
 :END:
 
+{{{effort}}}
+
 - This is needed for ~gsum-single~ and ~gsum-many~.
 - We need to recursively generate pures and then apply the branch-merge to pure conversion.
 
@@ -213,6 +232,8 @@ Either:
 :ID:       8a81fbfa-03b9-4658-8d3b-3979df2be4b4
 :EFFORT:   1
 :END:
+
+{{{effort}}}
 
 ** TODO Split up read-only memory controllers intro their own banks
 
@@ -233,6 +254,8 @@ Either:
 :ID:       18ee918c-b9fe-4c97-a61e-d087a03b50e4
 :EFFORT:   2
 :END:
+
+{{{effort}}}
 
 ** TODO Merge memories again
 
