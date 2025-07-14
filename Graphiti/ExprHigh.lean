@@ -270,12 +270,12 @@ def higherSS : ExprLow String → Option (ExprHigh String)
   let e₂' ← e₂.higherSS
   return ⟨ e₁'.1.append e₂'.1, e₁'.2.append e₂'.2 ⟩
 
-def higher_correct_products : ExprLow String → Option (Batteries.AssocList String (PortMapping String × String))
+def higher_correct_products (n : Nat) : ExprLow String → Option (Batteries.AssocList String (PortMapping String × String))
 | product (base inst typ) e => do
-  let e' ← e.higher_correct_products
-  return e'.cons (← inst.getInstanceName) (inst, typ)
+  let e' ← e.higher_correct_products (n + 1)
+  return e'.cons s!"mod_{n}" (inst, typ)
 | base inst typ => do
-  return .nil |>.cons (← inst.getInstanceName) (inst, typ)
+  return .nil |>.cons s!"mod_{n}" (inst, typ)
 | _ => failure
 
 def higher_correct_connections : ExprLow String → Option (ExprHigh String)
@@ -283,7 +283,7 @@ def higher_correct_connections : ExprLow String → Option (ExprHigh String)
   let e' ← e.higher_correct_connections
   return { e' with connections := e'.connections.cons c }
 | e => do
-  let e' ← e.higher_correct_products
+  let e' ← e.higher_correct_products 0
   return { modules := e', connections := [] }
 
 def get_all_products : ExprLow String → List (PortMapping String × String)

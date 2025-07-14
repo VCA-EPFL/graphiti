@@ -210,23 +210,15 @@ however, currently the low-level expression language does not remember any names
   let e_sub_output ← ofOption (.error "renaming failed: 1") <| def_rewrite.output_expr.renamePorts comb_mapping
   let e_sub_input ← ofOption (.error "renaming failed: 2") <| def_rewrite.input_expr.renamePorts comb_mapping
 
+  let e_output_norm := def_rewrite.output_expr.normalisedNamesMap fresh_prefix
+  let e_sub_output ← ofOption (.error "could not rename output") <| e_sub_output.renamePorts e_output_norm
+
+  updRewriteInfo λ rw => {rw with debug := (.some (toString e_output_norm))}
+
   -- We are now left with `e_sub_output` which contains an expression where the external ports are renamed, and the
   -- internal ports have not been renamed from the original graph.  `e_sub_input` where all signals have been renamed so
   -- that e_sub_input has all the same internal and external wire names, even though it won't be structurally equal to
   -- `e_sub` yet.  For that we will have to canonicalise both sides.
-
-  -- We then return all internal variable names so that we can generate fresh names for them.
-  let (e_sub'_vars_i, e_sub'_vars_o) := e_sub_output.allVars
-  let (inputPortMap, nameMap) := generate_renaming ∅ fresh_prefix (e_sub'_vars_i.filter (λ x => x ∉ ext_mapping.input.keysList))
-  let (outputPortMap, nameMap') := generate_renaming nameMap fresh_prefix (e_sub'_vars_o.filter (λ x => x ∉ ext_mapping.output.keysList))
-  let int_mapping' : PortMapping String := ⟨ inputPortMap, outputPortMap ⟩
-
-  updRewriteInfo λ rw => {rw with debug := (.some (toString int_mapping'))}
-
-  -- We then rename all internal signals in the new expression with the fresh
-  -- names.
-  let e_renamed_output_sub := e_sub_output.renamePorts int_mapping'
-  let e_renamed_input_sub := e_sub_input.renamePorts int_mapping'
 
   -- Finally we do the actual replacement.
 
@@ -239,7 +231,7 @@ however, currently the low-level expression language does not remember any names
 
   let norm := rewritten.normalisedNamesMap fresh_prefix
   EStateM.guard (.error s!"trying to remap IO ports which is forbidden") <| rewritten.ensureIOUnmodified norm
-  let out ← rewritten.renamePorts norm >>= ExprLow.higher_correct |> ofOption (.error "could not lift expression to graph")
+  let out ← rewritten/-.renamePorts norm-/ >>= ExprLow.higher_correct |> ofOption (.error s!"could not lift expression to graph: {repr rewritten}")
 
   -- Using comb_mapping to find the portMap does not work because with rewrites where there is a single module, the name
   -- won't even appear in the rewrite.
@@ -248,8 +240,8 @@ however, currently the low-level expression language does not remember any names
   -- let outputPortMap := portMap.filter (λ lhs _ => nameMap'.inverse.contains lhs)
   -- (outputPortMap.toList.map Prod.snd |>.reduceOption)
   let rwMap ← rewrite.nameMap g
-  let portMap ← mergeRenamingMaps portMap rwMap
-  updRewriteInfo <| λ _ => RewriteInfo.mk RewriteType.rewrite g out sub portMap (out.modules.keysList.diff (g.modules.keysList.map (λ x => portMap.find? x |>.getD (.some "") |>.getD ""))) .none rewrite.name
+  -- let portMap ← mergeRenamingMaps portMap rwMap
+  updRewriteInfo <| λ _ => RewriteInfo.mk RewriteType.rewrite g out sub portMap (out.modules.keysList.diff (g.modules.keysList.map (λ x => portMap.find? x |>.getD (.some "") |>.getD ""))) (.some (toString e_output_norm)) rewrite.name
   EStateM.guard (.error s!"found duplicate node") out.modules.keysList.Nodup
   return out
 
@@ -381,7 +373,7 @@ def rewrite_fix (g : ExprHigh String) (rewrites : List (Rewrite String)) (pref :
   match depth with
   | 0 => throw <| .error s!"{decl_name%}: ran out of fuel"
   | depth+1 =>
-    match ← rewrite_loop' (λ _ _ => pure Unit.unit) Unit.unit max_depth pref g rewrites max_depth with
+    match ← rewrite_loop' (λ _ _ => pure Unit.unit) Unit.unit max_depth s!"{pref}_{max_depth-depth}_" g rewrites max_depth with
     | .some (g', _) => rewrite_fix g' rewrites pref max_depth depth
     | .none => return g
 
