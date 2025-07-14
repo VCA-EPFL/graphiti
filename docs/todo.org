@@ -27,31 +27,46 @@
 :ID:       04758f02-e653-4bbb-bcaa-c1e6b769f4c4
 :END:
 
-*** TODO Section 3: Add signposting and address comments
+*** TODO Section 3: add signposting and address comments
 :PROPERTIES:
 :ID:       c15ffbe1-66e9-4c0c-855e-6f4de32de980
 :END:
 
-*** TODO Section 3: Rewrite introduction of syntax and semantics
+*** TODO Section 3: rewrite introduction of syntax and semantics
 :PROPERTIES:
 :ID:       c679662d-d5e5-43ea-ad3d-25946025553a
 :END:
-*** TODO Section 3: Better introduce dot graph syntax in fork example
+*** TODO Section 3: better introduce dot graph syntax in fork example
 :PROPERTIES:
 :ID:       422f6f5b-c59c-4770-a075-7338a97b4618
 :END:
-*** TODO Section 3: Add a concrete example of rewriting
+*** TODO Section 3: add a concrete example of rewriting
 :PROPERTIES:
 :ID:       77a8ff18-7c47-4996-98dd-f461819db246
 :END:
-*** TODO Section 4: Add signposting and make refinement definition more concrete
+*** TODO Section 4: add signposting and make refinement definition more concrete
 :PROPERTIES:
 :ID:       eded1830-d237-4f44-b399-70c799f7f177
 :END:
 
-*** TODO Section 5: Make sure overall rewriting algorithm is clear
+*** TODO Section 5: make sure overall rewriting algorithm is clear
 :PROPERTIES:
 :ID:       db1836a2-af41-44cf-8d61-a7e354cbc014
+:END:
+
+*** TODO Section 6: describe the use of ghost state
+:PROPERTIES:
+:ID:       e7a7fddb-4ab3-4a7c-9b98-a712618480fa
+:END:
+
+*** TODO Section 7: ensure text described experiments performed
+:PROPERTIES:
+:ID:       1dd9cce6-a923-406e-9d31-424239820b88
+:END:
+
+*** TODO Section 7: describe the implementation of the tagger used
+:PROPERTIES:
+:ID:       fe6072f5-b690-4401-83d5-bd575f37a664
 :END:
 
 ** Framework development
@@ -145,6 +160,13 @@
 ***** Dependencies
 
 - [[id:9a94c5c8-a876-481b-829a-7cf9ccffc12f][Add option to rewrite without renaming]]
+
+*** TODO Support rewriting of loop bodies with ~if~ statements     :rewriter:
+:PROPERTIES:
+:ID:       e22e63b0-e51e-45db-b620-424f68082838
+:END:
+
+- This is needed for gem-size
 
 ** Preprocessing of dot-graph for Dynamatic
 :PROPERTIES:
