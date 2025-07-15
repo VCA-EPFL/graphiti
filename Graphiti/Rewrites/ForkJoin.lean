@@ -72,13 +72,20 @@ def rhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
     join2 -> o2 [from="out1"];
   ]
 
-def rhsLower := (rhs Unit Unit S₁ S₂).fst.lower.get rfl
+def rhs_extract := (rhs Unit Unit S₁ S₂).fst.extract ["fork1", "fork2", "join1", "join2"] |>.get rfl
+
+def rhsLower := (rhs_extract S₁ S₂).fst.lower.get rfl
+
+def findRhs mod := (rhs_extract "" "").1.modules.find? mod |>.map Prod.fst
 
 def rewrite : Rewrite String :=
   { abstractions := [],
     pattern := matcher,
     rewrite := λ | [S₁, S₂] => .some ⟨lhsLower S₁ S₂, rhsLower S₁ S₂⟩ | _ => failure,
-    name := "fork-pure"
+    name := "fork-join"
+    transformedNodes := [.none, .none]
+    addedNodes := [ findRhs "fork1" |>.get rfl, findRhs "fork2" |>.get rfl
+                  , findRhs "join1" |>.get rfl, findRhs "join2" |>.get rfl]
   }
 
 end Graphiti.ForkJoin

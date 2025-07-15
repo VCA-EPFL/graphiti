@@ -94,16 +94,7 @@ def rewrite : Rewrite String :=
 
 def targetedRewrite (s : String) : Rewrite String :=
   { rewrite with pattern := identMatcher s,
-                 nameMap := -- ⟨ [ (⟨.internal "join2", "in1"⟩, ⟨.top, "i_1"⟩)
-                            --   , (⟨.top, "i_0"⟩, ⟨.top, "i_0"⟩)
-                            --   , (⟨.top, "i_1"⟩, ⟨.internal "rhs_join1", "in2"⟩)
-                            --   , (⟨.top, "i_2"⟩, ⟨.top, "i_2"⟩)
-                            --   ].toAssocList
-                            -- , [ (⟨.internal "join1", "out1"⟩, ⟨.internal "rhs_join1", "out1"⟩)
-                            --   , (⟨.top, "o_out"⟩, ⟨.internal "rhs_join2", "out1"⟩)
-                            --   ].toAssocList
-                            -- ⟩
-                            ∅,
+                 nameMap := ∅,
   }
 
 end Graphiti.JoinAssocR

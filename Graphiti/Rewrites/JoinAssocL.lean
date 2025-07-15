@@ -77,9 +77,11 @@ def rhs (T₁ T₂ T₃ : Type) (S₁ S₂ S₃ : String) : ExprHigh String × I
     pure -> o_out [from = "out1"];
   ]
 
-def rhsLower S₁ S₂ S₃ := (rhs Unit Unit Unit S₁ S₂ S₃).fst.lower.get rfl
+def rhs_extract S₁ S₂ S₃ := (rhs Unit Unit Unit S₁ S₂ S₃).fst.extract ["join2", "join1", "pure"] |>.get rfl
 
-def findRhs mod := (rhs Unit Unit Unit "" "" "").1.modules.find? mod |>.map Prod.fst
+def rhsLower S₁ S₂ S₃ := (rhs_extract S₁ S₂ S₃).fst.lower.get rfl
+
+def findRhs mod := (rhs_extract "" "" "").1.modules.find? mod |>.map Prod.fst
 
 def rewrite : Rewrite String :=
   { abstractions := [],
@@ -92,15 +94,6 @@ def rewrite : Rewrite String :=
 
 def targetedRewrite (s : String) : Rewrite String :=
   { rewrite with pattern := identMatcher s,
-                 -- nameMap := ⟨ [ (⟨.internal "join1", "in1"⟩, ⟨.internal "join1", "in1"⟩)
-                 --              , (⟨.internal "join1", "in2"⟩, ⟨.internal "join1", "in2"⟩)
-                 --              , (⟨.internal "join2", "in1"⟩, ⟨.internal "join2", "in1"⟩)
-                 --              , (⟨.internal "join2", "in2"⟩, ⟨.internal "join2", "in2"⟩)
-                 --              ].toAssocList
-                 --            , [ (⟨.internal "join1", "out1"⟩, ⟨.internal "join1", "out1"⟩)
-                 --              , (⟨.internal "join2", "out1"⟩, ⟨.internal "join2", "out1"⟩)
-                 --              ].toAssocList
-                 --            ⟩
                  nameMap := ∅
   }
 

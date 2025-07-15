@@ -77,8 +77,9 @@ OPTIONS
   --log-stdout        Set JSON log output to STDOUT
   --no-dynamatic-dot  Don't output dynamatic DOT, instead output the raw
                       dot that is easier for debugging purposes.
-  --parse-only        Only parse the input without performing rewrites.
   --oracle            Path to the oracle executable.  Default is graphiti_oracle.
+  --parse-only        Only parse the input without performing rewrites.
+  --slow              Use the slow but verified rewrite approach.
 "
 
 def forkRewrites := [Fork10Rewrite.rewrite, Fork9Rewrite.rewrite, Fork8Rewrite.rewrite, Fork7Rewrite.rewrite, Fork6Rewrite.rewrite, Fork5Rewrite.rewrite, Fork4Rewrite.rewrite, Fork3Rewrite.rewrite]
@@ -215,16 +216,37 @@ def reverse_rewrite_with_index (rinfo : RewriteInfo) : RewriteResult (Rewrite St
     match name with
     | "join-split-elim" =>
       let s ← rinfo.matched_subgraph.get? 0
-      JoinSplitElim.targetedRewrite s
+      return JoinSplitElim.targetedRewrite s
     | "join-comm" =>
       let s ← rinfo.matched_subgraph.get? 0
-      JoinComm.targetedRewrite s
+      return JoinComm.targetedRewrite s
+    | "join-assoc-right" =>
+      let s ← rinfo.matched_subgraph.get? 0
+      return JoinAssocR.targetedRewrite s
+    | "join-assoc-left" =>
+      let s ← rinfo.matched_subgraph.get? 0
+      return JoinAssocL.targetedRewrite s
+    | "pure-fork" =>
+      let s ← rinfo.matched_subgraph.get? 0
+      return {PureRewrites.Fork.rewrite with pattern := PureRewrites.Fork.match_node s, nameMap := ∅}
+    | "pure-operator3" =>
+      let s ← rinfo.matched_subgraph.get? 0
+      return {PureRewrites.Operator3.rewrite with pattern := PureRewrites.Operator3.match_node s, nameMap := ∅}
+    | "pure-operator2" =>
+      let s ← rinfo.matched_subgraph.get? 0
+      return {PureRewrites.Operator2.rewrite with pattern := PureRewrites.Operator2.match_node s, nameMap := ∅}
+    | "pure-operator1" =>
+      let s ← rinfo.matched_subgraph.get? 0
+      return {PureRewrites.Operator1.rewrite with pattern := PureRewrites.Operator1.match_node s, nameMap := ∅}
+    | "pure-constant" =>
+      let s ← rinfo.matched_subgraph.get? 0
+      return {PureRewrites.Constant.rewrite with pattern := PureRewrites.Constant.match_node s, nameMap := ∅}
     | _ => rewrite_index.find? name
   reverse_rewrite rw rinfo
 
 def reverseRewrites (parsed : CmdArgs) (g : ExprHigh String) (st : List RewriteInfo)
     : IO (ExprHigh String × List RewriteInfo) := do
-  let st_worklist := st.reverse.tail.take 10
+  let st_worklist := st.reverse.tail.take 158
 
   let (g, st) ← runRewriter' parsed st <| st_worklist.foldlM (λ g rinfo => do
       let rewrite ← reverse_rewrite_with_index rinfo

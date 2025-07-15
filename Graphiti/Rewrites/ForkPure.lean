@@ -69,13 +69,19 @@ def rhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
     pure2 -> o2 [from="out1"];
   ]
 
-def rhsLower := (rhs Unit Unit (λ _ => default) S₁ S₂).fst.lower.get rfl
+def rhs_extract := (rhs Unit Unit (λ _ => default) S₁ S₂).fst.extract ["fork", "pure1", "pure2"] |>.get rfl
+
+def rhsLower := (rhs_extract S₁ S₂).fst.lower.get rfl
+
+def findRhs mod := (rhs_extract "" "").1.modules.find? mod |>.map Prod.fst
 
 def rewrite : Rewrite String :=
   { abstractions := [],
     pattern := matcher,
     rewrite := λ | [S₁, S₂] => .some ⟨lhsLower S₁ S₂, rhsLower S₁ S₂⟩ | _ => failure,
     name := "fork-pure"
+    transformedNodes := [.none, findRhs "fork" |>.get rfl]
+    addedNodes := [findRhs "pure1" |>.get rfl, findRhs "pure2" |>.get rfl]
   }
 
 end Graphiti.ForkPure

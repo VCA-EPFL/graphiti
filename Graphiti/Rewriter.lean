@@ -166,6 +166,7 @@ def renamePortMapping (i r : PortMapping String) : PortMapping String :=
   (PortMapping.mk (i.input.mapVal (λ _ => r.input.bijectivePortRenaming))
                   (i.output.mapVal (λ _ => r.output.bijectivePortRenaming)))
 
+-- TODO: Why do we have to canonicalise? When are the port names actually being reordered?
 def canonPortMapping (i : PortMapping String) : PortMapping String :=
   ⟨ (List.mergeSort (le := fun a b => a.1.2 ≤ b.1.2) i.input.toList).toAssocList
   , (List.mergeSort (le := fun a b => a.1.2 ≤ b.1.2) i.output.toList).toAssocList

@@ -58,6 +58,8 @@ def rhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
     const -> o [from="out1"];
   ]
 
+def findRhs mod := (rhs 0).1.modules.find? mod |>.map Prod.fst
+
 def rhsLower := (rhs n).fst.lower.get rfl
 
 def rewrite : Rewrite String :=
@@ -70,6 +72,7 @@ def rewrite : Rewrite String :=
       let parsed ← exp.mantissa.toNat'
       return ⟨ lhsLower parsed, rhsLower parsed ⟩
     name := .some "pure-constant"
+    transformedNodes := [findRhs "const" |>.get rfl]
   }
 
 end Constant
@@ -117,6 +120,8 @@ def rhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
     op -> o [from="out1"];
   ]
 
+def findRhs mod := (rhs Unit Unit "" "" "").1.modules.find? mod |>.map Prod.fst
+
 def rhsLower := (rhs Unit Unit T₁ₛ Tₛ Op).fst.lower.get rfl
 
 def rewrite : Rewrite String :=
@@ -126,6 +131,7 @@ def rewrite : Rewrite String :=
       λ | [T1s, Ts, Ops] => .some ⟨ lhsLower T1s Ts Ops, rhsLower T1s Ts Ops ⟩
         | _ => .none
     name := .some "pure-operator1"
+    transformedNodes := [findRhs "op" |>.get rfl]
   }
 
 end Operator1
@@ -179,7 +185,11 @@ def rhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
     op -> o [from="out1"];
   ]
 
-def rhsLower := (rhs Unit Unit Unit T₁ₛ T₂ₛ Tₛ Op).fst.lower.get rfl
+def rhs_extract := (rhs Unit Unit Unit T₁ₛ T₂ₛ Tₛ Op).fst.extract ["op", "join"] |>.get rfl
+
+def findRhs mod := (rhs_extract "" "" "" "").1.modules.find? mod |>.map Prod.fst
+
+def rhsLower := (rhs_extract T₁ₛ T₂ₛ Tₛ Op).fst.lower.get rfl
 
 def rewrite : Rewrite String :=
   { abstractions := [],
@@ -188,6 +198,8 @@ def rewrite : Rewrite String :=
       λ | [T1s, T2s, Ts, Ops] => .some ⟨ lhsLower T1s T2s Ts Ops, rhsLower T1s T2s Ts Ops ⟩
         | _ => .none
     name := .some "pure-operator2"
+    transformedNodes := [findRhs "op" |>.get rfl]
+    addedNodes := [findRhs "join" |>.get rfl]
   }
 
 end Operator2
@@ -249,7 +261,11 @@ def rhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
     op -> o [from="out1"];
   ]
 
-def rhsLower := (rhs Unit Unit Unit Unit T₁ₛ T₂ₛ T₃ₛ Tₛ Op).fst.lower.get rfl
+def rhs_extract := (rhs Unit Unit Unit Unit T₁ₛ T₂ₛ T₃ₛ Tₛ Op).fst.extract ["op", "join1", "join2"] |>.get rfl
+
+def findRhs mod := (rhs_extract "" "" "" "" "").1.modules.find? mod |>.map Prod.fst
+
+def rhsLower := (rhs_extract T₁ₛ T₂ₛ T₃ₛ Tₛ Op).fst.lower.get rfl
 
 def rewrite : Rewrite String :=
   { abstractions := [],
@@ -258,6 +274,8 @@ def rewrite : Rewrite String :=
       λ | [T1s, T2s, T3s, Ts, Ops] => .some ⟨ lhsLower T1s T2s T3s Ts Ops, rhsLower T1s T2s T3s Ts Ops ⟩
         | _ => .none
     name := .some "pure-operator3"
+    transformedNodes := [findRhs "op" |>.get rfl]
+    addedNodes := [findRhs "join1" |>.get rfl, findRhs "join2" |>.get rfl]
   }
 
 end Operator3
@@ -312,9 +330,11 @@ def rhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
     split -> o2 [from="out2"];
   ]
 
-def rhsLower := (rhs Unit Tₛ).fst.lower.get rfl
+def rhs_extract := (rhs Unit Tₛ).fst.extract ["op", "split"] |>.get rfl
 
-def findRhs mod := (rhs Unit "").1.modules.find? mod |>.map Prod.fst
+def rhsLower := (rhs_extract Tₛ).fst.lower.get rfl
+
+def findRhs mod := (rhs_extract "").1.modules.find? mod |>.map Prod.fst
 
 def rewrite : Rewrite String :=
   { abstractions := [],
