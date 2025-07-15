@@ -93,39 +93,74 @@ def combinePortMapping (p : List (PortMapping String)) : PortMapping String := p
 def getPortMaps (g : ExprHigh String) : List (PortMapping String) :=
   g.modules.toList.map (λ (x, (y, z)) => y)
 
-def reverse_rewrite (r : RewriteInfo) : RewriteResult (Rewrite String) := do
-  let addedNodes ← ofOption (.error "reverse_rewrite: nodes not found")
-    <| r.matched_subgraph.mapM (λ x => r.input_graph.modules.find? x |>.map Prod.fst)
-  let [ident] := r.new_output_nodes | throw (.error "reverse_rewrite: could not find output nodes")
-  let removedNode ← ofOption (.error "reverse_rewrite: could not find output nodes")
-    <| r.output_graph.modules.find? ident |>.map Prod.fst
-  let (_nodes, [A, B, C]) ← matcher r.input_graph
+def getPortMaps' : ExprLow String → List (PortMapping String)
+| .base inst typ => [inst]
+| .connect c e => getPortMaps' e
+| .product e₁ e₂ => getPortMaps' e₁ ++ getPortMaps' e₂
+
+def generateRenaming (l : List (PortMapping String)) (e : ExprLow String) : Option (PortMapping String) :=
+  (l.zip (getPortMaps' e))
+  |>.mapM (Function.uncurry generateRenamingPortMapping)
+  |>.map combinePortMapping
+
+/--
+Generate a reverse rewrite from a rewrite and the RewriteInfo associated with the execution.
+-/
+def reverse_rewrite (rw : Rewrite String) (rinfo : RewriteInfo) : RewriteResult (Rewrite String) := do
+  let lhsNodes ← ofOption (.error "reverse_rewrite: nodes not found")
+    <| rinfo.matched_subgraph.mapM (λ x => rinfo.input_graph.modules.find? x |>.map Prod.fst)
+
+  let rhsNodes_renamed' := rinfo.renamed_input_nodes.toList.flatMap (λ (x, y) => y.toList)
+  let rhsNodes_renamed ← ofOption (.error "reverse_rewrite: nodes not found")
+    <| rhsNodes_renamed'.mapM (λ x => rinfo.output_graph.modules.find? x |>.map Prod.fst)
+  let rhsNodes_added ← ofOption (.error "reverse_rewrite: nodes not found")
+    <| rinfo.new_output_nodes.mapM (λ x => rinfo.output_graph.modules.find? x |>.map Prod.fst)
+  let rhsNodes' := rhsNodes_renamed' ++ rinfo.new_output_nodes
+  let rhsNodes := rhsNodes_renamed ++ rhsNodes_added
+
+  -- TODO: add types into rinfo
+  let (_nodes, [A, B, C]) ← matcher rinfo.input_graph
     | throw (.error "reverse_rewrite: matcher returned unexpected results")
-  let newRhs := rhs Unit Unit Unit (λ _ => default) (λ _ => default) A C
+
+  let def_rewrite ← ofOption (.error "could not generate rewrite") <| rw.rewrite [A, B, C]
+
   let rhs_renaming ← ofOption (.error "could not generate renaming map")
-    <| generateRenamingPortMapping removedNode (combinePortMapping (getPortMaps newRhs.1))
-  let newReplacedRhs ← ofOption (.error "renaming failed") <| newRhs.1.renamePorts hashPortMapping rhs_renaming
-  let newRhsLowered ← ofOption (.error "could not lower") newReplacedRhs.lower
-  let newLhs := lhs_extract A B C
+    <| generateRenaming rhsNodes def_rewrite.output_expr
+
   let lhs_renaming ← ofOption (.error "could not generate renaming map")
-    <| (addedNodes.zip (getPortMaps newLhs.1) |>.mapM (Function.uncurry generateRenamingPortMapping) |>.map combinePortMapping)
-  -- let addedNodesMap := newLhs.1.modules.keysList.zip addedNodes |>.toAssocList
-  -- let newLhsConnections ← ofOption (.error "connections failed") <|
-  --   newLhs.1.connections.mapM (λ | ⟨⟨.internal x, y⟩, ⟨.internal w, z⟩⟩ => do
-  --                                  let newXInst ← addedNodesMap.find? x
-  --                                  let newXPort ← newXInst.output.find? ⟨.top, y⟩
-  --                                  let newWInst ← addedNodesMap.find? w
-  --                                  let newWPort ← newWInst.input.find? ⟨.top, z⟩
-  --                                  return ⟨newXPort, newWPort⟩
-  --                                | _ => failure)
-  -- let newLhsReplaced : ExprHigh String := ⟨(newLhs.1.modules.toList.zip addedNodes).map (λ (x, a) => (x.1, (a, x.2.2))) |>.toAssocList, newLhsConnections⟩
-  let newLhsReplaced ← ofOption (.error "could not rename 2") <| newLhs.1.renamePorts hashPortMapping lhs_renaming
-  let newLhsLowered ← ofOption (.error "could not lower") newLhsReplaced.lower
-  pure ({ pattern := λ _ => return ([ident], []),
-          rewrite := λ _ => some ⟨newRhsLowered, newLhsLowered⟩,
-          name := "rev-pure-seq-comp",
-          transformedNodes := [.none],
-          addedNodes := addedNodes
-        })
+    <| generateRenaming lhsNodes def_rewrite.input_expr
+
+  let full_renaming := rhs_renaming ++ lhs_renaming
+
+  -- let newLhs := lhs_extract A B C
+  -- let lhs_renaming ← ofOption (.error "could not generate renaming map")
+  --   <| (addedNodes.zip (getPortMaps newLhs.1) |>.mapM (Function.uncurry generateRenamingPortMapping) |>.map combinePortMapping)
+  -- let lr_renaming := lhs_renaming ++ rhs_renaming
+  -- let newReplacedRhs ← ofOption (.error "renaming failed") <| newRhs.1.renamePorts hashPortMapping lr_renaming
+  -- let newRhsLowered ← ofOption (.error "could not lower") newReplacedRhs.lower
+
+  -- -- let addedNodesMap := newLhs.1.modules.keysList.zip addedNodes |>.toAssocList
+  -- -- let newLhsConnections ← ofOption (.error "connections failed") <|
+  -- --   newLhs.1.connections.mapM (λ | ⟨⟨.internal x, y⟩, ⟨.internal w, z⟩⟩ => do
+  -- --                                  let newXInst ← addedNodesMap.find? x
+  -- --                                  let newXPort ← newXInst.output.find? ⟨.top, y⟩
+  -- --                                  let newWInst ← addedNodesMap.find? w
+  -- --                                  let newWPort ← newWInst.input.find? ⟨.top, z⟩
+  -- --                                  return ⟨newXPort, newWPort⟩
+  -- --                                | _ => failure)
+  -- -- let newLhsReplaced : ExprHigh String := ⟨(newLhs.1.modules.toList.zip addedNodes).map (λ (x, a) => (x.1, (a, x.2.2))) |>.toAssocList, newLhsConnections⟩
+  -- let newLhsReplaced ← ofOption (.error "could not rename 2") <| newLhs.1.renamePorts hashPortMapping lr_renaming
+  -- let newLhsLowered ← ofOption (.error "could not lower") newLhsReplaced.lower
+
+  let lhs_renamed ← ofOption (.error "could not rename") <| def_rewrite.input_expr.renamePorts full_renaming
+  let rhs_renamed ← ofOption (.error "could not rename") <| def_rewrite.output_expr.renamePorts full_renaming
+
+  return ({ pattern := λ _ => return (rhsNodes', []),
+            rewrite := λ _ => some ⟨rhs_renamed, lhs_renamed⟩,
+            name := "rev-pure-seq-comp",
+            -- TODO: These dictate ordering of nodes quite strictly.
+            transformedNodes := rhsNodes_renamed.map some ++ rhsNodes_added.map (λ _ => none),
+            addedNodes := lhsNodes.drop rhsNodes_renamed.length
+          })
 
 end Graphiti.PureSeqComp

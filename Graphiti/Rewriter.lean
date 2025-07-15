@@ -242,12 +242,15 @@ however, currently the low-level expression language does not remember any names
   let out ← rewritten >>= ExprLow.higher_correct hashPortMapping
     |> ofOption (.error s!"could not lift expression to graph: {repr rewritten}")
 
-  let renamedNodes := rewrite.transformedNodes.map (·.map (renamePortMapping · comb_mapping)) |>.map (·.map (renamePortMapping · e_output_norm)) |>.map (·.map hashPortMapping)
+  let renamedNodes := rewrite.transformedNodes.map (·.map (renamePortMapping · comb_mapping))
+    |>.map (·.map (renamePortMapping · e_output_norm))
+    |>.map (·.map hashPortMapping)
   let addedNodes := rewrite.addedNodes.map (renamePortMapping · comb_mapping) |>.map (renamePortMapping · e_output_norm) |>.map hashPortMapping
 
   -- Using comb_mapping to find the portMap does not work because with rewrites where there is a single module, the name
   -- won't even appear in the rewrite.
-  updRewriteInfo <| λ _ => RewriteInfo.mk RewriteType.rewrite g out sub (sub.zip renamedNodes).toAssocList addedNodes (.some (toString renamedNodes ++ "\n\n" ++ toString addedNodes)) rewrite.name
+  updRewriteInfo <| λ _ => RewriteInfo.mk RewriteType.rewrite g out sub (sub.zip renamedNodes).toAssocList
+    addedNodes (.some (toString renamedNodes ++ "\n\n" ++ toString addedNodes)) rewrite.name
   -- updRewriteInfo λ rw => {rw with debug := (.some (toString e_output_norm))}
   EStateM.guard (.error s!"found duplicate node") out.modules.keysList.Nodup
   return out

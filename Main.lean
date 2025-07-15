@@ -214,7 +214,7 @@ def reverseRewrites (parsed : CmdArgs) (g : ExprHigh String) (st : List RewriteI
   let some rw := st.dropLast.getLast?
     | throw <| .userError s!"{decl_name%}: failed to get last"
 
-  let (rewrite, st) ← runRewriter' parsed st <| PureSeqComp.reverse_rewrite rw
+  let (rewrite, st) ← runRewriter' parsed st <| PureSeqComp.reverse_rewrite PureSeqComp.rewrite rw
   let (g, st) ← runRewriter' parsed st <| rewrite.run' (norm := false) "reverse_" g
 
   return (g, st)
