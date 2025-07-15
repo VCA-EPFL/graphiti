@@ -85,8 +85,6 @@ def rewrite : Rewrite String :=
   }
 
 def targetedRewrite (s : String) : Rewrite String :=
-  { rewrite with pattern := identMatcher s,
-                 nameMap := identRenaming s
-  }
+  { rewrite with pattern := identMatcher s, nameMap := ∅ }
 
 end Graphiti.JoinSplitElim

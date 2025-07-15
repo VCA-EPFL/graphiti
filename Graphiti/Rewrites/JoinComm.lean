@@ -74,8 +74,14 @@ def rewrite : Rewrite String :=
   }
 
 def targetedRewrite (s : String) : Rewrite String :=
-  { rewrite with pattern := identMatcher s,
-                 nameMap := identRenaming s
+  { rewrite with pattern := identMatcher s
+                 nameMap := -- ⟨ [ (⟨.internal "join", "in1"⟩, ⟨.internal "joinN", "in1"⟩)
+                            --   , (⟨.internal "join", "in2"⟩, ⟨.internal "joinN", "in2"⟩)
+                            --   ].toAssocList
+                            -- , [ (⟨.internal "join", "out1"⟩, ⟨.internal "joinN", "out1"⟩)
+                            --   ].toAssocList
+                            -- ⟩
+                            ∅
   }
 
 end Graphiti.JoinComm

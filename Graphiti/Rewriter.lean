@@ -76,7 +76,9 @@ structure DefiniteRewrite where
 structure Rewrite where
   pattern : Pattern Ident
   rewrite : List Ident → Option (DefiniteRewrite Ident)
-  nameMap : ExprHigh String → RewriteResult (AssocList String (Option String)) := λ _ => pure .nil
+  nameMap : PortMapping String := PortMapping.mk .nil .nil
+  transformedNodes : List (Option (PortMapping String)) := []
+  addedNodes : List (PortMapping String) := []
   abstractions : List (Abstraction Ident) := []
   name : Option String := .none
 
@@ -187,15 +189,13 @@ however, currently the low-level expression language does not remember any names
   let sub' ← ofOption (.error "could not extract base information") <| sub.mapM (λ a => g.modules.find? a)
   let g_lower := canon <| ExprLow.comm_bases sub'.reverse g_lower
 
-  -- throw (.error s!"mods :: {repr sub'}\n\nlhs :: {repr g_lower}\n\nrhs :: {repr g_lower'}\n\n{repr def_rewrite.input_expr}")
-
   addRewriteInfo <| RewriteInfo.mk RewriteType.rewrite g default sub default .nil .none rewrite.name
   updRewriteInfo λ rw => {rw with debug := (.some <| (toString <| repr e_sub) ++ "\n\n" ++ ((toString <| repr def_rewrite.input_expr)))}
 
   -- beq is an α-equivalence check that returns a mapping to rename one expression into the other.  This mapping is
   -- split into the external mapping and internal mapping.
   -- addRewriteInfo <| RewriteInfo.mk RewriteType.rewrite g default sub default default (.some s!"{repr sub}") rewrite.name
-  let (ext_mapping, int_mapping) ← liftError <| e_sub.weak_beq def_rewrite.input_expr
+  let (ext_mapping, int_mapping) ← liftError <| def_rewrite.input_expr.weak_beq e_sub
 
   let comb_mapping := ext_mapping.append int_mapping
   EStateM.guard (.error "input mapping not invertible") <| comb_mapping.input.invertible
@@ -207,13 +207,19 @@ however, currently the low-level expression language does not remember any names
   -- replacing.  In addition to that, we also rename the internal ports of the input_expr so that they match the
   -- internal ports of the extracted subgraph.  We apply the same renaming map to the output_expr, which will mainly
   -- just rename the external ports though.
-  let e_sub_output ← ofOption (.error "renaming failed: 1") <| def_rewrite.output_expr.renamePorts comb_mapping
+  let e_sub_output' ← ofOption (.error "renaming failed: 1") <| def_rewrite.output_expr.renamePorts comb_mapping
   let e_sub_input ← ofOption (.error "renaming failed: 2") <| def_rewrite.input_expr.renamePorts comb_mapping
 
-  let e_output_norm := def_rewrite.output_expr.normalisedNamesMap fresh_prefix
-  let e_sub_output ← ofOption (.error "could not rename output") <| e_sub_output.renamePorts e_output_norm
+  -- `norm` is a function that canonicalises the connections of the input expression given a list of connections as the
+  -- ordering guide.
+  -- We use def_rewrite, because we only want to normalise fresh internal names that are introduced.
+  -- TODO: add ensureIO check for proof.
+  let e_output_norm := def_rewrite.output_expr.normalisedNamesMap fresh_prefix |>.filter λ k v => k ∉ (rewrite.nameMap.input.valsList ++ rewrite.nameMap.output.valsList)
+  let comb_mapping' : PortMapping String := ⟨rewrite.nameMap.input.mapKey' λ k v => comb_mapping.input.find? k |>.getD v, rewrite.nameMap.output.mapKey' λ k v => comb_mapping.output.find? k |>.getD v⟩
 
   updRewriteInfo λ rw => {rw with debug := (.some (toString e_output_norm))}
+
+  let e_sub_output ← ofOption (.error "could not rename output") <| e_sub_output'.renamePorts e_output_norm
 
   -- We are now left with `e_sub_output` which contains an expression where the external ports are renamed, and the
   -- internal ports have not been renamed from the original graph.  `e_sub_input` where all signals have been renamed so
@@ -221,27 +227,18 @@ however, currently the low-level expression language does not remember any names
   -- `e_sub` yet.  For that we will have to canonicalise both sides.
 
   -- Finally we do the actual replacement.
-
-  -- `norm` is a function that canonicalises the connections of the input expression given a list of connections as the
-  -- ordering guide.
   let (rewritten, b) := g_lower.force_replace (canon e_sub_input) e_sub_output
 
   -- throw (.error s!"mods :: {repr sub'}rhs :: {repr g_lower}\n\ndep :: {repr (canon e_sub_input)}")
   EStateM.guard (.error s!"rewrite: subexpression not found in the graph: {repr g_lower}\n\n{repr (canon e_sub_input)}") b
 
-  let norm := rewritten.normalisedNamesMap fresh_prefix
-  EStateM.guard (.error s!"trying to remap IO ports which is forbidden") <| rewritten.ensureIOUnmodified norm
-  let out ← rewritten/-.renamePorts norm-/ >>= ExprLow.higher_correct |> ofOption (.error s!"could not lift expression to graph: {repr rewritten}")
+  let out ← rewritten >>= (ExprLow.higher_correct λ x => hash x |>.toBitVec |>.toHex |>.take 8)
+    |> ofOption (.error s!"could not lift expression to graph: {repr rewritten}")
 
   -- Using comb_mapping to find the portMap does not work because with rewrites where there is a single module, the name
   -- won't even appear in the rewrite.
-  let portMap ← portmappingToNameRename' sub norm
-  -- let inputPortMap := portMap.filter (λ lhs _ => ¬ nameMap'.inverse.contains lhs)
-  -- let outputPortMap := portMap.filter (λ lhs _ => nameMap'.inverse.contains lhs)
-  -- (outputPortMap.toList.map Prod.snd |>.reduceOption)
-  let rwMap ← rewrite.nameMap g
-  -- let portMap ← mergeRenamingMaps portMap rwMap
-  updRewriteInfo <| λ _ => RewriteInfo.mk RewriteType.rewrite g out sub portMap (out.modules.keysList.diff (g.modules.keysList.map (λ x => portMap.find? x |>.getD (.some "") |>.getD ""))) (.some (toString e_output_norm)) rewrite.name
+  updRewriteInfo <| λ _ => RewriteInfo.mk RewriteType.rewrite g out sub ∅ ∅ (.some (toString e_output_norm ++ "\n\ncomb:" ++ toString comb_mapping ++ "\n\nout:" ++ toString (repr e_sub_output) ++ "\n\ninp:" ++ toString (repr e_sub_input) ++ "\n\ncomb':" ++ toString comb_mapping')) rewrite.name
+  -- updRewriteInfo λ rw => {rw with debug := (.some (toString e_output_norm))}
   EStateM.guard (.error s!"found duplicate node") out.modules.keysList.Nodup
   return out
 
@@ -257,7 +254,7 @@ framework should be enough.
   : RewriteResult (ExprHigh String × Concretisation String) := do
   -- Extract a list of modules that match the pattern.
   let (sub, _) ← abstraction.pattern g
-  let sub := sub.pwFilter (. ≠ .)
+  let sub := sub.pwFilter (· ≠ ·)
   -- Extract the subgraph that matches the pattern.
   let (g₁, _g₂) ← ofOption (.error "could not extract graph") <| g.extract sub
   -- Lower the subgraph g₁ to ExprLow
@@ -274,31 +271,22 @@ framework should be enough.
   -- abstracted version, because the abstracted version has `.top` IO ports.  These are needed because of the matcher
   -- that comes in the second phase.
   let g₁_lc := canon <| ExprLow.comm_bases sub' g₁_l
-  let portMapping := g₁_lc.build_interface.toIdentityPortMapping' -- abstraction.typ
+  let portMapping := g₁_lc.build_interface.toIdentityPortMapping'
   let (abstracted', b) := g_lower.force_abstract g₁_lc portMapping abstraction.typ
   EStateM.guard (.error s!"abstraction: subexpression not found in the graph: {repr g₁_l}\n\n{repr g₁_lc}") b
-  -- EStateM.guard (.error s!"abstraction: subexpression not found in the graph: {repr g₁.connections}") b
 
   let g₁_lcr ← ofOption (.error "renaming failed: 4") <| g₁_lc.renamePorts portMapping.inverse
 
   let mut abstracted := abstracted'
   let mut portMap : AssocList String (Option String) := .nil
 
-  -- let portMapping := e_sub.build_interface.toIdentityPortMapping -- abstraction.typ
-  -- let abstracted := g_lower.abstract e_sub portMapping abstraction.typ
-  -- let e_sub' := e_sub
-  -- let norm := abstracted.normalisedNamesMap fresh_prefix
-  -- let highered ← abstracted.renamePorts norm |>.higherSS |> ofOption (.error "Could not normalise names")
   if norm then
     let norm := abstracted.normalisedNamesMap fresh_prefix
     abstracted ← ofOption (.error "renaming failed: 3") <| abstracted.renamePorts norm
     portMap ← portmappingToNameRename' sub norm
   let highered ← abstracted |>.higherSS |> ofOption (.error "Could not normalise names 1")
-  -- let portMap ← portmappingToNameRename' sub norm
-  -- addRewriteInfo <| RewriteInfo.mk RewriteType.abstraction g highered sub
-  --                     .nil [abstraction.typ] .none (.some s!"{abstraction.typ}")
+
   return (highered, ⟨g₁_lcr, abstraction.typ⟩)
-  -- return (abstracted.higherS fresh_prefix, ⟨e_sub, abstraction.typ⟩)
 
 /--
 Can be used to concretise the abstract node again.  Currently it assumes that it is unique in the graph (which could be
@@ -308,11 +296,11 @@ still fresh in the graph.
 @[drunfold] def Concretisation.run (fresh_prefix : String) (g : ExprHigh String)
   (concretisation : Concretisation String) (norm : Bool := false) (debug := false) : RewriteResult (ExprHigh String) := do
   let g_lower ← ofOption (.error "could not lower graph") <| g.lower
+
   -- may need to uniquify the concretisation internal connections
   let base ← ofOption (.error "Could not find base of concretisation")
     <| g_lower.findBase concretisation.typ
-  -- return g_lower.concretise (concretisation.expr.renameMapped base) base concretisation.typ
-  --        |>.higherS fresh_prefix
+
   let e_sub ← ofOption (.error "concretisation: could not rename ports") <| concretisation.expr.renamePorts base
   let (concr', b) := g_lower.force_concretise e_sub base concretisation.typ
   if debug then
@@ -326,9 +314,7 @@ still fresh in the graph.
     concr ← ofOption (.error "renaming failed: 5") <| concr.renamePorts norm
     portMap ← portmappingToNameRename' [concretisation.typ] norm
   let concr_g ← concr.higherSS |> ofOption (.error "Could not normalise names 2")
-  -- let outputPortMap := portMap.filter (λ lhs _ => lhs = concretisation.typ)
-  -- addRewriteInfo <| RewriteInfo.mk RewriteType.concretisation g concr_g [concretisation.typ] portMap
-  --                     .nil .none (.some s!"{concretisation.typ}")
+
   return concr_g
 
 @[drunfold] def Rewrite.run (fresh_prefix : String) (g : ExprHigh String) (rewrite : Rewrite String)

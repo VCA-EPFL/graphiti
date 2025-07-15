@@ -21,7 +21,7 @@ inductive TypeExpr where
 | pair (left right : TypeExpr)
 deriving Repr, DecidableEq, Inhabited
 
-def TypeExpr.denote : TypeExpr → Type
+noncomputable def TypeExpr.denote : TypeExpr → Type
 | nat => Nat
 | tag => Unit
 | bool => Bool
@@ -89,7 +89,7 @@ def parseTypeExpr (s : String): Option TypeExpr :=
   | .ok r => .some r
   | .error _ => .none
 
-def parseType (s : String): Option Type :=
+noncomputable def parseType (s : String): Option Type :=
   parseTypeExpr s |>.map TypeExpr.denote
 
 def toString' : TypeExpr → String
@@ -119,7 +119,7 @@ def parserId : Parser String := do
   let chars ← many1 (satisfy (fun c => !c.isWhitespace))
   return String.mk chars.toList
 
-def parserNode: Parser (String × List TypeExpr) := do
+def parserNode : Parser (String × List TypeExpr) := do
   ws
   let name ← parserId
   let ts ← many1 parseTypeExpr' <* ws

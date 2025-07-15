@@ -93,7 +93,14 @@ def rewrite : Rewrite String :=
   { abstractions := [],
     pattern := matcher,
     rewrite := λ | [S₁, S₂, S₃] => .some ⟨lhsLower S₁ S₂ S₃, rhsLower S₁ S₂ S₃⟩ | _ => failure,
-    nameMap := nameMap,
+    -- nameMap := ⟨ [ (⟨.internal "join", "in1"⟩, ⟨.internal "join", "in1"⟩)
+    --              , (⟨.internal "join", "in2"⟩, ⟨.internal "join", "in2"⟩)
+    --              , (⟨.internal "pure", "in1"⟩, ⟨.internal "pure", "in1"⟩)
+    --              ].toAssocList
+    --            , [ (⟨.internal "join", "out1"⟩, ⟨.internal "join", "out1"⟩)
+    --              , (⟨.internal "pure", "out1"⟩, ⟨.internal "pure", "out1"⟩)
+    --              ].toAssocList
+    --            ⟩,
     name := "pure-join-left"
   }
 

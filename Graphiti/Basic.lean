@@ -190,10 +190,12 @@ instance set to `top`.
 
 end PortMap
 
+deriving instance Hashable for AssocList
+
 structure PortMapping (Ident) where
   input : PortMap Ident (InternalPort Ident)
   output : PortMap Ident (InternalPort Ident)
-deriving Repr, Inhabited, DecidableEq
+deriving Repr, Inhabited, DecidableEq, Hashable
 
 instance (Ident) [Repr Ident] : ToString (InternalPort Ident) where
   toString i := repr i |>.pretty
@@ -236,6 +238,9 @@ def map {α β} (f : α → β) : PortMapping α → PortMapping β
 
 def mapPairs (f : InternalPort Ident → InternalPort Ident → InternalPort Ident) : PortMapping Ident → PortMapping Ident
 | ⟨ a, b ⟩ => ⟨a.mapVal f, b.mapVal f⟩
+
+def mapKeys (f : InternalPort Ident → InternalPort Ident → InternalPort Ident) : PortMapping Ident → PortMapping Ident
+| ⟨ a, b ⟩ => ⟨a.mapKey' f, b.mapKey' f⟩
 
 def inverse (p : PortMapping Ident) :=
   {p with input := p.input.inverse, output := p.output.inverse}

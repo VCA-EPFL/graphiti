@@ -132,27 +132,27 @@ instance (Ident) [DecidableEq Ident] [Repr Ident] [ToString Ident] : ToString (E
       let (io_decl, io_conn) := a.modules.foldl (λ (sdecl, sio) inst (pmap, typ) =>
         let sdecl := (pmap.input ++ pmap.output).foldl (λ sdecl k v =>
           if v.inst.isTop
-          then sdecl ++ s!"\n  {v.name} [type = \"io\", label = \"{v.name}: io\"];"
+          then sdecl ++ s!"\n  \"{v.name}\" [type = \"io\", label = \"{v.name}: io\"];"
           else sdecl) sdecl
         let sio := pmap.input.foldl (λ io_conn k v =>
           if v.inst.isTop
-          then io_conn ++ s!"\n  {v.name} -> {inst} [to = \"{k.name}\", headlabel = \"{k.name}\"];"
+          then io_conn ++ s!"\n  \"{v.name}\" -> \"{inst}\" [to = \"{k.name}\", headlabel = \"{k.name}\"];"
           else io_conn) sio
         let sio := pmap.output.foldl (λ io_conn k v =>
           if v.inst.isTop
-          then io_conn ++ s!"\n  {inst} -> {v.name} [from = \"{k.name}\", taillabel = \"{k.name}\"];"
+          then io_conn ++ s!"\n \"{inst}\" -> \"{v.name}\" [from = \"{k.name}\", taillabel = \"{k.name}\"];"
           else io_conn) sio
         (sdecl, sio)
       ) ("", "")
       let modules :=
         a.modules.foldl
           (λ s k v =>
-            s ++ s!"  {k} [type = \"{v.snd}\", label = \"{k}: {v.snd}\"];\n"
+            s ++ s!"  \"{k}\" [type = \"{v.snd}\", label = \"{k}: {v.snd}\"];\n"
             ) ""
       let connections :=
         a.connections.foldl
           (λ s => λ | ⟨ oport, iport ⟩ =>
-                      s ++ s!"\n  {oport.inst} -> {iport.inst} "
+                      s ++ s!"\n  \"{oport.inst}\" -> \"{iport.inst}\" "
                         ++ s!"[from = \"{oport.name}\","
                         ++ s!" to = \"{iport.name}\","
                         ++ s!" taillabel = \"{oport.name}\","
@@ -270,12 +270,30 @@ def higherSS : ExprLow String → Option (ExprHigh String)
   let e₂' ← e₂.higherSS
   return ⟨ e₁'.1.append e₂'.1, e₁'.2.append e₂'.2 ⟩
 
-def higher_correct_products (n : Nat) : ExprLow String → Option (Batteries.AssocList String (PortMapping String × String))
+def _root_.Graphiti.InternalPort.toName : InternalPort String → String
+| ⟨.top, a⟩ => a
+| ⟨.internal a, b⟩ => s!"{a}.{b}"
+
+def _root_.Graphiti.PortMap.toName (p : PortMap String (InternalPort String)) : String :=
+  ":".intercalate <| p.toList.map (λ (x, y) => y.toName)
+
+/--
+Translates a PortMapping into a String, so that it can represent a key in the ExprHigh representation.  Ideally, this
+would be a hashing algorithm.
+-/
+def _root_.Graphiti.PortMapping.toName (p : PortMapping String) : String :=
+  s!"i={p.input.toName}|o={p.output.toName}"
+
+section LowerToHigher
+
+variable (compute_hash : PortMapping String → String)
+
+def higher_correct_products : ExprLow String → Option (Batteries.AssocList String (PortMapping String × String))
 | product (base inst typ) e => do
-  let e' ← e.higher_correct_products (n + 1)
-  return e'.cons s!"mod_{n}" (inst, typ)
+  let e' ← e.higher_correct_products
+  return e'.cons (compute_hash inst) (inst, typ)
 | base inst typ => do
-  return .nil |>.cons s!"mod_{n}" (inst, typ)
+  return .nil |>.cons (compute_hash inst) (inst, typ)
 | _ => failure
 
 def higher_correct_connections : ExprLow String → Option (ExprHigh String)
@@ -283,7 +301,7 @@ def higher_correct_connections : ExprLow String → Option (ExprHigh String)
   let e' ← e.higher_correct_connections
   return { e' with connections := e'.connections.cons c }
 | e => do
-  let e' ← e.higher_correct_products 0
+  let e' ← e.higher_correct_products compute_hash
   return { modules := e', connections := [] }
 
 def get_all_products : ExprLow String → List (PortMapping String × String)
@@ -292,7 +310,9 @@ def get_all_products : ExprLow String → List (PortMapping String × String)
 | product e₁ e₂ => get_all_products e₁ ++ get_all_products e₂
 
 def higher_correct (e : ExprLow String) : Option (ExprHigh String) :=
-  higher_correct_connections (comm_bases (get_all_products e) e)
+  higher_correct_connections compute_hash (comm_bases (get_all_products e) e)
+
+end LowerToHigher
 
 end ExprLow
 

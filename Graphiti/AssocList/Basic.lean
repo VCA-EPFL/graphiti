@@ -107,4 +107,8 @@ def bijectivePortRenaming {α} [DecidableEq α] (p : AssocList α α) (i: α) : 
     map.find? i |>.getD i
   else i
 
+@[simp] def mapKey' {α β δ} (f : α → β → δ) : AssocList α β → AssocList δ β
+  | nil        => nil
+  | cons k v t => cons (f k v) v (mapKey' f t)
+
 end Batteries.AssocList

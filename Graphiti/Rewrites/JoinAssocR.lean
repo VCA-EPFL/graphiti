@@ -25,28 +25,12 @@ def identMatcher (s : String) (g : ExprHigh String) : RewriteResult (List String
 
   return ([s, next.inst], [t1, t2, t3])
 
-def identMatcherRev (s : String) (g : ExprHigh String) : RewriteResult (List String × List String) := do
-  let n ← ofOption (.error s!"{decl_name%}: could not find '{s}'") <| g.modules.find? s
-  unless "join".isPrefixOf n.2 do throw (.error s!"type of '{s}' is '{n.2}' instead of 'join'")
-  let next ← ofOption (.error s!"{decl_name%}: could not find next node") <| followOutput g s "out1"
-  unless "join".isPrefixOf next.typ ∧ next.inputPort = "in1" do throw (.error s!"type of '{next.inst}' is '{next.typ}' instead of 'join'")
-
-  let (.some t1) := n.2.splitOn |>.get? 1 | throw (.error s!"{decl_name%}: type incorrect1")
-  let (.some t2) := n.2.splitOn |>.get? 2 | throw (.error s!"{decl_name%}: type incorrect2")
-  let (.some t3) := next.typ.splitOn |>.get? 2 | throw (.error s!"{decl_name%}: type incorrect3")
-
-  return ([next.inst, s], [t1, t2, t3])
-
 def matcher (g : ExprHigh String) : RewriteResult (List String × List String) :=
   throw (.error s!"{decl_name%}: matcher not implemented")
 
 def identRenaming (s : String) (g : ExprHigh String) : RewriteResult (AssocList String (Option String)) := do
   let next ← ofOption (.error s!"{decl_name%}: could not find next node") <| followInput g s "in1"
   return [(next.inst, (.some "join1")), (s, (.some "join2"))].toAssocList
-
-def identRenamingRev (s : String) (g : ExprHigh String) : RewriteResult (AssocList String (Option String)) := do
-  let next ← ofOption (.error s!"{decl_name%}: could not find next node") <| followOutput g s "out1"
-  return [(s, (.some "join1")), (next.inst, (.some "join2"))].toAssocList
 
 def lhs (T₁ T₂ T₃ : Type) (S₁ S₂ S₃ : String) : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
     i_0 [type = "io"];
@@ -93,7 +77,9 @@ def rhs (T₁ T₂ T₃ : Type) (S₁ S₂ S₃ : String) : ExprHigh String × I
     pure -> o_out [from = "out1"];
   ]
 
-def rhsLower S₁ S₂ S₃ := (rhs Unit Unit Unit S₁ S₂ S₃).fst.lower.get rfl
+def rhs_extract S₁ S₂ S₃ := (rhs Unit Unit Unit S₁ S₂ S₃).fst.extract ["join2", "join1", "pure"] |>.get rfl
+
+def rhsLower S₁ S₂ S₃ := (rhs_extract S₁ S₂ S₃).fst.lower.get rfl
 
 def rewrite : Rewrite String :=
   { abstractions := [],
@@ -102,14 +88,22 @@ def rewrite : Rewrite String :=
     name := "join-assoc-right"
   }
 
+def findRhs mod := (rhs Unit Unit Unit "" "" "").1.modules.find? mod |>.map Prod.fst
+
 def targetedRewrite (s : String) : Rewrite String :=
   { rewrite with pattern := identMatcher s,
-                 nameMap := identRenaming s
-  }
-
-def targetedRewriteRev (s : String) : Rewrite String :=
-  { rewrite with pattern := identMatcherRev s,
-                 nameMap := identRenamingRev s
+                 nameMap := -- ⟨ [ (⟨.internal "join2", "in1"⟩, ⟨.top, "i_1"⟩)
+                            --   , (⟨.top, "i_0"⟩, ⟨.top, "i_0"⟩)
+                            --   , (⟨.top, "i_1"⟩, ⟨.internal "rhs_join1", "in2"⟩)
+                            --   , (⟨.top, "i_2"⟩, ⟨.top, "i_2"⟩)
+                            --   ].toAssocList
+                            -- , [ (⟨.internal "join1", "out1"⟩, ⟨.internal "rhs_join1", "out1"⟩)
+                            --   , (⟨.top, "o_out"⟩, ⟨.internal "rhs_join2", "out1"⟩)
+                            --   ].toAssocList
+                            -- ⟩
+                            ∅,
+                 transformedNodes := [findRhs "join2" |>.get rfl, findRhs "join1" |>.get rfl],
+                 addedNodes := [findRhs "pure" |>.get rfl]
   }
 
 end Graphiti.JoinAssocR

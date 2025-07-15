@@ -25,28 +25,12 @@ def identMatcher (s : String) (g : ExprHigh String) : RewriteResult (List String
 
   return ([s, next.inst], [t1, t2, t3])
 
-def identMatcherRev (s : String) (g : ExprHigh String) : RewriteResult (List String × List String) := do
-  let n ← ofOption (.error s!"{decl_name%}: could not find '{s}'") <| g.modules.find? s
-  unless "join".isPrefixOf n.2 do throw (.error s!"{decl_name%}: type of '{s}' is '{n.2}' instead of 'join'")
-  let next ← ofOption (.error s!"{decl_name%}: could not find next node") <| followOutput g s "out1"
-  unless "join".isPrefixOf next.typ ∧ next.inputPort = "in2" do throw (.error s!"{decl_name%}: type of '{next.inst}' is '{next.typ}' instead of 'join'")
-
-  let (.some t1) := next.typ.splitOn |>.get? 1 | throw (.error s!"{decl_name%}: type incorrect3")
-  let (.some t2) := n.2.splitOn |>.get? 1 | throw (.error s!"{decl_name%}: type incorrect1")
-  let (.some t3) := n.2.splitOn |>.get? 2 | throw (.error s!"{decl_name%}: type incorrect2")
-
-  return ([next.inst, s], [t1, t2, t3])
-
 def matcher (g : ExprHigh String) : RewriteResult (List String × List String) :=
   throw (.error s!"{decl_name%}: matcher not implemented")
 
 def identRenaming (s : String) (g : ExprHigh String) : RewriteResult (AssocList String (Option String)) := do
   let next ← ofOption (.error s!"{decl_name%}: could not find next node") <| followInput g s "in2"
   return [(next.inst, (.some "join1")), (s, (.some "join2"))].toAssocList
-
-def identRenamingRev (s : String) (g : ExprHigh String) : RewriteResult (AssocList String (Option String)) := do
-  let next ← ofOption (.error s!"{decl_name%}: could not find next node") <| followOutput g s "out1"
-  return [(s, (.some "join1")), (next.inst, (.some "join2"))].toAssocList
 
 def lhs (T₁ T₂ T₃ : Type) (S₁ S₂ S₃ : String) : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
     i_0 [type = "io"];
@@ -104,12 +88,16 @@ def rewrite : Rewrite String :=
 
 def targetedRewrite (s : String) : Rewrite String :=
   { rewrite with pattern := identMatcher s,
-                 nameMap := identRenaming s
-  }
-
-def targetedRewriteRev (s : String) : Rewrite String :=
-  { rewrite with pattern := identMatcherRev s,
-                 nameMap := identRenamingRev s
+                 -- nameMap := ⟨ [ (⟨.internal "join1", "in1"⟩, ⟨.internal "join1", "in1"⟩)
+                 --              , (⟨.internal "join1", "in2"⟩, ⟨.internal "join1", "in2"⟩)
+                 --              , (⟨.internal "join2", "in1"⟩, ⟨.internal "join2", "in1"⟩)
+                 --              , (⟨.internal "join2", "in2"⟩, ⟨.internal "join2", "in2"⟩)
+                 --              ].toAssocList
+                 --            , [ (⟨.internal "join1", "out1"⟩, ⟨.internal "join1", "out1"⟩)
+                 --              , (⟨.internal "join2", "out1"⟩, ⟨.internal "join2", "out1"⟩)
+                 --              ].toAssocList
+                 --            ⟩
+                 nameMap := ∅
   }
 
 end Graphiti.JoinAssocL
