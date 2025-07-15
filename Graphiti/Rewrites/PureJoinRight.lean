@@ -96,15 +96,6 @@ def findRhs mod := (rhs_extract "" "" "").fst.modules.find? mod |>.map Prod.fst
 def rewrite : Rewrite String :=
   { abstractions := [],
     pattern := matcher,
-    -- nameMap := ⟨ [ (⟨.internal "join", "in1"⟩, ⟨.internal "join", "in1"⟩)
-    --              , (⟨.internal "join", "in2"⟩, ⟨.internal "join", "in2"⟩)
-    --              , (⟨.internal "pure", "in1"⟩, ⟨.internal "pure", "in1"⟩)
-    --              ].toAssocList
-    --            , [ (⟨.internal "join", "out1"⟩, ⟨.internal "join", "out1"⟩)
-    --              , (⟨.internal "pure", "out1"⟩, ⟨.internal "pure", "out1"⟩)
-    --              ].toAssocList
-    --            ⟩,
-    nameMap := ∅,
     rewrite := λ | [S₁, S₂, S₃] => .some ⟨lhsLower S₁ S₂ S₃, rhsLower S₁ S₂ S₃⟩ | _ => failure,
     name := "pure-join-right"
     transformedNodes := [findRhs "pure" |>.get rfl, findRhs "join" |>.get rfl]

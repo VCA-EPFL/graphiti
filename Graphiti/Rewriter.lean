@@ -166,8 +166,13 @@ def renamePortMapping (i r : PortMapping String) : PortMapping String :=
   (PortMapping.mk (i.input.mapVal (λ _ => r.input.bijectivePortRenaming))
                   (i.output.mapVal (λ _ => r.output.bijectivePortRenaming)))
 
+def canonPortMapping (i : PortMapping String) : PortMapping String :=
+  ⟨ (List.mergeSort (le := fun a b => a.1.2 ≤ b.1.2) i.input.toList).toAssocList
+  , (List.mergeSort (le := fun a b => a.1.2 ≤ b.1.2) i.output.toList).toAssocList
+  ⟩
+
 def hashPortMapping (i : PortMapping String) : String :=
-  hash i |>.toBitVec |>.toHex |>.take 8
+  hash (canonPortMapping i) |>.toBitVec |>.toHex |>.take 8
 
 /--
 Perform a rewrite in the graph by lowering it into an inductive expression using the right ordering, replacing it, and

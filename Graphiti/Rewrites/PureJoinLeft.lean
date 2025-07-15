@@ -87,22 +87,16 @@ def rhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
     pure -> o_out [from="out1"];
   ]
 
-def rhsLower := (rhs Unit Unit Unit (λ _ => default) S₁ S₂ S₃).fst.lower.get rfl
+def rhs_extract := (rhs Unit Unit Unit (λ _ => default) S₁ S₂ S₃).fst.extract ["pure", "join"] |>.get rfl
 
-def findRhs mod := (rhs Unit Unit Unit (λ _ => default) "" "" "").1.modules.find? mod |>.map Prod.fst
+def rhsLower := (rhs_extract S₁ S₂ S₃).fst.lower.get rfl
+
+def findRhs mod := (rhs_extract "" "" "").1.modules.find? mod |>.map Prod.fst
 
 def rewrite : Rewrite String :=
   { abstractions := [],
     pattern := matcher,
     rewrite := λ | [S₁, S₂, S₃] => .some ⟨lhsLower S₁ S₂ S₃, rhsLower S₁ S₂ S₃⟩ | _ => failure,
-    -- nameMap := ⟨ [ (⟨.internal "join", "in1"⟩, ⟨.internal "join", "in1"⟩)
-    --              , (⟨.internal "join", "in2"⟩, ⟨.internal "join", "in2"⟩)
-    --              , (⟨.internal "pure", "in1"⟩, ⟨.internal "pure", "in1"⟩)
-    --              ].toAssocList
-    --            , [ (⟨.internal "join", "out1"⟩, ⟨.internal "join", "out1"⟩)
-    --              , (⟨.internal "pure", "out1"⟩, ⟨.internal "pure", "out1"⟩)
-    --              ].toAssocList
-    --            ⟩,
     name := "pure-join-left",
     transformedNodes := [findRhs "pure" |>.get rfl, findRhs "join" |>.get rfl]
   }
