@@ -209,6 +209,16 @@ def rewriteGraphAbs (parsed : CmdArgs) (g : ExprHigh String) (st : List RewriteI
 
   return (g, st_final, st)
 
+def reverseRewrites (parsed : CmdArgs) (g : ExprHigh String) (st : List RewriteInfo)
+    : IO (ExprHigh String × List RewriteInfo) := do
+  let some rw := st.dropLast.getLast?
+    | throw <| .userError s!"{decl_name%}: failed to get last"
+
+  let (rewrite, st) ← runRewriter' parsed st <| PureSeqComp.reverse_rewrite rw
+  let (g, st) ← runRewriter' parsed st <| rewrite.run' (norm := false) "reverse_" g
+
+  return (g, st)
+
 def main (args : List String) : IO Unit := do
   let parsed ←
     try IO.ofExcept <| parseArgs <| args.flatMap preprocess
@@ -231,6 +241,7 @@ def main (args : List String) : IO Unit := do
 
   if !parsed.parseOnly then
     let (g', _, st') ← (if parsed.slow then rewriteGraph else rewriteGraphAbs) parsed rewrittenExprHigh st
+    let (g', st') ← reverseRewrites parsed g' st'
     rewrittenExprHigh := g'; st := st'
   -- IO.println (repr (rewrittenExprHigh.modules.toList.map Prod.fst))
   let some l :=

@@ -354,9 +354,9 @@ def rename [FreshIdent Ident]
   let g_lower ← g.lower
   g_lower.rename typ p |>.higher
 
-def renamePorts (g : ExprHigh String) (p : PortMapping String) := do
+def renamePorts f (g : ExprHigh String) (p : PortMapping String) := do
   let g_lower ← g.lower
-  g_lower.renamePorts p >>= ExprLow.higherSS
+  g_lower.renamePorts p >>= ExprLow.higher_correct f
 
 end ExprHigh
 

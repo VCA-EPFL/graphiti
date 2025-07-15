@@ -176,7 +176,7 @@ then reconstructing the graph.
 In the process, all names are generated again so that they are guaranteed to be fresh.  This could be unnecessary,
 however, currently the low-level expression language does not remember any names.
 -/
-@[drunfold] def Rewrite.run' (fresh_prefix : String) (g : ExprHigh String) (rewrite : Rewrite String)
+@[drunfold] def Rewrite.run' (fresh_prefix : String) (g : ExprHigh String) (rewrite : Rewrite String) (norm : Bool := true)
   : RewriteResult (ExprHigh String) := do
 
   -- Pattern match on the graph and extract the first list of nodes that correspond to the first subgraph.
@@ -225,7 +225,8 @@ however, currently the low-level expression language does not remember any names
 
   updRewriteInfo λ rw => {rw with debug := (.some (toString e_output_norm))}
 
-  let e_sub_output ← ofOption (.error "could not rename output") <| e_sub_output'.renamePorts e_output_norm
+  let e_sub_output ← ofOption (.error "could not rename output")
+    <| if norm then e_sub_output'.renamePorts e_output_norm else pure e_sub_output'
 
   -- We are now left with `e_sub_output` which contains an expression where the external ports are renamed, and the
   -- internal ports have not been renamed from the original graph.  `e_sub_input` where all signals have been renamed so
