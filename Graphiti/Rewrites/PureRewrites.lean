@@ -314,6 +314,8 @@ def rhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
 
 def rhsLower := (rhs Unit Tₛ).fst.lower.get rfl
 
+def findRhs mod := (rhs Unit "").1.modules.find? mod |>.map Prod.fst
+
 def rewrite : Rewrite String :=
   { abstractions := [],
     pattern := matcher,
@@ -321,6 +323,8 @@ def rewrite : Rewrite String :=
       λ | [Ts] => .some ⟨ lhsLower Ts, rhsLower Ts ⟩
         | _ => .none
     name := .some "pure-fork"
+    transformedNodes := [.none]
+    addedNodes := [findRhs "op" |>.get rfl, findRhs "split" |>.get rfl]
   }
 
 end Fork

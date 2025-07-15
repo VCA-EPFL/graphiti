@@ -66,11 +66,15 @@ def rhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
 
 def rhsLower := (rhs Unit Unit Unit (λ _ => default) (λ _ => default) S₁ S₃).fst.lower.get rfl
 
+def findRhs mod := (rhs Unit Unit Unit (λ _ => default) (λ _ => default) "" "").1.modules.find? mod |>.map Prod.fst
+
 def rewrite : Rewrite String :=
   { abstractions := [],
     pattern := matcher,
     rewrite := λ | [S₁, S₂, S₃] => .some ⟨lhsLower S₁ S₂ S₃, rhsLower S₁ S₃⟩ | _ => failure,
     name := "pure-seq-comp"
+    transformedNodes := [.none, .none]
+    addedNodes := [findRhs "pure" |>.get rfl]
   }
 
 end Graphiti.PureSeqComp

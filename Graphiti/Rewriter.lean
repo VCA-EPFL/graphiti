@@ -162,6 +162,13 @@ def mergeRenamingMaps (rmap1 rmap2 : AssocList String (Option String)) : Rewrite
     return st'.cons k v'
   ) rmap1
 
+def renamePortMapping (i r : PortMapping String) : PortMapping String :=
+  (PortMapping.mk (i.input.mapVal (λ _ => r.input.bijectivePortRenaming))
+                  (i.output.mapVal (λ _ => r.output.bijectivePortRenaming)))
+
+def hashPortMapping (i : PortMapping String) : String :=
+  hash i |>.toBitVec |>.toHex |>.take 8
+
 /--
 Perform a rewrite in the graph by lowering it into an inductive expression using the right ordering, replacing it, and
 then reconstructing the graph.
@@ -215,7 +222,6 @@ however, currently the low-level expression language does not remember any names
   -- We use def_rewrite, because we only want to normalise fresh internal names that are introduced.
   -- TODO: add ensureIO check for proof.
   let e_output_norm := def_rewrite.output_expr.normalisedNamesMap fresh_prefix |>.filter λ k v => k ∉ (rewrite.nameMap.input.valsList ++ rewrite.nameMap.output.valsList)
-  let comb_mapping' : PortMapping String := ⟨rewrite.nameMap.input.mapKey' λ k v => comb_mapping.input.find? k |>.getD v, rewrite.nameMap.output.mapKey' λ k v => comb_mapping.output.find? k |>.getD v⟩
 
   updRewriteInfo λ rw => {rw with debug := (.some (toString e_output_norm))}
 
@@ -232,12 +238,15 @@ however, currently the low-level expression language does not remember any names
   -- throw (.error s!"mods :: {repr sub'}rhs :: {repr g_lower}\n\ndep :: {repr (canon e_sub_input)}")
   EStateM.guard (.error s!"rewrite: subexpression not found in the graph: {repr g_lower}\n\n{repr (canon e_sub_input)}") b
 
-  let out ← rewritten >>= (ExprLow.higher_correct λ x => hash x |>.toBitVec |>.toHex |>.take 8)
+  let out ← rewritten >>= ExprLow.higher_correct hashPortMapping
     |> ofOption (.error s!"could not lift expression to graph: {repr rewritten}")
+
+  let renamedNodes := rewrite.transformedNodes.map (·.map (renamePortMapping · comb_mapping)) |>.map (·.map (renamePortMapping · e_output_norm)) |>.map (·.map hashPortMapping)
+  let addedNodes := rewrite.addedNodes.map (renamePortMapping · comb_mapping) |>.map (renamePortMapping · e_output_norm) |>.map hashPortMapping
 
   -- Using comb_mapping to find the portMap does not work because with rewrites where there is a single module, the name
   -- won't even appear in the rewrite.
-  updRewriteInfo <| λ _ => RewriteInfo.mk RewriteType.rewrite g out sub ∅ ∅ (.some (toString e_output_norm ++ "\n\ncomb:" ++ toString comb_mapping ++ "\n\nout:" ++ toString (repr e_sub_output) ++ "\n\ninp:" ++ toString (repr e_sub_input) ++ "\n\ncomb':" ++ toString comb_mapping')) rewrite.name
+  updRewriteInfo <| λ _ => RewriteInfo.mk RewriteType.rewrite g out sub (sub.zip renamedNodes).toAssocList addedNodes (.some (toString renamedNodes ++ "\n\n" ++ toString addedNodes)) rewrite.name
   -- updRewriteInfo λ rw => {rw with debug := (.some (toString e_output_norm))}
   EStateM.guard (.error s!"found duplicate node") out.modules.keysList.Nodup
   return out
@@ -370,7 +379,7 @@ def rewrite_fix_rename {α} (g : ExprHigh String) (rewrites : List (Rewrite Stri
   match depth with
   | 0 => throw <| .error s!"{decl_name%}: ran out of fuel"
   | depth+1 =>
-    match ← rewrite_loop' upd a max_depth pref g rewrites max_depth with
+    match ← rewrite_loop' upd a max_depth s!"{pref}_{max_depth-depth}_" g rewrites max_depth with
     | .some (g', a') => rewrite_fix_rename g' rewrites upd a' pref max_depth depth
     | .none => return (g, a)
 

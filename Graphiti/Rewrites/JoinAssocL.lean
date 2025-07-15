@@ -79,11 +79,15 @@ def rhs (T₁ T₂ T₃ : Type) (S₁ S₂ S₃ : String) : ExprHigh String × I
 
 def rhsLower S₁ S₂ S₃ := (rhs Unit Unit Unit S₁ S₂ S₃).fst.lower.get rfl
 
+def findRhs mod := (rhs Unit Unit Unit "" "" "").1.modules.find? mod |>.map Prod.fst
+
 def rewrite : Rewrite String :=
   { abstractions := [],
     pattern := matcher,
     rewrite := λ | [S₁, S₂, S₃] => pure ⟨lhsLower S₁ S₂ S₃, rhsLower S₁ S₂ S₃⟩ | _ => failure,
     name := "join-assoc-left"
+    transformedNodes := [findRhs "join2" |>.get rfl, findRhs "join1" |>.get rfl],
+    addedNodes := [findRhs "pure" |>.get rfl]
   }
 
 def targetedRewrite (s : String) : Rewrite String :=

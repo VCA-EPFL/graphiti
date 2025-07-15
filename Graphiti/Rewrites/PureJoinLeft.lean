@@ -89,6 +89,8 @@ def rhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
 
 def rhsLower := (rhs Unit Unit Unit (λ _ => default) S₁ S₂ S₃).fst.lower.get rfl
 
+def findRhs mod := (rhs Unit Unit Unit (λ _ => default) "" "" "").1.modules.find? mod |>.map Prod.fst
+
 def rewrite : Rewrite String :=
   { abstractions := [],
     pattern := matcher,
@@ -101,7 +103,8 @@ def rewrite : Rewrite String :=
     --              , (⟨.internal "pure", "out1"⟩, ⟨.internal "pure", "out1"⟩)
     --              ].toAssocList
     --            ⟩,
-    name := "pure-join-left"
+    name := "pure-join-left",
+    transformedNodes := [findRhs "pure" |>.get rfl, findRhs "join" |>.get rfl]
   }
 
 end Graphiti.PureJoinLeft

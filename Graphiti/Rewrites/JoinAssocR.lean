@@ -81,14 +81,16 @@ def rhs_extract S₁ S₂ S₃ := (rhs Unit Unit Unit S₁ S₂ S₃).fst.extrac
 
 def rhsLower S₁ S₂ S₃ := (rhs_extract S₁ S₂ S₃).fst.lower.get rfl
 
+def findRhs mod := (rhs Unit Unit Unit "" "" "").1.modules.find? mod |>.map Prod.fst
+
 def rewrite : Rewrite String :=
   { abstractions := [],
     pattern := matcher,
     rewrite := λ | [S₁, S₂, S₃] => pure ⟨lhsLower S₁ S₂ S₃, rhsLower S₁ S₂ S₃⟩ | _ => failure,
     name := "join-assoc-right"
+    transformedNodes := [findRhs "join2" |>.get rfl, findRhs "join1" |>.get rfl],
+    addedNodes := [findRhs "pure" |>.get rfl]
   }
-
-def findRhs mod := (rhs Unit Unit Unit "" "" "").1.modules.find? mod |>.map Prod.fst
 
 def targetedRewrite (s : String) : Rewrite String :=
   { rewrite with pattern := identMatcher s,
@@ -102,8 +104,6 @@ def targetedRewrite (s : String) : Rewrite String :=
                             --   ].toAssocList
                             -- ⟩
                             ∅,
-                 transformedNodes := [findRhs "join2" |>.get rfl, findRhs "join1" |>.get rfl],
-                 addedNodes := [findRhs "pure" |>.get rfl]
   }
 
 end Graphiti.JoinAssocR

@@ -110,17 +110,17 @@ def pureGeneration (rw : ExprHigh String) (p1 p2 : Pattern String) : RewriteResu
 
 def pureGenerator' (n : Nat) (g : ExprHigh String) : List JSLangRewrite → Nat → RewriteResult (ExprHigh String)
 | _, 0 => throw <| .error "No fuel"
-| [], _ => pure g
-| [jsRw], _ => do
-  let rw ← jsRw.mapToRewrite.run s!"jsrw_{n}_1_" g
-  let rw ← rewrite_fix rw ([PureSeqComp.rewrite] ++ movePureJoin ++ reduceSink)
+| [], fuel+1 => pure g
+| [jsRw], fuel+1 => do
+  let rw ← jsRw.mapToRewrite.run s!"jsrw_{n}_{fuel}" g
+  let rw ← rewrite_fix (pref := s!"jsrw3_{n}_{fuel}") rw ([PureSeqComp.rewrite] ++ movePureJoin ++ reduceSink)
   return rw
 | jsRw :: rst, fuel+1 => do
   -- addRewriteInfo {(default : RewriteInfo) with debug := .some s!"{repr jsRw}"}
-  let rw ← jsRw.mapToRewrite.run s!"jsrw_{rst.length + 1}_" g
+  let rw ← jsRw.mapToRewrite.run s!"jsrwR_{n}_{fuel}" g
   let rst ← update_state JSLang.upd rst
 
-  let (rw, rst) ← rewrite_fix_rename rw ([PureSeqComp.rewrite] ++ movePureJoin ++ reduceSink) JSLang.upd rst
+  let (rw, rst) ← rewrite_fix_rename (pref := s!"jsrw2_{n}_{fuel}") rw ([PureSeqComp.rewrite] ++ movePureJoin ++ reduceSink) JSLang.upd rst
   pureGenerator' n rw rst fuel
 
 def pureGenerator n g js := pureGenerator' n g js (js.length + 1)
