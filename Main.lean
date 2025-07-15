@@ -209,13 +209,27 @@ def rewriteGraphAbs (parsed : CmdArgs) (g : ExprHigh String) (st : List RewriteI
 
   return (g, st_final, st)
 
+def reverse_rewrite_with_index (rinfo : RewriteInfo) : RewriteResult (Rewrite String) := do
+  let rw ← ofOption (.error s!"{decl_name%}: rewrite generation failed") <| do
+    let name ← rinfo.name
+    match name with
+    | "join-split-elim" =>
+      let s ← rinfo.matched_subgraph.get? 0
+      JoinSplitElim.targetedRewrite s
+    | "join-comm" =>
+      let s ← rinfo.matched_subgraph.get? 0
+      JoinComm.targetedRewrite s
+    | _ => rewrite_index.find? name
+  reverse_rewrite rw rinfo
+
 def reverseRewrites (parsed : CmdArgs) (g : ExprHigh String) (st : List RewriteInfo)
     : IO (ExprHigh String × List RewriteInfo) := do
-  let some rw := st.dropLast.getLast?
-    | throw <| .userError s!"{decl_name%}: failed to get last"
+  let st_worklist := st.reverse.tail.take 10
 
-  let (rewrite, st) ← runRewriter' parsed st <| PureSeqComp.reverse_rewrite PureSeqComp.rewrite rw
-  let (g, st) ← runRewriter' parsed st <| rewrite.run' (norm := false) "reverse_" g
+  let (g, st) ← runRewriter' parsed st <| st_worklist.foldlM (λ g rinfo => do
+      let rewrite ← reverse_rewrite_with_index rinfo
+      rewrite.run' (norm := false) "reverse" g
+    ) g
 
   return (g, st)
 

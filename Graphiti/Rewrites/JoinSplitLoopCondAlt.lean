@@ -106,7 +106,7 @@ def rewrite : Rewrite String :=
     rewrite := λ l => do
       let T₁ ← l.get? 0
       return ⟨ lhsLower T₁, rhsLower T₁ ⟩
-    name := .some "join-split-loop-cond"
+    name := .some "join-split-loop-cond-alt"
   }
 
 end Graphiti.JoinSplitLoopCondAlt

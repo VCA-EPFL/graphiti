@@ -41,3 +41,50 @@ import Graphiti.Rewrites.Fork8Rewrite
 import Graphiti.Rewrites.Fork9Rewrite
 import Graphiti.Rewrites.Fork10Rewrite
 -- import Graphiti.Rewrites.JoinRewriteCorrect
+
+namespace Graphiti
+
+def rewrite_index :=
+  rewrites_to_map
+    [ LoopRewrite2.rewrite
+    , CombineBranch.rewrite
+    , CombineMux.rewrite
+    , JoinSplitLoopCond.rewrite
+    , JoinSplitLoopCondAlt.rewrite
+    , ReduceSplitJoin.rewrite
+    , PureRewrites.Constant.rewrite
+    , PureRewrites.Operator1.rewrite
+    , PureRewrites.Operator2.rewrite
+    , PureRewrites.Operator3.rewrite
+    , PureRewrites.Fork.rewrite
+    , LoadRewrite.rewrite
+    , JoinQueueLeftRewrite.rewrite
+    , JoinQueueRightRewrite.rewrite
+    , MuxQueueRightRewrite.rewrite
+    , PureSink.rewrite
+    , SplitSinkLeft.rewrite
+    , SplitSinkRight.rewrite
+    , PureSeqComp.rewrite
+    , PureJoinLeft.rewrite
+    , PureJoinRight.rewrite
+    , PureSplitRight.rewrite
+    , PureSplitLeft.rewrite
+    , JoinPureUnit.rewrite
+    , JoinSplitElim.rewrite
+    , JoinAssocL.rewrite
+    , JoinAssocR.rewrite
+    , JoinComm.rewrite
+    , ForkPure.rewrite
+    , ForkJoin.rewrite
+    , JoinRewrite.rewrite
+    , Fork3Rewrite.rewrite
+    , Fork4Rewrite.rewrite
+    , Fork5Rewrite.rewrite
+    , Fork6Rewrite.rewrite
+    , Fork7Rewrite.rewrite
+    , Fork8Rewrite.rewrite
+    , Fork9Rewrite.rewrite
+    , Fork10Rewrite.rewrite
+    ]
+
+end Graphiti

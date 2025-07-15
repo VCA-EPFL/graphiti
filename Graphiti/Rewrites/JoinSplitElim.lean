@@ -77,14 +77,20 @@ def rhs (T₁ T₂ : Type) (S₁ S₂ : String) : ExprHigh String × IdentMap St
 
 def rhsLower S₁ S₂ := (rhs Unit Unit S₁ S₂).fst.lower.get rfl
 
+def findRhs mod := (rhs Unit Unit "" "").1.modules.find? mod |>.map Prod.fst
+
 def rewrite : Rewrite String :=
   { abstractions := [],
     pattern := matcher,
     rewrite := λ | [S₁, S₂] => pure ⟨lhsLower S₁ S₂, rhsLower S₁ S₂⟩ | _ => failure,
     name := "join-split-elim"
+    transformedNodes := [.none, .none]
+    addedNodes := [findRhs "pure" |>.get rfl]
   }
 
 def targetedRewrite (s : String) : Rewrite String :=
-  { rewrite with pattern := identMatcher s, nameMap := ∅ }
+  { rewrite with pattern := identMatcher s
+                 nameMap := ∅
+  }
 
 end Graphiti.JoinSplitElim

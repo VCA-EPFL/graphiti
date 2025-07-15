@@ -64,9 +64,11 @@ def rhs (T₁ T₂ : Type) (S₁ S₂ : String) : ExprHigh String × IdentMap St
     pure -> o_out [from = "out1"];
   ]
 
-def rhsLower S₁ S₂ := (rhs Unit Unit S₁ S₂).fst.lower.get rfl
+def rhs_extract S₁ S₂ := (rhs Unit Unit S₁ S₂).fst.extract ["joinN", "pure"] |>.get rfl
 
-def findRhs mod := (rhs Unit Unit "" "").1.modules.find? mod |>.map Prod.fst
+def rhsLower S₁ S₂ := (rhs_extract S₁ S₂).fst.lower.get rfl
+
+def findRhs mod := (rhs_extract "" "").fst.modules.find? mod |>.map Prod.fst
 
 def rewrite : Rewrite String :=
   { abstractions := [],

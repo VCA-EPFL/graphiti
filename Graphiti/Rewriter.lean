@@ -255,6 +255,84 @@ however, currently the low-level expression language does not remember any names
   EStateM.guard (.error s!"found duplicate node") out.modules.keysList.Nodup
   return out
 
+def generateRenamingPortMap (p1 p2 : PortMap String (InternalPort String)) : Option (PortMap String (InternalPort String)) :=
+  p1.foldlM (λ pm k v => do
+    let v' ← p2.find? k
+    pm.cons v v'
+  ) ∅
+
+def generateRenamingPortMapping (p1 p2 : PortMapping String) : Option (PortMapping String) := do
+  let inp ← generateRenamingPortMap p1.input p2.input
+  let out ← generateRenamingPortMap p1.output p2.output
+  .some ⟨inp, out⟩
+
+def combinePortMapping (p : List (PortMapping String)) : PortMapping String := p.foldl (· ++ ·) ∅
+
+def getPortMaps (g : ExprHigh String) : List (PortMapping String) :=
+  g.modules.toList.map (λ (x, (y, z)) => y)
+
+def getPortMaps' : ExprLow String → List (PortMapping String)
+| .base inst typ => [inst]
+| .connect c e => getPortMaps' e
+| .product e₁ e₂ => getPortMaps' e₁ ++ getPortMaps' e₂
+
+def generateRenaming (l : List (PortMapping String)) (e : ExprLow String) : Option (PortMapping String) :=
+  (l.zip (getPortMaps' e))
+  |>.mapM (Function.uncurry generateRenamingPortMapping)
+  |>.map combinePortMapping
+
+/--
+Generate a reverse rewrite from a rewrite and the RewriteInfo associated with the execution.
+-/
+def reverse_rewrite (rw : Rewrite String) (rinfo : RewriteInfo) : RewriteResult (Rewrite String) := do
+
+  -- First we get the list of PortMappings associated with the lhs in their original (unrenamed) form.
+  let lhsNodes ← ofOption (.error "reverse_rewrite: nodes not found")
+    <| rinfo.matched_subgraph.mapM (λ x => rinfo.input_graph.modules.find? x |>.map Prod.fst)
+
+  -- addRewriteInfo <| RewriteInfo.mk RewriteType.rewrite default default default default .nil (.some <| s!"{repr }") rw.name
+
+  -- Next we get the list of PortMappings for the rhs in their original form.  We split these up in multiple
+  -- definitions so we can refer to different node groupings later on.  We first get the rhs nodes that were
+  -- renamed from the lhs, then we get the fresh PortMappings that were introduced by the rewrite.
+  let rhsNodes_renamed' := rinfo.renamed_input_nodes.toList.flatMap (λ (x, y) => y.toList)
+  let rhsNodes_renamed ← ofOption (.error "reverse_rewrite: nodes not found")
+    <| rhsNodes_renamed'.mapM (λ x => rinfo.output_graph.modules.find? x |>.map Prod.fst)
+  let rhsNodes_added ← ofOption (.error "reverse_rewrite: nodes not found")
+    <| rinfo.new_output_nodes.mapM (λ x => rinfo.output_graph.modules.find? x |>.map Prod.fst)
+  let rhsNodes' := rhsNodes_renamed' ++ rinfo.new_output_nodes
+  let rhsNodes := rhsNodes_renamed ++ rhsNodes_added
+
+  -- TODO: add types into rinfo
+  -- We run the matcher again to get the types.
+  let (_nodes, l) ← rw.pattern rinfo.input_graph
+
+  -- We get the concrete lhs and rhs specialised by the types.
+  let def_rewrite ← ofOption (.error "could not generate rewrite") <| rw.rewrite l
+
+  let rhs_renaming ← ofOption (.error "could not generate renaming map")
+    <| generateRenaming rhsNodes def_rewrite.output_expr
+
+  let lhs_renaming ← ofOption (.error "could not generate renaming map")
+    <| generateRenaming lhsNodes def_rewrite.input_expr
+
+  -- We generate a single renaming for correctness sake, i.e. renaming both expressions with the same renaming is
+  -- correct regardless of the renaming.
+  let full_renaming := rhs_renaming ++ lhs_renaming
+
+  -- We rename the rhs and lhs expressions into the specialised forms that match the graph directly.  This allows
+  -- us to apply the rewrites without renaming, allowing us to chain backwards rewrites.
+  let lhs_renamed ← ofOption (.error "could not rename") <| def_rewrite.input_expr.renamePorts full_renaming
+  let rhs_renamed ← ofOption (.error "could not rename") <| def_rewrite.output_expr.renamePorts full_renaming
+
+  return ({ pattern := λ _ => return (rhsNodes', []),
+            rewrite := λ _ => some ⟨rhs_renamed, lhs_renamed⟩,
+            name := s!"rev-{rinfo.name.getD ""}",
+            -- TODO: These dictate ordering of nodes quite strictly.
+            transformedNodes := rhsNodes_renamed.map some ++ rhsNodes_added.map (λ _ => none),
+            addedNodes := lhsNodes.drop rhsNodes_renamed.length
+          })
+
 /--
 Abstract a subgraph into a separate node.  One can imagine that the node type is then a node in the environment which is
 referenced in the new graph.
@@ -600,5 +678,8 @@ def match_node (extract_type : String → RewriteResult (List String)) (nn : Str
   let (_map, typ) ← ofOption (.error s!"{decl_name%}: module '{nn}' not found") (g.modules.find? nn)
   let types ← extract_type typ
   return ([nn], types)
+
+def rewrites_to_map (l : List (Rewrite String)) : AssocList String (Rewrite String) :=
+  l.flatMap (λ x => match x.name with | .some n => [(n, x)] | _ => []) |>.toAssocList
 
 end Graphiti
