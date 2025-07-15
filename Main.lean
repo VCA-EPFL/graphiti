@@ -24,6 +24,7 @@ structure CmdArgs where
   parseOnly : Bool
   graphitiOracle : Option String
   slow : Bool
+  reverse : Bool
   help : Bool
 deriving Inhabited
 
@@ -56,6 +57,8 @@ def parseArgs (args : List String) : Except String CmdArgs := go CmdArgs.empty a
       go {c with graphitiOracle := fp} rst
     | .cons "--slow" rst =>
       go {c with slow := true} rst
+    | .cons "--reverse" rst =>
+      go {c with reverse := true} rst
     | .cons fp rst => do
       if "-".isPrefixOf fp then throw s!"argument '{fp}' not recognised"
       if c.inputFile.isSome then throw s!"more than one input file passed"
@@ -80,6 +83,7 @@ OPTIONS
   --oracle            Path to the oracle executable.  Default is graphiti_oracle.
   --parse-only        Only parse the input without performing rewrites.
   --slow              Use the slow but verified rewrite approach.
+  --reverse           Feature flag for reverse rewriting.
 "
 
 def forkRewrites := [Fork10Rewrite.rewrite, Fork9Rewrite.rewrite, Fork8Rewrite.rewrite, Fork7Rewrite.rewrite, Fork6Rewrite.rewrite, Fork5Rewrite.rewrite, Fork4Rewrite.rewrite, Fork3Rewrite.rewrite]
@@ -277,7 +281,7 @@ def main (args : List String) : IO Unit := do
 
   if !parsed.parseOnly then
     let (g', _, st') ← (if parsed.slow then rewriteGraph else rewriteGraphAbs) parsed rewrittenExprHigh st
-    let (g', st') ← reverseRewrites parsed g' st'
+    let (g', st') ← if parsed.reverse then reverseRewrites parsed g' st' else pure (g', st')
     rewrittenExprHigh := g'; st := st'
   -- IO.println (repr (rewrittenExprHigh.modules.toList.map Prod.fst))
   let some l :=
