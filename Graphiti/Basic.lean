@@ -218,6 +218,15 @@ instance : Append (PortMapping Ident) := ⟨append⟩
 @[simp, drcompute] theorem append_elements {α} (a b c d : PortMap α (InternalPort α)) : PortMapping.mk a b ++ ⟨c, d⟩ = ⟨a ++ c, b ++ d⟩ := rfl
 @[simp, drcompute] theorem lift_append {α} (as bs : PortMapping α) : as.append bs = as ++ bs := rfl
 
+-- TODO: Why do we have to canonicalise? When are the port names actually being reordered?
+def canonPortMapping (i : PortMapping String) : PortMapping String :=
+  ⟨ (List.mergeSort (le := fun a b => a.1.2 ≤ b.1.2) i.input.toList).toAssocList
+  , (List.mergeSort (le := fun a b => a.1.2 ≤ b.1.2) i.output.toList).toAssocList
+  ⟩
+
+def hashPortMapping (i : PortMapping String) : String :=
+  hash (canonPortMapping i) |>.toBitVec |>.toHex |>.take 8
+
 def filter (f : InternalPort Ident → InternalPort Ident → Bool) (a : PortMapping Ident) :=
   PortMapping.mk (a.input.filter f) (a.output.filter f)
 

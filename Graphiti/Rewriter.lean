@@ -166,15 +166,6 @@ def renamePortMapping (i r : PortMapping String) : PortMapping String :=
   (PortMapping.mk (i.input.mapVal (λ _ => r.input.bijectivePortRenaming))
                   (i.output.mapVal (λ _ => r.output.bijectivePortRenaming)))
 
--- TODO: Why do we have to canonicalise? When are the port names actually being reordered?
-def canonPortMapping (i : PortMapping String) : PortMapping String :=
-  ⟨ (List.mergeSort (le := fun a b => a.1.2 ≤ b.1.2) i.input.toList).toAssocList
-  , (List.mergeSort (le := fun a b => a.1.2 ≤ b.1.2) i.output.toList).toAssocList
-  ⟩
-
-def hashPortMapping (i : PortMapping String) : String :=
-  hash (canonPortMapping i) |>.toBitVec |>.toHex |>.take 8
-
 /--
 Perform a rewrite in the graph by lowering it into an inductive expression using the right ordering, replacing it, and
 then reconstructing the graph.
@@ -211,8 +202,8 @@ however, currently the low-level expression language does not remember any names
   let (ext_mapping, int_mapping) ← liftError <| def_rewrite.input_expr.weak_beq e_sub
 
   let comb_mapping := ext_mapping.append int_mapping
-  EStateM.guard (.error "input mapping not invertible") <| comb_mapping.input.invertible
-  EStateM.guard (.error "output mapping not invertible") <| comb_mapping.output.invertible
+  -- EStateM.guard (.error "input mapping not invertible") <| comb_mapping.input.invertible
+  -- EStateM.guard (.error "output mapping not invertible") <| comb_mapping.output.invertible
 
   updRewriteInfo λ rw => {rw with debug := (.some (toString comb_mapping))}
 
@@ -227,7 +218,8 @@ however, currently the low-level expression language does not remember any names
   -- ordering guide.
   -- We use def_rewrite, because we only want to normalise fresh internal names that are introduced.
   -- TODO: add ensureIO check for proof.
-  let e_output_norm := def_rewrite.output_expr.normalisedNamesMap fresh_prefix |>.filter λ k v => k ∉ (rewrite.nameMap.input.valsList ++ rewrite.nameMap.output.valsList)
+  let e_output_norm := def_rewrite.output_expr.normalisedNamesMap fresh_prefix
+  EStateM.guard (.error "normalisation modifies IO") <| e_sub_output'.ensureIOUnmodified e_output_norm
 
   updRewriteInfo λ rw => {rw with debug := (.some (toString e_output_norm))}
 
@@ -245,13 +237,13 @@ however, currently the low-level expression language does not remember any names
   -- throw (.error s!"mods :: {repr sub'}rhs :: {repr g_lower}\n\ndep :: {repr (canon e_sub_input)}")
   EStateM.guard (.error s!"rewrite: subexpression not found in the graph: {repr g_lower}\n\n{repr (canon e_sub_input)}") b
 
-  let out ← rewritten >>= ExprLow.higher_correct hashPortMapping
+  let out ← rewritten >>= ExprLow.higher_correct PortMapping.hashPortMapping
     |> ofOption (.error s!"could not lift expression to graph: {repr rewritten}")
 
   let renamedNodes := rewrite.transformedNodes.map (·.map (renamePortMapping · comb_mapping))
     |>.map (·.map (renamePortMapping · e_output_norm))
-    |>.map (·.map hashPortMapping)
-  let addedNodes := rewrite.addedNodes.map (renamePortMapping · comb_mapping) |>.map (renamePortMapping · e_output_norm) |>.map hashPortMapping
+    |>.map (·.map PortMapping.hashPortMapping)
+  let addedNodes := rewrite.addedNodes.map (renamePortMapping · comb_mapping) |>.map (renamePortMapping · e_output_norm) |>.map PortMapping.hashPortMapping
 
   -- Using comb_mapping to find the portMap does not work because with rewrites where there is a single module, the name
   -- won't even appear in the rewrite.
@@ -333,7 +325,7 @@ def reverse_rewrite (rw : Rewrite String) (rinfo : RewriteInfo) : RewriteResult 
 
   return ({ pattern := λ _ => return (rhsNodes', []),
             rewrite := λ _ => some ⟨rhs_renamed, lhs_renamed⟩,
-            name := s!"rev-{rinfo.name.getD ""}",
+            name := s!"rev-{rinfo.name.getD "unknown"}",
             -- TODO: These dictate ordering of nodes quite strictly.
             transformedNodes := rhsNodes_renamed.map some ++ rhsNodes_added.map (λ _ => none),
             addedNodes := lhsNodes.drop rhsNodes_renamed.length
