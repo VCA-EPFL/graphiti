@@ -58,13 +58,18 @@ def rhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
     i -> sink [to="in1"];
   ]
 
-def rhsLower := (rhs Unit Unit S S').fst.lower.get rfl
+def rhs_extract := (rhs Unit Unit S S').fst.extract ["sink"] |>.get rfl
+
+def rhsLower := (rhs_extract S S').fst.lower.get rfl
+
+def findRhs mod := (rhs_extract "" "").1.modules.find? mod |>.map Prod.fst
 
 def rewrite : Rewrite String :=
   { abstractions := [],
     pattern := matcher,
     rewrite := λ | [S, S'] => .some ⟨lhsLower S S', rhsLower S S'⟩ | _ => failure
     name := "pure-sink"
+    transformedNodes := [.none, findRhs "sink" |>.get rfl]
   }
 
 end Graphiti.PureSink

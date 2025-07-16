@@ -140,19 +140,19 @@ def rewriteWithEgg (eggCmd := "graphiti_oracle") (p : Pattern String) (rewritten
 
 def JSLang.upd1 (m : AssocList String (Option String)) : JSLangRewrite → RewriteResult JSLangRewrite
 | .assocL s dir => do
-  let (.some s') ← ofOption (.error s!"{decl_name%}: assocL: could not find element '{s}'") <| m.find? s
+  let (.some s') := (m.find? s).getD s
     | throw <| .error s!"{decl_name%}: assocL: '{s}' deleted in map"
   return .assocL s' dir
 | .assocR s dir => do
-  let (.some s') ← ofOption (.error s!"{decl_name%}: assocR: could not find element '{s}'") <| m.find? s
+  let (.some s') := (m.find? s).getD s
     | throw <| .error s!"{decl_name%}: assocR: '{s}' deleted in map"
   return .assocR s' dir
 | .comm s => do
-  let (.some s') ← ofOption (.error s!"{decl_name%}: comm: could not find element '{s}'") <| m.find? s
+  let (.some s') := (m.find? s).getD s
     | throw <| .error s!"{decl_name%}: comm: '{s}' deleted in map"
   return .comm s'
 | .elim s => do
-  let (.some s') ← ofOption (.error s!"{decl_name%}: elim: could not find element '{s}'") <| m.find? s
+  let (.some s') := (m.find? s).getD s
     | throw <| .error s!"{decl_name%}: elim: '{s}' deleted in map"
   return .elim s'
 

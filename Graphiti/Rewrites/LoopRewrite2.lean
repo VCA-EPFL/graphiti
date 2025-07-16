@@ -108,10 +108,16 @@ def rhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
 
 def rhsLower := (rhs Unit Tₛ (λ _ => default) |>.1).lower.get rfl
 
+def findRhs mod := (rhs Unit "" (λ _ => default)).1.modules.find? mod |>.map Prod.fst
+
 def rewrite : Rewrite String :=
   { pattern := matcher,
     rewrite := λ | [T] => pure ⟨lhsLower T, rhsLower T⟩ | _ => failure
     name := .some "loop-rewrite"
+    transformedNodes := [ findRhs "merge" |>.get rfl, .none, findRhs "branch" |>.get rfl
+                        , findRhs "tag_split" |>.get rfl, findRhs "mod" |>.get rfl, .none]
+    addedNodes := [ findRhs "tagger" |>.get rfl, findRhs "split_tag" |>.get rfl, findRhs "split_bool" |>.get rfl
+                  , findRhs "join_tag" |>.get rfl, findRhs "join_bool" |>.get rfl]
   }
 
 end Graphiti.LoopRewrite2

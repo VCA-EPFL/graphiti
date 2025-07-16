@@ -24,6 +24,7 @@ structure CmdArgs where
   parseOnly : Bool
   graphitiOracle : Option String
   slow : Bool
+  reverse : Bool
   help : Bool
 deriving Inhabited
 
@@ -56,6 +57,8 @@ def parseArgs (args : List String) : Except String CmdArgs := go CmdArgs.empty a
       go {c with graphitiOracle := fp} rst
     | .cons "--slow" rst =>
       go {c with slow := true} rst
+    | .cons "--reverse" rst =>
+      go {c with reverse := true} rst
     | .cons fp rst => do
       if "-".isPrefixOf fp then throw s!"argument '{fp}' not recognised"
       if c.inputFile.isSome then throw s!"more than one input file passed"
@@ -77,8 +80,10 @@ OPTIONS
   --log-stdout        Set JSON log output to STDOUT
   --no-dynamatic-dot  Don't output dynamatic DOT, instead output the raw
                       dot that is easier for debugging purposes.
-  --parse-only        Only parse the input without performing rewrites.
   --oracle            Path to the oracle executable.  Default is graphiti_oracle.
+  --parse-only        Only parse the input without performing rewrites.
+  --slow              Use the slow but verified rewrite approach.
+  --reverse           Feature flag for reverse rewriting.
 "
 
 def forkRewrites := [Fork10Rewrite.rewrite, Fork9Rewrite.rewrite, Fork8Rewrite.rewrite, Fork7Rewrite.rewrite, Fork6Rewrite.rewrite, Fork5Rewrite.rewrite, Fork4Rewrite.rewrite, Fork3Rewrite.rewrite]
@@ -110,17 +115,17 @@ def pureGeneration (rw : ExprHigh String) (p1 p2 : Pattern String) : RewriteResu
 
 def pureGenerator' (n : Nat) (g : ExprHigh String) : List JSLangRewrite → Nat → RewriteResult (ExprHigh String)
 | _, 0 => throw <| .error "No fuel"
-| [], _ => pure g
-| [jsRw], _ => do
-  let rw ← jsRw.mapToRewrite.run s!"jsrw_{n}_1_" g
-  let rw ← rewrite_fix rw ([PureSeqComp.rewrite] ++ movePureJoin ++ reduceSink)
+| [], fuel+1 => pure g
+| [jsRw], fuel+1 => do
+  let rw ← jsRw.mapToRewrite.run s!"jsrw_{n}_{fuel}" g
+  let rw ← rewrite_fix (pref := s!"jsrw3_{n}_{fuel}") rw ([PureSeqComp.rewrite] ++ movePureJoin ++ reduceSink)
   return rw
 | jsRw :: rst, fuel+1 => do
   -- addRewriteInfo {(default : RewriteInfo) with debug := .some s!"{repr jsRw}"}
-  let rw ← jsRw.mapToRewrite.run s!"jsrw_{rst.length + 1}_" g
+  let rw ← jsRw.mapToRewrite.run s!"jsrwR_{n}_{fuel}" g
   let rst ← update_state JSLang.upd rst
 
-  let (rw, rst) ← rewrite_fix_rename rw ([PureSeqComp.rewrite] ++ movePureJoin ++ reduceSink) JSLang.upd rst
+  let (rw, rst) ← rewrite_fix_rename (pref := s!"jsrw2_{n}_{fuel}") rw ([PureSeqComp.rewrite] ++ movePureJoin ++ reduceSink) JSLang.upd rst
   pureGenerator' n rw rst fuel
 
 def pureGenerator n g js := pureGenerator' n g js (js.length + 1)
@@ -209,6 +214,51 @@ def rewriteGraphAbs (parsed : CmdArgs) (g : ExprHigh String) (st : List RewriteI
 
   return (g, st_final, st)
 
+def reverse_rewrite_with_index (rinfo : RewriteInfo) : RewriteResult (Rewrite String) := do
+  let rw ← ofOption (.error s!"{decl_name%}: rewrite generation failed") <| do
+    let name ← rinfo.name
+    match name with
+    | "join-split-elim" =>
+      let s ← rinfo.matched_subgraph.get? 0
+      return JoinSplitElim.targetedRewrite s
+    | "join-comm" =>
+      let s ← rinfo.matched_subgraph.get? 0
+      return JoinComm.targetedRewrite s
+    | "join-assoc-right" =>
+      let s ← rinfo.matched_subgraph.get? 0
+      return JoinAssocR.targetedRewrite s
+    | "join-assoc-left" =>
+      let s ← rinfo.matched_subgraph.get? 0
+      return JoinAssocL.targetedRewrite s
+    | "pure-fork" =>
+      let s ← rinfo.matched_subgraph.get? 0
+      return {PureRewrites.Fork.rewrite with pattern := PureRewrites.Fork.match_node s, nameMap := ∅}
+    | "pure-operator3" =>
+      let s ← rinfo.matched_subgraph.get? 0
+      return {PureRewrites.Operator3.rewrite with pattern := PureRewrites.Operator3.match_node s, nameMap := ∅}
+    | "pure-operator2" =>
+      let s ← rinfo.matched_subgraph.get? 0
+      return {PureRewrites.Operator2.rewrite with pattern := PureRewrites.Operator2.match_node s, nameMap := ∅}
+    | "pure-operator1" =>
+      let s ← rinfo.matched_subgraph.get? 0
+      return {PureRewrites.Operator1.rewrite with pattern := PureRewrites.Operator1.match_node s, nameMap := ∅}
+    | "pure-constant" =>
+      let s ← rinfo.matched_subgraph.get? 0
+      return {PureRewrites.Constant.rewrite with pattern := PureRewrites.Constant.match_node s, nameMap := ∅}
+    | _ => rewrite_index.find? name
+  reverse_rewrite rw rinfo
+
+def reverseRewrites (parsed : CmdArgs) (g : ExprHigh String) (st : List RewriteInfo)
+    : IO (ExprHigh String × List RewriteInfo) := do
+  let st_worklist := st.reverse.tail.take 158
+
+  let (g, st) ← runRewriter' parsed st <| st_worklist.foldlM (λ g rinfo => do
+      let rewrite ← reverse_rewrite_with_index rinfo
+      rewrite.run' (norm := false) "reverse" g
+    ) g
+
+  return (g, st)
+
 def main (args : List String) : IO Unit := do
   let parsed ←
     try IO.ofExcept <| parseArgs <| args.flatMap preprocess
@@ -231,6 +281,7 @@ def main (args : List String) : IO Unit := do
 
   if !parsed.parseOnly then
     let (g', _, st') ← (if parsed.slow then rewriteGraph else rewriteGraphAbs) parsed rewrittenExprHigh st
+    let (g', st') ← if parsed.reverse then reverseRewrites parsed g' st' else pure (g', st')
     rewrittenExprHigh := g'; st := st'
   -- IO.println (repr (rewrittenExprHigh.modules.toList.map Prod.fst))
   let some l :=

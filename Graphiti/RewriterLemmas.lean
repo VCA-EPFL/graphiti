@@ -62,24 +62,18 @@ axiom refines_higherSS {e : ExprLow String} {e' : ExprHigh String} :
 
 -- #eval (ExprLow.connect ⟨⟨.internal "a", "b"⟩, ⟨.internal "a", "b"⟩⟩ (.connect ⟨⟨.internal "C", "b"⟩, ⟨.internal "C", "b"⟩⟩ (.product (.base (⟨AssocList.nil |>.cons ⟨.top, "b"⟩ ⟨.internal "a", "b"⟩, AssocList.nil |>.cons ⟨.top, "b"⟩ ⟨.internal "a", "b"⟩⟩) "A") (.product (.base ⟨AssocList.nil |>.cons ⟨.top, "b"⟩ ⟨.internal "a", "b"⟩, AssocList.nil |>.cons ⟨.top, "b"⟩ ⟨.internal "b", "b"⟩⟩ "B") (.base ⟨AssocList.nil |>.cons ⟨.top, "b"⟩ ⟨.internal "a", "b"⟩, AssocList.nil |>.cons ⟨.top, "b"⟩ ⟨.internal "c", "b"⟩⟩ "C"))))).higher_correct_connections |>.get rfl |>.lower
 
-theorem higher_correct_products_correct {e₂ : ExprLow String} {v'} :
-  e₂.higher_correct_products = some v' →
+theorem higher_correct_products_correct {f} {e₂ : ExprLow String} {v'} :
+  e₂.higher_correct_products f = some v' →
   List.foldr ExprHigh.generate_product none v'.toList = some e₂ := by
   induction e₂ generalizing v' with
   | base inst typ =>
     intro hc
-    dsimp [ExprLow.higher_correct_products] at hc
-    rw [Option.bind_eq_some] at hc
-    obtain ⟨v', ha', hb'⟩ := hc
-    cases hb'; rfl
+    dsimp [ExprLow.higher_correct_products] at hc; cases hc; rfl
   | product e₁ e₂ ih1 ih2 =>
     intro hc
     cases e₁ <;> dsimp [ExprLow.higher_correct_products] at hc <;> (try contradiction)
     rw [Option.bind_eq_some] at hc
-    obtain ⟨v', ha', hb'⟩ := hc
-    rw [Option.bind_eq_some] at hb'
-    obtain ⟨v'', ha'', hb''⟩ := hb'
-    cases hb''
+    obtain ⟨v', ha', hb'⟩ := hc; cases hb'
     dsimp
     rw [ih2]
     rfl; assumption
@@ -87,8 +81,8 @@ theorem higher_correct_products_correct {e₂ : ExprLow String} {v'} :
     intro hc
     dsimp [ExprLow.higher_correct_products] at hc; contradiction
 
-theorem refines_higher_correct_connections {e : ExprLow String} {e' : ExprHigh String} :
-  e.higher_correct_connections = .some e' →
+theorem refines_higher_correct_connections {f} {e : ExprLow String} {e' : ExprHigh String} :
+  e.higher_correct_connections f = .some e' →
   e'.lower = .some e := by
   induction e generalizing e' with
   | base inst typ =>
@@ -98,10 +92,7 @@ theorem refines_higher_correct_connections {e : ExprLow String} {e' : ExprHigh S
     obtain ⟨v, ha, hb⟩ := h
     cases hb
     dsimp [ExprHigh.lower, ExprHigh.lower']
-    dsimp [ExprLow.higher_correct_products] at ha
-    rw [Option.bind_eq_some] at ha
-    obtain ⟨v', ha', hb'⟩ := ha
-    cases hb'; rfl
+    dsimp [ExprLow.higher_correct_products] at ha; cases ha; rfl
   | connect c e ihe =>
     intro h
     dsimp [ExprLow.higher_correct_connections] at h
@@ -124,17 +115,14 @@ theorem refines_higher_correct_connections {e : ExprLow String} {e' : ExprHigh S
     rename_i map1 typ1
     dsimp [ExprLow.higher_correct_products] at ha
     rw [Option.bind_eq_some] at ha
-    obtain ⟨v', ha', hb'⟩ := ha
-    rw [Option.bind_eq_some] at hb'
-    obtain ⟨v'', ha'', hb''⟩ := hb'
-    cases hb''
+    obtain ⟨v', ha', hb'⟩ := ha; cases hb'
     dsimp; rw [Batteries.AssocList.toList_toAssocList]
     congr
     rw [higher_correct_products_correct]
     dsimp; rfl; assumption
 
-theorem refines_higher_correct {ε e g} :
-  e.higher_correct = .some g →
+theorem refines_higher_correct {f} {ε e g} :
+  e.higher_correct f = .some g →
   ExprLow.well_formed ε e = true →
   [Ge| g, ε ] ⊑ ([e| e, ε ]) := by
   intro higher
@@ -143,11 +131,11 @@ theorem refines_higher_correct {ε e g} :
   rw [refines_higher_correct_connections] <;> try assumption
   apply ExprLow.refines_comm_bases
 
-theorem Rewrite_run'_correct {ε_global : Env} {g g' : ExprHigh String} {e_g : ExprLow String}
+theorem Rewrite_run'_correct {b} {ε_global : Env} {g g' : ExprHigh String} {e_g : ExprLow String}
         {s _st _st'} {rw : CorrectRewrite ε_global} :
   g.lower = some e_g →
   e_g.well_formed ε_global →
-  Rewrite.run' s g (toRewrite rw) _st = .ok g' _st' →
+  Rewrite.run' s g (toRewrite rw) b _st = .ok g' _st' →
   ([Ge| g', ε_global ]) ⊑ ([Ge| g, ε_global ]) := by
 
   unfold Rewrite.run'; simp; intro hlower_some hwell_formed_global hrewrite
@@ -177,10 +165,10 @@ theorem Rewrite_run'_correct {ε_global : Env} {g g' : ExprHigh String} {e_g : E
     rename (EStateM.map _ _ _ = .ok _ _) => hofOption
     replace hofOption := EStateM.map_eq_ok hofOption
     let ⟨_, _, _, _, _⟩ := hofOption; clear hofOption
-  rename (Option.bind _ ExprLow.higher_correct = some _) => hrewrite
-  have hrewrite'' := Option.bind_eq_some.mp hrewrite
-  obtain ⟨_, _, Hhighering⟩ := hrewrite''
-  clear hrewrite
+  -- rename (Option.bind _ ExprLow.higher_correct = some _) => hrewrite
+  -- have hrewrite'' := Option.bind_eq_some.mp hrewrite
+  -- obtain ⟨_, _, Hhighering⟩ := hrewrite''
+  -- clear hrewrite
   rename ExprHigh.lower g = _ => hverylower
   rw [hlower_some] at hverylower
   cases hverylower
@@ -204,78 +192,76 @@ theorem Rewrite_run'_correct {ε_global : Env} {g g' : ExprHigh String} {e_g : E
   dsimp [toRewrite] at Hrewrite
   cases Hrewrite
   cases hrewrite
+  rename_i wo wi _ _ _ _ _ _ _ _ _ _
+  have rw_output_wf : ExprLow.well_formed ε_global rw.rewrite.output_expr = true := by
+    apply ExprLow.refines_subset_well_formed
+    apply rw.consistent.2
+    apply rw.wf.2
+  have rw_input_wf : ExprLow.well_formed ε_global rw.rewrite.input_expr = true := by
+    apply ExprLow.refines_subset_well_formed
+    apply rw.consistent.1
+    apply rw.wf.1
+  have wo_wf : ExprLow.well_formed ε_global wo = true := by
+    solve_by_elim [ExprLow.refines_renamePorts_well_formed]
+  have lowered_wf : ExprLow.well_formed ε_global lowered = true := by
+    with_reducible split at ‹ite _ _ _ = _›
+    · solve_by_elim [ExprLow.refines_renamePorts_well_formed]
+    · cases ‹some _ = some _›; assumption
   apply Module.refines_transitive
   dsimp [ExprHigh.build_module_expr, ExprHigh.build_module, ExprHigh.build_module']
   apply refines_higher_correct; assumption
-  · apply ExprLow.refines_renamePorts_well_formed
-    · assumption
-    · rw [ExprLow.force_replace_eq_replace]; apply ExprLow.replacement_well_formed
-      · apply ExprLow.refines_comm_connections'_well_formed
-        apply ExprLow.refines_comm_bases_well_formed
-        assumption
-      · apply ExprLow.refines_renamePorts_well_formed
-        · assumption
-        · apply ExprLow.refines_subset_well_formed
-          apply rw.consistent.2
-          apply rw.wf.2
-  apply Module.refines_transitive
-  apply ExprLow.refines_renamePorts_2'; rotate_left 1; assumption; rotate_right 1
   · rw [ExprLow.force_replace_eq_replace]; apply ExprLow.replacement_well_formed
     · apply ExprLow.refines_comm_connections'_well_formed
       apply ExprLow.refines_comm_bases_well_formed
       assumption
-    · apply ExprLow.refines_renamePorts_well_formed
-      · assumption
-      · apply ExprLow.refines_subset_well_formed
-        apply rw.consistent.2
-        apply rw.wf.2
+    · assumption
   apply Module.refines_transitive
-  rw [ExprLow.ensureIOUnmodified_correct] <;> try assumption
-  · rw [ExprLow.force_replace_eq_replace]
-    apply ExprLow.replacement
-    · apply ExprLow.well_formed_implies_wf
-      apply ExprLow.refines_comm_connections'_well_formed
-      apply ExprLow.refines_comm_bases_well_formed
-      assumption
-    · apply ExprLow.well_formed_implies_wf
-      apply ExprLow.refines_renamePorts_well_formed
+  rw [ExprLow.force_replace_eq_replace]
+  apply ExprLow.replacement
+  · apply ExprLow.well_formed_implies_wf
+    apply ExprLow.refines_comm_connections'_well_formed
+    apply ExprLow.refines_comm_bases_well_formed
+    assumption
+  · apply ExprLow.well_formed_implies_wf; assumption
+  apply Module.refines_transitive (imod' := ([e| wi, ε_global ]))
+  · with_reducible split at ‹ite _ _ _ = _›
+    · apply Module.refines_transitive
+      apply ExprLow.refines_renamePorts_2'; rotate_left 1; assumption; rotate_right 1
       · assumption
-      · apply ExprLow.refines_subset_well_formed
-        apply rw.consistent.2
-        apply rw.wf.2
-    apply Module.refines_transitive
-    apply ExprLow.refines_renamePorts_2'; rotate_left 1; assumption; rotate_right 1
-    · apply ExprLow.refines_subset_well_formed
+      rw [ExprLow.ensureIOUnmodified_correct] <;> try assumption
+      apply Module.refines_transitive
+      apply ExprLow.refines_renamePorts_2'; rotate_left 1; assumption; rotate_right 1
+      · assumption
+      apply Module.refines_transitive
+      apply Module.refines_renamePorts
+      apply ExprLow.refines_subset
       apply rw.consistent.2
+      apply rw.consistent.1
       apply rw.wf.2
-    apply Module.refines_transitive
-    apply Module.refines_renamePorts
-    apply ExprLow.refines_subset
-    apply rw.consistent.2
-    apply rw.consistent.1
-    apply rw.wf.2
-    apply rw.wf.1
-    solve_by_elim [rw.refines]
-    apply Module.refines_transitive
-    apply ExprLow.refines_renamePorts_1'; rotate_left 1; assumption; rotate_right 1
+      apply rw.wf.1
+      solve_by_elim [rw.refines]
+      apply ExprLow.refines_renamePorts_1'; rotate_left 1; assumption; rotate_right 1
+      · assumption
+    · cases ‹some _ = some _›
+      apply Module.refines_transitive
+      apply ExprLow.refines_renamePorts_2'; rotate_left 1; assumption; rotate_right 1
+      · assumption
+      apply Module.refines_transitive
+      apply Module.refines_renamePorts
+      apply ExprLow.refines_subset
+      apply rw.consistent.2
+      apply rw.consistent.1
+      apply rw.wf.2
+      apply rw.wf.1
+      solve_by_elim [rw.refines]
+      apply ExprLow.refines_renamePorts_1'; rotate_left 1; assumption; rotate_right 1
+      · assumption
+  apply ExprLow.refines_comm_connections2'
+  · apply ExprLow.refines_renamePorts_well_formed
+    · assumption
     · apply ExprLow.refines_subset_well_formed
       apply rw.consistent.1
       apply rw.wf.1
-    apply ExprLow.refines_comm_connections2'
-    · apply ExprLow.refines_renamePorts_well_formed
-      · assumption
-      · apply ExprLow.refines_subset_well_formed
-        apply rw.consistent.1
-        apply rw.wf.1
-  · rw [ExprLow.force_replace_eq_replace]; apply ExprLow.replacement_well_formed
-    · apply ExprLow.refines_comm_connections'_well_formed
-      apply ExprLow.refines_comm_bases_well_formed
-      assumption
-    · apply ExprLow.refines_renamePorts_well_formed
-      · assumption
-      · apply ExprLow.refines_subset_well_formed
-        apply rw.consistent.2
-        apply rw.wf.2
   apply Module.refines_transitive
   apply ExprLow.refines_comm_connections'
   · apply ExprLow.refines_comm_bases_well_formed; assumption

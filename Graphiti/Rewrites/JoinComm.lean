@@ -64,18 +64,30 @@ def rhs (T₁ T₂ : Type) (S₁ S₂ : String) : ExprHigh String × IdentMap St
     pure -> o_out [from = "out1"];
   ]
 
-def rhsLower S₁ S₂ := (rhs Unit Unit S₁ S₂).fst.lower.get rfl
+def rhs_extract S₁ S₂ := (rhs Unit Unit S₁ S₂).fst.extract ["joinN", "pure"] |>.get rfl
+
+def rhsLower S₁ S₂ := (rhs_extract S₁ S₂).fst.lower.get rfl
+
+def findRhs mod := (rhs_extract "" "").fst.modules.find? mod |>.map Prod.fst
 
 def rewrite : Rewrite String :=
   { abstractions := [],
     pattern := matcher,
     rewrite := λ | [S₁, S₂] => pure ⟨lhsLower S₁ S₂, rhsLower S₁ S₂⟩ | _ => failure,
     name := "join-comm"
+    transformedNodes := [findRhs "joinN" |>.get rfl]
+    addedNodes := [findRhs "pure" |>.get rfl]
   }
 
 def targetedRewrite (s : String) : Rewrite String :=
-  { rewrite with pattern := identMatcher s,
-                 nameMap := identRenaming s
+  { rewrite with pattern := identMatcher s
+                 nameMap := -- ⟨ [ (⟨.internal "join", "in1"⟩, ⟨.internal "joinN", "in1"⟩)
+                            --   , (⟨.internal "join", "in2"⟩, ⟨.internal "joinN", "in2"⟩)
+                            --   ].toAssocList
+                            -- , [ (⟨.internal "join", "out1"⟩, ⟨.internal "joinN", "out1"⟩)
+                            --   ].toAssocList
+                            -- ⟩
+                            ∅
   }
 
 end Graphiti.JoinComm

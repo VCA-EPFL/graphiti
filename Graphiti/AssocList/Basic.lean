@@ -97,7 +97,7 @@ def wf {α β} (a : AssocList α β) : Prop := a.keysList.Nodup
 
 def invertible_efficient {α} [DecidableEq α] (p : AssocList α α) : Bool := true
 
-@[implemented_by invertible_efficient]
+-- @[implemented_by invertible_efficient]
 def invertible {α} [DecidableEq α] (p : AssocList α α) : Bool :=
   p.filterId.keysList.inter p.inverse.filterId.keysList = ∅ ∧ p.keysList.Nodup ∧ p.inverse.keysList.Nodup
 
@@ -106,5 +106,9 @@ def bijectivePortRenaming {α} [DecidableEq α] (p : AssocList α α) (i: α) : 
     let map := p.filterId.append p.inverse.filterId
     map.find? i |>.getD i
   else i
+
+@[simp] def mapKey' {α β δ} (f : α → β → δ) : AssocList α β → AssocList δ β
+  | nil        => nil
+  | cons k v t => cons (f k v) v (mapKey' f t)
 
 end Batteries.AssocList

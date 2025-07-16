@@ -423,7 +423,7 @@ def ensureIOUnmodified' (p : PortMapping Ident) (e : ExprLow Ident) : Bool :=
 
 def ensureIOUnmodified_efficient [DecidableEq Ident] (p : PortMapping Ident) (e : ExprLow Ident) : Bool := true
 
-@[implemented_by ensureIOUnmodified_efficient]
+-- @[implemented_by ensureIOUnmodified_efficient]
 def ensureIOUnmodified (p : PortMapping Ident) (e : ExprLow Ident) : Bool :=
   p.input.keysList.all (e.findInput · == false)
   ∧ p.input.valsList.all (e.findInput · == false)

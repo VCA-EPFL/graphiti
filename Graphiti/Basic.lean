@@ -190,10 +190,12 @@ instance set to `top`.
 
 end PortMap
 
+deriving instance Hashable for AssocList
+
 structure PortMapping (Ident) where
   input : PortMap Ident (InternalPort Ident)
   output : PortMap Ident (InternalPort Ident)
-deriving Repr, Inhabited, DecidableEq
+deriving Repr, Inhabited, DecidableEq, Hashable
 
 instance (Ident) [Repr Ident] : ToString (InternalPort Ident) where
   toString i := repr i |>.pretty
@@ -216,6 +218,15 @@ instance : Append (PortMapping Ident) := ⟨append⟩
 @[simp, drcompute] theorem append_elements {α} (a b c d : PortMap α (InternalPort α)) : PortMapping.mk a b ++ ⟨c, d⟩ = ⟨a ++ c, b ++ d⟩ := rfl
 @[simp, drcompute] theorem lift_append {α} (as bs : PortMapping α) : as.append bs = as ++ bs := rfl
 
+-- TODO: Why do we have to canonicalise? When are the port names actually being reordered?
+def canonPortMapping (i : PortMapping String) : PortMapping String :=
+  ⟨ (List.mergeSort (le := fun a b => a.1.2 ≤ b.1.2) i.input.toList).toAssocList
+  , (List.mergeSort (le := fun a b => a.1.2 ≤ b.1.2) i.output.toList).toAssocList
+  ⟩
+
+def hashPortMapping (i : PortMapping String) : String :=
+  hash (canonPortMapping i) |>.toBitVec |>.toHex |>.take 8
+
 def filter (f : InternalPort Ident → InternalPort Ident → Bool) (a : PortMapping Ident) :=
   PortMapping.mk (a.input.filter f) (a.output.filter f)
 
@@ -236,6 +247,9 @@ def map {α β} (f : α → β) : PortMapping α → PortMapping β
 
 def mapPairs (f : InternalPort Ident → InternalPort Ident → InternalPort Ident) : PortMapping Ident → PortMapping Ident
 | ⟨ a, b ⟩ => ⟨a.mapVal f, b.mapVal f⟩
+
+def mapKeys (f : InternalPort Ident → InternalPort Ident → InternalPort Ident) : PortMapping Ident → PortMapping Ident
+| ⟨ a, b ⟩ => ⟨a.mapKey' f, b.mapKey' f⟩
 
 def inverse (p : PortMapping Ident) :=
   {p with input := p.input.inverse, output := p.output.inverse}
