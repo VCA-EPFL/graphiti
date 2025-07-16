@@ -193,21 +193,6 @@ theorem Rewrite_run'_correct {b} {ε_global : Env} {g g' : ExprHigh String} {e_g
   cases Hrewrite
   cases hrewrite
   rename_i wo wi _ _ _ _ _ _ _ _ _ _
-  have lowered_wf : ExprLow.well_formed ε_global lowered = true := by
-    with_reducible split at ‹ite _ _ _ = _›
-    · apply ExprLow.refines_renamePorts_well_formed
-      assumption
-      apply ExprLow.refines_renamePorts_well_formed
-      assumption
-      apply ExprLow.refines_subset_well_formed
-      apply rw.consistent.2
-      apply rw.wf.2
-    · cases ‹some _ = some _›
-      apply ExprLow.refines_renamePorts_well_formed
-      assumption
-      apply ExprLow.refines_subset_well_formed
-      apply rw.consistent.2
-      apply rw.wf.2
   have rw_output_wf : ExprLow.well_formed ε_global rw.rewrite.output_expr = true := by
     apply ExprLow.refines_subset_well_formed
     apply rw.consistent.2
@@ -218,6 +203,10 @@ theorem Rewrite_run'_correct {b} {ε_global : Env} {g g' : ExprHigh String} {e_g
     apply rw.wf.1
   have wo_wf : ExprLow.well_formed ε_global wo = true := by
     solve_by_elim [ExprLow.refines_renamePorts_well_formed]
+  have lowered_wf : ExprLow.well_formed ε_global lowered = true := by
+    with_reducible split at ‹ite _ _ _ = _›
+    · solve_by_elim [ExprLow.refines_renamePorts_well_formed]
+    · cases ‹some _ = some _›; assumption
   apply Module.refines_transitive
   dsimp [ExprHigh.build_module_expr, ExprHigh.build_module, ExprHigh.build_module']
   apply refines_higher_correct; assumption
