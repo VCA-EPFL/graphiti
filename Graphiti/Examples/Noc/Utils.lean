@@ -63,8 +63,20 @@ namespace Graphiti.Noc
       | zero => rfl
       | succ sz HR => simpa [fin_range, HR]
 
+  def fin_range_len_cast {sz : Nat} : Fin (fin_range sz).length = Fin sz :=
+    by rw [fin_range_len]
+
   def fin_conv {sz : Nat} (i : Fin (fin_range sz).length) : Fin sz :=
     ⟨i.1, by cases i; rename_i v h; rw [fin_range_len] at h; simpa only⟩
+
+  def fin_conv' {sz : Nat} (i : Fin sz) : Fin (fin_range sz).length :=
+    ⟨i.1, by rw [fin_range_len]; cases i; assumption⟩
+
+  theorem fin_conv_conv {sz : Nat} (i : Fin (fin_range sz).length) :
+    fin_conv' (fin_conv i) = i := by rfl
+
+  theorem fin_conv_conv' {sz : Nat} (i : Fin sz) :
+    fin_conv (fin_conv' i) = i := by rfl
 
   theorem mapFinIdx_length {α β} (l : List α) (f : (i : Nat) → α → (h : i < l.length) → β) :
     (List.mapFinIdx l f).length = l.length := by
@@ -122,10 +134,10 @@ namespace Graphiti.Noc
   theorem RelInt.liftFinf_in {S} {rule : RelInt S} {n : Nat} {f : Fin n → List (RelInt S)}:
     -- TODO: This is probably an equivalence too
     rule ∈ (RelInt.liftFinf n f)
-    → ∃ (i : Fin n) (j : Fin (List.length (f i))), rule = (f i).get j := by sorry
+    → ∃ (i : Fin n) (j : Fin (f i).length), rule = (f i).get j := by sorry
 
   theorem RelInt.liftFinf_in' {S} {rule : RelInt S} {n : Nat} {f : Fin n → List (RelInt S)}:
-    (∃ (i : Fin n) (j : Fin (List.length (f i))), rule = (f i).get j) →
+    (∃ (i : Fin n) (j : Fin (f i).length), rule = (f i).get j) →
     rule ∈ (RelInt.liftFinf n f) := by
       intro ⟨i, j, Hij⟩
       rw [Hij]
@@ -313,7 +325,7 @@ namespace Graphiti.Noc
           ⟨Unit, ()⟩ l
         ).snd
 
-    def DPList.get' {l : List α} {f} (pl : DPList l f) (i : Nat) (h : i < List.length l) : f (l.get (Fin.mk i h)) :=
+    def DPList.get' {l : List α} {f} (pl : DPList l f) (i : Nat) (h : i < List.length l) : f (l.get ⟨i, h⟩) :=
       match l with
       | [] => by contradiction
       | hd :: tl =>
@@ -326,5 +338,33 @@ namespace Graphiti.Noc
       DPList.get' pl i.1 i.2
 
   end DPList
+
+  -- dep_foldr but for Σ'
+  section dep_foldr'
+
+    universe u1 u2 u3
+    variable {Ident}
+    variable {α : Type u1}
+    variable {β : Sort u2 → Sort (u3 + 1)}
+
+    @[simp]
+    abbrev dep_foldr'
+      (f : α → Sort u2 → Sort u2)
+      (g : (i : α) → (acc : Σ' (S : Sort u2), β S) → β (f i acc.1))
+      (acc : Σ' (S : Sort u2), β S) (l : List α)
+      : Σ' (S : Sort u2), β S :=
+      List.foldr (λ i acc => ⟨f i acc.1, g i acc⟩) acc l
+
+    theorem dep_foldr_1' {acc} {l} {f : α → Sort _ → Sort _} {g : (i : α) → (acc : Σ' S, β S) → β (f i acc.1)} :
+      (dep_foldr' f g acc l).1 = List.foldr f acc.1 l := by
+        induction l generalizing acc with
+        | nil => rfl
+        | cons x xs ih => dsimp [dep_foldr']; rw [ih]
+
+    theorem dep_foldr_β' {acc l} {f : α → Sort _ → Sort _} {g : (i : α) → (acc : Σ' S, β S) → β (f i acc.1)} :
+      β (dep_foldr' f g acc l).1 = β (List.foldr f acc.1 l) := by
+        rw [dep_foldr_1']
+
+  end dep_foldr'
 
 end Graphiti.Noc

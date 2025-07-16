@@ -59,6 +59,9 @@ namespace Graphiti.Noc.Examples
     -- Then we need
     sorry
 
-  #eval! (n.build_expr |> ExprLow.higher |> toString)
+  def tmp := n.build_expr |> ExprLow.higher
+
+  #eval! (tmp.modules)
+  #eval! (tmp |> toString)
 
 end Graphiti.Noc.Examples

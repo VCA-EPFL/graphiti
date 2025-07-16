@@ -110,7 +110,7 @@ abbrev Noc.spec_mqueueT (n : Noc Data netsz) : Type :=
   Vector n.spec_bagT (netsz * netsz)
 
 abbrev Noc.spec_mqueue_idx (n : Noc Data netsz) (src dst : n.topology.RouterID) : Fin (netsz * netsz) :=
-  Fin.mk (src * netsz + dst) (by sorry) -- TODO
+  ⟨src * netsz + dst, by sorry⟩ -- TODO
 
 @[drcomponents]
 def Noc.mk_spec_mqueue_input_rule (n : Noc Data netsz) (rid : n.topology.RouterID) : RelIO n.spec_mqueueT :=

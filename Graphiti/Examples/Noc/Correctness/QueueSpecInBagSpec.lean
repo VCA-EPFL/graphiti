@@ -147,7 +147,7 @@ theorem ϕ_indistinguishable :
         dsimp [drcomponents]
       obtain ⟨src, Hrule⟩ := Hrule
       subst i
-      apply Exists.intro _
+      apply Exists.intro ?_
       rw [PortMap.rw_rule_execution RelIO.liftFinf_get]
       dsimp [drcomponents]
       and_intros

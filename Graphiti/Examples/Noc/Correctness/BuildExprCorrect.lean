@@ -189,26 +189,20 @@ namespace Graphiti.Noc
     <;> sorry
 
   -- TODO: Proper name
-  def tmp_cast : Fin (fin_range netsz).length = n.RouterID := by
-    rw [fin_range_len]
-
-  -- TODO: Proper name
   def tmp2 {rid : Fin (fin_range netsz).length} :
-  (EC.rmod ((fin_range netsz).get rid)).1 =
-    (EC.rmod ⟨rid, by cases rid; rename_i n h; rw [fin_range_len] at h; simpa⟩).1 := by
-      rw [fin_range_get]; rfl
+    (EC.rmod ((fin_range netsz).get rid)).1 = (EC.rmod (fin_conv rid)).1 := by
+      rw [fin_range_get]
 
-  def I_cast_get (I : expT n ε) (rid : n.RouterID) :=
-    ((tmp2 n ε).mp (I.get' rid.1 (by rw [fin_range_len]; exact rid.2)))
+  def I_cast_get (I : expT n ε) (rid : n.RouterID) : (EC.rmod rid).1 :=
+    ((tmp2 n ε).mp (I.get (fin_conv' rid)))
 
   set_option pp.proofs true in
   #check I_cast_get
 
   def φ (I : expT n ε) (S : n.State) : Prop :=
-    ∀ (rid : n.RouterID),
-      (Module.refines_refines' (EC.rmod_ok rid)).2.choose
-        (I_cast_get n ε I rid)
-        (S.get rid)
+    ∀ (rid : n.RouterID), (Module.refines_refines' (EC.rmod_ok rid)).2.choose
+      (I_cast_get n ε I rid)
+      (S.get rid)
 
   set_option pp.proofs true in
   def i_init_rid (i : expT n ε) (Hinit : (expM n ε).init_state i) :
@@ -219,6 +213,8 @@ namespace Graphiti.Noc
         -- This rewrite does not work, not sure why… Probably universe
         -- constraints?
         -- rw [←Module.dep_foldr]
+        -- But this does not work either…
+        -- rw [←dep_foldr']
       revert n
       induction netsz with
       | zero => intro _ _ _ _ ⟨_, _⟩; contradiction
@@ -228,16 +224,23 @@ namespace Graphiti.Noc
         induction ridv with
         | zero =>
           dsimp [fin_range] at ⊢ Hinit i
-          obtain ⟨i1, i2⟩ := i
-          dsimp [I_cast_get, DPList.get']
-          -- TODO: This is true and shou:w
-          -- annoying casts to handle everywhere
+          obtain ⟨i, hi⟩ := i
+          dsimp [I_cast_get, DPList.get'] at *
+          unfold expM._proof_5 at Hinit
+          unfold Module.dep_foldr_β at Hinit
+          -- TODO: This is true and should but provable with hinit
+          -- but there is annoying casts to handle everywhere
           sorry
         | succ ridv' HR' =>
           rw [add_lt_add_iff_right] at Hrid
+          dsimp [fin_range] at ⊢ Hinit i
+          obtain ⟨i, hi⟩ := i
           -- FIXME: Process described below is not possible, init_state might
           -- depend on the total number of router in the system, this is very
           -- annoying
+          -- But thinking about it we should be able to create a new Noc which
+          -- depends just as much as the original with casts in the correct
+          -- places
           -- TODO: Trick here is probably to define a new noc but with one less
           -- router so that we can use HR with this new noc.
           -- This new noc will probably be also useful down the line for proving
@@ -270,17 +273,21 @@ namespace Graphiti.Noc
       exact Hs2
 
   theorem refines_φ : (expM n ε) ⊑_{φ n ε} (mod n) := by
-    sorry
+    intro i s hφ
+    constructor
+    · intro ident mid_i v hv
+      unfold φ at hφ
+      dsimp [drcomponents, drunfold_defs] at v hv
+      sorry
+    · intro ident mid_i v hv
+      dsimp [drcomponents, drunfold_defs] at v hv
+      sorry
+    · sorry
 
+  -- Useless to prove
   theorem ϕ_indistinguishable :
     ∀ i s, (φ n ε) i s → Module.indistinguishable (expM n ε) (mod n) i s := by
-      intros i s Hφ
-      constructor
-      <;> dsimp [drcomponents, drunfold_defs] at *
-      · intros ident i' v Hinp
-        sorry
-      · intros ident i' v Hout
-        sorry
+      sorry
 
   theorem correct : (expM n ε) ⊑ (mod n) := by
     apply (

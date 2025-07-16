@@ -54,19 +54,17 @@ namespace Graphiti.Noc
     ⟩
 
   @[drcomponents]
-  def Noc.mk_router_conn (n : Noc Data netsz) (rid : n.RouterID) : List (RelInt n.State) :=
-    (n.topology.neigh_out rid).mapFinIdx (λ (dir : Nat) (rid' : n.RouterID) Hdir =>
-      λ old_s new_s => ∃ (val : n.Flit) (mid_s : n.State),
-        n.output_rel rid (Fin.mk (dir + 1) (by simpa)) old_s val mid_s ∧
-        n.input_rel rid' sorry mid_s val new_s
-      )
+  def Noc.mk_router_conn (n : Noc Data netsz) (conn : n.topology.conn) : RelInt n.State :=
+    λ old_s new_s => ∃ (val : n.Flit) (mid_s : n.State),
+      n.output_rel conn.1 conn.2.2.1 old_s val mid_s ∧
+      n.input_rel conn.2.1 conn.2.2.2 mid_s val new_s
 
   @[drcomponents]
   def Noc.build_module (n : Noc Data netsz) : Module Nat n.State :=
     {
       inputs := RelIO.liftFinf netsz (λ rid => n.mk_router_input rid n.topology.DirLocal_inp)
       outputs := RelIO.liftFinf netsz (λ rid => n.mk_router_output rid n.topology.DirLocal_out)
-      internals := RelInt.liftFinf netsz n.mk_router_conn,
+      internals := (n.topology.conns).map (n.mk_router_conn),
       init_state := λ s => s = Vector.replicate netsz n.routers.init_state,
     }
 

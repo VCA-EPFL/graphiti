@@ -173,22 +173,25 @@ namespace Graphiti.Noc.DirectedTorusAbsoluteUnboundedCorrect
       · constructor
       · unfold φ at *
         dsimp [drcomponents] at HruleIn
-        obtain ⟨idx1, idx2, Hij⟩ := RelInt.liftFinf_in HruleIn
-        unfold Noc.mk_router_conn at Hij
-        rw [mapFinIdx_get] at Hij
+        rw [List.mem_map] at HruleIn
+        obtain ⟨conn, Hconn1, Hconn2⟩ := HruleIn
         subst rule
+        obtain ⟨idx_out, idx_inp, dir_out, dir_inp⟩ := conn
         dsimp [drcomponents] at Hrule
         obtain ⟨val, i', ⟨⟨Hval1, Hval2⟩, Hval3⟩, Hval4, Hval5⟩ := Hrule
-        dsimp [drcomponents, drunfold_defs] at Hval1 Hval2 Hval3 Hval4 Hval5
+        dsimp [drcomponents, drunfold_defs] at Hval1 Hval2 Hval3 Hval4
         apply List.Subset.trans (h₂ := H)
         intro x Hx
         simp only [List.mem_flatten, Vector.mem_toList_iff] at Hx ⊢
         obtain ⟨y, hy1, hy2⟩ := Hx
         obtain ⟨idxy1, hidxy1⟩ := vec_in_if_idx hy1
         subst y
-        dsimp [drcomponents, drunfold_defs] at idx2
-        by_cases heq: (dt.neigh_out idx1)[idx2] = idxy1
-        · simp only [heq] at Hval4
+        dsimp [drcomponents, drunfold_defs] at dir_out dir_inp
+        have htmp : dir_out - 1 < (dt.neigh_out idx_out).length :=
+          by sorry
+        by_cases heq: (dt.neigh_out idx_out)[↑dir_out - 1] = idx_inp
+        · subst idx_inp
+          -- simp only [heq] at Hval4
           -- TODO: Is this true?
           sorry
         · specialize Hval5 idxy1 heq

@@ -16,27 +16,28 @@ set_option Elab.async false
 
 namespace Graphiti.Noc.DirectedTorusAbsoluteUnboundedCorrect
 
+  variable {netsz : Netsz}
   variable (Data : Type) [BEq Data] [LawfulBEq Data]
-  variable (topology : Topology)
+  variable (topology : Topology netsz)
   variable (routing_pol : RoutingPolicy topology Data)
 
   @[drunfold_defs]
-  def noc_queue : Noc Data :=
+  def noc_queue : Noc Data netsz :=
     {
       topology := topology
       routing_pol := routing_pol
-      routers := Router.Unbounded.queue topology.netsz routing_pol.Flit
+      routers := Router.Unbounded.queue netsz routing_pol.Flit
     }
 
   @[drunfold_defs]
   abbrev mod_queue := (noc_queue Data topology routing_pol).build_module
 
   @[drunfold_defs]
-  def noc_bag : Noc Data :=
+  def noc_bag : Noc Data netsz :=
     {
       topology := topology
       routing_pol := routing_pol
-      routers := Router.Unbounded.bag topology.netsz routing_pol.Flit
+      routers := Router.Unbounded.bag netsz routing_pol.Flit
     }
 
   @[drunfold_defs]
@@ -47,6 +48,7 @@ namespace Graphiti.Noc.DirectedTorusAbsoluteUnboundedCorrect
 
   instance : MatchInterface (mod_queue Data topology routing_pol) (mod_bag Data topology routing_pol) := by
     apply MatchInterface_simpler
+    -- FIXME
     <;> simp only [drcomponents, RelIO_mapVal]
     <;> intros _
     <;> rfl
@@ -113,7 +115,6 @@ namespace Graphiti.Noc.DirectedTorusAbsoluteUnboundedCorrect
       obtain Htmp := vec_set_reconstruct
         (by
           intros idx' Hidx'
-          rewrite [eq_comm] at Hidx'
           specialize Hrule4 idx' Hidx'
           simpa [Hrule4])
         Hrule3
@@ -138,6 +139,7 @@ namespace Graphiti.Noc.DirectedTorusAbsoluteUnboundedCorrect
       unfold φ at H
       subst s
       dsimp [drcomponents, drunfold_defs] at HruleIn
+      -- FIXME
       obtain ⟨idx, j, Hj⟩ := RelInt.liftFinf_in HruleIn
       have Hrule' : ∃ rule', rule' ∈ (mod_bag Data topology routing_pol).internals ∧ rule' i mid_i:= by
         apply Exists.intro _
