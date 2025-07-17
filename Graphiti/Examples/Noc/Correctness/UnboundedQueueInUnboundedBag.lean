@@ -19,34 +19,34 @@ namespace Graphiti.Noc.DirectedTorusAbsoluteUnboundedCorrect
   variable {netsz : Netsz}
   variable (Data : Type) [BEq Data] [LawfulBEq Data]
   variable (topology : Topology netsz)
-  variable (routing_pol : RoutingPolicy topology Data)
+  variable (arbiter : Arbiter topology Data)
 
   @[drunfold_defs]
   def noc_queue : Noc Data netsz :=
     {
       topology := topology
-      routing_pol := routing_pol
-      routers := Router.Unbounded.queue netsz routing_pol.Flit
+      arbiter := arbiter
+      routers := Router.Unbounded.queue netsz arbiter.Flit
     }
 
   @[drunfold_defs]
-  abbrev mod_queue := (noc_queue Data topology routing_pol).build_module
+  abbrev mod_queue := (noc_queue Data topology arbiter).build_module
 
   @[drunfold_defs]
   def noc_bag : Noc Data netsz :=
     {
       topology := topology
-      routing_pol := routing_pol
-      routers := Router.Unbounded.bag netsz routing_pol.Flit
+      arbiter := arbiter
+      routers := Router.Unbounded.bag netsz arbiter.Flit
     }
 
   @[drunfold_defs]
-  abbrev mod_bag := (noc_bag Data topology routing_pol).build_module
+  abbrev mod_bag := (noc_bag Data topology arbiter).build_module
 
-  def φ (I : (noc_queue Data topology routing_pol).State) (S : (noc_bag Data topology routing_pol).State) : Prop :=
+  def φ (I : (noc_queue Data topology arbiter).State) (S : (noc_bag Data topology arbiter).State) : Prop :=
     I = S
 
-  instance : MatchInterface (mod_queue Data topology routing_pol) (mod_bag Data topology routing_pol) := by
+  instance : MatchInterface (mod_queue Data topology arbiter) (mod_bag Data topology arbiter) := by
     apply MatchInterface_simpler
     -- FIXME
     <;> simp only [drcomponents, RelIO_mapVal]
@@ -54,15 +54,15 @@ namespace Graphiti.Noc.DirectedTorusAbsoluteUnboundedCorrect
     <;> rfl
 
   theorem refines_initial :
-    Module.refines_initial (mod_queue Data topology routing_pol) (mod_bag Data topology routing_pol) (φ Data topology routing_pol) := by
+    Module.refines_initial (mod_queue Data topology arbiter) (mod_bag Data topology arbiter) (φ Data topology arbiter) := by
       intros s i; exists s
 
-  theorem refines_φ : (mod_queue Data topology routing_pol) ⊑_{φ Data topology routing_pol} (mod_bag Data topology routing_pol) := by
+  theorem refines_φ : (mod_queue Data topology arbiter) ⊑_{φ Data topology arbiter} (mod_bag Data topology arbiter) := by
     intros i s H
     <;> dsimp [drcomponents, drunfold_defs] at i s
     constructor
     · intros ident mid_i v Hrule
-      case_transition Hcontains : (Module.inputs (mod_queue Data topology routing_pol)), ident,
+      case_transition Hcontains : (Module.inputs (mod_queue Data topology arbiter)), ident,
        (PortMap.getIO_not_contained_false' Hrule)
       dsimp [drcomponents, drunfold_defs] at v Hrule Hcontains ⊢
       obtain ⟨idx, Hidx⟩ := RelIO.liftFinf_in Hcontains
@@ -74,8 +74,8 @@ namespace Graphiti.Noc.DirectedTorusAbsoluteUnboundedCorrect
       rw [PortMap.rw_rule_execution RelIO.liftFinf_get] at Hrule
       dsimp [drcomponents] at Hrule
       obtain ⟨Hrule1, Hrule2⟩ := Hrule
-      exists s.set idx (s[idx].concat ((Hv.mp v).1, routing_pol.mkhead idx (Hv.mp v).2 (Hv.mp v).1))
-      exists s.set idx (s[idx].concat ((Hv.mp v).1, routing_pol.mkhead idx (Hv.mp v).2 (Hv.mp v).1))
+      exists s.set idx (s[idx].concat ((Hv.mp v).1, arbiter.mkhead idx (Hv.mp v).2 (Hv.mp v).1))
+      exists s.set idx (s[idx].concat ((Hv.mp v).1, arbiter.mkhead idx (Hv.mp v).2 (Hv.mp v).1))
       and_intros
       · rw [PortMap.rw_rule_execution RelIO.liftFinf_get]
         dsimp [drcomponents]
@@ -100,7 +100,7 @@ namespace Graphiti.Noc.DirectedTorusAbsoluteUnboundedCorrect
         --   Hrule1
         sorry
     · intros ident mid_i v Hrule
-      case_transition Hcontains : (Module.outputs (mod_queue Data topology routing_pol)), ident,
+      case_transition Hcontains : (Module.outputs (mod_queue Data topology arbiter)), ident,
        (PortMap.getIO_not_contained_false' Hrule)
       dsimp [drcomponents] at v Hrule Hcontains ⊢
       obtain ⟨idx, Hidx⟩ := RelIO.liftFinf_in Hcontains
@@ -141,7 +141,7 @@ namespace Graphiti.Noc.DirectedTorusAbsoluteUnboundedCorrect
       dsimp [drcomponents, drunfold_defs] at HruleIn
       -- FIXME
       obtain ⟨idx, j, Hj⟩ := RelInt.liftFinf_in HruleIn
-      have Hrule' : ∃ rule', rule' ∈ (mod_bag Data topology routing_pol).internals ∧ rule' i mid_i:= by
+      have Hrule' : ∃ rule', rule' ∈ (mod_bag Data topology arbiter).internals ∧ rule' i mid_i:= by
         apply Exists.intro _
         and_intros
         · sorry
@@ -154,13 +154,13 @@ namespace Graphiti.Noc.DirectedTorusAbsoluteUnboundedCorrect
       · rfl
 
   theorem ϕ_indistinguishable :
-    ∀ i s, (φ Data topology routing_pol) i s → Module.indistinguishable (mod_queue Data topology routing_pol) (mod_bag Data topology routing_pol) i s := by
+    ∀ i s, (φ Data topology arbiter) i s → Module.indistinguishable (mod_queue Data topology arbiter) (mod_bag Data topology arbiter) i s := by
       sorry
 
-  theorem correct : (mod_queue Data topology routing_pol) ⊑ (mod_bag Data topology routing_pol) := by
+  theorem correct : (mod_queue Data topology arbiter) ⊑ (mod_bag Data topology arbiter) := by
     apply (
       Module.refines_φ_refines
-        (ϕ_indistinguishable Data topology routing_pol)
-        (refines_initial Data topology routing_pol)
-        (refines_φ Data topology routing_pol)
+        (ϕ_indistinguishable Data topology arbiter)
+        (refines_initial Data topology arbiter)
+        (refines_φ Data topology arbiter)
     )

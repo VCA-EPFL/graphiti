@@ -47,23 +47,23 @@ namespace Graphiti.Noc
 
   @[simp]
   abbrev Topology.Dir_out (t : Topology netsz) (rid : t.RouterID) : Type :=
-    Fin (List.length (t.neigh_out rid) + 1)
+    Fin ((t.neigh_out rid).length + 1)
 
   @[simp]
   abbrev Topology.Dir_inp (t : Topology netsz) (rid : t.RouterID) : Type :=
-    Fin (List.length (t.neigh_inp rid) + 1)
+    Fin ((t.neigh_inp rid).length + 1)
 
-  abbrev Topology.mkDir_out (t : Topology netsz) (rid : t.RouterID) (i : Nat) (h : i < List.length (t.neigh_out rid)) : t.Dir_out rid :=
+  abbrev Topology.mkDir_out (t : Topology netsz) (rid : t.RouterID) (i : Nat) (h : i < (t.neigh_out rid).length) : t.Dir_out rid :=
     ⟨i + 1, by simpa only [Nat.add_lt_add_iff_right]⟩
 
-  abbrev Topology.mkDir_inp (t : Topology netsz) (rid : t.RouterID) (i : Nat) (h : i < List.length (t.neigh_inp rid)) : t.Dir_inp rid :=
+  abbrev Topology.mkDir_inp (t : Topology netsz) (rid : t.RouterID) (i : Nat) (h : i < (t.neigh_inp rid).length) : t.Dir_inp rid :=
     ⟨i + 1, by simpa only [Nat.add_lt_add_iff_right]⟩
 
   def Topology.DirLocal_out (t : Topology netsz) {rid : t.RouterID} : t.Dir_out rid :=
     ⟨0, by simpa only [Nat.zero_lt_succ]⟩
 
   def Topology.DirLocal_inp (t : Topology netsz) {rid : t.RouterID} : t.Dir_inp rid :=
-    ⟨0, by simp only [Nat.zero_lt_succ]⟩
+    ⟨0, by simpa only [Nat.zero_lt_succ]⟩
 
   abbrev Topology.out_len (t : Topology netsz) (rid : t.RouterID) : Nat :=
     (t.neigh_out rid).length
@@ -71,22 +71,50 @@ namespace Graphiti.Noc
   abbrev Topology.inp_len (t : Topology netsz) (rid : t.RouterID) : Nat :=
     (t.neigh_inp rid).length
 
-  abbrev Topology.conn (t : Topology netsz) :=
-    Σ (rid_out rid_inp : t.RouterID), t.Dir_out rid_out × t.Dir_inp rid_inp
+  abbrev Topology.Conn_out (t : Topology netsz) :=
+    Σ (rid : t.RouterID), t.Dir_out rid
 
-  def Topology.conn' (t : Topology netsz) (rid : t.RouterID) : List t.conn :=
-    -- TODO: Replace t.DirLocal_inp with a proper input
-    -- We need to handle the case where we have multiple connections with the
-    -- same router, maybe we need an accumulator saying how many times we've
-    -- encoutered stuff
-    t.neigh_out rid
-    |>.mapFinIdx (λ dir rid' Hdir => ⟨rid, rid', (t.mkDir_out rid dir Hdir, t.DirLocal_inp)⟩)
+  abbrev Topology.Conn_out' (t : Topology netsz) :=
+    Σ (rid : t.RouterID), t.Dir_out rid × t.RouterID
 
+  abbrev Topology.Conn_inp (t : Topology netsz) :=
+    Σ (rid : t.RouterID), t.Dir_inp rid
 
-  def Topology.conns (t : Topology netsz) : List t.conn :=
-    List.map t.conn' (fin_range netsz) |>.flatten
+  abbrev Topology.Conn_inp' (t : Topology netsz) :=
+    Σ (rid : t.RouterID), t.Dir_inp rid × t.RouterID
 
-  -- Routing policy ------------------------------------------------------------
+  abbrev Topology.Conn (t : Topology netsz) :=
+    t.Conn_out × t.Conn_inp
+
+  def Topology.conns_out (t : Topology netsz) (rid : t.RouterID) : List t.Conn_out' :=
+    (t.neigh_out rid).mapFinIdx (λ d rid' h => ⟨rid, t.mkDir_out rid d h, rid'⟩)
+
+  def Topology.conns_inp (t : Topology netsz) (rid : t.RouterID) : List t.Conn_inp' :=
+    (t.neigh_inp rid).mapFinIdx (λ d rid' h => ⟨rid, t.mkDir_inp rid d h, rid'⟩)
+
+  def Topology.conns (t : Topology netsz) : List t.Conn :=
+    let conns_out := (fin_range netsz).map t.conns_out |>.flatten
+    let conns_inp := (fin_range netsz).map t.conns_inp |>.flatten
+    (List.foldl
+      (λ (conns_inp, conns) conn_out =>
+        let conn_inp_idx :=
+          List.findFinIdx?
+            (λ c => c.1 = conn_out.2.2 && c.2.2 = conn_out.1)
+            conns_inp
+        match conn_inp_idx with
+        | .some conn_inp_idx =>
+            let conn_inp := conns_inp[conn_inp_idx]
+            let conn := ⟨
+              ⟨conn_out.1, conn_out.2.1⟩,
+              ⟨conn_inp.1, conn_inp.2.1⟩
+            ⟩
+            (conns_inp.eraseIdx conn_inp_idx, conn :: conns)
+        | .none => (conns_inp, conns) -- TODO: Provably unreachable
+      )
+      (conns_inp, [])
+      conns_out).2
+
+  -- Arbiter (Routing policy) --------------------------------------------------
 
   @[simp]
   abbrev Route' (t : Topology netsz) (Flit : Type) : Type :=
@@ -100,25 +128,25 @@ namespace Graphiti.Noc
   abbrev MkHead' (t : Topology netsz) (Data : Type) (FlitHeader : Type) : Type :=
     (cur dst : t.RouterID) → (data : Data) → FlitHeader
 
-  structure RoutingPolicy (t : Topology netsz) (Data : Type) where
+  structure Arbiter (t : Topology netsz) (Data : Type) where
     FlitHeader  : Type
     route       : Route' t (Flit' Data FlitHeader)
     mkhead      : MkHead' t Data FlitHeader
 
   variable {t : Topology netsz} {Data : Type}
 
-  abbrev RoutingPolicy.Flit (rp : RoutingPolicy t Data) :=
+  abbrev Arbiter.Flit (rp : Arbiter t Data) :=
     Flit' Data rp.FlitHeader
 
-  abbrev RoutingPolicy.Route (rp : RoutingPolicy t Data) :=
+  abbrev Arbiter.Route (rp : Arbiter t Data) :=
     Route' t rp.Flit
 
-  abbrev RoutingPolicy.MkHead (rp : RoutingPolicy t Data) :=
+  abbrev Arbiter.MkHead (rp : Arbiter t Data) :=
     MkHead' t Data rp.FlitHeader
 
   -- Router --------------------------------------------------------------------
 
-  -- TODO: RouterRel' sould have a `Dir_inp rid` as a parameter so we know where
+  -- TODO: RouterRel' could have a `Dir_inp rid` as a parameter so we know where
   -- we got the message from
   @[simp]
   abbrev RouterRel' (netsz : Netsz) (Flit RouterState : Type) :=
@@ -136,9 +164,10 @@ namespace Graphiti.Noc
   -- Noc -----------------------------------------------------------------------
 
   structure Noc (Data : Type) [BEq Data] [LawfulBEq Data] (netsz : Netsz) where
-    topology    : Topology netsz
-    routing_pol : RoutingPolicy topology Data
-    routers     : Router netsz routing_pol.Flit
+    topology  : Topology netsz
+    arbiter   : Arbiter topology Data
+    routers   : Router netsz arbiter.Flit
+    DataS     : String
 
   variable {Data : Type} [BEq Data] [LawfulBEq Data] {netsz : Netsz}
 
@@ -160,7 +189,7 @@ namespace Graphiti.Noc
 
   @[simp]
   abbrev Noc.Flit (n : Noc Data netsz) :=
-    n.routing_pol.Flit
+    n.arbiter.Flit
 
   @[simp]
   abbrev Noc.Rel_out (n : Noc Data netsz) (T : Type) :=

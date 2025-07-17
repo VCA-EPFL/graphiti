@@ -13,25 +13,44 @@ open Batteries (AssocList)
 
 namespace Graphiti.Noc
 
-  variable {Data : Type} [BEq Data] [LawfulBEq Data] {netsz : Netsz}
+  variable {Data : Type} [ToString Data] [BEq Data] [LawfulBEq Data] {netsz : Netsz}
 
   @[drcomponents]
-  def router_name (n : Noc Data netsz) (rid : n.topology.RouterID) :=
-    s!"Router {rid}"
+  def router_name (n : Noc Data netsz) (rid : n.RouterID) :=
+    s!"Router_{rid}"
 
   @[drcomponents]
-  def router_stringify_inp (n : Noc Data netsz) (rid : n.topology.RouterID) (dir : Nat) :=
-    s!"Router {rid} in{dir}"
+  def router_type_name (n : Noc Data netsz) (rid : n.RouterID) :=
+    s!"Router {n.DataS} {rid}"
 
   @[drcomponents]
-  def router_stringify_out (n : Noc Data netsz) (rid : n.topology.RouterID) (dir : Nat) :=
-    s!"Router {rid} out{dir}"
+  def router_inp (n : Noc Data netsz) (rid : n.RouterID) (dir : Nat) : InternalPort String :=
+    { inst := .internal (router_name n rid), name := NatModule.stringify_input dir }
+
+  @[drcomponents]
+  def router_out (n : Noc Data netsz) (rid : n.RouterID) (dir : Nat) : InternalPort String :=
+    { inst := .internal (router_name n rid), name := NatModule.stringify_output dir }
 
   @[drunfold_defs]
   def Noc.build_expr (n : Noc Data netsz) : ExprLow String :=
 
     let mkrouter (rid : n.RouterID) : ExprLow String :=
-      .base { input := .nil, output := .nil } s!"Router {rid}"
+      .base
+      {
+        input :=
+          .cons (NatModule.stringify_output 0) (router_out n rid 0)
+          (List.mapFinIdx
+            (n.topology.neigh_inp rid)
+            (λ dir _ _ => let dir := dir + 1; ⟨NatModule.stringify_input dir, router_inp n rid dir⟩)
+          |>.toAssocList),
+        output :=
+          .cons (NatModule.stringify_output 0) (router_out n rid 0)
+          (List.mapFinIdx
+            (n.topology.neigh_out rid)
+            (λ dir _ _ => let dir := dir + 1; ⟨NatModule.stringify_output dir, router_out n rid dir⟩)
+          |>.toAssocList),
+      }
+      (router_type_name n rid)
 
     let mkrouters (acc : ExprLow String) : ExprLow String :=
       List.foldr (λ i acc => .product (mkrouter i) acc) acc (fin_range netsz)
@@ -39,19 +58,19 @@ namespace Graphiti.Noc
     let mkconns (acc : ExprLow String) : ExprLow String :=
       List.foldr
         (λ c acc =>
-          let rid_out := c.1
+          let rid_out := c.1.1
           let rid_inp := c.2.1
-          let dir_out := c.2.2.1
-          let dir_inp := c.2.2.2
+          let dir_out := c.1.2
+          let dir_inp := c.2.1
           .connect
             {
-              output  := router_stringify_out n rid_out dir_out
-              input   := router_stringify_inp n rid_inp dir_inp
+              output  := router_out n rid_out dir_out
+              input   := router_inp n rid_inp dir_inp
             }
           acc)
         acc n.topology.conns
 
-    .base { input := .nil, output := .nil } "empty"
+    .base { input := .cons "" { inst := .internal "empty", name := "" } .nil, output := .nil } "empty"
     |> mkrouters
     |> mkconns
 

@@ -11,7 +11,6 @@ import Graphiti.ExprHigh
 import Graphiti.ExprLow
 import Graphiti.Examples.Noc.Lang
 import Graphiti.Examples.Noc.Router
-import Graphiti.Examples.Noc.Spec
 import Graphiti.Examples.Noc.Topology.Torus
 import Graphiti.Examples.Noc.BuildExpr
 import Graphiti.Examples.Noc.BuildModule
@@ -31,8 +30,9 @@ namespace Graphiti.Noc.Examples
   def n : Noc Data dt.netsz :=
     {
       topology := topo
-      routing_pol := dt.AbsoluteRoutingPolicy Data
+      arbiter := dt.AbsoluteArbiter Data
       routers := Router.Unbounded.bag dt.netsz (dt.AbsoluteFlit Data)
+      DataS := "Nat"
     }
 
   -- If we want to extract to hardware, we have to implement a router
@@ -49,7 +49,7 @@ namespace Graphiti.Noc.Examples
 
   def arbiter (rid : n.RouterID) : ExprLow String :=
     -- First split
-    -- Then we need two check `isLt`
+    -- Then we need two `isLt` check
     sorry
 
   def router (rid : n.RouterID) : ExprLow String :=
@@ -59,9 +59,17 @@ namespace Graphiti.Noc.Examples
     -- Then we need
     sorry
 
-  def tmp := n.build_expr |> ExprLow.higher
+  def tmp := n.build_expr |> ExprLow.higher_correct PortMapping.hashPortMapping
 
-  #eval! (tmp.modules)
-  #eval! (tmp |> toString)
+  #eval! tmp |> Option.get!
+  #eval! tmp |> Option.get! |> ExprHigh.normaliseNames
+  #eval! tmp |> Option.get! |> toString |> IO.print
+
+  def tmp' := n.build_expr |> ExprLow.higher
+
+  #eval! tmp'
+  #eval! tmp' |> ExprHigh.normaliseModules |> Option.get!
+  #eval! tmp' |> toString |> IO.print
+
 
 end Graphiti.Noc.Examples

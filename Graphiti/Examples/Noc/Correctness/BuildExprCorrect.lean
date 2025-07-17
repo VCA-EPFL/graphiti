@@ -32,7 +32,7 @@ namespace Graphiti.Noc
 
   @[drenv]
   def Noc.env_rmod_in (n : Noc Data netsz) (ε : Env) (rmod : n.RouterID → TModule String) : Prop :=
-    ∀ rid : n.RouterID, AssocList.find? (router_name n rid) ε = .some (rmod rid)
+    ∀ rid : n.RouterID, AssocList.find? (router_type_name n rid) ε = .some (rmod rid)
 
   @[drenv]
   def Noc.env_empty (n : Noc Data netsz) (ε : Env) : Prop :=
@@ -64,7 +64,8 @@ namespace Graphiti.Noc
       arg 2
       arg 1
       intro i acc
-      rw [←router_name, EC.rmod_in_ε i]
+      rw [←router_name, ←router_type_name]
+      rw [EC.rmod_in_ε i]
       dsimp
     rw [Module.dep_foldr_1 (f := λ i acc => acc)]
     rw [Module.dep_foldr_1 (f := λ i acc => (EC.rmod i).1 × acc)]
@@ -125,14 +126,15 @@ namespace Graphiti.Noc
         arg 2
         arg 1
         intro i acc
-        rw [←router_name, EC.rmod_in_ε i]
+        rw [←router_name, ←router_type_name]
+        rw [EC.rmod_in_ε i]
         dsimp [Module.product]
         dsimp [
           Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts,
           Module.mapInputPorts, reduceAssocListfind?
         ]
-        rw [nil_renaming]
-        rw [nil_renaming]
+        -- rw [nil_renaming]
+        -- rw [nil_renaming]
     )]
     dsimp [
       Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts,

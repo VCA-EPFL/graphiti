@@ -19,7 +19,7 @@ namespace Graphiti.Noc
   @[drcomponents]
   abbrev Noc.router_output_rel (n : Noc Data netsz) :=
     λ (rid : n.RouterID) (dir : n.Dir_out rid) (old_s : n.routers.State) (val : n.Flit) (new_s : n.routers.State) =>
-      let val' := n.routing_pol.route rid val
+      let val' := n.arbiter.route rid val
       dir = val'.1 ∧
       n.routers.output_rel rid old_s val new_s
 
@@ -32,7 +32,7 @@ namespace Graphiti.Noc
   @[drcomponents]
   abbrev Noc.input_rel' (n : Noc Data netsz) : n.Rel_inp (Data × n.RouterID) :=
     λ rid dir old_s val new_s =>
-      n.input_rel rid dir old_s (val.1, (n.routing_pol.mkhead rid val.2 val.1)) new_s
+      n.input_rel rid dir old_s (val.1, (n.arbiter.mkhead rid val.2 val.1)) new_s
 
   @[drcomponents]
   abbrev Noc.output_rel (n : Noc Data netsz) : n.Rel_out n.Flit :=
@@ -54,10 +54,10 @@ namespace Graphiti.Noc
     ⟩
 
   @[drcomponents]
-  def Noc.mk_router_conn (n : Noc Data netsz) (conn : n.topology.conn) : RelInt n.State :=
+  def Noc.mk_router_conn (n : Noc Data netsz) (conn : n.topology.Conn) : RelInt n.State :=
     λ old_s new_s => ∃ (val : n.Flit) (mid_s : n.State),
-      n.output_rel conn.1 conn.2.2.1 old_s val mid_s ∧
-      n.input_rel conn.2.1 conn.2.2.2 mid_s val new_s
+      n.output_rel conn.1.1 conn.1.2 old_s val mid_s ∧
+      n.input_rel conn.2.1 conn.2.2 mid_s val new_s
 
   @[drcomponents]
   def Noc.build_module (n : Noc Data netsz) : Module Nat n.State :=

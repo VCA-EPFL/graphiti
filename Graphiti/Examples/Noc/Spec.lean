@@ -25,12 +25,12 @@ def Noc.mk_spec_router_input_rule_z (n : Noc Data netsz) (rid : n.RouterID) : Re
   ⟨
     Data × n.topology.RouterID,
     λ old_s val new_s =>
-      n.routers.input_rel rid old_s (val.1, (n.routing_pol.mkhead rid val.2 val.1)) new_s
+      n.routers.input_rel rid old_s (val.1, (n.arbiter.mkhead rid val.2 val.1)) new_s
   ⟩
 
 @[drcomponents]
 def Noc.mk_spec_router_input_rule_s (n : Noc Data netsz) (rid : n.RouterID) : RelIO n.routers.State :=
-  ⟨n.routing_pol.Flit, n.routers.input_rel rid⟩
+  ⟨n.arbiter.Flit, n.routers.input_rel rid⟩
 
 @[drcomponents]
 def Noc.mk_spec_router_input_rule (n : Noc Data netsz) (rid : n.RouterID) (dir : n.Dir_inp rid) : RelIO n.routers.State :=
@@ -65,7 +65,7 @@ def Noc.spec_router' (n : Noc Data netsz) (rid : n.topology.RouterID) : NatModul
 
 @[drcomponents]
 def Noc.spec_router (n : Noc Data netsz) (rid : n.topology.RouterID) : StringModule (n.routers.State) :=
-  n.spec_router' rid |>.mapIdent (router_stringify_inp n rid) (router_stringify_out n rid)
+  n.spec_router' rid |> NatModule.stringify
 
 -- Bag -------------------------------------------------------------------------
 -- Weakest possible specification, where order is not preserved by the Noc

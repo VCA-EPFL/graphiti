@@ -41,3 +41,34 @@
 
 - We could have a `Router` implementation which depends on an `Arbiter`
   definition
+
+- `Router` is a name which is too generic, we should probably instead have a
+  router string along the line of `RelativeRouter 5 5 Data` or maybe first
+  argument is `Router Arbiter RouterID`
+
+## Compiling to hadrware
+
+- We have the problem of component names:
+  + We currently consider `Router` to be a bit of a magic type, which only take
+    one argument, the RouterID. We should probably instead consider a more
+    careful naming, where the router take as a parameter the routing policy
+    (Which itself might be dependent on Data type and other stuff?)
+    We currently have `Router 0`, but would maybe want:
+    `RouterBounded Data (ArbiterAbsolute Topology Data RouterID) RouterID`
+    Maybe we could change the Noc language and merge `RoutingPolicy` into `Router`,
+    but the problem is that at a language level they are different things, but
+    when instantiated they become related.
+    OR: In our build expr, we would instead want to have a RoutingPolicy (Wich
+    really should be renamed to arbiter), and also build using this arbiter,
+    which would make a lot more sense.
+    But this would require having extra `output / input` to Router, which
+    would be annoying, and would split the router significantly.
+    The solution where the arbiter is just part of the router from a noc level
+    might be easier for the purpose
+
+## Current limitations
+
+- Necessarily uniform routers
+- Arbiter can't modify the `Data`, only the `FlitHeader`
+- Router are necessarily deterministic
+- Router only have one initial state
