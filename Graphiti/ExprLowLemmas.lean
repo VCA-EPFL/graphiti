@@ -7,7 +7,6 @@ Authors: Yann Herklotz
 import Graphiti.ModuleLemmas
 import Graphiti.ExprLow
 import Graphiti.Environment
-import Graphiti.ModuleSimulation
 import Mathlib.Tactic
 import Mathlib.Data.QPF.Univariate.Basic
 

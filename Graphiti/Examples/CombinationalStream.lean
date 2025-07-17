@@ -10,7 +10,7 @@ import Graphiti.Simp
 import Graphiti.ExprHighElaborator
 import Graphiti.AssocList.Basic
 import Graphiti.TypeExpr
-import Graphiti.Experimental.VerilogExport
+import Graphiti.VerilogExport
 
 open Batteries (AssocList)
 
