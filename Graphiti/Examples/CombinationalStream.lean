@@ -10,8 +10,7 @@ import Graphiti.Simp
 import Graphiti.ExprHighElaborator
 import Graphiti.AssocList.Basic
 import Graphiti.TypeExpr
-import Graphiti.Environment
-import Graphiti.VerilogExport
+import Graphiti.Experimental.VerilogExport
 
 open Batteries (AssocList)
 
@@ -82,9 +81,8 @@ def not_m : NatModule D :=
   }
 
 def not_m_template : VerilogTemplate where
-  module inst := build_local_module "not_m" inst "assign #1 out1 = ~ in1;"
+  module := build_local_module "not_m" (simple_interface ["in1"] ["out1"]) "assign #1 out1 = ~ in1;"
   instantiation name inst := format_instantiation "not_m" name inst
-  declaration := format_declarations_with_interface (simple_interface ["in1"] ["out1"])
 
 def sink_m : NatModule Unit :=
   { inputs := [(0, ⟨ D, λ s tt s' => True ⟩)].toAssocList,
@@ -93,9 +91,8 @@ def sink_m : NatModule Unit :=
   }
 
 def sink_m_template : VerilogTemplate where
-  module inst := build_local_module "sink_m" inst ""
+  module := build_local_module "sink_m" (simple_interface ["in1"] []) ""
   instantiation name inst := format_instantiation "sink_m" name inst
-  declaration := format_declarations_with_interface (simple_interface ["in1"] [])
 
 def nand_m : NatModule (D × D) :=
   { inputs := [(0, ⟨ D, λ s tt s' => more_defined s.1 tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
@@ -105,9 +102,8 @@ def nand_m : NatModule (D × D) :=
   }
 
 def nand_m_template : VerilogTemplate where
-  module inst := build_local_module "nand_m" inst "assign #1 out1 = ~ (in1 & in2);"
+  module := build_local_module "nand_m" (simple_interface ["in1", "in2"] ["out1"]) "assign #1 out1 = ~ (in1 & in2);"
   instantiation name inst := format_instantiation "nand_m" name inst
-  declaration := format_declarations_with_interface (simple_interface ["in1", "in2"] ["out1"])
 
 def nand3_m : NatModule (D × D × D) :=
   { inputs := [(0, ⟨ D, λ s tt s' => more_defined s.1 tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
@@ -118,9 +114,8 @@ def nand3_m : NatModule (D × D × D) :=
   }
 
 def nand3_m_template : VerilogTemplate where
-  module inst := build_local_module "nand3_m" inst "assign #1 out1 = ~ (in1 & in2 & in3);"
+  module := build_local_module "nand3_m" (simple_interface ["in1", "in2", "in3"] ["out1"]) "assign #1 out1 = ~ (in1 & in2 & in3);"
   instantiation name inst := format_instantiation "nand3_m" name inst
-  declaration := format_declarations_with_interface (simple_interface ["in1", "in2", "in3"] ["out1"])
 
 def and_m : NatModule (D × D) :=
   { inputs := [(0, ⟨ D, λ s tt s' => more_defined s.1 tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
@@ -130,9 +125,8 @@ def and_m : NatModule (D × D) :=
   }
 
 def and_m_template : VerilogTemplate where
-  module inst := build_local_module "and_m" inst "assign #1 out1 = in1 & in2;"
+  module := build_local_module "and_m" (simple_interface ["in1", "in2"] ["out1"]) "assign #1 out1 = in1 & in2;"
   instantiation name inst := format_instantiation "and_m" name inst
-  declaration := format_declarations_with_interface (simple_interface ["in1", "in2"] ["out1"])
 
 def fork_m : NatModule D :=
   { inputs := [(0, ⟨ D, λ s tt s' => more_defined s tt ∧ s' = tt ⟩)].toAssocList,
@@ -141,9 +135,8 @@ def fork_m : NatModule D :=
   }
 
 def fork_m_template : VerilogTemplate where
-  module inst := build_local_module "fork_m" inst "assign out1 = in1;\nassign out2 = in1;"
+  module := build_local_module "fork_m" (simple_interface ["in1"] ["out1", "out2"]) "assign out1 = in1;\nassign out2 = in1;"
   instantiation name inst := format_instantiation "fork_m" name inst
-  declaration := format_declarations_with_interface (simple_interface ["in1"] ["out1", "out2"])
 
 def fork3_m : NatModule D :=
   { inputs := [(0, ⟨ D, λ s tt s' => more_defined s tt ∧ s' = tt ⟩)].toAssocList,
@@ -152,9 +145,8 @@ def fork3_m : NatModule D :=
   }
 
 def fork3_m_template : VerilogTemplate where
-  module inst := build_local_module "fork3_m" inst "assign out1 = in1;\nassign out2 = in1;\nassign out3 = in1;"
+  module := build_local_module "fork3_m" (simple_interface ["in1"] ["out1", "out2", "out3"]) "assign out1 = in1;\nassign out2 = in1;\nassign out3 = in1;"
   instantiation name inst := format_instantiation "fork3_m" name inst
-  declaration := format_declarations_with_interface (simple_interface ["in1"] ["out1", "out2", "out3"])
 
 def not_sm := not_m.stringify
 def sink_sm := sink_m.stringify
@@ -252,9 +244,8 @@ def d_latch_m : ExprHigh String × Env := [graphEnv|
   ]
 
 def d_latch_m_template : VerilogTemplate where
-  module inst := build_local_module "d_latch_m" inst ((build_verilog_body env d_latch_m.1).get rfl)
+  module := build_local_module "d_latch_m" (simple_interface ["d", "clk"] ["q", "q_bar"]) ((build_verilog_body env d_latch_m.1).get rfl)
   instantiation name inst := format_instantiation "d_latch_m" name inst
-  declaration := format_declarations_with_interface (simple_interface ["d", "clk"] ["q", "q_bar"])
 
 def et_flip_flop_m : ExprHigh String × Env := [graphEnv|
     clk [type="io"];
@@ -346,9 +337,9 @@ def et_ms_flip_flop_m : ExprHigh String × Env := [graphEnv|
     latch2 -> q_bar [from="q_bar"];
   ]
 
-#eval IO.print <| build_verilog_module "d_latch_m" env d_latch_m.1
-#eval IO.print <| build_verilog_module "et_flip_flop_m" env et_flip_flop_m.1
-#eval IO.print <| build_verilog_module "et_ms_flip_flop_m" env' et_ms_flip_flop_m.1
+#eval IO.print <| build_verilog_module "d_latch_m" env d_latch_m.1 (simple_interface ["d", "clk"] ["q", "q_bar"])
+#eval IO.print <| build_verilog_module "et_flip_flop_m" env et_flip_flop_m.1 (simple_interface ["d", "clk"] ["q", "q_bar"])
+#eval IO.print <| build_verilog_module "et_ms_flip_flop_m" env' et_ms_flip_flop_m.1 (simple_interface ["d", "clk"] ["q", "q_bar"])
 
 end FlipFlop
 

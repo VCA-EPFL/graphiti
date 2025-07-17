@@ -15,9 +15,8 @@ structure VerilogInterface where
 deriving Inhabited
 
 structure VerilogTemplate where
-  module : PortMapping String → Option String
+  module : String
   instantiation : String → PortMapping String → Option String
-  declaration : String
 deriving Inhabited
 
 def format_ident : InternalPort String → String
@@ -60,11 +59,11 @@ def format_local_decls (inst : PortMapping String) :=
   "\n".intercalate (format_declaration ((inst.input.mapVal (λ b _ => ("input wire [0:0]", b))).toList.map Prod.snd)
                     ++ format_declaration ((inst.output.mapVal (λ b _ => ("output wire [0:0]", b))).toList.map Prod.snd))
 
-def build_local_module (typ : String) (inst : PortMapping String) (body : String) :=
+def build_local_module (typ : String) (inst : VerilogInterface) (body : String) :=
   let v := ", ".intercalate (inst.input.toList.map
     (λ (x, _) => format_ident x) ++ inst.output.toList.map (λ (x, _) => format_ident x))
   s!"module {typ}({v});\n"
-  ++ s!"{format_local_decls inst}\n"
+  ++ s!"{format_declarations_with_interface inst}\n"
   ++ s!"{body}\n"
   ++ s!"endmodule"
 
@@ -72,21 +71,8 @@ def build_verilog_instances (env : IdentMap String VerilogTemplate) (e : ExprHig
   let s ← e.modules.toList.mapM (λ x => env.find? x.2.2 >>= (VerilogTemplate.instantiation · x.1 x.2.1))
   return "\n".intercalate s
 
-def build_verilog_decls' (env : IdentMap String VerilogTemplate) (e : ExprHigh String): Option String := do
-  let s ← e.modules.toList.mapM (λ x => env.find? x.2.2 >>= (VerilogTemplate.declaration · x.1 x.2.1))
-  return "\n".intercalate s
-
-def build_verilog_decls (env : IdentMap String VerilogTemplate) : Option String := do
-  let s := env.toList.map (λ (name, template) => template.declaration)
-  return "\n".intercalate s
-
-def build_verilog_mods (env : IdentMap String VerilogTemplate) (e : ExprHigh String): Option String := do
-  let (s, _) ← e.modules.toList.foldrM
-    (λ x acc =>
-      if x.2.2 ∈ acc.2 then acc else
-        env.find? x.2.2 >>= (VerilogTemplate.module · x.2.1) >>= λ v => .some (s!"{v}\n\n{acc.1}", x.2.2 :: acc.2))
-    ("", [])
-  return s
+def build_verilog_mods (env : IdentMap String VerilogTemplate): String :=
+  env.toList.map (λ x => x.2.module) |> "\n\n".intercalate
 
 def build_verilog_conns (e : ExprHigh String): String :=
   "\n".intercalate <| e.connections.map (λ ⟨o, i⟩ => s!"assign {format_ident i} = {format_ident o};")
@@ -94,11 +80,9 @@ def build_verilog_conns (e : ExprHigh String): String :=
 def build_verilog_body (env : IdentMap String VerilogTemplate) (e : ExprHigh String) := do
   return s!"{← build_verilog_instances env e}\n\n{build_verilog_conns e}"
 
-def build_verilog_module (modName : String) (env : IdentMap String VerilogTemplate) (e : ExprHigh String) : Option String := do
-  let decls ← build_verilog_decls env e
-  let mods ← build_verilog_mods env e
+def build_verilog_module (modName : String) (env : IdentMap String VerilogTemplate) (e : ExprHigh String) (v : VerilogInterface) : Option String := do
   let body ← build_verilog_body env e
   let args := ", ".intercalate ((e.inputPorts ++ e.outputPorts).map (InternalPort.mk .top ·) |>.map format_ident)
-  s!"{mods}\n\nmodule {modName}({args});\n{decls}\n\n{body}\nendmodule\n"
+  s!"{build_verilog_mods env}\n\nmodule {modName}({args});\n{format_declarations_with_interface v}\n\n{body}\nendmodule\n"
 
 end Graphiti.VerilogExport

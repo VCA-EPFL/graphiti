@@ -9,7 +9,6 @@ import Graphiti.Simp
 import Graphiti.ExprHigh
 import Graphiti.AssocList.Basic
 import Graphiti.TypeExpr
-import Graphiti.Environment
 
 open Batteries (AssocList)
 

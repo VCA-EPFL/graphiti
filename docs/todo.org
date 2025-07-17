@@ -265,6 +265,11 @@ CLOSED: [2025-07-17 Thu 14:13]
 - We need to recursively generate pures and then apply the branch-merge to pure conversion.
 
 
+** TODO Improve the performance of rewriting by only checking for invertibility once :rewriter:
+:PROPERTIES:
+:ID:       6f045ed5-1133-4e54-ac86-0d4cbca8d8e0
+:END:
+
 * Preprocessing of dot-graph for Dynamatic [0/3]
 :PROPERTIES:
 :ID:       8a81fbfa-03b9-4658-8d3b-3979df2be4b4
@@ -318,6 +323,13 @@ CLOSED: [2025-07-17 Thu 14:13]
 :END:
 
 - Either expand the tagger into the implementation of FPGA'24, or implement the tagger from scratch.
+
+** TODO Adhere to the research codebase manifesto
+:PROPERTIES:
+:ID:       04830be8-4a8c-4a45-b038-5030fec94501
+:END:
+
+- https://www.moderndescartes.com/essays/research_code/
 
 * Non-main-project todos [0/4]
 
