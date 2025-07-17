@@ -5,7 +5,7 @@
 The following commands should successfully build the project.
 
 ```shell
-# Setup the build and runtime dependencies
+# Setup the mathlib 4 cache
 make setup
 # Build Graphiti
 lake build
