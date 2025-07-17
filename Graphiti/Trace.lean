@@ -179,6 +179,12 @@ theorem refines_implies_trace_inclusion :
       refines_implies_star_preservation _ _ H1 i1 s1 i2 l Hi2 Hi1_mod Hs1_φ
     exists s2
 
+/--
+info: 'Graphiti.Module.refines_implies_trace_inclusion' depends on axioms: [propext]
+-/
+#guard_msgs in
+#print axioms refines_implies_trace_inclusion
+
 -- FIXME: Uh
 theorem refines_implies_trace_inclusion' :
   imp ⊑' spec →
@@ -190,6 +196,12 @@ theorem refines_implies_trace_inclusion' :
     obtain ⟨s2, Hs2_1, Hs2_2⟩ :=
       refines_implies_star_preservation _ _ H1 i1 s1 i2 l Hi2 Hi1_mod Hs1_φ
     exists s2
+
+/--
+info: 'Graphiti.Module.refines_implies_trace_inclusion'' depends on axioms: [propext]
+-/
+#guard_msgs in
+#print axioms refines_implies_trace_inclusion'
 
 end TraceInclusion
 
