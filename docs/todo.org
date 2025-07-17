@@ -1,9 +1,9 @@
 #+title: TODOs
-#+options: toc:1
+#+options: toc:1 H:1
 #+columns: %17Effort(Estimated Effort){:} %ITEM
 #+macro: effort - Effort :: {{{property(Effort)}}} day(s)
 
-* Paper writing
+* Paper writing [0/15]
 :PROPERTIES:
 :ID:       8e384547-06a9-4ae4-9936-92e32c2a8afb
 :END:
@@ -90,7 +90,7 @@
 :ID:       37700f4e-0f3c-425e-9f34-1d68726fe14d
 :END:
 
-* Framework development
+* Framework development [2/11]
 :PROPERTIES:
 :ID:       d90489ca-4ca8-4d1c-913a-83695b611810
 :END:
@@ -181,44 +181,68 @@ Either:
 
 - [[id:f663996d-996d-4c50-8a92-e824f7a19840][Generate a new environment from the rewrite]]
 
-** TODO Minimise the number of nodes that are rewritten            :rewriter:
+** DONE Minimise the number of nodes that are rewritten            :rewriter:
+CLOSED: [2025-07-17 Thu 14:13]
 :PROPERTIES:
 :ID:       1a970e70-16ce-41b1-b1bc-7e19e69ee503
 :Effort:   1d
 :END:
+:LOGBOOK:
+- State "DONE"       from "TODO"       [2025-07-17 Thu 14:13]
+:END:
 
 {{{effort}}}
 
-** TODO Backwards rewriting                                         :ORDERED:
+** DONE Backwards rewriting                                         :ORDERED:
+CLOSED: [2025-07-17 Thu 14:13]
 :PROPERTIES:
 :ID:       6a174e25-1b66-4dc8-b59b-ac870852ef85
 :ORDERED:  t
 :Effort:   4d
 :END:
+:LOGBOOK:
+- State "DONE"       from "TODO"       [2025-07-17 Thu 14:13]
+:END:
 
 {{{effort}}}
 
-*** TODO Improve debugging information for renaming in rewrites
+*** DONE Improve debugging information for renaming in rewrites
+CLOSED: [2025-07-17 Thu 14:13]
 :PROPERTIES:
 :ID:       fb84ba01-340b-4ae7-86d2-29201d1e3830
+:END:
+:LOGBOOK:
+- State "DONE"       from "TODO"       [2025-07-17 Thu 14:13]
 :END:
 
 Currently it is difficult to trace renaming problems.  Use existing infrastructure to add more detailed renaming
 information.
 
-*** Rework renaming so that it is stable with respect to ~higher~ and ~lower~ transformations
+*** DONE Rework renaming so that it is stable with respect to ~higher~ and ~lower~ transformations
+CLOSED: [2025-07-17 Thu 14:13]
 :PROPERTIES:
 :ID:       e81db753-8814-4f0a-b6d3-6e27017e6b2c
 :END:
+:LOGBOOK:
+- State "DONE"       from "TODO"       [2025-07-17 Thu 14:13]
+:END:
 
-*** TODO Add option to rewrite without renaming                    :rewriter:
+*** DONE Add option to rewrite without renaming                    :rewriter:
+CLOSED: [2025-07-17 Thu 14:13]
 :PROPERTIES:
 :ID:       9a94c5c8-a876-481b-829a-7cf9ccffc12f
 :END:
+:LOGBOOK:
+- State "DONE"       from "TODO"       [2025-07-17 Thu 14:13]
+:END:
 
-*** TODO Backwards rewriting instead of abstraction                :rewriter:
+*** DONE Backwards rewriting instead of abstraction                :rewriter:
+CLOSED: [2025-07-17 Thu 14:13]
 :PROPERTIES:
 :ID:       821164f5-c5b4-407a-b32c-7569adfb9ba6
+:END:
+:LOGBOOK:
+- State "DONE"       from "TODO"       [2025-07-17 Thu 14:13]
 :END:
 
 - The rewriter currently does not support performing a rewrite without renaming. Why is that?
@@ -240,7 +264,8 @@ information.
 - This is needed for ~gsum-single~ and ~gsum-many~.
 - We need to recursively generate pures and then apply the branch-merge to pure conversion.
 
-* Preprocessing of dot-graph for Dynamatic
+
+* Preprocessing of dot-graph for Dynamatic [0/3]
 :PROPERTIES:
 :ID:       8a81fbfa-03b9-4658-8d3b-3979df2be4b4
 :EFFORT:   1d
@@ -271,7 +296,7 @@ information.
   switch out2 which was feeding the init to out1. The rest of the fork tree then lined up. But having a more general
   solution would be useful too.
 
-* Post processing of dot-graph for Dynamatic
+* Post processing of dot-graph for Dynamatic [0/2]
 :PROPERTIES:
 :ID:       18ee918c-b9fe-4c97-a61e-d087a03b50e4
 :EFFORT:   2d
@@ -294,7 +319,7 @@ information.
 
 - Either expand the tagger into the implementation of FPGA'24, or implement the tagger from scratch.
 
-* Non-main-project todos
+* Non-main-project todos [0/4]
 
 ** TODO Connect directly to bluespec back-end
 :PROPERTIES:
@@ -307,3 +332,13 @@ information.
 :END:
 
 - Will require a reimplementation of
+
+** TODO Verify abstraction
+:PROPERTIES:
+:ID:       7de7c497-ade6-40c4-ab39-2c92a043ee68
+:END:
+
+** TODO Verify concretisation
+:PROPERTIES:
+:ID:       ac6005e8-8068-4655-b202-e6e2ba68805c
+:END:
