@@ -1,4 +1,4 @@
-name = "«graphiti»"
+name = "graphiti"
 defaultTargets = ["Graphiti"]
 
 [leanOptions]
@@ -28,5 +28,5 @@ name = "Graphiti"
 name = "GraphitiTest"
 
 [[lean_exe]]
-name = "«graphiti»"
+name = "graphiti"
 root = "Main"
