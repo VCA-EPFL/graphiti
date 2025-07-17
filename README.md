@@ -11,12 +11,21 @@ make setup
 lake build
 ```
 
+The executable `graphiti` can be built using the following, which requires an [installation of `rust` and
+`cargo`](https://www.rust-lang.org/tools/install) to install the oracle which is used for the rewrites.
+
+```shell
+make build-exe
+```
+
+The oracle will be installed under `./bin/graphiti_oracle`.
+
 ## Executing the rewriter
 
 Graphiti can be executed using:
 
 ```shell
-lake exe graphiti tests/mulvec.dot -o out.dot -l out.json --no-dynamatic-dot
+lake exe graphiti --oracle ./bin/graphiti_oracle ./benchmarks/correct/gcd.dot -o out.dot -l out.json --no-dynamatic-dot
 ```
 
 ```text
