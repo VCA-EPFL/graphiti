@@ -253,36 +253,12 @@ however, currently the low-level expression language does not remember any names
   EStateM.guard (.error s!"found duplicate node") out.modules.keysList.Nodup
   return out
 
-def generateRenamingPortMap (p1 p2 : PortMap String (InternalPort String)) : Option (PortMap String (InternalPort String)) :=
-  p1.foldlM (λ pm k v => do
-    let v' ← p2.find? k
-    pm.cons v v'
-  ) ∅
-
-def generateRenamingPortMapping (p1 p2 : PortMapping String) : Option (PortMapping String) := do
-  let inp ← generateRenamingPortMap p1.input p2.input
-  let out ← generateRenamingPortMap p1.output p2.output
-  .some ⟨inp, out⟩
-
-def combinePortMapping (p : List (PortMapping String)) : PortMapping String := p.foldl (· ++ ·) ∅
-
-def getPortMaps (g : ExprHigh String) : List (PortMapping String) :=
-  g.modules.toList.map (λ (x, (y, z)) => y)
-
-def getPortMaps' : ExprLow String → List (PortMapping String)
-| .base inst typ => [inst]
-| .connect c e => getPortMaps' e
-| .product e₁ e₂ => getPortMaps' e₁ ++ getPortMaps' e₂
-
 def generateRenaming (l : List (PortMapping String)) (e : ExprLow String) : Option (PortMapping String) :=
-  (l.zip (getPortMaps' e))
-  |>.mapM (Function.uncurry generateRenamingPortMapping)
-  |>.map combinePortMapping
+  (l.zip e.getPortMaps)
+  |>.mapM (Function.uncurry PortMapping.generateRenamingPortMapping)
+  |>.map PortMapping.combinePortMapping
 
-/--
-Generate a reverse rewrite from a rewrite and the RewriteInfo associated with the execution.
--/
-def reverse_rewrite (rw : Rewrite String) (rinfo : RewriteInfo) : RewriteResult (Rewrite String) := do
+def reverse_rewrite' (def_rewrite : DefiniteRewrite String) (rinfo : RewriteInfo) : RewriteResult (Rewrite String) := do
 
   -- First we get the list of PortMappings associated with the lhs in their original (unrenamed) form.
   let lhsNodes ← ofOption (.error "reverse_rewrite: nodes not found")
@@ -301,12 +277,12 @@ def reverse_rewrite (rw : Rewrite String) (rinfo : RewriteInfo) : RewriteResult 
   let rhsNodes' := rhsNodes_renamed' ++ rinfo.new_output_nodes
   let rhsNodes := rhsNodes_renamed ++ rhsNodes_added
 
-  -- TODO: add types into rinfo
-  -- We run the matcher again to get the types.
-  let (_nodes, l) ← rw.pattern rinfo.input_graph
+  -- -- TODO: add types into rinfo
+  -- -- We run the matcher again to get the types.
+  -- let (_nodes, l) ← pattern rinfo.input_graph
 
   -- We get the concrete lhs and rhs specialised by the types.
-  let def_rewrite ← ofOption (.error "could not generate rewrite") <| rw.rewrite l
+  -- let def_rewrite ← ofOption (.error "could not generate rewrite") <| rewrite l
 
   let rhs_renaming ← ofOption (.error "could not generate renaming map")
     <| generateRenaming rhsNodes def_rewrite.output_expr
@@ -330,6 +306,14 @@ def reverse_rewrite (rw : Rewrite String) (rinfo : RewriteInfo) : RewriteResult 
             transformedNodes := rhsNodes_renamed.map some ++ rhsNodes_added.map (λ _ => none),
             addedNodes := lhsNodes.drop rhsNodes_renamed.length
           })
+
+/--
+Generate a reverse rewrite from a rewrite and the RewriteInfo associated with the execution.
+-/
+def reverse_rewrite (rw : Rewrite String) (rinfo : RewriteInfo) : RewriteResult (Rewrite String) := do
+  let (_nodes, l) ← rw.pattern rinfo.input_graph
+  let def_rewrite ← ofOption (.error "could not generate rewrite") <| rw.rewrite l
+  reverse_rewrite' def_rewrite rinfo
 
 /--
 Abstract a subgraph into a separate node.  One can imagine that the node type is then a node in the environment which is

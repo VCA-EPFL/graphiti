@@ -91,80 +91,8 @@ def outputNodes (g : ExprHigh Ident) : List Ident :=
       else inodes
     ) ∅
 
-def normaliseModules (g : ExprHigh Ident) : Option (ExprHigh Ident) := do
-  let newModules ← g.modules.foldlM (λ nm k v => do
-      let inp := v.fst.input.mapVal (
-          λ | ⟨_, portName⟩, ⟨.internal inst, name⟩ =>
-              ⟨.internal k, portName⟩
-            | _, v => v
-        )
-      let out := v.fst.output.mapVal (
-          λ | ⟨_, portName⟩, ⟨.internal inst, name⟩ =>
-              ⟨.internal k, portName⟩
-            | _, v => v
-        )
-      return nm.cons k (⟨inp, out⟩, v.snd)
-    ) ∅
-  return {g with modules := newModules}
-
-def normaliseNames (g : ExprHigh Ident) : Option (ExprHigh Ident) := do
-  let newConnections ← g.connections.mapM (λ
-    | ⟨i₁@⟨.internal _, n₁⟩, i₂@⟨.internal _, n₂⟩⟩ => do
-      let (outInst, outInstName) ← findOutputPort' i₁ g.modules
-      let (inInst, inInstName) ← findInputPort' i₂ g.modules
-      return Connection.mk ⟨.internal outInst, outInstName⟩ ⟨.internal inInst, inInstName⟩
-    | ⟨i₁@⟨.top, n₁⟩, i₂@⟨.internal _, n₂⟩⟩ => do
-      let (inInst, inInstName) ← findInputPort' i₂ g.modules
-      return Connection.mk ⟨.top, n₁⟩ ⟨.internal inInst, inInstName⟩
-    | ⟨i₁@⟨.internal _, n₁⟩, i₂@⟨.top, n₂⟩⟩ => do
-      let (outInst, outInstName) ← findOutputPort' i₁ g.modules
-      return Connection.mk ⟨.internal outInst, outInstName⟩ ⟨.top, n₂⟩
-    | c => pure c
-    )
-  {g with connections := newConnections}.normaliseModules
-
-instance (Ident) [DecidableEq Ident] [Repr Ident] [ToString Ident] : ToString (ExprHigh Ident) where
-  toString a :=
-    -- let instances :=
-    --   a.modules.foldl (λ s inst mod => s ++ s!"\n {inst} [mod = \"{mod}\"];") ""
-    match a.normaliseNames with
-    | some a =>
-      let (io_decl, io_conn) := a.modules.foldl (λ (sdecl, sio) inst (pmap, typ) =>
-        let sdecl := (pmap.input ++ pmap.output).foldl (λ sdecl k v =>
-          if v.inst.isTop
-          then sdecl ++ s!"\n  \"{v.name}\" [type = \"io\", label = \"{v.name}: io\"];"
-          else sdecl) sdecl
-        let sio := pmap.input.foldl (λ io_conn k v =>
-          if v.inst.isTop
-          then io_conn ++ s!"\n  \"{v.name}\" -> \"{inst}\" [to = \"{k.name}\", headlabel = \"{k.name}\"];"
-          else io_conn) sio
-        let sio := pmap.output.foldl (λ io_conn k v =>
-          if v.inst.isTop
-          then io_conn ++ s!"\n \"{inst}\" -> \"{v.name}\" [from = \"{k.name}\", taillabel = \"{k.name}\"];"
-          else io_conn) sio
-        (sdecl, sio)
-      ) ("", "")
-      let modules :=
-        a.modules.foldl
-          (λ s k v =>
-            s ++ s!"  \"{k}\" [type = \"{v.snd}\", label = \"{k}: {v.snd}\"];\n"
-            ) ""
-      let connections :=
-        a.connections.foldl
-          (λ s => λ | ⟨ oport, iport ⟩ =>
-                      s ++ s!"\n  \"{oport.inst}\" -> \"{iport.inst}\" "
-                        ++ s!"[from = \"{oport.name}\","
-                        ++ s!" to = \"{iport.name}\","
-                        ++ s!" taillabel = \"{oport.name}\","
-                        ++ s!" headlabel = \"{iport.name}\","
-                        ++ "];") ""
-      s!"digraph \{
-{io_decl}
-{modules}
-{io_conn}
-{connections}
-}"
-    | none => repr a |>.pretty
+def getPortMaps (g : ExprHigh String) : List (PortMapping String) :=
+  g.modules.toList.map (λ (x, (y, z)) => y)
 
 def invert (g : ExprHigh Ident) : ExprHigh Ident :=
   let mods := g.modules.mapVal
@@ -286,9 +214,9 @@ def _root_.Graphiti.PortMapping.toName (p : PortMapping String) : String :=
 
 section LowerToHigher
 
-variable (compute_hash : PortMapping String → String)
+variable (compute_hash : PortMapping Ident → Ident)
 
-def higher_correct_products : ExprLow String → Option (Batteries.AssocList String (PortMapping String × String))
+def higher_correct_products : ExprLow Ident → Option (Batteries.AssocList Ident (PortMapping Ident × Ident))
 | product (base inst typ) e => do
   let e' ← e.higher_correct_products
   return e'.cons (compute_hash inst) (inst, typ)
@@ -296,7 +224,7 @@ def higher_correct_products : ExprLow String → Option (Batteries.AssocList Str
   return .nil |>.cons (compute_hash inst) (inst, typ)
 | _ => failure
 
-def higher_correct_connections : ExprLow String → Option (ExprHigh String)
+def higher_correct_connections : ExprLow Ident → Option (ExprHigh Ident)
 | connect c e => do
   let e' ← e.higher_correct_connections
   return { e' with connections := e'.connections.cons c }
@@ -304,12 +232,12 @@ def higher_correct_connections : ExprLow String → Option (ExprHigh String)
   let e' ← e.higher_correct_products compute_hash
   return { modules := e', connections := [] }
 
-def get_all_products : ExprLow String → List (PortMapping String × String)
+def get_all_products : ExprLow Ident → List (PortMapping Ident × Ident)
 | base inst typ => [(inst, typ)]
 | connect c e => get_all_products e
 | product e₁ e₂ => get_all_products e₁ ++ get_all_products e₂
 
-def higher_correct (e : ExprLow String) : Option (ExprHigh String) :=
+def higher_correct (e : ExprLow Ident) : Option (ExprHigh Ident) :=
   higher_correct_connections compute_hash (comm_bases (get_all_products e) e)
 
 end LowerToHigher
@@ -354,9 +282,58 @@ def rename [FreshIdent Ident]
   let g_lower ← g.lower
   g_lower.rename typ p |>.higher
 
-def renamePorts f (g : ExprHigh String) (p : PortMapping String) := do
+def renamePorts f (g : ExprHigh Ident) (p : PortMapping Ident) := do
   let g_lower ← g.lower
   g_lower.renamePorts p >>= ExprLow.higher_correct f
+
+def normaliseNames (e : ExprHigh String) : Option (ExprHigh String) :=
+  let renameMap := e.modules.toList.map (λ (x, (inst, typ)) =>
+    inst.mapKeys (λ keyPort bodyPort => if bodyPort.inst.isTop then bodyPort else ⟨.internal x, keyPort.name⟩))
+      |> PortMapping.combinePortMapping
+  e.renamePorts (λ x => PortMapping.getInstanceName x |>.getD default) renameMap
+
+instance : ToString (ExprHigh String) where
+  toString a :=
+    -- let instances :=
+    --   a.modules.foldl (λ s inst mod => s ++ s!"\n {inst} [mod = \"{mod}\"];") ""
+    match a.normaliseNames with
+    | some a =>
+      let (io_decl, io_conn) := a.modules.foldl (λ (sdecl, sio) inst (pmap, typ) =>
+        let sdecl := (pmap.input ++ pmap.output).foldl (λ sdecl k v =>
+          if v.inst.isTop
+          then sdecl ++ s!"\n  \"{v.name}\" [type = \"io\", label = \"{v.name}: io\"];"
+          else sdecl) sdecl
+        let sio := pmap.input.foldl (λ io_conn k v =>
+          if v.inst.isTop
+          then io_conn ++ s!"\n  \"{v.name}\" -> \"{inst}\" [to = \"{k.name}\", headlabel = \"{k.name}\"];"
+          else io_conn) sio
+        let sio := pmap.output.foldl (λ io_conn k v =>
+          if v.inst.isTop
+          then io_conn ++ s!"\n \"{inst}\" -> \"{v.name}\" [from = \"{k.name}\", taillabel = \"{k.name}\"];"
+          else io_conn) sio
+        (sdecl, sio)
+      ) ("", "")
+      let modules :=
+        a.modules.foldl
+          (λ s k v =>
+            s ++ s!"  \"{k}\" [type = \"{v.snd}\", label = \"{k}: {v.snd}\"];\n"
+            ) ""
+      let connections :=
+        a.connections.foldl
+          (λ s => λ | ⟨ oport, iport ⟩ =>
+                      s ++ s!"\n  \"{oport.inst}\" -> \"{iport.inst}\" "
+                        ++ s!"[from = \"{oport.name}\","
+                        ++ s!" to = \"{iport.name}\","
+                        ++ s!" taillabel = \"{oport.name}\","
+                        ++ s!" headlabel = \"{iport.name}\","
+                        ++ "];") ""
+      s!"digraph \{
+{io_decl}
+{modules}
+{io_conn}
+{connections}
+}"
+    | none => repr a |>.pretty
 
 end ExprHigh
 

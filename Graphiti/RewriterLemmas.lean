@@ -22,6 +22,12 @@ structure CorrectRewrite (ε_global : Env) where
   refines :
     [e| rewrite.output_expr, ε_right ] ⊑ ([e| rewrite.input_expr, ε_left ])
 
+structure VerifiedRewrite (ε_global ε_left ε_right : Env) (rw : DefiniteRewrite String) : Prop where
+  consistent : ε_left.subsetOf ε_global ∧ ε_right.subsetOf ε_global
+  wf : rw.input_expr.well_formed ε_left ∧ rw.output_expr.well_formed ε_right
+  refines :
+    [e| rw.output_expr, ε_right ] ⊑ ([e| rw.input_expr, ε_left ])
+
 def toRewrite {ε} (rw : CorrectRewrite ε) : Rewrite String :=
   {pattern := rw.pattern, rewrite := λ _ => some rw.rewrite}
 
@@ -60,9 +66,7 @@ axiom refines_higherSS {e : ExprLow String} {e' : ExprHigh String} :
   e.higherSS = .some e' →
   e'.lower = .some e
 
--- #eval (ExprLow.connect ⟨⟨.internal "a", "b"⟩, ⟨.internal "a", "b"⟩⟩ (.connect ⟨⟨.internal "C", "b"⟩, ⟨.internal "C", "b"⟩⟩ (.product (.base (⟨AssocList.nil |>.cons ⟨.top, "b"⟩ ⟨.internal "a", "b"⟩, AssocList.nil |>.cons ⟨.top, "b"⟩ ⟨.internal "a", "b"⟩⟩) "A") (.product (.base ⟨AssocList.nil |>.cons ⟨.top, "b"⟩ ⟨.internal "a", "b"⟩, AssocList.nil |>.cons ⟨.top, "b"⟩ ⟨.internal "b", "b"⟩⟩ "B") (.base ⟨AssocList.nil |>.cons ⟨.top, "b"⟩ ⟨.internal "a", "b"⟩, AssocList.nil |>.cons ⟨.top, "b"⟩ ⟨.internal "c", "b"⟩⟩ "C"))))).higher_correct_connections |>.get rfl |>.lower
-
-theorem higher_correct_products_correct {f} {e₂ : ExprLow String} {v'} :
+theorem higher_correct_products_correct {Ident} {f} {e₂ : ExprLow Ident} {v'} :
   e₂.higher_correct_products f = some v' →
   List.foldr ExprHigh.generate_product none v'.toList = some e₂ := by
   induction e₂ generalizing v' with
@@ -81,7 +85,7 @@ theorem higher_correct_products_correct {f} {e₂ : ExprLow String} {v'} :
     intro hc
     dsimp [ExprLow.higher_correct_products] at hc; contradiction
 
-theorem refines_higher_correct_connections {f} {e : ExprLow String} {e' : ExprHigh String} :
+theorem refines_higher_correct_connections {Ident} {f} {e : ExprLow Ident} {e' : ExprHigh Ident} :
   e.higher_correct_connections f = .some e' →
   e'.lower = .some e := by
   induction e generalizing e' with
@@ -121,7 +125,7 @@ theorem refines_higher_correct_connections {f} {e : ExprLow String} {e' : ExprHi
     rw [higher_correct_products_correct]
     dsimp; rfl; assumption
 
-theorem refines_higher_correct {f} {ε e g} :
+theorem refines_higher_correct {Ident} [DecidableEq Ident] {f} {ε g} {e : ExprLow Ident} :
   e.higher_correct f = .some g →
   ExprLow.well_formed ε e = true →
   [Ge| g, ε ] ⊑ ([e| e, ε ]) := by
@@ -130,6 +134,14 @@ theorem refines_higher_correct {f} {ε e g} :
   unfold ExprHigh.build_module_expr ExprHigh.build_module ExprHigh.build_module'
   rw [refines_higher_correct_connections] <;> try assumption
   apply ExprLow.refines_comm_bases
+
+-- /--
+-- Generate a reverse rewrite from a rewrite and the RewriteInfo associated with the execution.
+-- -/
+-- def reverse_rewrite_correct {ε_global} (rw : CorrectRewrite ε_global) (rinfo : RewriteInfo) := do
+--   let (_nodes, l) ← rw.pattern rinfo.input_graph
+--   let def_rewrite ← ofOption (.error "could not generate rewrite") <| rw.rewrite l
+--   reverse_rewrite' def_rewrite rinfo
 
 theorem Rewrite_run'_correct {b} {ε_global : Env} {g g' : ExprHigh String} {e_g : ExprLow String}
         {s _st _st'} {rw : CorrectRewrite ε_global} :

@@ -227,6 +227,19 @@ def canonPortMapping (i : PortMapping String) : PortMapping String :=
 def hashPortMapping (i : PortMapping String) : String :=
   hash (canonPortMapping i) |>.toBitVec |>.toHex |>.take 8
 
+def generateRenamingPortMap (p1 p2 : PortMap String (InternalPort String)) : Option (PortMap String (InternalPort String)) :=
+  p1.foldlM (λ pm k v => do
+    let v' ← p2.find? k
+    pm.cons v v'
+  ) ∅
+
+def generateRenamingPortMapping (p1 p2 : PortMapping String) : Option (PortMapping String) := do
+  let inp ← generateRenamingPortMap p1.input p2.input
+  let out ← generateRenamingPortMap p1.output p2.output
+  .some ⟨inp, out⟩
+
+def combinePortMapping (p : List (PortMapping String)) : PortMapping String := p.foldl (· ++ ·) ∅
+
 def filter (f : InternalPort Ident → InternalPort Ident → Bool) (a : PortMapping Ident) :=
   PortMapping.mk (a.input.filter f) (a.output.filter f)
 
