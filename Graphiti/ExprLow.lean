@@ -291,10 +291,10 @@ def mapOutputPorts' (f : InternalPort Ident → InternalPort Ident) : ExprLow Id
 | .connect c e => e.mapOutputPorts' f |> .connect { c with output := f c.output }
 | .product e₁ e₂ => .product (e₁.mapOutputPorts' f) (e₂.mapOutputPorts' f)
 
-def mapPorts2' [Inhabited Ident] [Repr Ident] (f g : InternalPort Ident → InternalPort Ident) (e : ExprLow Ident) : ExprLow Ident :=
+def mapPorts2' [Inhabited Ident] (f g : InternalPort Ident → InternalPort Ident) (e : ExprLow Ident) : ExprLow Ident :=
   e.mapInputPorts' f |>.mapOutputPorts' g
 
-def renamePorts' [Inhabited Ident] [Repr Ident] (m : ExprLow Ident) (p : PortMapping Ident) : ExprLow Ident :=
+def renamePorts' [Inhabited Ident] (m : ExprLow Ident) (p : PortMapping Ident) : ExprLow Ident :=
   m.mapPorts2' p.input.bijectivePortRenaming p.output.bijectivePortRenaming
 
 /--

@@ -52,15 +52,15 @@ jobs:
 
       - name: test GCD example
         run: |
-          lake exe graphiti benchmarks/correct/gcd.dot -o out.dot -l out.json --oracle graphiti_oracle
+          lake exe graphiti benchmarks/correct/gcd.dot -o out.dot --oracle graphiti_oracle
 
       - name: test matvec example
         run: |
-          lake exe graphiti benchmarks/correct/matvec.dot -o out.dot -l out.json --oracle graphiti_oracle
+          lake exe graphiti benchmarks/correct/matvec.dot -o out.dot --oracle graphiti_oracle
 
       - name: test gemm example
         run: |
-          lake exe graphiti benchmarks/correct/gemm.dot -o out.dot -l out.json --oracle graphiti_oracle
+          lake exe graphiti benchmarks/correct/gemm.dot -o out.dot --oracle graphiti_oracle
 
       - name: build loop rewrite
         run: |
