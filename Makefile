@@ -13,6 +13,6 @@ setup:
 build:
 	lake build
 
-.PHONY: build
+.PHONY: build-exe
 build-exe:
 	lake build graphiti
