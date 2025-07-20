@@ -140,16 +140,5 @@ def flatten_type (t : TypeExpr) : List TypeExpr :=
   | TypeExpr.pair left right =>
     flatten_type left ++ flatten_type right
 
-section Tests
-  #eval parseTypeExpr " ( Bool ×   ( T × T))"
-  #eval flatten_type <$> parseTypeExpr " ( Bool ×   ( T × T))"
-  #eval toString (TypeExpr.pair TypeExpr.bool (TypeExpr.pair TypeExpr.nat TypeExpr.nat))
-  #eval toString (parseTypeExpr "(((T × T) × (T × T)) × (T × Bool))")
-  #eval (parseNode ("split (T × (Bool × (T × T))) Bool")).get!.2[0]!
-  #eval (parseNode ("branch (T × T)")).get!.2[0]!
-  #eval (parseNode ("join T (TagT × Bool)")).get!.2[1]!
-  #eval (parseNode ("mux (T × (T × Bool))")).get!.2[0]!
-end Tests
-
 end TypeExpr.Parser
 end Graphiti

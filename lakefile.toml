@@ -1,5 +1,6 @@
 name = "graphiti"
 defaultTargets = ["Graphiti"]
+testDriver = "GraphitiTest"
 
 [leanOptions]
 autoImplicit = false
@@ -35,3 +36,7 @@ globs = ["Graphiti.Core.+"]
 [[lean_lib]]
 name = "GraphitiProjects"
 globs = ["Graphiti.Projects.+"]
+
+[[lean_lib]]
+name = "GraphitiTest"
+globs = ["GraphitiTest.+"]

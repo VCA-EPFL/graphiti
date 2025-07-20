@@ -41,6 +41,10 @@ jobs:
         run: |
           lake build GraphitiProjects
 
+      - name: run tests using `lake test`
+        run: |
+          lake test
+
       - name: install `rust` for the oracle
         uses: actions-rs/toolchain@v1
         with:
