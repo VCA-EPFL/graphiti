@@ -5,7 +5,6 @@ Authors: Yann Herklotz
 -/
 
 import Lean
-import Batteries
 
 import Graphiti.Core.AssocList.Basic
 import Graphiti.Core.Simp

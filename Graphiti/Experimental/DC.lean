@@ -5,7 +5,7 @@ Authors: Yann Herklotz
 -/
 
 import Graphiti.Module
-import Batteries
+import Batteries.Data.RBMap
 
 open Batteries (RBMap)
 

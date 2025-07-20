@@ -3,10 +3,6 @@ import Graphiti.Core.Rewrites.LoopRewriteCorrect
 import Mathlib
 import Aesop
 
-set_option Elab.async false
-
---import DataflowRewriter.Rewrites.MatchGoal
-
 namespace Graphiti.LoopRewrite
 
 open Batteries (AssocList)

@@ -6,7 +6,7 @@ Authors: Yann Herklotz
 
 import Lean
 import Mathlib.Tactic.Common
-import Batteries
+import Batteries.Data.RBMap
 
 open Batteries (RBMap)
 

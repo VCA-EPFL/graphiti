@@ -5,7 +5,6 @@ Authors: Yann Herklotz
 -/
 
 import Lean
-import Batteries
 
 import Graphiti.Core.AssocList
 import Graphiti.Core.Simp
@@ -130,7 +129,7 @@ theorem getIO_cons_false
   generalize Hpm' : (AssocList.cons x1 v pm) = pm'
   intros x2 x3 x4 x5 H1 H2 H3
   have Hcontains : ¬ pm'.contains x2 := by
-    rw [←Hpm']; simp; split_ands
+    rw [←Hpm']; simp; and_intros
     · exact H1
     · simp at H2; exact H2
   exact (getIO_not_contained_false H3 Hcontains)

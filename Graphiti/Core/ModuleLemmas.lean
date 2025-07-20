@@ -10,8 +10,6 @@ import Graphiti.Core.AssocList.Bijective
 import Mathlib.Tactic.Convert
 import Mathlib.Logic.Function.Basic
 
-set_option Elab.async false
-
 open Batteries (AssocList)
 
 namespace Graphiti
@@ -1328,7 +1326,7 @@ theorem refines_initial_reflexive_ext
     refines_initial imod imod' φ := by
   intros i Hi; exists i
   obtain ⟨_, _, _, h⟩ := h
-  split_ands <;> simpa [←h, Hφ]
+  and_intros <;> simpa [←h, Hφ]
 
 def refines :=
   ∃ (mm : MatchInterface imod smod) (φ : I → S → Prop),
@@ -1353,7 +1351,7 @@ theorem refines_φ_refines [MatchInterface imod smod] {φ} :
   imod ⊑ smod := by
   intro Hind Hinit Href
   exists inferInstance, φ
-  split_ands <;> try assumption
+  and_intros <;> try assumption
   intro init_i init_s ⟨ Hphi, Hindis ⟩
   specialize Href init_i init_s Hindis
   rcases Href with ⟨ Hin, Hout, Hint ⟩; constructor
@@ -1369,7 +1367,7 @@ theorem refines_φ_refines [MatchInterface imod smod] {φ} :
   · intros i Hinit';
     obtain ⟨s, Hs1, Hs2⟩ := Hinit i Hinit'
     exists s
-    split_ands <;> try assumption
+    and_intros <;> try assumption
     apply Hind _ _ Hs2
 
 theorem refines_refines' :
@@ -1426,14 +1424,14 @@ theorem refines_transitive {J} (imod' : Module Ident J):
     constructor; rotate_left; grind
     apply indistinguishable_transitive imod smod imod' <;> (solve | apply ha.1 | apply hb.1)
   rw [this]
-  split_ands
+  and_intros
   · apply refines_φ_transitive imod smod imod'
     assumption; assumption
   · intros _ Hi; dsimp;
     obtain ⟨i', Hi', _⟩ := h12 _ Hi
     obtain ⟨s, _, _⟩ := h22 _ Hi'
     exists s
-    split_ands <;> try assumption
+    and_intros <;> try assumption
     exists i'
 
 -- theorem PortMap.rw_rule_execution' {S : Type _} {a b c : Σ (T : Type _), S → T → S → Prop} {s s'} {v : b.fst} (h : b.fst = a.fst) (h' : a = b) :

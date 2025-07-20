@@ -261,6 +261,8 @@ def generateRenaming (l : List (PortMapping String)) (e : ExprLow String) : Opti
 
 def reverse_rewrite' (def_rewrite : DefiniteRewrite String) (rinfo : RewriteInfo) : RewriteResult (Rewrite String) := do
 
+  addRewriteInfo <| RewriteInfo.mk RewriteType.rewrite default default default default .nil .none s!"rev-{rinfo.name.getD "unknown"}"
+
   -- First we get the list of PortMappings associated with the lhs in their original (unrenamed) form.
   let lhsNodes ← ofOption (.error "reverse_rewrite: nodes not found")
     <| rinfo.matched_subgraph.mapM (λ x => rinfo.input_graph.modules.find? x |>.map Prod.fst)
@@ -299,6 +301,8 @@ def reverse_rewrite' (def_rewrite : DefiniteRewrite String) (rinfo : RewriteInfo
   -- us to apply the rewrites without renaming, allowing us to chain backwards rewrites.
   let lhs_renamed ← ofOption (.error "could not rename") <| def_rewrite.input_expr.renamePorts full_renaming
   let rhs_renamed ← ofOption (.error "could not rename") <| def_rewrite.output_expr.renamePorts full_renaming
+
+  rmRewriteInfo
 
   return ({ pattern := λ _ => return (rhsNodes', []),
             rewrite := λ _ => some ⟨rhs_renamed, lhs_renamed⟩,

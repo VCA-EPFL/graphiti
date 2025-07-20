@@ -6,8 +6,8 @@ Authors: Yann Herklotz
 
 import Lean
 import Qq
-
-import Batteries
+import Batteries.Tactic.SeqFocus
+import Batteries.Data.AssocList
 
 namespace Graphiti
 

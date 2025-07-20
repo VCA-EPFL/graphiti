@@ -416,7 +416,7 @@ theorem eraseAll_not_contains2 {α β} [DecidableEq α] (a : AssocList α β) (i
   by
     apply (eraseAll_not_contains (a := (List.map (fun x => (f x, g x)) l).toAssocList))
     induction l <;> simp
-    split_ands <;> try intros <;> apply Hneq
+    and_intros <;> try intros <;> apply Hneq
 
 @[drcompute]
 theorem eraseAll_append {α β} [DecidableEq α] {l1 l2 : AssocList α β} {i}:
