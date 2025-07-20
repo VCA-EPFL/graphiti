@@ -4,11 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Graphiti.Rewrites.LoopRewrite
-import Graphiti.ExprLowLemmas
-import Graphiti.ExprHighElaborator
-import Graphiti.Component
-import Graphiti.ModuleReduction
+import Graphiti.Core.Rewrites.LoopRewrite
+import Graphiti.Core.ExprLowLemmas
+import Graphiti.Core.ExprHighElaborator
+import Graphiti.Core.Component
+import Graphiti.Core.ModuleReduction
 
 namespace Graphiti.LoopRewrite
 

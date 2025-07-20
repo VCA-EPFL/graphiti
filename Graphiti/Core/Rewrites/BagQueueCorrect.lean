@@ -8,15 +8,15 @@ import Lean
 import Init.Data.BitVec.Lemmas
 import Qq
 
-import Graphiti.Simp
-import Graphiti.AssocList.Lemmas
-import Graphiti.Module
-import Graphiti.ExprLow
-import Graphiti.Component
-import Graphiti.Reduce
-import Graphiti.List
-import Graphiti.ExprHighLemmas
-import Graphiti.Tactic
+import Graphiti.Core.Simp
+import Graphiti.Core.AssocList.Lemmas
+import Graphiti.Core.Module
+import Graphiti.Core.ExprLow
+import Graphiti.Core.Component
+import Graphiti.Core.Reduce
+import Graphiti.Core.List
+import Graphiti.Core.ExprHighLemmas
+import Graphiti.Core.Tactic
 
 namespace Graphiti.BagQueue
 

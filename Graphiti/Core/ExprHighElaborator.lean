@@ -7,8 +7,8 @@ Authors: Yann Herklotz
 import Lean
 import Qq
 
-import Graphiti.ExprHigh
-import Graphiti.Component
+import Graphiti.Core.ExprHigh
+import Graphiti.Core.Component
 
 namespace Graphiti
 

@@ -8,17 +8,17 @@ import Lean
 import Init.Data.BitVec.Lemmas
 import Qq
 
-import Graphiti.Simp
-import Graphiti.Module
-import Graphiti.ModuleReduction
-import Graphiti.ExprLow
-import Graphiti.Component
-import Graphiti.KernelRefl
-import Graphiti.Reduce
-import Graphiti.List
-import Graphiti.ExprHighLemmas
-import Graphiti.Tactic
-import Graphiti.Rewrites.JoinRewrite
+import Graphiti.Core.Simp
+import Graphiti.Core.Module
+import Graphiti.Core.ModuleReduction
+import Graphiti.Core.ExprLow
+import Graphiti.Core.Component
+import Graphiti.Core.KernelRefl
+import Graphiti.Core.Reduce
+import Graphiti.Core.List
+import Graphiti.Core.ExprHighLemmas
+import Graphiti.Core.Tactic
+import Graphiti.Core.Rewrites.JoinRewrite
 import Mathlib.Tactic
 
 open Batteries (AssocList)

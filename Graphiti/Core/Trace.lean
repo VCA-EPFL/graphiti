@@ -4,8 +4,8 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Graphiti.ModuleLemmas
-import Graphiti.StateTransition
+import Graphiti.Core.ModuleLemmas
+import Graphiti.Core.StateTransition
 
 namespace Graphiti
 

@@ -6,10 +6,10 @@ Authors: Yann Herklotz
 
 import Lean
 
-import Graphiti.Module
-import Graphiti.Simp
-import Graphiti.ExprHigh
-import Graphiti.AssocList.Basic
+import Graphiti.Core.Module
+import Graphiti.Core.Simp
+import Graphiti.Core.ExprHigh
+import Graphiti.Core.AssocList.Basic
 
 namespace Graphiti
 

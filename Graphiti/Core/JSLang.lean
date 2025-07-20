@@ -4,8 +4,8 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Graphiti.ExprHigh
-import Graphiti.Rewrites
+import Graphiti.Core.ExprHigh
+import Graphiti.Core.Rewrites
 
 open Std.Internal (Parsec)
 open Std.Internal.Parsec String

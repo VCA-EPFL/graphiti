@@ -1,5 +1,5 @@
-import Graphiti.ExprLowLemmas
-import Graphiti.Rewrites.LoopRewriteCorrect
+import Graphiti.Core.ExprLowLemmas
+import Graphiti.Core.Rewrites.LoopRewriteCorrect
 import Mathlib
 import Aesop
 

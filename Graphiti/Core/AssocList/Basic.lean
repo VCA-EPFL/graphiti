@@ -5,7 +5,7 @@ Authors: Yann Herklotz
 -/
 
 import Batteries
-import Graphiti.Simp
+import Graphiti.Core.Simp
 
 namespace Batteries.AssocList
 

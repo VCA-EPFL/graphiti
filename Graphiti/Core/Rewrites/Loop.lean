@@ -1,11 +1,10 @@
-
-import Graphiti.Rewrites.LoopRewrite
-import Graphiti.ExprLowLemmas
-import Graphiti.Rewrites.LoopRewriteCorrect
+import Graphiti.Core.Rewrites.LoopRewrite
+import Graphiti.Core.ExprLowLemmas
+import Graphiti.Core.Rewrites.LoopRewriteCorrect
 import Mathlib
 import Aesop
 
---import Graphiti.Rewrites.MatchGoal
+--import Graphiti.Core.Rewrites.MatchGoal
 
 namespace Graphiti.LoopRewrite
 

@@ -4,9 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Graphiti.Simp
-import Graphiti.Basic
-import Graphiti.AssocList
+import Graphiti.Core.Simp
+import Graphiti.Core.Basic
+import Graphiti.Core.AssocList
 
 namespace Graphiti
 

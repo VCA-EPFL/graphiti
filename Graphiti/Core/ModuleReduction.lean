@@ -6,10 +6,10 @@ Authors: Yann Herklotz
 
 import Lean
 
-import Graphiti.Tactic
-import Graphiti.Module
-import Graphiti.AssocList
-import Graphiti.ExprHighLemmas
+import Graphiti.Core.Tactic
+import Graphiti.Core.Module
+import Graphiti.Core.AssocList
+import Graphiti.Core.ExprHighLemmas
 
 open Lean.Elab
 open Lean.Elab.Command

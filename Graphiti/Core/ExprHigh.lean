@@ -5,7 +5,7 @@ Authors: Yann Herklotz
 -/
 
 import Lean
-import Graphiti.ExprLow
+import Graphiti.Core.ExprLow
 
 namespace Graphiti
 

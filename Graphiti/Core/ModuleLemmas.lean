@@ -4,8 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Graphiti.Module
-import Graphiti.AssocList.Bijective
+import Graphiti.Core.Module
+import Graphiti.Core.AssocList.Bijective
+
 import Mathlib.Tactic.Convert
 import Mathlib.Logic.Function.Basic
 

@@ -7,9 +7,9 @@ Authors: Yann Herklotz
 import Lean
 import Batteries
 
-import Graphiti.AssocList
-import Graphiti.Simp
-import Graphiti.Basic
+import Graphiti.Core.AssocList
+import Graphiti.Core.Simp
+import Graphiti.Core.Basic
 
 namespace Graphiti
 

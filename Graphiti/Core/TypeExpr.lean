@@ -5,7 +5,7 @@ Authors: Yann Herklotz
 -/
 
 import Lean
-import Graphiti.ExprHigh
+import Graphiti.Core.ExprHigh
 
 open Std.Internal (Parsec)
 open Std.Internal.Parsec String

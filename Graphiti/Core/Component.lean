@@ -4,11 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Graphiti.Module
-import Graphiti.Simp
-import Graphiti.ExprHigh
-import Graphiti.AssocList.Basic
-import Graphiti.TypeExpr
+import Graphiti.Core.Module
+import Graphiti.Core.Simp
+import Graphiti.Core.ExprHigh
+import Graphiti.Core.AssocList.Basic
+import Graphiti.Core.TypeExpr
 
 open Batteries (AssocList)
 

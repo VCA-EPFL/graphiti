@@ -7,7 +7,7 @@ Authors: Yann Herklotz
 import Lean
 import Qq
 
-import Graphiti.ExprHighElaborator
+import Graphiti.Core.ExprHighElaborator
 
 namespace Graphiti
 

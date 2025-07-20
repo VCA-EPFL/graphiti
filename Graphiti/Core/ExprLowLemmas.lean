@@ -4,9 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Graphiti.ModuleLemmas
-import Graphiti.ExprLow
-import Graphiti.Environment
+import Graphiti.Core.ModuleLemmas
+import Graphiti.Core.ExprLow
+import Graphiti.Core.Environment
+
 import Mathlib.Tactic
 import Mathlib.Data.QPF.Univariate.Basic
 

@@ -8,5 +8,4 @@ import Graphiti.Core.ExprHigh
 import Graphiti.Core.Rewrites
 import Graphiti.Core.RewriterLemmas
 import Graphiti.Core.VerilogExport
-import Graphiti.Core.Examples
 import Graphiti.Core.Trace

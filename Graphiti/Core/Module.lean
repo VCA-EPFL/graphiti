@@ -7,13 +7,13 @@ Authors: Yann Herklotz
 import Lean
 import Qq
 
-import Graphiti.Basic
-import Graphiti.Simp
-import Graphiti.List
-import Graphiti.AssocList
-import Graphiti.HVector
-import Graphiti.Tactic
-import Graphiti.BasicLemmas
+import Graphiti.Core.Basic
+import Graphiti.Core.Simp
+import Graphiti.Core.List
+import Graphiti.Core.AssocList
+import Graphiti.Core.HVector
+import Graphiti.Core.Tactic
+import Graphiti.Core.BasicLemmas
 
 open Batteries (AssocList)
 

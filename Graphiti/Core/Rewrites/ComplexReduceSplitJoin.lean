@@ -9,8 +9,8 @@ Authors: Ayatallah Elakhras
 -- therefore, we do not necessarily end up with Split -> Join, but instead end with Split -> Split -> Join -> Join
 -- Temporarily, until we figure out how to make the order of applying the combine rewrites consistent, I'm adding this rewrite to reduce the complicated pattern
 
-import Graphiti.Rewriter
-import Graphiti.ExprHighElaborator
+import Graphiti.Core.Rewriter
+import Graphiti.Core.ExprHighElaborator
 
 namespace Graphiti.ReduceSplitJoin
 

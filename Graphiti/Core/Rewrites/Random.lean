@@ -1,4 +1,4 @@
-import Graphiti.Tactic
+import Graphiti.Core.Tactic
 
 set_option autoImplicit false
 

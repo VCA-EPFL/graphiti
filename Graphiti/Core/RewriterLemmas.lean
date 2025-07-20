@@ -4,9 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Graphiti.ExprHighLemmas
-import Graphiti.Rewriter
-import Graphiti.Environment
+import Graphiti.Core.ExprHighLemmas
+import Graphiti.Core.Rewriter
+import Graphiti.Core.Environment
 
 open Batteries (AssocList)
 

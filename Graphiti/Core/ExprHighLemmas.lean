@@ -4,10 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Graphiti.Module
-import Graphiti.ExprHigh
-import Graphiti.ExprLowLemmas
-import Graphiti.ExprHighElaborator
+import Graphiti.Core.Module
+import Graphiti.Core.ExprHigh
+import Graphiti.Core.ExprLowLemmas
+import Graphiti.Core.ExprHighElaborator
 
 namespace Graphiti
 
