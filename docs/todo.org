@@ -90,7 +90,7 @@
 :ID:       37700f4e-0f3c-425e-9f34-1d68726fe14d
 :END:
 
-* Framework development [2/11]
+* Framework development [2/13]
 :PROPERTIES:
 :ID:       d90489ca-4ca8-4d1c-913a-83695b611810
 :END:
@@ -269,6 +269,13 @@ CLOSED: [2025-07-17 Thu 14:13]
 :PROPERTIES:
 :ID:       6f045ed5-1133-4e54-ac86-0d4cbca8d8e0
 :END:
+
+** SMDY Improve on the universe bounds in proofs
+:PROPERTIES:
+:ID:       84e9cf46-df1e-457d-bf65-2f592e24cf7a
+:END:
+
+- Currently many of the proofs limit universes within module inputs/outputs as well as the environment.
 
 * Preprocessing of dot-graph for Dynamatic [0/3]
 :PROPERTIES:

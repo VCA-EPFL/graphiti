@@ -19,17 +19,13 @@ def Module.toBaseExprLow {Ident S} (m : Module Ident S) (inst typ : Ident) : Exp
 
 namespace ExprLow
 
--- theorem invertibleMap {α} [DecidableEq α] {p : Batteries.AssocList α α} {a b} :
---   invertible p →
---   (p.append p.inverse).find? a = some b → (p.append p.inverse).find? b = some a := by
-
 variable {Ident}
 variable [DecidableEq Ident]
 
-variable (ε : IdentMap Ident (Σ T : Type, Module Ident T))
+variable (ε : Env Ident)
 
 @[drunfold] def get_types (i : Ident) : Type _ :=
-  (ε.find? i) |>.map Sigma.fst |>.getD PUnit
+  (ε i) |>.map Sigma.fst |>.getD PUnit
 
 @[drunfold] def ident_list : ExprLow Ident → List Ident
 | .base i e => [e]
@@ -41,11 +37,9 @@ abbrev EType ε (e : ExprLow Ident) := HVector (get_types ε) e.ident_list
 @[drunfold] def build_moduleD
     : (e : ExprLow Ident) → Option (Module Ident (EType ε e))
 | .base i e =>
-  match h : ε.find? e with
+  match h : ε e with
   | some mod =>
     have H : mod.1 = get_types ε e := by
-      simp [Batteries.AssocList.find?_eq] at h
-      rcases h with ⟨ l, r ⟩
       simp_all [get_types]
     some ((H ▸ mod.2).liftD)
   | none => none
@@ -57,26 +51,12 @@ abbrev EType ε (e : ExprLow Ident) := HVector (get_types ε) e.ident_list
   let b ← b.build_moduleD;
   return a.productD b
 
--- theorem build_moduleD.dep_rewrite {instIdent} : ∀ {modIdent : Ident} {ε a} (Hfind : ε.find? modIdent = a),
---   (Option.rec (motive := fun x =>
---     Batteries.AssocList.find? modIdent ε = x →
---       Option (Module Ident (EType ε (base instIdent modIdent))))
---     (fun h_1 => none)
---     (fun val h_1 => some (build_moduleD.proof_2 ε modIdent val h_1 ▸ val.snd).liftD)
---     (Batteries.AssocList.find? modIdent ε)
---     (Eq.refl (Batteries.AssocList.find? modIdent ε))) =
---   (Option.rec (motive := fun x => a = x → Option (Module Ident (EType ε (base instIdent modIdent))))
---     (fun h_1 => none)
---     (fun val h_1 => some (build_moduleD.proof_2 ε modIdent val (Hfind ▸ h_1) ▸ val.snd).liftD)
---     a
---     (Eq.refl a)) := by intro a b c d; cases d; rfl
-
 theorem filterId_empty {α} [DecidableEq α] : PortMapping.filterId (Ident := α) ∅ = ∅ := by rfl
 
 @[drunfold] def build_module'
     : (e : ExprLow Ident) → Option (Σ T, Module Ident T)
 | .base i e => do
-  let mod ← ε.find? e
+  let mod ← ε e
   return ⟨ _, mod.2.renamePorts i ⟩
 | .connect c e' => do
   let e ← e'.build_module'
@@ -85,19 +65,6 @@ theorem filterId_empty {α} [DecidableEq α] : PortMapping.filterId (Ident := α
   let a ← a.build_module'
   let b ← b.build_module'
   return ⟨ _, a.2.product b.2 ⟩
-
--- @[drunfold] def build_smodule'
---     : (e : ExprLow Ident) → Option (Σ T, Module Ident T)
--- | .base i e => do
---   let mod ← ε.find? e
---   return ⟨ _, mod.2.renamePorts i ⟩
--- | .connect c e' => do
---   let e ← e'.build_module'
---   return ⟨ _, e.2.connect' c.output c.input ⟩
--- | .product a b => do
---   let a ← a.build_module'
---   let b ← b.build_module'
---   return ⟨ _, a.2.product b.2 ⟩
 
 inductive type_correct_module : ExprLow Ident → Prop where
 | base : ∀ i e, type_correct_module (.base i e)
@@ -137,7 +104,7 @@ inductive type_correct_module : ExprLow Ident → Prop where
 notation:25 "[e| " e ", " ε " ]" => build_module_expr ε e
 notation:25 "[T| " e ", " ε " ]" => build_module_type ε e
 
-def wf : ExprLow Ident → Bool := all (λ typ => ε.contains typ)
+def wf : ExprLow Ident → Bool := all (λ typ => (ε typ).isSome)
 
 @[drunfold]
 def locally_wf : ExprLow Ident → Bool := all' (λ f _ => f.input.invertible ∧ f.output.invertible)
@@ -149,7 +116,7 @@ theorem locally_wf_product {e₁ e₂ : ExprLow Ident} :
 /- For now we will ensure this structurally by filtering out keys that are not in the base module. -/
 def wf_mapping : ExprLow Ident → Bool
 | .base inst typ =>
-  match ε.find? typ with
+  match ε typ with
   | .some mod =>
     inst.input.keysList.Perm mod.2.inputs.keysList
     ∧ inst.output.keysList.Perm mod.2.outputs.keysList
@@ -161,7 +128,7 @@ def wf_mapping : ExprLow Ident → Bool
 
 def well_formed : ExprLow Ident → Bool
 | .base inst typ =>
-  match ε.find? typ with
+  match ε typ with
   | .some mod =>
     inst.input.keysList.Perm mod.2.inputs.keysList
     ∧ inst.output.keysList.Perm mod.2.outputs.keysList
@@ -178,7 +145,7 @@ theorem wf_mapping_implies_wf {e} :
     intro hwf
     dsimp [wf, wf_mapping, all] at *
     split at hwf <;> try contradiction
-    solve_by_elim [AssocList.contains_some3]
+    grind
   | connect c e ih =>
     intro hwf
     dsimp [wf, wf_mapping, all] at *
@@ -255,9 +222,8 @@ theorem wf_builds_module {e} : wf ε e → (e.build_module' ε).isSome := by
   | base inst typ =>
     intro hwf; dsimp [wf, all] at hwf
     simp only [drunfold]
-    have := Batteries.AssocList.contains_some hwf
-    rw [Option.isSome_iff_exists] at this; cases this
-    simp only [*]; rfl
+    rw [Option.isSome_iff_exists] at hwf
+    simp only [Option.pure_def, Option.bind_eq_bind]; grind
   | connect _ e ih =>
     intro hwf; dsimp [wf, all] at hwf
     specialize ih hwf
@@ -276,15 +242,13 @@ theorem well_formed_builds_module {e} : well_formed ε e → (e.build_module' ε
   assumption
 
 theorem wf_modify_expression {e : ExprLow Ident} {i i'}:
-  (ε.find? i').isSome →
+  (ε i').isSome →
   e.wf ε →
   (e.modify i i').wf ε := by
   induction e with
   | base inst typ =>
     intro hsome hwf
     dsimp [modify]; split <;> try assumption
-    dsimp [wf, all]
-    solve_by_elim [AssocList.contains_some2]
   | connect con e ihe =>
     intro hsome hwf
     dsimp [modify, wf, all]
@@ -296,7 +260,7 @@ theorem wf_modify_expression {e : ExprLow Ident} {i i'}:
     grind
 
 theorem build_base_in_env {T inst i mod} :
-  ε.find? i = some ⟨ T, mod ⟩ →
+  ε i = some ⟨ T, mod ⟩ →
   build_module' ε (base inst i) = some ⟨ T, mod.renamePorts inst ⟩ := by
   intro h; dsimp [drunfold]; rw [h]; rfl
 
@@ -304,93 +268,20 @@ theorem wf_replace {e e_pat e'} : wf ε e → wf ε e' → wf ε (e.replace e_pa
   intro h wfe'; revert h
   induction e <;> (intros; simp [replace]; split <;> (try solve_by_elim) <;> simp_all [wf, all])
 
-theorem wf_abstract {e e_pat a b} : wf ε e → ε.contains b → wf ε (e.abstract e_pat a b) := by
+theorem wf_abstract {e e_pat a b} : wf ε e → (ε b).isSome → wf ε (e.abstract e_pat a b) := by
   unfold abstract; intros wf1 hcont
   apply wf_replace; assumption
   simp only [wf, all]; assumption
 
 theorem build_module_unfold_1 {m r i} :
-  ε.find? i = some m →
+  ε i = some m →
   build_module ε (.base r i) = ⟨ m.fst, m.snd.renamePorts r ⟩ := by
   intro h; simp only [drunfold]; rw [h]; simp
 
 theorem build_module_unfold_2 {r i} :
-  ε.find? i = none →
+  ε i = none →
   build_module' ε (.base r i) = none := by
   intro h; simp only [drunfold]; rw [h]; simp
-
--- theorem build_module_type_rename' {e : ExprLow Ident} {f g} :
---   (e.mapPorts2 f g |>.build_module' ε).isSome = (e.build_module' ε).isSome := by
---   induction e with
---   | base map typ =>
---     simp [drunfold, -AssocList.find?_eq]
---     cases (AssocList.find? typ ε) <;> simp
---   | connect _ e ih =>
---     dsimp [drunfold, -AssocList.find?_eq]
---     cases h : build_module' ε e
---     · rw [h] at ih; simp [mapPorts2] at ih; simp [ih]
---     · rw [h] at ih; simp at ih; rw [Option.isSome_iff_exists] at ih; rcases ih with ⟨_, ih⟩
---       unfold mapPorts2 at *; rw [ih]; rfl
---   | product e₁ e₂ ihe₁ ihe₂ =>
---     dsimp [drunfold]
---     cases h : (build_module' ε e₁)
---     · rw [h] at ihe₁; simp [mapPorts2] at ihe₁; simp [ihe₁]
---     · cases h2 : (build_module' ε e₂)
---       · rw [h2] at ihe₂; simp [mapPorts2] at ihe₂; simp [ihe₂]
---       · rw [h] at ihe₁; simp at ihe₁; rw [Option.isSome_iff_exists] at ihe₁; rcases ihe₁ with ⟨_, ihe₁⟩
---         unfold mapPorts2 at *; rw [ihe₁];
---         rw [h2] at ihe₂; simp at ihe₂; rw [Option.isSome_iff_exists] at ihe₂; rcases ihe₂ with ⟨_, ihe₂⟩
---         rw [ihe₂]; rfl
-
--- theorem build_module_type_rename {e f g} :
---   ([T| e.mapPorts2 f g, ε]) = ([T| e, ε ]) := by
---   induction e with
---   | base map typ =>
---     simp [drunfold, -AssocList.find?_eq]
---     cases h : (AssocList.find? typ ε) <;> rfl
---   | connect _ e ie =>
---     simp [drunfold, -AssocList.find?_eq]
---     cases h : build_module' ε e
---     · have : (build_module' ε (mapOutputPorts g (mapInputPorts f e))) = none := by
---         have := build_module_type_rename' (ε := ε) (e := e) (f := f) (g := g)
---         rw [h] at this; simp_all [mapPorts2]
---       rw [this]; rfl
---     · have := build_module_type_rename' (ε := ε) (e := e) (f := f) (g := g)
---       rw [h] at this; dsimp at this; rw [Option.isSome_iff_exists] at this
---       rcases this with ⟨a, this⟩
---       dsimp [mapPorts2] at this; rw [this]
---       unfold build_module_type build_module at *
---       unfold mapPorts2 at *
---       rw [this] at ie; rw [h] at ie
---       dsimp at ie; assumption
---   | product e₁ e₂ he₁ he₂ =>
---     simp [drunfold, -AssocList.find?_eq]
---     cases h : build_module' ε e₁
---     · have : (build_module' ε (mapOutputPorts g (mapInputPorts f e₁))) = none := by
---         have := build_module_type_rename' (ε := ε) (e := e₁) (f := f) (g := g)
---         rw [h] at this; simp_all [mapPorts2]
---       rw [this]; rfl
---     · have this := build_module_type_rename' (ε := ε) (e := e₁) (f := f) (g := g)
---       have this2 := build_module_type_rename' (ε := ε) (e := e₂) (f := f) (g := g)
---       rw [h] at this; dsimp at this; rw [Option.isSome_iff_exists] at this; rcases this with ⟨ a, this ⟩
---       cases h' : build_module' ε e₂
---       · have this3 : (build_module' ε (mapOutputPorts g (mapInputPorts f e₂))) = none := by
---           rw [h'] at this2; simp_all [mapPorts2]
---         rw [this3]; unfold mapPorts2 at *; rw [this]; rfl
---       · rw [h'] at this2; dsimp at this2; rw [Option.isSome_iff_exists] at this2
---         rcases this2 with ⟨a, this2⟩
---         dsimp [mapPorts2] at this this2; rw [this]
---         unfold build_module_type build_module at *
---         unfold mapPorts2 at *
---         dsimp; rw [this2]; dsimp
---         rw [h,this] at he₁
---         rw [h',this2] at he₂
---         simp at *; congr
-
--- def cast_module {S T} (h : S = T): Module Ident S = Module Ident T := by
---   cases h; rfl
-
--- def _root_.Sigma.map2 {α t} (pair : @Sigma α t) (f : ∀ {a}, t a → t a) : Sigma t := ⟨ _, f pair.snd ⟩
 
 -- TODO: Cleanup this proof.
 theorem mapKey_comm2 {α} {m : PortMap Ident α} {inst : PortMap Ident (InternalPort Ident)} {f i}:
@@ -579,7 +470,7 @@ theorem rename_build_module_eq {e e' : ExprLow Ident} {f g} (h : Function.Biject
   induction e generalizing e' with
   | base map typ =>
     intro hwf_mapping hloc heq
-    cases hfind : (AssocList.find? typ ε).isSome
+    cases hfind : (ε typ).isSome
     · simp [-AssocList.find?_eq] at hfind
       rw [build_module_unfold_2 hfind]
       simp [drunfold] at heq
@@ -705,7 +596,7 @@ theorem mapPorts2_well_formed {e e' : ExprLow Ident} {f g} (h : Function.Bijecti
     obtain ⟨e'''', hval'', hmap⟩ := hmap
     cases hmap
     dsimp [well_formed]
-    rw [‹AssocList.find? typ ε = _›]; simp
+    rw [‹ε typ = _›]; simp
     obtain ⟨ha, hb, hc, hd⟩ := hwf;
     and_intros
     · grind [mapVal_keysList]
@@ -720,42 +611,6 @@ theorem mapPorts2_well_formed {e e' : ExprLow Ident} {f g} (h : Function.Bijecti
     intro hwf hmap
     obtain ⟨e', hconn, hconn'⟩ := mapPorts2_unfold_connect hmap
     grind [well_formed_connect]
-
--- theorem rename_build_module_well_formed' {e e' : ExprLow Ident} {f g} (h : Function.Bijective f) (h' : Function.Bijective g) :
---   e'.well_formed ε →
---   e.mapPorts2 f g = .some e' →
---   e.well_formed ε := by
---   induction e' generalizing e with
---   | base inst typ =>
---     intro hwf hmap
---     dsimp [well_formed] at hwf
---     split at hwf <;> try contradiction
---     simp only [Bool.decide_and, Bool.decide_eq_true, Bool.and_eq_true, decide_eq_true_eq] at hwf
---     dsimp [mapPorts2, mapInputPorts] at hmap
---     rw [Option.bind_eq_some] at hmap
---     obtain ⟨e'', hval, hmap⟩ := hmap
---     rw [Option.bind_eq_some] at hval
---     obtain ⟨e''', hval', hmap'⟩ := hval
---     cases hmap'
---     dsimp [mapOutputPorts] at hmap; rw [Option.bind_eq_some] at hmap
---     obtain ⟨e'''', hval'', hmap⟩ := hmap
---     cases hmap
---     dsimp [well_formed]
---     rw [‹AssocList.find? typ ε = _›]; simp
---     obtain ⟨ha, hb, hc, hd⟩ := hwf;
---     and_intros
---     · grind [mapVal_keysList]
---     · grind [mapVal_keysList]
---     · simp_all
---     · simp_all
---   | product e₁ e₂ =>
---     intro hwf hmap
---     obtain ⟨e₁', e₂', hmap1, hmap2, hprod⟩ := mapPorts2_unfold_product hmap
---     grind [well_formed_product]
---   | connect c e =>
---     intro hwf hmap
---     obtain ⟨e', hconn, hconn'⟩ := mapPorts2_unfold_connect hmap
---     grind [well_formed_connect]
 
 theorem refines_mapPorts2_1 {e e' f g} :
   Function.Bijective f → Function.Bijective g → e.wf_mapping ε →
@@ -826,7 +681,7 @@ variable [DecidableEq Ident]
 variable {S : Type v}
 variable (smod : Module Ident S)
 
-theorem refines_product {ε₁ ε₂ : IdentMap Ident (TModule Ident)} {e₁ e₂ e₁' e₂'} :
+theorem refines_product {ε₁ ε₂ : Env Ident} {e₁ e₂ e₁' e₂' : ExprLow Ident} :
     wf ε₁ e₁ → wf ε₁ e₂ → wf ε₂ e₁' → wf ε₂ e₂' →
     [e| e₁, ε₁ ] ⊑ ([e| e₁', ε₂ ]) →
     [e| e₂, ε₁ ] ⊑ ([e| e₂', ε₂ ]) →
@@ -847,7 +702,7 @@ theorem refines_product {ε₁ ε₂ : IdentMap Ident (TModule Ident)} {e₁ e�
   rw [wf2, wf4] at ref2
   solve_by_elim [Module.refines_product]
 
-theorem refines_connect {ε₁ ε₂ : IdentMap Ident (TModule Ident)} {e e' c} :
+theorem refines_connect {ε₁ ε₂ : Env Ident} {e e' c} :
     wf ε₁ e → wf ε₂ e' →
     [e| e, ε₁ ] ⊑ ([e| e', ε₂ ]) →
     [e| e.connect c, ε₁ ] ⊑ ([e| e'.connect c, ε₂ ]) := by
@@ -861,7 +716,7 @@ theorem refines_connect {ε₁ ε₂ : IdentMap Ident (TModule Ident)} {e e' c} 
   rw [wf1,wf2] at ref ⊢
   solve_by_elim [Module.refines_connect]
 
-variable (ε : IdentMap Ident (TModule Ident))
+variable (ε : Env Ident)
 
 theorem refines_product_associative {e₁ e₂ e₃} :
     wf ε e₁ → wf ε e₂ → wf ε e₃ →
@@ -941,7 +796,7 @@ theorem check_eq_refines {iexpr iexpr'} :
     obtain ⟨typeq, heq1, heq2, hnodup1, hnodup2, hnodup3, hnodup4⟩ := heq
     dsimp [drunfold]
     subst typ'
-    cases h: (AssocList.find? typ ε) with
+    cases h: ε typ with
     | none =>
       apply Module.refines_reflexive
     | some mod =>
@@ -980,7 +835,7 @@ theorem check_eq_refines2 {iexpr iexpr'} :
   solve_by_elim [check_eq_refines]
 
 theorem abstract_refines {iexpr expr_pat i} :
-    ε.find? i = some ⟨ _, [e| expr_pat, ε ] ⟩ →
+    ε i = some ⟨ _, [e| expr_pat, ε ] ⟩ →
     iexpr.wf ε →
     [e| iexpr, ε ] ⊑ ([e| iexpr.abstract expr_pat ∅ i, ε ]) := by
   unfold build_module_expr; intro hfind;
@@ -993,7 +848,7 @@ theorem abstract_refines {iexpr expr_pat i} :
       dsimp
       simp [drunfold, Option.bind]
       rw [hfind]; simp
-      have : ∃ m, Batteries.AssocList.find? typ ε = some m := by
+      have : ∃ m, ε typ = some m := by
         simp only [wf, all] at hwf
         simp only [←Option.isSome_iff_exists, Batteries.AssocList.contains_some, hwf]
       let ⟨ m, hb ⟩ := this; clear this; rw [hb]; simp
@@ -1012,7 +867,7 @@ theorem abstract_refines {iexpr expr_pat i} :
     · have : (if (base inst typ).check_eq expr_pat = true then base ∅ i else base inst typ) = base inst typ := by
         simp [h]
       rw [this]; clear this
-      have : ∃ m, Batteries.AssocList.find? typ ε = some m := by
+      have : ∃ m, ε typ = some m := by
         simp only [wf, all] at hwf
         simp only [←Option.isSome_iff_exists, Batteries.AssocList.contains_some, hwf]
       cases this; rename_i a ha
@@ -1031,10 +886,10 @@ theorem abstract_refines {iexpr expr_pat i} :
     · unfold abstract at ihe₁ ihe₂
       have : wf ε (e₁.replace expr_pat (base ∅ i)) := by
         apply wf_abstract; simp_all [wf, all]
-        apply Batteries.AssocList.contains_some3; assumption
+        grind
       have : wf ε (e₂.replace expr_pat (base ∅ i)) := by
         apply wf_abstract; simp_all [wf, all]
-        apply Batteries.AssocList.contains_some3; assumption
+        grind
       have : wf ε e₁ := by simp_all [wf, all]
       have : wf ε e₂ := by simp_all [wf, all]
       simp at h; rw [h]; dsimp
@@ -1056,11 +911,11 @@ theorem abstract_refines {iexpr expr_pat i} :
         convert_to wf ε (e.replace expr_pat (base ∅ i));
         simp [wf, all]
         apply wf_replace; assumption; simp only [wf, all]
-        skip; apply Batteries.AssocList.contains_some2; rw [hfind]; rfl
+        grind
       simp at h; rw [h]; solve_by_elim [refines_connect]
 
 theorem abstract_refines2 {iexpr expr_pat i} :
-    ε.find? i = some ⟨ _, [e| expr_pat, ε ] ⟩ →
+    ε i = some ⟨ _, [e| expr_pat, ε ] ⟩ →
     iexpr.wf ε →
     [e| iexpr.abstract expr_pat ∅ i, ε ] ⊑ ([e| iexpr, ε ]) := by
   unfold build_module_expr; intro hfind;
@@ -1073,7 +928,7 @@ theorem abstract_refines2 {iexpr expr_pat i} :
       dsimp
       simp [drunfold, Option.bind]
       rw [hfind]; simp
-      have : ∃ m, Batteries.AssocList.find? typ ε = some m := by
+      have : ∃ m, ε typ = some m := by
         simp only [wf, all] at hwf
         simp only [←Option.isSome_iff_exists, Batteries.AssocList.contains_some, hwf]
       let ⟨ m, hb ⟩ := this; clear this; rw [hb]; simp
@@ -1092,7 +947,7 @@ theorem abstract_refines2 {iexpr expr_pat i} :
     · have : (if (base inst typ).check_eq expr_pat = true then base ∅ i else base inst typ) = base inst typ := by
         simp [h]
       rw [this]; clear this
-      have : ∃ m, Batteries.AssocList.find? typ ε = some m := by
+      have : ∃ m, ε typ = some m := by
         simp only [wf, all] at hwf
         simp only [←Option.isSome_iff_exists, Batteries.AssocList.contains_some, hwf]
       cases this; rename_i a ha
@@ -1112,10 +967,10 @@ theorem abstract_refines2 {iexpr expr_pat i} :
     · unfold abstract at ihe₁ ihe₂
       have : wf ε (e₁.replace expr_pat (base ∅ i)) := by
         apply wf_abstract; simp_all [wf, all]
-        apply Batteries.AssocList.contains_some3; assumption
+        grind
       have : wf ε (e₂.replace expr_pat (base ∅ i)) := by
         apply wf_abstract; simp_all [wf, all]
-        apply Batteries.AssocList.contains_some3; assumption
+        grind
       have : wf ε e₁ := by simp_all [wf, all]
       have : wf ε e₂ := by simp_all [wf, all]
       simp at h; rw [h]; dsimp
@@ -1138,7 +993,7 @@ theorem abstract_refines2 {iexpr expr_pat i} :
         convert_to wf ε (e.replace expr_pat (base ∅ i));
         simp [wf, all]
         apply wf_replace; assumption; simp only [wf, all]
-        skip; apply Batteries.AssocList.contains_some2; rw [hfind]; rfl
+        grind
       simp at h; rw [h]; solve_by_elim [refines_connect]
 
 theorem replacement {iexpr e_new e_pat} :
@@ -1210,15 +1065,12 @@ theorem findInput_iff_contains {e T m i} :
     dsimp [well_formed] at hwf; split at hwf <;> try grind
     rename_i mod h
     rw [h] at hbuild; dsimp at hbuild; cases hbuild
-    -- unfold findInput
-    -- rename_i v
     simp only [Bool.decide_and, Bool.and_eq_true, decide_eq_true_eq] at hwf
     rcases hwf with ⟨hwf1, hwf2, hwf3, hwf4⟩
     simp only [AssocList.invertible, List.empty_eq, Bool.decide_and, Bool.and_eq_true,
       decide_eq_true_eq] at hwf3 hwf4
     rcases hwf3 with ⟨hwf3', hwf3, hwf3''⟩
     rcases hwf4 with ⟨hwf4', hwf4, hwf4''⟩
-    -- dsimp [findInput]
     by_cases h : findInput i (base inst typ) <;> symm
     · rw [h]
       dsimp [findInput] at *
@@ -1229,9 +1081,6 @@ theorem findInput_iff_contains {e T m i} :
         unfold AssocList.keysList; simp [*]; solve_by_elim
       have hin : k ∈ mod.snd.inputs.keysList := by
         unfold AssocList.keysList at *; rw [← List.Perm.mem_iff] <;> assumption
-      -- rw [AssocList.bijectivePortRenaming_invert]
-      -- generalize hf : (fun i =>
-      --       (AssocList.find? i ((AssocList.filterId inst.input).append (AssocList.inverse inst.input).filterId)).getD i) = f
       have : AssocList.bijectivePortRenaming inst.input k = i := by
         apply AssocList.bijectivePortRenaming_eq3 <;> solve | assumption | simp [*, AssocList.invertible]
       rwa [←this,←AssocList.mapKey_contains,AssocList.keysList_contains_iff]
@@ -1239,7 +1088,6 @@ theorem findInput_iff_contains {e T m i} :
     · have h' := h; simp only [Bool.not_eq_true] at h'; rw [h']; clear h'; unfold findInput at h
       simp only [AssocList.any_eq, List.any_eq_true, decide_eq_true_eq,
         Prod.exists, exists_eq_right, not_exists] at h
-      -- Annoying but probably true
       suffices ¬ AssocList.contains i (mod.snd.renamePorts inst).inputs by simp only [this]
       intro hcontains
       rw [AssocList.keysList_contains_iff] at hcontains
@@ -1252,7 +1100,6 @@ theorem findInput_iff_contains {e T m i} :
       subst i
       specialize h a
       apply h; clear h
-      -- rw [AssocList.bijectivePortRenaming_invert]; dsimp
       simp (disch := solve_by_elim [List.Perm.nodup]) only [AssocList.find?_in_toList_iff] at *
       have hcontains : a ∈ (AssocList.keysList inst.input) := by
         rw [List.Perm.mem_iff hwf1]
@@ -1321,7 +1168,6 @@ theorem findOutput_iff_contains {e T m o} :
     · have h' := h; simp only [Bool.not_eq_true] at h'; rw [h']; clear h'; unfold findOutput at h
       simp only [AssocList.any_eq, List.any_eq_true, decide_eq_true_eq,
         Prod.exists, exists_eq_right, not_exists] at h
-      -- Annoying but probably true
       suffices ¬ AssocList.contains o (mod.snd.renamePorts inst).outputs by simp only [this]
       intro hcontains
       rw [AssocList.keysList_contains_iff] at hcontains
@@ -1334,7 +1180,6 @@ theorem findOutput_iff_contains {e T m o} :
       subst o
       specialize h a
       apply h; clear h
-      -- rw [AssocList.bijectivePortRenaming_invert]; dsimp
       simp (disch := solve_by_elim [List.Perm.nodup]) only [AssocList.find?_in_toList_iff] at *
       have hcontains : a ∈ (AssocList.keysList inst.output) := by
         rw [List.Perm.mem_iff hwf2]
@@ -1713,7 +1558,7 @@ theorem refines_comm_connection'_2 {iexpr e' conn} :
     · simp at hcomm; obtain ⟨e'', hcomm, hconn⟩ := hcomm; subst e'
       apply ExprLow.refines_connect <;> solve_by_elim [wf_comm_connection'_, well_formed_implies_wf]
 
-variable {wfc : (IdentMap Ident (Σ T : Type, Module Ident T)) → ExprLow Ident → Bool}
+variable {wfc : Env Ident → ExprLow Ident → Bool}
 
 theorem refines_fix_point_opt {iexpr e' f n} :
     (∀ e e', wfc ε e → f e = .some e' → ([e| e', ε ] ⊑ ([e| e, ε ])) ∧ wfc ε e') →
@@ -1949,7 +1794,7 @@ theorem force_replace_eq_replace {e e₁ e₂ : ExprLow Ident} :
     (e.force_replace e₁ e₂).1 = e.replace e₁ e₂ := by
   induction e <;> simp [force_replace, replace] <;> split <;> simp [*]
 
-theorem refines_subset_well_formed {e : ExprLow Ident} (ε' : IdentMap Ident (Σ T : Type, Module Ident T)) :
+theorem refines_subset_well_formed {e : ExprLow Ident} (ε' : Env Ident) :
   ε.subsetOf ε' → e.well_formed ε → e.well_formed ε' := by
   induction e with
   | base inst typ =>
@@ -1969,7 +1814,7 @@ theorem refines_subset_well_formed {e : ExprLow Ident} (ε' : IdentMap Ident (Σ
     rw [well_formed_connect] at *
     grind
 
-theorem refines_subset_left {e : ExprLow Ident} (ε₁ ε : IdentMap Ident (Σ T : Type, Module Ident T)) :
+theorem refines_subset_left {e : ExprLow Ident} (ε₁ ε : Env Ident) :
   ε₁.subsetOf ε → e.well_formed ε₁ →
   [e| e, ε₁ ] ⊑ ([e| e, ε ]) := by
   induction e with
@@ -2002,7 +1847,7 @@ theorem refines_subset_left {e : ExprLow Ident} (ε₁ ε : IdentMap Ident (Σ T
     apply well_formed_implies_wf; assumption
     solve_by_elim
 
-theorem refines_subset_right {e : ExprLow Ident} (ε₁ ε : IdentMap Ident (Σ T : Type, Module Ident T)) :
+theorem refines_subset_right {e : ExprLow Ident} (ε₁ ε : Env Ident) :
   ε₁.subsetOf ε → e.well_formed ε₁ →
   [e| e, ε ] ⊑ ([e| e, ε₁ ]) := by
   induction e with
@@ -2035,7 +1880,7 @@ theorem refines_subset_right {e : ExprLow Ident} (ε₁ ε : IdentMap Ident (Σ 
     apply well_formed_implies_wf; assumption
     solve_by_elim
 
-theorem refines_subset {e e' : ExprLow Ident} (ε₁ ε₂ ε : IdentMap Ident (Σ T : Type, Module Ident T)) :
+theorem refines_subset {e e' : ExprLow Ident} (ε₁ ε₂ ε : Env Ident) :
   ε₁.subsetOf ε → ε₂.subsetOf ε → e.well_formed ε₁ → e'.well_formed ε₂ →
   [e| e, ε₁ ] ⊑ ([e| e', ε₂ ]) →
   [e| e, ε ] ⊑ ([e| e', ε ]) := by

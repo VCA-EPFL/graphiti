@@ -691,63 +691,63 @@ namespace Graphiti.StringModule
 @[drunfold, drcomponents] def tagger_untagger_val TagT [DecidableEq TagT] T T' :=
   NatModule.tagger_untagger_val TagT T T' |>.stringify
 
--- Associate the above modules with a String name to be used in the matcher of each rewrite
--- Essentially, those constitute our primitives
-def ε (Tag : Type) [DecidableEq Tag] (T : Type) [Inhabited T] : Env :=
-  [ ("Join", ⟨_, StringModule.join T T⟩)
-  , ("TaggedJoin", ⟨_, StringModule.join Tag T⟩)
+-- -- Associate the above modules with a String name to be used in the matcher of each rewrite
+-- -- Essentially, those constitute our primitives
+-- def ε (Tag : Type) [DecidableEq Tag] (T : Type) [Inhabited T] : Env :=
+--   [ ("Join", ⟨_, StringModule.join T T⟩)
+--   , ("TaggedJoin", ⟨_, StringModule.join Tag T⟩)
 
-  , ("Split", ⟨_, StringModule.split T T⟩)
-  , ("TaggedSplit", ⟨_, StringModule.split Tag T⟩)
+--   , ("Split", ⟨_, StringModule.split T T⟩)
+--   , ("TaggedSplit", ⟨_, StringModule.split Tag T⟩)
 
-  , ("Merge", ⟨_, StringModule.merge T 2⟩)
-  , ("TaggedMerge", ⟨_, StringModule.merge (Tag × T) 2⟩)
+--   , ("Merge", ⟨_, StringModule.merge T 2⟩)
+--   , ("TaggedMerge", ⟨_, StringModule.merge (Tag × T) 2⟩)
 
-  , ("Sink", ⟨_, StringModule.sink T 1⟩)
-  , ("TaggedSink", ⟨_, StringModule.sink Tag 1⟩)
+--   , ("Sink", ⟨_, StringModule.sink T 1⟩)
+--   , ("TaggedSink", ⟨_, StringModule.sink Tag 1⟩)
 
-  -- , ("Fork", ⟨_, StringModule.fork T 2⟩)
-  -- , ("Fork3", ⟨_, StringModule.fork T 3⟩)
-  -- , ("Fork4", ⟨_, StringModule.fork T 4⟩)
-  -- , ("Fork5", ⟨_, StringModule.fork T 5⟩)
-  -- , ("Fork6", ⟨_, StringModule.fork T 6⟩)
-  -- , ("TagggedFork", ⟨_, StringModule.fork (Tag × T) 2⟩)
+--   -- , ("Fork", ⟨_, StringModule.fork T 2⟩)
+--   -- , ("Fork3", ⟨_, StringModule.fork T 3⟩)
+--   -- , ("Fork4", ⟨_, StringModule.fork T 4⟩)
+--   -- , ("Fork5", ⟨_, StringModule.fork T 5⟩)
+--   -- , ("Fork6", ⟨_, StringModule.fork T 6⟩)
+--   -- , ("TagggedFork", ⟨_, StringModule.fork (Tag × T) 2⟩)
 
-  , ("CntrlMerge", ⟨_, StringModule.cntrl_merge T⟩)
-  , ("TagggedCntrlMerge", ⟨_, StringModule.cntrl_merge (Tag × T)⟩)
+--   , ("CntrlMerge", ⟨_, StringModule.cntrl_merge T⟩)
+--   , ("TagggedCntrlMerge", ⟨_, StringModule.cntrl_merge (Tag × T)⟩)
 
-  , ("Branch", ⟨_, StringModule.branch T⟩)
-  , ("BranchC", ⟨_, StringModule.branch Unit⟩)
-  , ("TaggedBranch", ⟨_, StringModule.branch (Tag × T)⟩)
+--   , ("Branch", ⟨_, StringModule.branch T⟩)
+--   , ("BranchC", ⟨_, StringModule.branch Unit⟩)
+--   , ("TaggedBranch", ⟨_, StringModule.branch (Tag × T)⟩)
 
-  , ("Mux", ⟨_, StringModule.mux T⟩)
-  , ("MuxC", ⟨_, StringModule.mux Unit⟩)
-  , ("TagggedMux", ⟨_, StringModule.mux (Tag × T)⟩)
+--   , ("Mux", ⟨_, StringModule.mux T⟩)
+--   , ("MuxC", ⟨_, StringModule.mux Unit⟩)
+--   , ("TagggedMux", ⟨_, StringModule.mux (Tag × T)⟩)
 
-  , ("Buffer", ⟨_, StringModule.queue T⟩)
-  , ("BufferC", ⟨_, StringModule.queue Unit⟩)
-  , ("BufferB", ⟨_, StringModule.queue Bool⟩)
-  , ("TagggedBuffer", ⟨_, StringModule.queue (Tag × T)⟩)
+--   , ("Buffer", ⟨_, StringModule.queue T⟩)
+--   , ("BufferC", ⟨_, StringModule.queue Unit⟩)
+--   , ("BufferB", ⟨_, StringModule.queue Bool⟩)
+--   , ("TagggedBuffer", ⟨_, StringModule.queue (Tag × T)⟩)
 
-  , ("Bag", ⟨_, StringModule.bag (Tag × T)⟩)
+--   , ("Bag", ⟨_, StringModule.bag (Tag × T)⟩)
 
-  , ("Aligner", ⟨_, StringModule.aligner Tag T⟩)
-  , ("TaggerCntrlAligner", ⟨_, StringModule.tagger_untagger_val Tag T T⟩)
+--   , ("Aligner", ⟨_, StringModule.aligner Tag T⟩)
+--   , ("TaggerCntrlAligner", ⟨_, StringModule.tagger_untagger_val Tag T T⟩)
 
-  -- , ("ConstantA", ⟨_, StringModule.constant (@constant_a T)⟩)
-  -- , ("ConstantB", ⟨_, StringModule.constant (@constant_b T)⟩)
-  -- , ("ConstantC", ⟨_, StringModule.constant (@constant_c T)⟩)
-  -- , ("ConstantD", ⟨_, StringModule.constant (@constant_d T)⟩)
-  -- , ("ConstantE", ⟨_, StringModule.constant (@constant_e T)⟩)
-  -- , ("ConstantF", ⟨_, StringModule.constant (@constant_f T)⟩)
-  -- , ("ConstantG", ⟨_, StringModule.constant (@constant_g T)⟩)
+--   -- , ("ConstantA", ⟨_, StringModule.constant (@constant_a T)⟩)
+--   -- , ("ConstantB", ⟨_, StringModule.constant (@constant_b T)⟩)
+--   -- , ("ConstantC", ⟨_, StringModule.constant (@constant_c T)⟩)
+--   -- , ("ConstantD", ⟨_, StringModule.constant (@constant_d T)⟩)
+--   -- , ("ConstantE", ⟨_, StringModule.constant (@constant_e T)⟩)
+--   -- , ("ConstantF", ⟨_, StringModule.constant (@constant_f T)⟩)
+--   -- , ("ConstantG", ⟨_, StringModule.constant (@constant_g T)⟩)
 
-  -- , ("Add", ⟨_, StringModule.binary_op (@polymorphic_add T _)⟩)
-  -- , ("Mul", ⟨_, StringModule.binary_op (@polymorphic_mult T _)⟩)
-  -- , ("Div", ⟨_, StringModule.binary_op (@polymorphic_div T _)⟩)
-  -- , ("Shl", ⟨_, StringModule.binary_op (@polymorphic_shift_left T _)⟩)
-  -- , ("Sub", ⟨_, StringModule.binary_op (@polymorphic_sub T _)⟩)
-  ].toAssocList
+--   -- , ("Add", ⟨_, StringModule.binary_op (@polymorphic_add T _)⟩)
+--   -- , ("Mul", ⟨_, StringModule.binary_op (@polymorphic_mult T _)⟩)
+--   -- , ("Div", ⟨_, StringModule.binary_op (@polymorphic_div T _)⟩)
+--   -- , ("Shl", ⟨_, StringModule.binary_op (@polymorphic_shift_left T _)⟩)
+--   -- , ("Sub", ⟨_, StringModule.binary_op (@polymorphic_sub T _)⟩)
+--   ].toAssocList
 
 @[drunfold, drcomponents] def muxC T := NatModule.muxC T |>.stringify
 

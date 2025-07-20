@@ -161,7 +161,7 @@ def env : IdentMap String VerilogTemplate :=
 
 namespace FlipFlop
 
-def d_latch'_m : ExprHigh String × Env := [graphEnv|
+def d_latch'_m := [graphEnv|
     d [type="io"];
     clk [type="io"];
     q [type="io"];
@@ -203,7 +203,7 @@ def d_latch'_m : ExprHigh String × Env := [graphEnv|
     n4_2 -> q_bar [from="out2"];
   ]
 
-def d_latch_m : ExprHigh String × Env := [graphEnv|
+def d_latch_m := [graphEnv|
     d [type="io"];
     clk [type="io"];
     q [type="io"];
@@ -247,7 +247,7 @@ def d_latch_m_template : VerilogTemplate where
   module := build_local_module "d_latch_m" (simple_interface ["d", "clk"] ["q", "q_bar"]) ((build_verilog_body env d_latch_m.1).get rfl)
   instantiation name inst := format_instantiation "d_latch_m" name inst
 
-def et_flip_flop_m : ExprHigh String × Env := [graphEnv|
+def et_flip_flop_m := [graphEnv|
     clk [type="io"];
     d [type="io"];
     q [type="io"];
@@ -309,14 +309,14 @@ def et_flip_flop_spec : NatModule (D × D) :=
     init_state := λ s => s = default
   }
 
-def et_ms_flip_flop_m : ExprHigh String × Env := [graphEnv|
+def et_ms_flip_flop_m := [graphEnv|
     clk [type="io"];
     d [type="io"];
     q [type="io"];
     q_bar [type="io"];
 
-    latch1 [type="d_latch_m", typeImp=$(ExprHigh.build_module d_latch_m.2 d_latch_m.1)];
-    latch2 [type="d_latch_m", typeImp=$(ExprHigh.build_module d_latch_m.2 d_latch_m.1)];
+    latch1 [type="d_latch_m", typeImp=$(ExprHigh.build_module d_latch_m.2.find? d_latch_m.1)];
+    latch2 [type="d_latch_m", typeImp=$(ExprHigh.build_module d_latch_m.2.find? d_latch_m.1)];
     sink [type="sink_m", typeImp=$(⟨_, sink_sm⟩)];
 
     n1 [type="not_m", typeImp=$(⟨_, not_sm⟩)];

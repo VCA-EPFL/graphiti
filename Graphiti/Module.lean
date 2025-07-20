@@ -392,6 +392,4 @@ def IdentMap.toInterface {Ident} (i : IdentMap Ident (Σ T, Module Ident T))
 abbrev TModule Ident := Σ T, Module Ident T
 abbrev TModule1 Ident := Σ T : Type, Module Ident T
 
-def Env := IdentMap String (TModule String)
-
 end Graphiti

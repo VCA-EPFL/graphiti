@@ -103,8 +103,9 @@ open Graphiti.StringModule
 @[drenv] theorem find?_split_data2 : (Batteries.AssocList.find? ("split (TagT × " ++ DataS ++ ") Bool") (environmentRhs DataS f)) = .some ⟨_, split (TagT × Data) Bool⟩ := sorry
 @[drenv] theorem find?_tagger_data2 : (Batteries.AssocList.find? ("tagger_untagger_val TagT " ++ DataS ++ " " ++ DataS) (environmentRhs DataS f)) = .some ⟨_, tagger_untagger_val TagT Data Data⟩ := sorry
 
+seal environmentLhs in
 def lhsTypeEvaled : Type := by
-  precomputeTac ([T| (rewriteLhsRhs DataS).input_expr, environmentLhs DataS f ]) by
+  precomputeTac ([T| (rewriteLhsRhs DataS).input_expr, (environmentLhs DataS f).find? ]) by
     simp [drunfold,seval,drcompute,drdecide]
     -- rw [find?_bag_data,find?_init_data,find?_branch_data,find?_pure_f,find?_mux_data,find?_fork_bool,find?_split_data]
     -- simp
@@ -118,9 +119,9 @@ def lhsTypeEvaled : Type := by
                                     { inst := Graphiti.InstIdent.top, name := "out1" }
                                     { inst := Graphiti.InstIdent.top, name := "o_out" }
                                     (Batteries.AssocList.nil) }
-                      "bag T"), environmentLhs "T" (λ _ => ((), true))].outputs.keysList
+                      "bag T"), (environmentLhs "T" (λ _ => ((), true))).find?].outputs.keysList
 
-#eval ([e| (rewriteLhsRhs "T").input_expr, environmentLhs "T" (λ _ => ((), true)) ]).outputs.keysList
+#eval ([e| (rewriteLhsRhs "T").input_expr, (environmentLhs "T" (λ _ => ((), true))).find? ]).outputs.keysList
 
 variable (Data) in
 abbrev lhsType := (List Data ×
@@ -133,8 +134,9 @@ abbrev lhsType := (List Data ×
                       NatModule.Named "mux" (List Data × List Data × List Bool))
 
 set_option maxHeartbeats 0 in
+seal environmentLhs in
 def lhsEvaled : Module String (lhsType Data) := by
-  precomputeTac [e| (rewriteLhsRhs DataS).input_expr, environmentLhs DataS f ] by
+  precomputeTac [e| (rewriteLhsRhs DataS).input_expr, (environmentLhs DataS f).find? ] by
     (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
      dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
      dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, toString]
@@ -162,8 +164,9 @@ abbrev rhsType :=
                 NatModule.Named "split" (List (TagT × Data) × List Bool))
 
 set_option maxHeartbeats 0 in
+seal environmentRhs in
 def rhsEvaled : Module String (rhsType Data) := by
-  precomputeTac [e| (rewriteLhsRhs DataS).output_expr, environmentRhs DataS f ] by
+  precomputeTac [e| (rewriteLhsRhs DataS).output_expr, (environmentRhs DataS f).find? ] by
     (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
      dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
      dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, toString]
@@ -199,8 +202,9 @@ abbrev rhsGhostType :=
                 NatModule.Named "split" (List ((TagT × Data) × ℕ × Data) × List Bool))
 
 set_option maxHeartbeats 0 in
+seal environmentRhsGhost in
 def rhsGhostEvaled : Module String (rhsGhostType Data) := by
-  precomputeTac [e| rhsGhostLower DataS, environmentRhsGhost DataS f ] by
+  precomputeTac [e| rhsGhostLower DataS, (environmentRhsGhost DataS f).find? ] by
     (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
      dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
      dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, toString]

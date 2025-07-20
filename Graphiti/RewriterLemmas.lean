@@ -12,17 +12,17 @@ open Batteries (AssocList)
 
 namespace Graphiti
 
-structure CorrectRewrite (ε_global : Env) where
+structure CorrectRewrite (ε_global : Env String) where
   pattern : Pattern String
   rewrite : DefiniteRewrite String
-  ε_left : Env
-  ε_right : Env
+  ε_left : Env String
+  ε_right : Env String
   consistent : ε_left.subsetOf ε_global ∧ ε_right.subsetOf ε_global
   wf : rewrite.input_expr.well_formed ε_left ∧ rewrite.output_expr.well_formed ε_right
   refines :
     [e| rewrite.output_expr, ε_right ] ⊑ ([e| rewrite.input_expr, ε_left ])
 
-structure VerifiedRewrite (ε_global ε_left ε_right : Env) (rw : DefiniteRewrite String) : Prop where
+structure VerifiedRewrite (ε_global ε_left ε_right : Env String) (rw : DefiniteRewrite String) : Prop where
   consistent : ε_left.subsetOf ε_global ∧ ε_right.subsetOf ε_global
   wf : rw.input_expr.well_formed ε_left ∧ rw.output_expr.well_formed ε_right
   refines :
@@ -143,7 +143,7 @@ theorem refines_higher_correct {Ident} [DecidableEq Ident] {f} {ε g} {e : ExprL
 --   let def_rewrite ← ofOption (.error "could not generate rewrite") <| rw.rewrite l
 --   reverse_rewrite' def_rewrite rinfo
 
-theorem Rewrite_run'_correct {b} {ε_global : Env} {g g' : ExprHigh String} {e_g : ExprLow String}
+theorem Rewrite_run'_correct {b} {ε_global : Env String} {g g' : ExprHigh String} {e_g : ExprLow String}
         {s _st _st'} {rw : CorrectRewrite ε_global} :
   g.lower = some e_g →
   e_g.well_formed ε_global →

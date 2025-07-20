@@ -85,8 +85,9 @@ def environmentRhs : IdentMap String (TModule1 String) := rhs T₁ T₂ T₃ S�
   rw [Batteries.AssocList.find?.eq_2]; rw [this]
 
 variable (T₁ T₂ T₃) in
+seal environmentLhs in
 def_module lhsModuleType : Type :=
-  [T| (rewriteLhsRhs S₁ S₂ S₃).input_expr, (@environmentLhs T₁ T₂ T₃ S₁ S₂ S₃) ]
+  [T| (rewriteLhsRhs S₁ S₂ S₃).input_expr, (@environmentLhs T₁ T₂ T₃ S₁ S₂ S₃).find? ]
 reduction_by
   dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
   dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
@@ -103,12 +104,14 @@ reduction_by
 def cast_module_type {α} {f : α → Type _} {s s' : Σ T, f T} (heq : s = s') : f s.1 = f s'.1 := by simp_all
 
 variable (T₁ T₂ T₃) in
+seal environmentLhs in
 def_module lhsModule : StringModule (lhsModuleType T₁ T₂ T₃) :=
-  [e| (rewriteLhsRhs S₁ S₂ S₃).input_expr, @environmentLhs T₁ T₂ T₃ S₁ S₂ S₃ ]
+  [e| (rewriteLhsRhs S₁ S₂ S₃).input_expr, (@environmentLhs T₁ T₂ T₃ S₁ S₂ S₃).find? ]
 
 variable (T₁ T₂ T₃) in
+seal environmentRhs in
 def_module rhsModuleType : Type :=
-  [T| (rewriteLhsRhs S₁ S₂ S₃).output_expr, @environmentRhs T₁ T₂ T₃ S₁ S₂ S₃ ]
+  [T| (rewriteLhsRhs S₁ S₂ S₃).output_expr, (@environmentRhs T₁ T₂ T₃ S₁ S₂ S₃).find? ]
 reduction_by
   dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
   dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
@@ -117,8 +120,9 @@ reduction_by
   dsimp
 
 variable (T₁ T₂ T₃) in
+seal environmentRhs in
 def_module rhsModule : StringModule (rhsModuleType T₁ T₂ T₃) :=
-  [e| (rewriteLhsRhs S₁ S₂ S₃).output_expr, @environmentRhs T₁ T₂ T₃ S₁ S₂ S₃ ]
+  [e| (rewriteLhsRhs S₁ S₂ S₃).output_expr, (@environmentRhs T₁ T₂ T₃ S₁ S₂ S₃).find? ]
 
 instance : MatchInterface (rhsModule T₁ T₂ T₃) (lhsModule T₁ T₂ T₃) := by
   dsimp [rhsModule, lhsModule]
@@ -149,7 +153,6 @@ def ψ (rhs : rhsModuleType T₁ T₂ T₃) (lhs : lhsModuleType T₁ T₂ T₃)
   (j2l.map Prod.fst ++ j1l = p.map (Prod.fst ∘ Prod.fst) ++ j2l') ∧
   (j2l.map Prod.snd ++ j1r = p.map ((Prod.snd ∘ Prod.fst)) ++ j2r'.map Prod.fst ++ j1l') ∧
   (j2r = p.map Prod.snd ++ j2r'.map Prod.snd ++ j1r')
-
 
 -- TODO: Can I write differently the lambda that extract the element from p's queue
 def φ (rhs : rhsModuleType T₁ T₂ T₃) (lhs : lhsModuleType T₁ T₂ T₃) : Prop :=
@@ -483,18 +486,20 @@ theorem refines {T: Type _} [DecidableEq T]: rhsModule T₁ T₂ T₃ ⊑_{φ} l
         . subst_vars
           apply Exists.intro ⟨ ⟨ _, _ ⟩, _, _ ⟩
           and_intros <;> dsimp
-          · rewrite [product_is_list_zip sj2l, hlval, hrvall]; rfl
-          · apply lengthify at hlval; simp at hlval
-            apply lengthify at hrvall; simp [hlval, add_comm _ 1, add_right_inj, add_assoc] at hrvall
-            rw [List.append_nil, <- List.zip_eq_zipWith, List.map_fst_zip]
-            simp [hrvall] -- lia + assumption in context
-          · apply lengthify at hlval; simp at hlval
-            apply lengthify at hrvall; simp [hlval, add_comm _ 1, add_right_inj, add_assoc] at hrvall
-            rewrite [<- List.zip_eq_zipWith, List.map_snd_zip]
-            . simp only [List.append_assoc, List.take_append_drop]
-            . simp only [List.length_append, List.length_map, List.length_take, add_le_add_iff_left, inf_le_left]
-          · rewrite [List.append_assoc]; rfl
-          · constructor
+          · apply existSR.done
+          · apply Exists.intro ⟨ ⟨ _, _ ⟩, _, _ ⟩; and_intros <;> dsimp
+            · rewrite [product_is_list_zip sj2l, hlval, hrvall]; rfl
+            · apply lengthify at hlval; simp at hlval
+              apply lengthify at hrvall; simp [hlval, add_comm _ 1, add_right_inj, add_assoc] at hrvall
+              rw [List.append_nil, <- List.zip_eq_zipWith, List.map_fst_zip]
+              simp [hrvall] -- lia + assumption in context
+            · apply lengthify at hlval; simp at hlval
+              apply lengthify at hrvall; simp [hlval, add_comm _ 1, add_right_inj, add_assoc] at hrvall
+              rewrite [<- List.zip_eq_zipWith, List.map_snd_zip]
+              . simp only [List.append_assoc, List.take_append_drop]
+              . simp only [List.length_append, List.length_map, List.length_take, add_le_add_iff_left, inf_le_left]
+            · rewrite [List.append_assoc]; rfl
+            · constructor
         . apply lengthify at hlval; simp at hlval
           apply lengthify at hrval; simp [hlval, add_comm _ 1, add_right_inj, add_assoc] at hrval
           simp only [hlval, List.length_map, List.length_cons, List.length_append, List.length_take,
@@ -514,17 +519,19 @@ theorem refines {T: Type _} [DecidableEq T]: rhsModule T₁ T₂ T₃ ⊑_{φ} l
         . subst_vars
           apply Exists.intro ⟨ ⟨ _, _ ⟩, _, _ ⟩
           . and_intros <;> dsimp
-            . rewrite [product_is_list_zip sj2l, hrval, hlvall]; rfl
-            . apply lengthify at hrval; simp at hrval
-              apply lengthify at hlvall; simp [hrval, add_comm _ 1, add_right_inj, add_assoc] at hlvall
-              simp [<- List.zip_eq_zipWith, List.map_fst_zip, hlvall]
-            . apply lengthify at hrval; simp at hrval
-              apply lengthify at hlvall; simp [hrval, add_comm _ 1, add_right_inj, add_assoc] at hlvall
-              rewrite [<- List.zip_eq_zipWith, List.map_snd_zip]
+            · apply existSR.done
+            · apply Exists.intro ⟨ ⟨ _, _ ⟩, _, _ ⟩; and_intros <;> dsimp
+              . rewrite [product_is_list_zip sj2l, hrval, hlvall]; rfl
+              . apply lengthify at hrval; simp at hrval
+                apply lengthify at hlvall; simp [hrval, add_comm _ 1, add_right_inj, add_assoc] at hlvall
+                simp [<- List.zip_eq_zipWith, List.map_fst_zip, hlvall]
+              . apply lengthify at hrval; simp at hrval
+                apply lengthify at hlvall; simp [hrval, add_comm _ 1, add_right_inj, add_assoc] at hlvall
+                rewrite [<- List.zip_eq_zipWith, List.map_snd_zip]
+                . simp
+                . simp [hlvall]
               . simp
-              . simp [hlvall]
-            . simp
-            . constructor
+              . constructor
         . apply lengthify at hrval; simp [add_comm _ 1, add_right_inj, add_assoc] at hrval
           apply lengthify at hlval; simp [hrval, add_comm _ 1, add_left_inj, add_assoc] at hlval
           simp only [hrval, List.length_map, List.length_cons, add_comm _ 1, add_right_inj, List.length_append, List.length_take, left_eq_inf] -- lengthify the goal
@@ -544,6 +551,10 @@ theorem refines {T: Type _} [DecidableEq T]: rhsModule T₁ T₂ T₃ ⊑_{φ} l
           and_intros <;> assumption
       . assumption
 
+/--
+info: 'Graphiti.JoinRewrite.refines' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
 #print axioms refines
 
 end Graphiti.JoinRewrite

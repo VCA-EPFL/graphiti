@@ -86,8 +86,9 @@ def environmentRhs : IdentMap String (TModule1 String) := rhs T₁ T₂ T₃ S�
   rw [Batteries.AssocList.find?.eq_2]; rw [this]
 
 variable (T₁ T₂ T₃) in
+seal environmentLhs in
 def_module lhsModuleType : Type :=
-  [T| (rewriteLhsRhs S₁ S₂ S₃).input_expr, (@environmentLhs T₁ T₂ T₃ S₁ S₂ S₃) ]
+  [T| (rewriteLhsRhs S₁ S₂ S₃).input_expr, (@environmentLhs T₁ T₂ T₃ S₁ S₂ S₃).find? ]
 reduction_by
   dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
   dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
@@ -96,12 +97,14 @@ reduction_by
   dsimp
 
 variable (T₁ T₂ T₃) in
+seal environmentLhs in
 def_module lhsModule : StringModule (lhsModuleType T₁ T₂ T₃) :=
-  [e| (rewriteLhsRhs S₁ S₂ S₃).input_expr, @environmentLhs T₁ T₂ T₃ S₁ S₂ S₃ ]
+  [e| (rewriteLhsRhs S₁ S₂ S₃).input_expr, (@environmentLhs T₁ T₂ T₃ S₁ S₂ S₃).find? ]
 
 variable (T₁ T₂ T₃) in
+seal environmentRhs in
 def_module rhsModuleType : Type :=
-  [T| (rewriteLhsRhs S₁ S₂ S₃).output_expr, @environmentRhs T₁ T₂ T₃ S₁ S₂ S₃ ]
+  [T| (rewriteLhsRhs S₁ S₂ S₃).output_expr, (@environmentRhs T₁ T₂ T₃ S₁ S₂ S₃).find? ]
 reduction_by
   dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
   dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
@@ -110,8 +113,9 @@ reduction_by
   dsimp
 
 variable (T₁ T₂ T₃) in
+seal environmentRhs in
 def_module rhsModule : StringModule (rhsModuleType T₁ T₂ T₃) :=
-  [e| (rewriteLhsRhs S₁ S₂ S₃).output_expr, @environmentRhs T₁ T₂ T₃ S₁ S₂ S₃ ]
+  [e| (rewriteLhsRhs S₁ S₂ S₃).output_expr, (@environmentRhs T₁ T₂ T₃ S₁ S₂ S₃).find? ]
 
 ---------------------------------------------------------------------------------------------------
 

@@ -29,13 +29,10 @@ section Semantics
 variable {Ident}
 variable [DecidableEq Ident]
 
-variable (ε : IdentMap Ident ((T: Type) × Module Ident T))
+variable (ε : Env Ident)
 
 @[drunfold] def build_module' (e : ExprHigh Ident) : Option (Σ T, Module Ident T) :=
   e.lower.bind (·.build_module ε)
-
--- @[drunfold] def build_module_named (e : ExprHigh Ident) : Option (Σ T, Module Ident T) :=
---   e.lower.bind (·.build_module_named ε)
 
 @[drunfold] def build_moduleP (e : ExprHigh Ident)
     (h : (build_module' ε e).isSome = true := by rfl)
@@ -45,12 +42,10 @@ variable (ε : IdentMap Ident ((T: Type) × Module Ident T))
 @[drunfold] def build_module (e : ExprHigh Ident) : Σ T, Module Ident T :=
   e.build_module' ε |>.getD ⟨ Unit, Module.empty _ ⟩
 
-@[drunfold] abbrev build_module_expr (ε : IdentMap Ident (Σ T, Module Ident T))
-    (e : ExprHigh Ident)
+@[drunfold] abbrev build_module_expr (e : ExprHigh Ident)
     : Module Ident (e.build_module ε).1 := (e.build_module ε).2
 
-@[drunfold] abbrev build_module_type (ε : IdentMap Ident (Σ T, Module Ident T))
-    (e : ExprHigh Ident)
+@[drunfold] abbrev build_module_type (e : ExprHigh Ident)
     : Type _ := (e.build_module ε).1
 
 notation:25 "[Ge| " e ", " ε " ]" => build_module_expr ε e
