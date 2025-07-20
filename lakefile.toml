@@ -24,9 +24,6 @@ rev = "nightly-testing-2025-07-18"
 [[lean_lib]]
 name = "Graphiti"
 
-[[lean_lib]]
-name = "GraphitiTest"
-
 [[lean_exe]]
 name = "graphiti"
 root = "Main"
