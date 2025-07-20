@@ -13,7 +13,7 @@ namespace Graphiti.MergeRewrite
 The matcher takes in a dot graph and should return the cluster of nodes that
 form the subgraph as a list of instance names.
 -/
-def matcher (g : ExprHigh String) : RewriteResult (List String) := do
+def matcher : Pattern String := fun g => do
   let (.some list) ← g.modules.foldlM (λ nodes inst (pmap, typ) => do
       if nodes.isSome then return nodes
       unless typ = "Merge" do return none
@@ -21,7 +21,7 @@ def matcher (g : ExprHigh String) : RewriteResult (List String) := do
       unless nn.typ = "Merge" && nn.inputPort = "in1" do return none
       return some [inst, nn.inst]
     ) none | throw .done
-  return list
+  return (list, [])
 
 @[drunfold] def mergeLhs : ExprHigh String := [graph|
     out1 [type = "io"];
@@ -41,7 +41,7 @@ def matcher (g : ExprHigh String) : RewriteResult (List String) := do
     merge2 -> out1 [from = "out1"];
   ]
 
-#eval IO.print mergeLhs
+-- #eval IO.print mergeLhs
 
 /--
 To get instances in a predictable order, it's a good idea to extract the whole
@@ -78,14 +78,13 @@ def mergeLhsLower := mergeLhsOrdered.fst.lower.get rfl
     merge3 -> out1 [from = "out1"];
   ]
 
-#eval IO.print mergeRhs
+-- #eval IO.print mergeRhs
 
 def mergeRhsLower := mergeRhs.lower.get rfl
 
 def rewrite : Rewrite String :=
   { pattern := matcher,
-    input_expr := mergeLhsLower,
-    output_expr := mergeRhsLower }
+    rewrite := fun _ => pure ⟨mergeLhsLower, mergeRhsLower⟩ }
 
 namespace TestRewriter
 

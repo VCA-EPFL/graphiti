@@ -4,17 +4,17 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz, Gurvan Debaussart
 -/
 
-import Graphiti.Module
-import Graphiti.ModuleLemmas
-import Graphiti.ModuleReduction
-import Graphiti.ExprLow
-import Graphiti.ExprLowLemmas
-import Graphiti.Component
-import Graphiti.Examples.Noc.Utils
-import Graphiti.Examples.Noc.Lang
-import Graphiti.Examples.Noc.Spec
-import Graphiti.Examples.Noc.Tactic
-import Graphiti.Examples.Noc.BuildExpr
+import Graphiti.Core.Module
+import Graphiti.Core.ModuleLemmas
+import Graphiti.Core.ModuleReduction
+import Graphiti.Core.ExprLow
+import Graphiti.Core.ExprLowLemmas
+import Graphiti.Core.Component
+import Graphiti.Projects.Noc.Utils
+import Graphiti.Projects.Noc.Lang
+import Graphiti.Projects.Noc.Spec
+import Graphiti.Projects.Noc.Tactic
+import Graphiti.Projects.Noc.BuildExpr
 
 open Batteries (AssocList)
 
@@ -31,21 +31,21 @@ namespace Graphiti.Noc
     ∀ rid : n.RouterID, (n.spec_router rid) ⊑ (rmod rid).2
 
   @[drenv]
-  def Noc.env_rmod_in (n : Noc Data netsz) (ε : Env) (rmod : n.RouterID → TModule String) : Prop :=
-    ∀ rid : n.RouterID, AssocList.find? (router_type_name n rid) ε = .some (rmod rid)
+  def Noc.env_rmod_in (n : Noc Data netsz) (ε : Env String) (rmod : n.RouterID → TModule String) : Prop :=
+    ∀ rid : n.RouterID, ε (router_type_name n rid) = .some (rmod rid)
 
   @[drenv]
-  def Noc.env_empty (n : Noc Data netsz) (ε : Env) : Prop :=
-    AssocList.find? "empty" ε = .some ⟨Unit, StringModule.empty⟩
+  def Noc.env_empty (n : Noc Data netsz) (ε : Env String) : Prop :=
+    ε "empty" = .some ⟨Unit, StringModule.empty⟩
 
-  class EnvCorrect (n : Noc Data netsz) (ε : Env) where
+  class EnvCorrect (n : Noc Data netsz) (ε : Env String) where
     rmod        : n.RouterID → TModule String
     rmod_ok     : n.env_rmod_ok rmod
     rmod_ok'    : n.env_rmod_ok' rmod
     rmod_in_ε   : n.env_rmod_in ε rmod
     empty_in_ε  : n.env_empty ε
 
-  variable (n : Noc Data netsz) (ε : Env) [EC : EnvCorrect n ε]
+  variable (n : Noc Data netsz) (ε : Env String) [EC : EnvCorrect n ε]
 
   abbrev mod := NatModule.stringify n.build_module
 
@@ -140,29 +140,7 @@ namespace Graphiti.Noc
       Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts,
       Module.mapInputPorts, reduceAssocListfind?
     ]
-    have := Module.foldr_acc_plist_2
-      (acc :=
-        ⟨Unit, { inputs := .nil, outputs := .nil, init_state := λ x => True }⟩
-      )
-      (l := fin_range netsz)
-      (f := λ i acc1 => (EC.rmod i).1 × acc1)
-      (g_inputs := λ i acc =>
-        AssocList.mapVal (λ x => Module.liftL) ((EC.rmod i).2.inputs)
-          ++ AssocList.mapVal (λ x => Module.liftR) acc.2
-      )
-      (g_outputs := λ i acc =>
-        (AssocList.mapVal (λ x => Module.liftL) ((EC.rmod i).2.outputs))
-          ++ (AssocList.mapVal (λ x => Module.liftR) acc.2)
-      )
-      (g_internals := λ i acc =>
-            List.map Module.liftL' (EC.rmod i).2.internals
-         ++ List.map Module.liftR' acc.2
-      )
-      (g_init_state := λ i acc =>
-        λ x => (EC.rmod i).snd.init_state x.1 ∧ acc.2 x.2
-      )
-    rw [←Module.dep_foldr, this]
-    clear this
+    rw [←Module.dep_foldr]
     rw [Module.foldr_connect']
     dsimp
     simp only [drcompute]

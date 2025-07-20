@@ -16,7 +16,7 @@ namespace Graphiti.MuxToTaggedMux
 -- a merge instead, where there is no direct connection.
 namespace INCORRECT
 
-def matchModLeft' (g : ExprHigh String) : RewriteResult (List String) := do
+def matchModLeft' : Pattern String := fun g => do
   let dom ← ofOption (.error "could not calculate dominators") <| findDom 10000 g
   let muxes := g.modules.filter (λ k v => v.snd = "mux") |>.toList |>.map (·.fst)
   let branches := g.modules.filter (λ k v => v.snd = "branch") |>.toList |>.map (·.fst)
@@ -28,14 +28,15 @@ def matchModLeft' (g : ExprHigh String) : RewriteResult (List String) := do
     ) none | throw .done
   let (.some nn_first) := followOutput g pair.fst "true" | throw (.error "could not follow output")
   let (.some nn_last) := followInput g pair.snd "in1" | throw (.error "could not follow input")
-  ofOption (.error "could not find scc nodes") <| findSCCNodes g nn_first.inst nn_last.inst
+  let l ← ofOption (.error "could not find scc nodes") <| findSCCNodes g nn_first.inst nn_last.inst
+  return (l, [])
 
 /--
 We can use dominators to make sure we match the same nodes as in the two
 previous functions.  This doesn't work in this case though because of the fork.
 If the mux were a merge domination would be the right algorithm.
 -/
-def matcher' (g : ExprHigh String) : RewriteResult (List String) := do
+def matcher' : Pattern String := fun g => do
   let dom ← ofOption (.error "could not calculate dominators") <| findDom 10000 g
   let muxes := g.modules.filter (λ k v => v.snd = "mux") |>.toList |>.map (·.fst)
   let branches := g.modules.filter (λ k v => v.snd = "branch") |>.toList |>.map (·.fst)
@@ -45,14 +46,15 @@ def matcher' (g : ExprHigh String) : RewriteResult (List String) := do
       unless br ∈ branches do return none
       return some (br, x)
     ) none | throw .done
-  ofOption (.error "could not find scc nodes") <| findSCCNodes g pair.fst pair.snd
+  let l ← ofOption (.error "could not find scc nodes") <| findSCCNodes g pair.fst pair.snd
+  return (l, [])
 
 end INCORRECT
 
 /--
 Match the left module so that it can be abstracted.
 -/
-def matchModLeft (g : ExprHigh String) : RewriteResult (List String) := do
+def matchModLeft : Pattern String := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
       if s.isSome then return s
       unless typ = "TaggedFork" do return none
@@ -67,12 +69,12 @@ def matchModLeft (g : ExprHigh String) : RewriteResult (List String) := do
       let (.some scc) := findSCCNodes g after_branch_nn.inst prev_mux_nn.inst | return none
       return some scc
     ) none | throw .done
-  return list
+  return (list, [])
 
 /--
 Match the right module so that it can be abstracted.
 -/
-def matchModRight (g : ExprHigh String) : RewriteResult (List String) := do
+def matchModRight : Pattern String := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
       if s.isSome then return s
       unless typ = "TaggedFork" do return none
@@ -87,13 +89,13 @@ def matchModRight (g : ExprHigh String) : RewriteResult (List String) := do
       let (.some scc) := findSCCNodes g after_branch_nn.inst prev_mux_nn.inst | return none
       return some scc
     ) none | throw .done
-  return list
+  return (list, [])
 
 /--
 Instead of using dominators we can also use the fork and the condition circuit
 to match the graph.
 -/
-def matcher (g : ExprHigh String) : RewriteResult (List String) := do
+def matcher : Pattern String := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
       if s.isSome then return s
       unless typ = "TaggedFork" do return none
@@ -111,7 +113,7 @@ def matcher (g : ExprHigh String) : RewriteResult (List String) := do
       -- let (.some scc1) := findSCCNodes g after_branch_nn1.inst prev_mux_nn1.inst | return none
       return some [inst, after_branch_nn0.inst, mux_nn.inst, after_branch_nn1.inst, branch_nn.inst]
     ) none | throw .done
-  return list
+  return (list, [])
 
 def lhs' : ExprHigh String := [graph|
     i_branch [type = "io"];
@@ -142,7 +144,7 @@ def lhs' : ExprHigh String := [graph|
 -- #eval IO.print lhs'.invert
 -- #eval IO.print lhs'
 
-def lhs := lhs'.extract (matcher lhs' |>.toOption |>.get rfl) |>.get rfl
+def lhs := lhs'.extract (matcher lhs' |>.run' default |>.get rfl |>.fst) |>.get rfl
 
 theorem double_check_empty_snd : lhs.snd = ExprHigh.mk ∅ ∅ := by rfl
 
@@ -182,8 +184,7 @@ match the `type` of the node in LHS and RHS graphs.
 def rewrite : Rewrite String :=
   { abstractions := [⟨matchModLeft, "mod_left"⟩, ⟨matchModRight, "mod_right"⟩],
     pattern := matcher,
-    input_expr := lhsLower,
-    output_expr := rhsLower }
+    rewrite := fun _ => pure ⟨lhsLower, rhsLower⟩ }
 
 namespace TEST
 
@@ -216,15 +217,15 @@ def lhs' : ExprHigh String := [graph|
     m_right -> mux [from = "m_out", to = "in2"];
   ]
 
-#eval matchModLeft lhs'
-#eval matchModRight lhs'
-#eval matcher lhs'
+-- #eval matchModLeft lhs'
+-- #eval matchModRight lhs'
+-- #eval matcher lhs'
 
 -- #eval (Abstraction.mk matchModLeft "mod_left").run "rw0_" lhs' |>.toOption |>.get! |> Prod.fst
 --       |> (Abstraction.mk matchModRight "mod_right").run "rw1_"
       -- |> matchModRight
       -- |> calcSucc
-#eval rewrite.run "rw0_" lhs' |>.toOption |>.get! |> IO.print
+-- #eval rewrite.run "rw0_" lhs' |>.toOption |>.get! |> IO.print
 
 end TEST
 

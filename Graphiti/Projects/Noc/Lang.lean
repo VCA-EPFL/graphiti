@@ -4,9 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz, Gurvan Debaussart
 -/
 
-import Graphiti.Module
-import Graphiti.Component
-import Graphiti.Examples.Noc.Utils
+import Graphiti.Core.Module
+import Graphiti.Core.Component
+import Graphiti.Projects.Noc.Utils
 
 set_option autoImplicit false
 set_option linter.all false

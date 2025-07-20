@@ -4,12 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz, Gurvan Debaussart
 -/
 
-import Graphiti.Module
-import Graphiti.ModuleLemmas
-import Graphiti.Component
-import Graphiti.Examples.Noc.Lang
-import Graphiti.Examples.Noc.BuildModule
-import Graphiti.Examples.Noc.BuildExpr
+import Graphiti.Core.Module
+import Graphiti.Core.ModuleLemmas
+import Graphiti.Core.Component
+import Graphiti.Projects.Noc.Lang
+import Graphiti.Projects.Noc.BuildModule
+import Graphiti.Projects.Noc.BuildExpr
 
 set_option autoImplicit false
 set_option linter.all false

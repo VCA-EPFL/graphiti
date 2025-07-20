@@ -4,11 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz, Gurvan Debaussart
 -/
 
-import Graphiti.Module
-import Graphiti.ModuleLemmas
-import Graphiti.Component
-import Graphiti.ExprLow
-import Graphiti.Examples.Noc.Lang
+import Graphiti.Core.Module
+import Graphiti.Core.ModuleLemmas
+import Graphiti.Core.Component
+import Graphiti.Core.ExprLow
+import Graphiti.Projects.Noc.Lang
 
 namespace Graphiti.Noc.Router
 

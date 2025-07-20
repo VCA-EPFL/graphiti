@@ -25,6 +25,14 @@ rev = "nightly-testing-2025-06-27"
 name = "Graphiti"
 
 [[lean_lib]]
+name = "GraphitiCore"
+globs = ["Graphiti.Core.+"]
+
+[[lean_lib]]
+name = "GraphitiProjects"
+globs = ["Graphiti.Projects.+"]
+
+[[lean_lib]]
 name = "GraphitiTest"
 
 [[lean_exe]]

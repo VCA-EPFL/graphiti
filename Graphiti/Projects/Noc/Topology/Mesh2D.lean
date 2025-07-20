@@ -4,8 +4,8 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz, Gurvan Debaussart
 -/
 
-import Graphiti.Module
-import Graphiti.Examples.Noc.Lang
+import Graphiti.Core.Module
+import Graphiti.Projects.Noc.Lang
 
 namespace Graphiti.Noc
 

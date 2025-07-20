@@ -6,9 +6,9 @@ Authors: Yann Herklotz, Gurvan Debaussart
 
 -- A bunch of random stuff which doesn't quite fit with the rest
 
-import Graphiti.Module
-import Graphiti.ModuleLemmas
-import Graphiti.Component
+import Graphiti.Core.Module
+import Graphiti.Core.ModuleLemmas
+import Graphiti.Core.Component
 
 open Batteries (AssocList)
 

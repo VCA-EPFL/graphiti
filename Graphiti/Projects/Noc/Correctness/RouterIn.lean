@@ -4,11 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz, Gurvan Debaussart
 -/
 
-import Graphiti.Examples.Noc.Lang
-import Graphiti.Examples.Noc.BuildModule
-import Graphiti.Examples.Noc.Topology.Torus
-import Graphiti.Examples.Noc.Spec
-import Graphiti.Examples.Noc.Router
+import Graphiti.Projects.Noc.Lang
+import Graphiti.Projects.Noc.BuildModule
+import Graphiti.Projects.Noc.Topology.Torus
+import Graphiti.Projects.Noc.Spec
+import Graphiti.Projects.Noc.Router
 
 open Batteries (AssocList)
 

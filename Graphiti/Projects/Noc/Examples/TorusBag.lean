@@ -4,16 +4,16 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Gurvan Debaussart
 -/
 
-import Graphiti.Module
-import Graphiti.ModuleLemmas
-import Graphiti.Component
-import Graphiti.ExprHigh
-import Graphiti.ExprLow
-import Graphiti.Examples.Noc.Lang
-import Graphiti.Examples.Noc.Router
-import Graphiti.Examples.Noc.Topology.Torus
-import Graphiti.Examples.Noc.BuildExpr
-import Graphiti.Examples.Noc.BuildModule
+import Graphiti.Core.Module
+import Graphiti.Core.ModuleLemmas
+import Graphiti.Core.Component
+import Graphiti.Core.ExprHigh
+import Graphiti.Core.ExprLow
+import Graphiti.Projects.Noc.Lang
+import Graphiti.Projects.Noc.Router
+import Graphiti.Projects.Noc.Topology.Torus
+import Graphiti.Projects.Noc.BuildExpr
+import Graphiti.Projects.Noc.BuildModule
 
 namespace Graphiti.Noc.Examples
 
