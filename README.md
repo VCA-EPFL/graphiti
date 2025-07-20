@@ -79,6 +79,8 @@ following format:
 
 ## Code structure
 
+The repository follows the structure proposed by the [Research Codebase Manifesto](https://www.moderndescartes.com/essays/research_code/).
+
 - `Graphiti/Core`:
 > Libraries for reusable components like cloud data storage, notebook tooling, neural network libraries, model serialization/deserialization, statistics tests, visualization, testing libraries, hyperparameter optimization frameworks, wrappers and convenience functions built on top of third-party libraries. Engineers typically work here.  Code is reviewed to engineering standards. Code is tested, covered by continuous integration, and should never be broken. Very low tolerance for tech debt.  Breaking changes to core code should be accompanied by fixes to affected project code. The project owner should assist in identifying potential breakage. No need to fix experimental code.
 

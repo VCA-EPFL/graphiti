@@ -33,9 +33,13 @@ jobs:
         run: |
           (lake exe cache --repo=leanprover-community/mathlib4-nightly-testing get; true)
 
-      - name: verify `lake build` works
+      - name: verify `lake build GraphitiCore` works
         run: |
-          lake build
+          lake build GraphitiCore
+
+      - name: verify `lake build GraphitiProjects` works
+        run: |
+          lake build GraphitiProjects
 
       - name: verify `lake exe graphiti -h` works
         run: |
@@ -61,7 +65,3 @@ jobs:
       - name: test gemm example
         run: |
           lake exe graphiti benchmarks/correct/gemm.dot -o out.dot --oracle graphiti_oracle
-
-      - name: build loop rewrite
-        run: |
-          lake build Graphiti.Rewrites.LoopImplimentationProof
