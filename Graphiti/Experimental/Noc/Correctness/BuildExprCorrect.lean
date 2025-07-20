@@ -140,7 +140,29 @@ namespace Graphiti.Noc
       Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts,
       Module.mapInputPorts, reduceAssocListfind?
     ]
-    rw [←Module.dep_foldr]
+    have := Module.foldr_acc_plist_2
+      (acc :=
+        ⟨Unit, { inputs := .nil, outputs := .nil, init_state := λ x => True }⟩
+      )
+      (l := fin_range netsz)
+      (f := λ i acc1 => (EC.rmod i).1 × acc1)
+      (g_inputs := λ i acc =>
+        AssocList.mapVal (λ x => Module.liftL) ((EC.rmod i).2.inputs)
+          ++ AssocList.mapVal (λ x => Module.liftR) acc.2
+      )
+      (g_outputs := λ i acc =>
+        (AssocList.mapVal (λ x => Module.liftL) ((EC.rmod i).2.outputs))
+          ++ (AssocList.mapVal (λ x => Module.liftR) acc.2)
+      )
+      (g_internals := λ i acc =>
+            List.map Module.liftL' (EC.rmod i).2.internals
+         ++ List.map Module.liftR' acc.2
+      )
+      (g_init_state := λ i acc =>
+        λ x => (EC.rmod i).snd.init_state x.1 ∧ acc.2 x.2
+      )
+    rw [←Module.dep_foldr, this]
+    clear this
     rw [Module.foldr_connect']
     dsimp
     simp only [drcompute]

@@ -68,7 +68,7 @@ namespace Graphiti.Noc.Examples
   def tmp' := n.build_expr |> ExprLow.higher
 
   #eval! tmp'
-  #eval! tmp' |> ExprHigh.normaliseModules |> Option.get!
+  #eval! tmp' |> ExprHigh.normaliseNames |> Option.get!
   #eval! tmp' |> toString |> IO.print
 
 

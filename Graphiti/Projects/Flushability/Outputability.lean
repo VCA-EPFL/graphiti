@@ -4,9 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Hamza Remmal
 -/
 
-import Graphiti.Module
-import Graphiti.ModuleLemmas
-import Graphiti.Examples.Flushability.SimulationRelation
+import Graphiti.Core.Module
+import Graphiti.Core.ModuleLemmas
+
+import Graphiti.Projects.Flushability.SimulationRelation
 
 namespace Graphiti
 

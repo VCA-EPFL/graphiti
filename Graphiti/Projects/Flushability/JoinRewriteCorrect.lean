@@ -7,25 +7,26 @@ Authors: Yann Herklotz, Hamza Remmal
 import Lean
 import Init.Data.BitVec.Lemmas
 import Qq
-
-import Graphiti.Simp
-import Graphiti.Module
-import Graphiti.Examples.Flushability.ModuleWellformeness
-import Graphiti.Examples.Flushability.SimulationRelation
-import Graphiti.Examples.Flushability.DeterministicModule
-import Graphiti.Examples.Flushability.ConfluentModule
-import Graphiti.Examples.Flushability.FlushedModule
-import Graphiti.Examples.Flushability.Outputability
-import Graphiti.ModuleReduction
-import Graphiti.ExprLow
-import Graphiti.Component
-import Graphiti.KernelRefl
-import Graphiti.Reduce
-import Graphiti.List
-import Graphiti.ExprHighLemmas
-import Graphiti.Tactic
-import Graphiti.Rewrites.JoinRewrite
 import Mathlib.Tactic
+
+import Graphiti.Core.Simp
+import Graphiti.Core.Module
+import Graphiti.Core.ModuleReduction
+import Graphiti.Core.ExprLow
+import Graphiti.Core.Component
+import Graphiti.Core.KernelRefl
+import Graphiti.Core.Reduce
+import Graphiti.Core.List
+import Graphiti.Core.ExprHighLemmas
+import Graphiti.Core.Tactic
+import Graphiti.Core.Rewrites.JoinRewrite
+
+import Graphiti.Projects.Flushability.ModuleWellformeness
+import Graphiti.Projects.Flushability.SimulationRelation
+import Graphiti.Projects.Flushability.DeterministicModule
+import Graphiti.Projects.Flushability.ConfluentModule
+import Graphiti.Projects.Flushability.FlushedModule
+import Graphiti.Projects.Flushability.Outputability
 
 open Batteries (AssocList)
 

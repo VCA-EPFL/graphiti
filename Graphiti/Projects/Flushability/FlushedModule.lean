@@ -4,14 +4,16 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Hamza Remmal
 -/
 
-import Graphiti.Module
-import Graphiti.Examples.Flushability.ConfluentModule
-import Graphiti.Examples.Flushability.RuleSwapping
-import Graphiti.Examples.Flushability.DeterministicModule
-import Graphiti.Examples.Flushability.SimulationRelation
-import Graphiti.Examples.Flushability.Outputability
-import Graphiti.ModuleLemmas
 import Mathlib.Tactic
+
+import Graphiti.Core.Module
+import Graphiti.Core.ModuleLemmas
+
+import Graphiti.Projects.Flushability.ConfluentModule
+import Graphiti.Projects.Flushability.RuleSwapping
+import Graphiti.Projects.Flushability.DeterministicModule
+import Graphiti.Projects.Flushability.SimulationRelation
+import Graphiti.Projects.Flushability.Outputability
 
 -- TODO: Move this to a more global file
 @[reducible] def cast_first {β : Type _ → Type _} {a b : (Σ α, β α)} (h : a = b) : a.fst = b.fst := by

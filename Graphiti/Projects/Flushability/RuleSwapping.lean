@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Hamza Remmal
 -/
 
-import Graphiti.Module
+import Graphiti.Core.Module
 
 namespace Graphiti
 

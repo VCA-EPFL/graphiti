@@ -1,7 +1,7 @@
-import Graphiti.Module
-import Graphiti.ModuleLemmas
-import Graphiti.Examples.Flushability.SimulationRelation
-import Graphiti.Examples.Flushability.Outputability
+import Graphiti.Core.Module
+import Graphiti.Core.ModuleLemmas
+import Graphiti.Projects.Flushability.SimulationRelation
+import Graphiti.Projects.Flushability.Outputability
 
 namespace Graphiti
 
