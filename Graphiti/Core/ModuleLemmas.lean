@@ -2217,7 +2217,7 @@ theorem foldr_connect' (l : List α) (acc : TModule Ident) (f g : α → Interna
     induction l generalizing acc with
     | nil => simpa
     | cons hd tl HR =>
-      dsimp; rw [HR]; dsimp [Module.connect']; congr
+      dsimp; rw [HR]; dsimp [Module.connect']; congr 2
       · rw [AssocList.eraseAll_eraseAllP]
         simp only [List.mem_cons, Bool.decide_or]
         congr

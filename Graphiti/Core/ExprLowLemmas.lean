@@ -105,7 +105,7 @@ inductive type_correct_module : ExprLow Ident → Prop where
 notation:25 "[e| " e ", " ε " ]" => build_module_expr ε e
 notation:25 "[T| " e ", " ε " ]" => build_module_type ε e
 
-def wf : ExprLow Ident → Bool := all (λ typ => (ε typ).isSome)
+def wf : ExprLow Ident → Bool := ExprLow.all (λ typ => (ε typ).isSome)
 
 @[drunfold]
 def locally_wf : ExprLow Ident → Bool := all' (λ f _ => f.input.invertible ∧ f.output.invertible)
@@ -144,16 +144,16 @@ theorem wf_mapping_implies_wf {e} :
   induction e with
   | base map typ =>
     intro hwf
-    dsimp [wf, wf_mapping, all] at *
+    dsimp [wf, wf_mapping, ExprLow.all] at *
     split at hwf <;> try contradiction
     grind
   | connect c e ih =>
     intro hwf
-    dsimp [wf, wf_mapping, all] at *
+    dsimp [wf, wf_mapping, ExprLow.all] at *
     solve_by_elim
   | product e₁ e₂ ihe₁ ihe₂ =>
     intro hwf
-    dsimp [wf, wf_mapping, all] at *
+    dsimp [wf, wf_mapping, ExprLow.all] at *
     grind
 
 theorem well_formed_implies_wf_mapping {e} :
@@ -161,16 +161,16 @@ theorem well_formed_implies_wf_mapping {e} :
   induction e with
   | base map typ =>
     intro hwf
-    dsimp [wf, wf_mapping, all, well_formed] at *
+    dsimp [wf, wf_mapping, ExprLow.all, well_formed] at *
     split at hwf <;> try contradiction
     simp_all [AssocList.invertible]
   | connect c e ih =>
     intro hwf
-    dsimp [wf, wf_mapping, all, well_formed] at *
+    dsimp [wf, wf_mapping, ExprLow.all, well_formed] at *
     solve_by_elim
   | product e₁ e₂ ihe₁ ihe₂ =>
     intro hwf
-    dsimp [wf, wf_mapping, all, well_formed] at *
+    dsimp [wf, wf_mapping, ExprLow.all, well_formed] at *
     grind
 
 theorem well_formed_implies_wf {e} :
@@ -182,16 +182,16 @@ theorem well_formed_implies_wf_locally {e} :
   induction e with
   | base map typ =>
     intro hwf
-    dsimp [wf, wf_mapping, all, well_formed, locally_wf, all'] at *
+    dsimp [wf, wf_mapping, ExprLow.all, well_formed, locally_wf, all'] at *
     split at hwf <;> try contradiction
     simp_all
   | connect c e ih =>
     intro hwf
-    dsimp [wf, wf_mapping, all, well_formed] at *
+    dsimp [wf, wf_mapping, ExprLow.all, well_formed] at *
     solve_by_elim
   | product e₁ e₂ ihe₁ ihe₂ =>
     intro hwf
-    dsimp [wf, wf_mapping, all, well_formed, locally_wf, all'] at *
+    dsimp [wf, wf_mapping, ExprLow.all, well_formed, locally_wf, all'] at *
     grind
 
 theorem well_formed_product {e₁ e₂}:
@@ -208,7 +208,7 @@ theorem well_formed_connect {e c}:
 
 theorem wf_product {e₁ e₂}:
   wf ε (e₁.product e₂) ↔ (wf ε e₁ ∧ wf ε e₂) := by
-  constructor <;> (intro hwf; simp [wf, all, Module.product] at hwf ⊢; simp [*])
+  constructor <;> (intro hwf; simp [wf, ExprLow.all, Module.product] at hwf ⊢; simp [*])
 
 theorem wf_connect {e c}:
   wf ε (e.connect c) ↔ wf ε e := by
@@ -221,17 +221,17 @@ variable {ε}
 theorem wf_builds_module {e} : wf ε e → (e.build_module' ε).isSome := by
   induction e with
   | base inst typ =>
-    intro hwf; dsimp [wf, all] at hwf
+    intro hwf; dsimp [wf, ExprLow.all] at hwf
     simp only [drunfold]
     rw [Option.isSome_iff_exists] at hwf
     simp only [Option.pure_def, Option.bind_eq_bind]; grind
   | connect _ e ih =>
-    intro hwf; dsimp [wf, all] at hwf
+    intro hwf; dsimp [wf, ExprLow.all] at hwf
     specialize ih hwf
     simp only [drunfold]; rw [Option.isSome_iff_exists] at ih; cases ih
     simp only [*]; rfl
   | product e₁ e₂ ihe₁ ihe₂ =>
-    intro hwf; dsimp [wf, all] at hwf; rw [Bool.and_eq_true] at hwf; cases hwf; rename_i ha hb
+    intro hwf; dsimp [wf, ExprLow.all] at hwf; rw [Bool.and_eq_true] at hwf; cases hwf; rename_i ha hb
     specialize ihe₁ ha; specialize ihe₂ hb
     simp only [drunfold]; rw [Option.isSome_iff_exists] at ihe₁ ihe₂
     cases ihe₁; cases ihe₂
@@ -252,11 +252,11 @@ theorem wf_modify_expression {e : ExprLow Ident} {i i'}:
     dsimp [modify]; split <;> try assumption
   | connect con e ihe =>
     intro hsome hwf
-    dsimp [modify, wf, all]
+    dsimp [modify, wf, ExprLow.all]
     solve_by_elim
   | product e₁ e₂ he₁ he₂ =>
     intro hsome hwf
-    dsimp [modify, wf, all] at *
+    dsimp [modify, wf, ExprLow.all] at *
     simp only [Bool.and_eq_true] at *
     grind
 
@@ -267,12 +267,12 @@ theorem build_base_in_env {T inst i mod} :
 
 theorem wf_replace {e e_pat e'} : wf ε e → wf ε e' → wf ε (e.replace e_pat e') := by
   intro h wfe'; revert h
-  induction e <;> (intros; simp [replace]; split <;> (try solve_by_elim) <;> simp_all [wf, all])
+  induction e <;> (intros; simp [replace]; split <;> (try solve_by_elim) <;> simp_all [wf, ExprLow.all])
 
 theorem wf_abstract {e e_pat a b} : wf ε e → (ε b).isSome → wf ε (e.abstract e_pat a b) := by
   unfold abstract; intros wf1 hcont
   apply wf_replace; assumption
-  simp only [wf, all]; assumption
+  simp only [wf, ExprLow.all]; assumption
 
 theorem build_module_unfold_1 {m r i} :
   ε i = some m →
@@ -767,20 +767,20 @@ theorem check_eq_wf {iexpr iexpr' : ExprLow Ident} :
     intro ih wf
     cases iexpr' <;> try grind [ExprLow.check_eq]
     simp only [check_eq, Bool.decide_and, Bool.and_eq_true, decide_eq_true_eq] at ih
-    dsimp [ExprLow.wf, all] at *
+    dsimp [ExprLow.wf, ExprLow.all] at *
     cases ih; subst_vars; assumption
   | product e₁ e₂ he₁ he₂ =>
     intro ih wf
     cases iexpr' <;> try grind [ExprLow.check_eq]
     dsimp [ExprLow.check_eq] at ih
-    dsimp [ExprLow.wf, all] at *; simp only [Bool.and_eq_true] at wf ⊢
+    dsimp [ExprLow.wf, ExprLow.all] at *; simp only [Bool.and_eq_true] at wf ⊢
     simp only [Bool.decide_and, Bool.decide_eq_true, Bool.and_eq_true] at ih
     cases ih; cases wf; and_intros <;> solve_by_elim
   | connect c e he =>
     intro ih wf
     cases iexpr' <;> try grind [ExprLow.check_eq]
     dsimp [ExprLow.check_eq] at ih
-    dsimp [ExprLow.wf, all] at *
+    dsimp [ExprLow.wf, ExprLow.all] at *
     simp only [Bool.decide_and, Bool.decide_eq_true, Bool.and_eq_true] at ih
     cases ih; and_intros <;> solve_by_elim
 
@@ -811,11 +811,11 @@ theorem check_eq_refines {iexpr iexpr'} :
     cases iexpr' <;> try contradiction
     rename_i e₁' e₂'
     apply refines_product
-    any_goals (unfold wf all at hwf hwf'; unfold wf; grind)
+    any_goals (unfold wf ExprLow.all at hwf hwf'; unfold wf; grind)
     apply ih₁; dsimp [check_eq] at heq; grind
-    unfold wf all at hwf hwf'; unfold wf; grind
+    unfold wf ExprLow.all at hwf hwf'; unfold wf; grind
     apply ih₂; dsimp [check_eq] at heq; grind
-    unfold wf all at hwf hwf'; unfold wf; grind
+    unfold wf ExprLow.all at hwf hwf'; unfold wf; grind
   | connect c e ih =>
     intro iexpr' heq hwf
     have hwf' := check_eq_wf _ ‹_› ‹_›
@@ -824,7 +824,7 @@ theorem check_eq_refines {iexpr iexpr'} :
     dsimp [check_eq] at heq; simp at heq
     repeat cases ‹_ ∧ _›; subst_vars
     apply refines_connect
-    any_goals (unfold wf all at hwf hwf'; unfold wf; solve_by_elim)
+    any_goals (unfold wf ExprLow.all at hwf hwf'; unfold wf; solve_by_elim)
     solve_by_elim
 
 theorem check_eq_refines2 {iexpr iexpr'} :
@@ -850,7 +850,7 @@ theorem abstract_refines {iexpr expr_pat i} :
       simp [drunfold, Option.bind]
       rw [hfind]; simp
       have : ∃ m, ε typ = some m := by
-        simp only [wf, all] at hwf
+        simp only [wf, ExprLow.all] at hwf
         simp only [←Option.isSome_iff_exists, Batteries.AssocList.contains_some, hwf]
       let ⟨ m, hb ⟩ := this; clear this; rw [hb]; simp
       cases expr_pat <;> simp [check_eq] at h
@@ -869,7 +869,7 @@ theorem abstract_refines {iexpr expr_pat i} :
         simp [h]
       rw [this]; clear this
       have : ∃ m, ε typ = some m := by
-        simp only [wf, all] at hwf
+        simp only [wf, ExprLow.all] at hwf
         simp only [←Option.isSome_iff_exists, Batteries.AssocList.contains_some, hwf]
       cases this; rename_i a ha
       dsimp [drunfold]; rw [ha]; simp [Module.refines_reflexive]
@@ -878,40 +878,40 @@ theorem abstract_refines {iexpr expr_pat i} :
     intro hwf
     by_cases h : (e₁.product e₂).check_eq expr_pat
     · subst_vars
-      simp only [wf,all,Bool.and_eq_true] at hwf; obtain ⟨hwf1, hwf2⟩ := hwf
+      simp only [wf,ExprLow.all,Bool.and_eq_true] at hwf; obtain ⟨hwf1, hwf2⟩ := hwf
       specialize ihe₁ hwf1; specialize ihe₂ hwf2
       rw [h]; dsimp; rw [build_module_unfold_1 hfind]; dsimp
       apply Module.refines_transitive (imod' := (build_module ε expr_pat).snd)
-      · apply check_eq_refines; assumption; unfold wf all; grind
+      · apply check_eq_refines; assumption; unfold wf ExprLow.all; grind
       · rw [Module.renamePorts_empty]; apply Module.refines_reflexive
     · unfold abstract at ihe₁ ihe₂
       have : wf ε (e₁.replace expr_pat (base ∅ i)) := by
-        apply wf_abstract; simp_all [wf, all]
+        apply wf_abstract; simp_all [wf, ExprLow.all]
         grind
       have : wf ε (e₂.replace expr_pat (base ∅ i)) := by
-        apply wf_abstract; simp_all [wf, all]
+        apply wf_abstract; simp_all [wf, ExprLow.all]
         grind
-      have : wf ε e₁ := by simp_all [wf, all]
-      have : wf ε e₂ := by simp_all [wf, all]
+      have : wf ε e₁ := by simp_all [wf, ExprLow.all]
+      have : wf ε e₂ := by simp_all [wf, ExprLow.all]
       simp at h; rw [h]; dsimp
       apply refines_product <;> (try assumption)
-      <;> [apply ihe₁ ; apply ihe₂] <;> simp_all [wf, all]
+      <;> [apply ihe₁ ; apply ihe₂] <;> simp_all [wf, ExprLow.all]
   | connect c e ih =>
     simp [abstract, replace]
     intro hwf
     by_cases h : (connect c e).check_eq expr_pat
     · subst_vars
-      simp only [wf,all,Bool.and_eq_true] at hwf
+      simp only [wf,ExprLow.all,Bool.and_eq_true] at hwf
       specialize ih hwf
       rw [h]; dsimp; rw [build_module_unfold_1 hfind]; dsimp
       apply Module.refines_transitive (imod' := (build_module ε expr_pat).snd)
-      · apply check_eq_refines; assumption; unfold wf all; grind
+      · apply check_eq_refines; assumption; unfold wf ExprLow.all; grind
       · rw [Module.renamePorts_empty]; apply Module.refines_reflexive
     · have : wf ε (connect c (e.replace expr_pat (base ∅ i))) := by
-        simp [wf, all]
+        simp [wf, ExprLow.all]
         convert_to wf ε (e.replace expr_pat (base ∅ i));
-        simp [wf, all]
-        apply wf_replace; assumption; simp only [wf, all]
+        simp [wf, ExprLow.all]
+        apply wf_replace; assumption; simp only [wf, ExprLow.all]
         grind
       simp at h; rw [h]; solve_by_elim [refines_connect]
 
@@ -930,7 +930,7 @@ theorem abstract_refines2 {iexpr expr_pat i} :
       simp [drunfold, Option.bind]
       rw [hfind]; simp
       have : ∃ m, ε typ = some m := by
-        simp only [wf, all] at hwf
+        simp only [wf, ExprLow.all] at hwf
         simp only [←Option.isSome_iff_exists, Batteries.AssocList.contains_some, hwf]
       let ⟨ m, hb ⟩ := this; clear this; rw [hb]; simp
       cases expr_pat <;> simp [check_eq] at h
@@ -949,7 +949,7 @@ theorem abstract_refines2 {iexpr expr_pat i} :
         simp [h]
       rw [this]; clear this
       have : ∃ m, ε typ = some m := by
-        simp only [wf, all] at hwf
+        simp only [wf, ExprLow.all] at hwf
         simp only [←Option.isSome_iff_exists, Batteries.AssocList.contains_some, hwf]
       cases this; rename_i a ha
       dsimp [drunfold]; rw [ha]; simp [Module.refines_reflexive]
@@ -958,42 +958,42 @@ theorem abstract_refines2 {iexpr expr_pat i} :
     intro hwf
     by_cases h : (e₁.product e₂).check_eq expr_pat
     · subst_vars
-      simp only [wf,all,Bool.and_eq_true] at hwf; obtain ⟨hwf1, hwf2⟩ := hwf
+      simp only [wf,ExprLow.all,Bool.and_eq_true] at hwf; obtain ⟨hwf1, hwf2⟩ := hwf
       specialize ihe₁ hwf1; specialize ihe₂ hwf2
       rw [h]; dsimp; rw [build_module_unfold_1 hfind]; dsimp
       apply Module.refines_transitive (imod' := (build_module ε expr_pat).snd)
       · rw [Module.renamePorts_empty]; apply Module.refines_reflexive
       · apply check_eq_refines; apply check_eq_symm; assumption
-        apply check_eq_wf; assumption; unfold wf all; grind
+        apply check_eq_wf; assumption; unfold wf ExprLow.all; grind
     · unfold abstract at ihe₁ ihe₂
       have : wf ε (e₁.replace expr_pat (base ∅ i)) := by
-        apply wf_abstract; simp_all [wf, all]
+        apply wf_abstract; simp_all [wf, ExprLow.all]
         grind
       have : wf ε (e₂.replace expr_pat (base ∅ i)) := by
-        apply wf_abstract; simp_all [wf, all]
+        apply wf_abstract; simp_all [wf, ExprLow.all]
         grind
-      have : wf ε e₁ := by simp_all [wf, all]
-      have : wf ε e₂ := by simp_all [wf, all]
+      have : wf ε e₁ := by simp_all [wf, ExprLow.all]
+      have : wf ε e₂ := by simp_all [wf, ExprLow.all]
       simp at h; rw [h]; dsimp
       apply refines_product <;> (try assumption)
-      <;> [apply ihe₁ ; apply ihe₂] <;> simp_all [wf, all]
+      <;> [apply ihe₁ ; apply ihe₂] <;> simp_all [wf, ExprLow.all]
   | connect c e ih =>
     simp [abstract, replace]
     intro hwf
     by_cases h : (connect c e).check_eq expr_pat
     · subst_vars
-      simp only [wf,all,Bool.and_eq_true] at hwf
+      simp only [wf,ExprLow.all,Bool.and_eq_true] at hwf
       specialize ih hwf
       rw [h]; dsimp; rw [build_module_unfold_1 hfind]; dsimp
       apply Module.refines_transitive (imod' := (build_module ε expr_pat).snd)
       · rw [Module.renamePorts_empty]; apply Module.refines_reflexive
       · apply check_eq_refines; apply check_eq_symm; assumption
-        apply check_eq_wf; assumption; unfold wf all; grind
+        apply check_eq_wf; assumption; unfold wf ExprLow.all; grind
     · have : wf ε (connect c (e.replace expr_pat (base ∅ i))) := by
-        simp [wf, all]
+        simp [wf, ExprLow.all]
         convert_to wf ε (e.replace expr_pat (base ∅ i));
-        simp [wf, all]
-        apply wf_replace; assumption; simp only [wf, all]
+        simp [wf, ExprLow.all]
+        apply wf_replace; assumption; simp only [wf, ExprLow.all]
         grind
       simp at h; rw [h]; solve_by_elim [refines_connect]
 
@@ -1006,15 +1006,15 @@ theorem replacement {iexpr e_new e_pat} :
   | base inst typ =>
     intro hwf₁ hwf₂ Href
     by_cases h : (base inst typ).check_eq e_pat
-    · dsimp [ExprLow.replace]; rw [h]; dsimp [wf, all] at hwf₁
+    · dsimp [ExprLow.replace]; rw [h]; dsimp [wf, ExprLow.all] at hwf₁
       apply Module.refines_transitive _ Href
       solve_by_elim [check_eq_refines2]
     · simp at h; dsimp [ExprLow.replace]; rw [h]
       solve_by_elim [Module.refines_reflexive]
   | product e₁ e₂ ihe₁ ihe₂ =>
     intro hwf hf₁ href
-    have e₁wf : e₁.wf ε := by simp [all, wf] at hwf ⊢; simp [hwf]
-    have e₂wf : e₂.wf ε := by simp [all, wf] at hwf ⊢; simp [hwf]
+    have e₁wf : e₁.wf ε := by simp [ExprLow.all, wf] at hwf ⊢; simp [hwf]
+    have e₂wf : e₂.wf ε := by simp [ExprLow.all, wf] at hwf ⊢; simp [hwf]
     dsimp [replace]
     by_cases h : (e₁.product e₂).check_eq e_pat
     · rw [h]; dsimp
@@ -1025,7 +1025,7 @@ theorem replacement {iexpr e_new e_pat} :
   | connect c e =>
     intro hwf hfind₁ href
     dsimp only [replace]
-    have e₁wf : e.wf ε := by simp [all, wf] at hwf ⊢; simp [hwf]
+    have e₁wf : e.wf ε := by simp [ExprLow.all, wf] at hwf ⊢; simp [hwf]
     by_cases h : (connect c e).check_eq e_pat
     · rw [h]; dsimp
       apply Module.refines_transitive _ href
@@ -1462,8 +1462,8 @@ theorem refines_comm_connection'_ {iexpr e' conn} :
     intro hwell_formed hcomm
     have hwf := well_formed_implies_wf _ hwell_formed
     have ⟨hwell_formed2, hwell_formed3⟩ := (well_formed_product _).mp hwell_formed
-    have e₁wf : e₁.wf ε := by simp [all, wf] at hwf ⊢; simp [hwf]
-    have e₂wf : e₂.wf ε := by simp [all, wf] at hwf ⊢; simp [hwf]
+    have e₁wf : e₁.wf ε := by simp [ExprLow.all, wf] at hwf ⊢; simp [hwf]
+    have e₂wf : e₂.wf ε := by simp [ExprLow.all, wf] at hwf ⊢; simp [hwf]
     dsimp [comm_connection'_] at hcomm
     split at hcomm
     · cases hcomm; apply ExprLow.refines_product <;> try solve_by_elim [wf_comm_connection'_, well_formed_implies_wf]
@@ -1479,7 +1479,7 @@ theorem refines_comm_connection'_ {iexpr e' conn} :
     · split at hcomm <;> try contradiction
       · (split at hcomm <;> try contradiction); cases hcomm
         dsimp [build_module, build_module']
-        simp [wf, all, -AssocList.contains_eq] at hwf
+        simp [wf, ExprLow.all, -AssocList.contains_eq] at hwf
         have hbuild_module₁ := wf_builds_module hwf
         simp [Option.isSome_iff_exists ] at hbuild_module₁
         obtain ⟨T₁, e₁, hbuild₁⟩ := hbuild_module₁
@@ -1490,7 +1490,7 @@ theorem refines_comm_connection'_ {iexpr e' conn} :
       · (repeat' (split at hcomm <;> try contradiction)); cases hcomm
         have ⟨hwell_formed3, hwell_formed4⟩ := (well_formed_product _).mp hwell_formed2
         dsimp [build_module, build_module']
-        simp [wf, all, -AssocList.contains_eq] at hwf; obtain ⟨hwfl, hwfr⟩ := hwf
+        simp [wf, ExprLow.all, -AssocList.contains_eq] at hwf; obtain ⟨hwfl, hwfr⟩ := hwf
         have hbuild_module₁ := wf_builds_module hwfl
         have hbuild_module₂ := wf_builds_module hwfr
         simp [Option.isSome_iff_exists ] at hbuild_module₁ hbuild_module₂
@@ -1515,8 +1515,8 @@ theorem refines_comm_connection'_2 {iexpr e' conn} :
     intro hwell_formed hcomm
     have hwf := well_formed_implies_wf _ hwell_formed
     have ⟨hwell_formed2, hwell_formed3⟩ := (well_formed_product _).mp hwell_formed
-    have e₁wf : e₁.wf ε := by simp [all, wf] at hwf ⊢; simp [hwf]
-    have e₂wf : e₂.wf ε := by simp [all, wf] at hwf ⊢; simp [hwf]
+    have e₁wf : e₁.wf ε := by simp [ExprLow.all, wf] at hwf ⊢; simp [hwf]
+    have e₂wf : e₂.wf ε := by simp [ExprLow.all, wf] at hwf ⊢; simp [hwf]
     dsimp [comm_connection'_] at hcomm
     split at hcomm
     · cases hcomm; apply ExprLow.refines_product <;> try solve_by_elim [wf_comm_connection'_, well_formed_implies_wf]
@@ -1532,7 +1532,7 @@ theorem refines_comm_connection'_2 {iexpr e' conn} :
     · split at hcomm <;> try contradiction
       · (split at hcomm <;> try contradiction); cases hcomm
         dsimp [build_module, build_module']
-        simp [wf, all, -AssocList.contains_eq] at hwf
+        simp [wf, ExprLow.all, -AssocList.contains_eq] at hwf
         have hbuild_module₁ := wf_builds_module hwf
         simp [Option.isSome_iff_exists ] at hbuild_module₁
         obtain ⟨T₁, e₁, hbuild₁⟩ := hbuild_module₁
@@ -1543,7 +1543,7 @@ theorem refines_comm_connection'_2 {iexpr e' conn} :
       · (repeat' (split at hcomm <;> try contradiction)); cases hcomm
         have ⟨hwell_formed3, hwell_formed4⟩ := (well_formed_product _).mp hwell_formed2
         dsimp [build_module, build_module']
-        simp [wf, all, -AssocList.contains_eq] at hwf; obtain ⟨hwfl, hwfr⟩ := hwf
+        simp [wf, ExprLow.all, -AssocList.contains_eq] at hwf; obtain ⟨hwfl, hwfr⟩ := hwf
         have hbuild_module₁ := wf_builds_module hwfl
         have hbuild_module₂ := wf_builds_module hwfr
         simp [Option.isSome_iff_exists ] at hbuild_module₁ hbuild_module₂
