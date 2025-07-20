@@ -7,8 +7,8 @@ Authors: Yann Herklotz
 import Lean
 import Batteries
 
-import Graphiti.AssocList.Basic
-import Graphiti.Simp
+import Graphiti.Core.AssocList.Basic
+import Graphiti.Core.Simp
 
 open Batteries (AssocList)
 

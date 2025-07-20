@@ -4,12 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Graphiti.ExprHigh
-import Graphiti.DotParser
-import Graphiti.Rewriter
-import Graphiti.DynamaticPrinter
-import Graphiti.Rewrites
-import Graphiti.JSLang
+import Graphiti.Core.ExprHigh
+import Graphiti.Core.DotParser
+import Graphiti.Core.Rewriter
+import Graphiti.Core.DynamaticPrinter
+import Graphiti.Core.Rewrites
+import Graphiti.Core.JSLang
 
 open Batteries (AssocList)
 
