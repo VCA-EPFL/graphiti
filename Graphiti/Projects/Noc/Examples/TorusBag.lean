@@ -47,28 +47,13 @@ namespace Graphiti.Noc.Examples
   -- It does not require a MkHead (The head is exactly the destination)
   -- Which mean the implementation of a Router should be quite easy?
 
-  def arbiter (rid : n.RouterID) : ExprLow String :=
-    -- First split
-    -- Then we need two `isLt` check
-    sorry
-
-  def router (rid : n.RouterID) : ExprLow String :=
-    -- We need `n` inputs which all go to a nbag,
-    -- and then an arbiter which takes elements of this bag and route them to
-    -- the proper output
-    -- Then we need
-    sorry
-
   def tmp := n.build_expr |> ExprLow.higher_correct PortMapping.hashPortMapping
 
   #eval! tmp |> Option.get!
-  #eval! tmp |> Option.get! |> ExprHigh.normaliseNames
   #eval! tmp |> Option.get! |> toString |> IO.print
 
   def tmp' := n.build_expr |> ExprLow.higher
 
-  #eval! tmp'
-  #eval! tmp' |> ExprHigh.normaliseNames |> Option.get!
   #eval! tmp' |> toString |> IO.print
 
 

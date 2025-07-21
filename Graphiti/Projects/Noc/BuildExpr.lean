@@ -24,11 +24,11 @@ namespace Graphiti.Noc
     s!"Router {n.DataS} {rid}"
 
   @[drcomponents]
-  def router_inp (n : Noc Data netsz) (rid : n.RouterID) (dir : Nat) : InternalPort String :=
+  def router_inp (n : Noc Data netsz) (rid : n.RouterID) (dir : n.Dir_inp rid) : InternalPort String :=
     { inst := .internal (router_name n rid), name := NatModule.stringify_input dir }
 
   @[drcomponents]
-  def router_out (n : Noc Data netsz) (rid : n.RouterID) (dir : Nat) : InternalPort String :=
+  def router_out (n : Noc Data netsz) (rid : n.RouterID) (dir : n.Dir_out rid) : InternalPort String :=
     { inst := .internal (router_name n rid), name := NatModule.stringify_output dir }
 
   @[drunfold_defs]
@@ -41,13 +41,19 @@ namespace Graphiti.Noc
           .cons (NatModule.stringify_output 0) (router_out n rid 0)
           (List.mapFinIdx
             (n.topology.neigh_inp rid)
-            (λ dir _ _ => let dir := dir + 1; ⟨NatModule.stringify_input dir, router_inp n rid dir⟩)
+            (λ dir _ hdir => ⟨
+              NatModule.stringify_input (dir + 1),
+              router_inp n rid (n.topology.mkDir_inp rid dir hdir)
+            ⟩)
           |>.toAssocList),
         output :=
           .cons (NatModule.stringify_output 0) (router_out n rid 0)
           (List.mapFinIdx
             (n.topology.neigh_out rid)
-            (λ dir _ _ => let dir := dir + 1; ⟨NatModule.stringify_output dir, router_out n rid dir⟩)
+            (λ dir _ hdir => ⟨
+              NatModule.stringify_output (dir + 1),
+              router_out n rid (n.topology.mkDir_out rid dir hdir)
+            ⟩)
           |>.toAssocList),
       }
       (router_type_name n rid)
@@ -59,9 +65,9 @@ namespace Graphiti.Noc
       List.foldr
         (λ c acc =>
           let rid_out := c.1.1
-          let rid_inp := c.2.1
           let dir_out := c.1.2
-          let dir_inp := c.2.1
+          let rid_inp := c.2.1
+          let dir_inp := c.2.2
           .connect
             {
               output  := router_out n rid_out dir_out

@@ -16,24 +16,24 @@ set_option Elab.async false
 
 namespace Graphiti.Noc.DirectedTorusAbsoluteUnboundedCorrect
 
-  variable (Data : Type) [BEq Data] [LawfulBEq Data]
+  variable (Data : Type) [BEq Data] [LawfulBEq Data] (DataS : String)
   variable (dt : DirectedTorus)
 
   @[drunfold_defs]
   def noc : Noc Data dt.netsz :=
     let topology := dt.to_topology
-    let routing_pol := dt.AbsoluteArbiter Data
-    let routers := Router.Unbounded.queue dt.netsz routing_pol.Flit
-    { topology, routing_pol, routers }
+    let arbiter := dt.AbsoluteArbiter Data
+    let routers := Router.Unbounded.queue dt.netsz arbiter.Flit
+    { topology, arbiter, routers, DataS}
 
   @[drunfold_defs]
-  abbrev mod := (noc Data dt).build_module
+  abbrev mod := (noc Data DataS dt).build_module
 
   @[drunfold_defs]
-  abbrev spec := (noc Data dt).spec_bag
+  abbrev spec := (noc Data DataS dt).spec_bag
 
   @[drunfold_defs]
-  abbrev specT := (noc Data dt).spec_bagT
+  abbrev specT := (noc Data DataS dt).spec_bagT
 
   -- TODO
   -- theorem route_xy_correct : Noc.Route_correct (noc Data dt) := by
@@ -49,11 +49,11 @@ namespace Graphiti.Noc.DirectedTorusAbsoluteUnboundedCorrect
   --   · simp [DirLocal'] at H
   --   · simp [DirLocal'] at H
 
-  def φ (I : (noc Data dt).State) (S : specT Data dt) : Prop :=
+  def φ (I : (noc Data DataS dt).State) (S : specT Data DataS dt) : Prop :=
     I.toList.flatten ⊆ S
 
   theorem refines_initial :
-    Module.refines_initial (mod Data dt) (spec Data dt) (φ Data dt) := by
+    Module.refines_initial (mod Data DataS dt) (spec Data DataS dt) (φ Data DataS dt) := by
       dsimp [drcomponents, Module.refines_initial]
       intros i s
       subst i
@@ -62,11 +62,11 @@ namespace Graphiti.Noc.DirectedTorusAbsoluteUnboundedCorrect
       · rfl
       · unfold φ; simpa [drunfold_defs]
 
-  theorem refines_φ : (mod Data dt) ⊑_{φ Data dt} (spec Data dt) := by
+  theorem refines_φ : (mod Data DataS dt) ⊑_{φ Data DataS dt} (spec Data DataS dt) := by
     intro i s H
     constructor
     · intro ident mid_i v Hrule
-      case_transition Hcontains : (Module.inputs (mod Data dt)), ident,
+      case_transition Hcontains : (Module.inputs (mod Data DataS dt)), ident,
        (PortMap.getIO_not_contained_false' Hrule)
       dsimp [drcomponents] at v Hrule Hcontains ⊢
       obtain ⟨idx, Hidx⟩ := RelIO.liftFinf_in Hcontains
@@ -126,7 +126,7 @@ namespace Graphiti.Noc.DirectedTorusAbsoluteUnboundedCorrect
             assumption
           · cases idx; cases idx'; simp at heq <;> simpa
     · intros ident mid_i v Hrule
-      case_transition Hcontains : (Module.outputs (mod Data dt)), ident,
+      case_transition Hcontains : (Module.outputs (mod Data DataS dt)), ident,
        (PortMap.getIO_not_contained_false' Hrule)
       dsimp [drcomponents] at v Hrule Hcontains ⊢
       obtain ⟨idx, Heq⟩ := RelIO.liftFinf_in Hcontains
@@ -176,7 +176,9 @@ namespace Graphiti.Noc.DirectedTorusAbsoluteUnboundedCorrect
         rw [List.mem_map] at HruleIn
         obtain ⟨conn, Hconn1, Hconn2⟩ := HruleIn
         subst rule
-        obtain ⟨idx_out, idx_inp, dir_out, dir_inp⟩ := conn
+        obtain ⟨conn_out, conn_inp⟩ := conn
+        obtain ⟨idx_out, dir_out⟩ := conn_out
+        obtain ⟨idx_inp, dir_inp⟩ := conn_inp
         dsimp [drcomponents] at Hrule
         obtain ⟨val, i', ⟨⟨Hval1, Hval2⟩, Hval3⟩, Hval4, Hval5⟩ := Hrule
         dsimp [drcomponents, drunfold_defs] at Hval1 Hval2 Hval3 Hval4
@@ -216,11 +218,11 @@ namespace Graphiti.Noc.DirectedTorusAbsoluteUnboundedCorrect
               sorry
 
   theorem ϕ_indistinguishable :
-    ∀ i s, (φ Data dt) i s → Module.indistinguishable (mod Data dt) (spec Data dt) i s := by
+    ∀ i s, (φ Data DataS dt) i s → Module.indistinguishable (mod Data DataS dt) (spec Data DataS dt) i s := by
       intros i s Hφ
       constructor
       <;> intros ident new_i v Hrule
-      · case_transition Hcontains : (Module.inputs (mod Data dt)), ident,
+      · case_transition Hcontains : (Module.inputs (mod Data DataS dt)), ident,
          (PortMap.getIO_not_contained_false' Hrule)
         obtain ⟨idx, Hidx⟩ := RelIO.liftFinf_in Hcontains
         subst ident
@@ -234,7 +236,7 @@ namespace Graphiti.Noc.DirectedTorusAbsoluteUnboundedCorrect
         exists s.concat (Hv.mp v)
         rw [PortMap.rw_rule_execution RelIO.liftFinf_get]
         simpa [drcomponents]
-      · case_transition Hcontains : (Module.outputs (mod Data dt)), ident,
+      · case_transition Hcontains : (Module.outputs (mod Data DataS dt)), ident,
          (PortMap.getIO_not_contained_false' Hrule)
         obtain ⟨idx, Hidx⟩ := RelIO.liftFinf_in Hcontains
         subst ident
@@ -259,10 +261,10 @@ namespace Graphiti.Noc.DirectedTorusAbsoluteUnboundedCorrect
         --   sorry
         sorry
 
-  theorem correct : (mod Data dt) ⊑ (spec Data dt) := by
+  theorem correct : (mod Data DataS dt) ⊑ (spec Data DataS dt) := by
     apply (
       Module.refines_φ_refines
-        (ϕ_indistinguishable Data dt)
-        (refines_initial Data dt)
-        (refines_φ Data dt)
+        (ϕ_indistinguishable Data DataS dt)
+        (refines_initial Data DataS dt)
+        (refines_φ Data DataS dt)
     )
