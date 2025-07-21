@@ -88,8 +88,6 @@ def rhs (T T' : Type) (Tₛ T'ₛ : String) : ExprHigh String × IdentMap String
 
 def rhsLower T₁ T₂ := (rhs Unit Unit T₁ T₂).fst.lower.get rfl
 
-#eval IO.print ((rhs Unit Unit "T" "T'").fst)
-
 theorem rhs_type_independent a b c d T₁ T₂ : (rhs a b T₁ T₂).fst = (rhs c d T₁ T₂).fst := by rfl
 
 def rewrite : Rewrite String :=

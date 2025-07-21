@@ -144,10 +144,6 @@ def lhs' : ExprHigh String := [graph|
     m_right -> mux [from = "m_out", to = "in2"];
   ]
 
--- #eval IO.print lhs'
--- #eval IO.print lhs'.invert
--- #eval IO.print lhs'
-
 def lhs := lhs'.extract (matcher lhs' |>.run' default |>.get rfl |>.fst) |>.get rfl
 
 theorem double_check_empty_snd : lhs.snd = ExprHigh.mk ∅ ∅ := by rfl
@@ -175,8 +171,6 @@ def rhs : ExprHigh String := [graph|
     m_left -> merge [from = "m_out", to = "in1"];
     m_right -> merge [from = "m_out", to = "in2"];
   ]
-
--- #eval IO.print rhs
 
 def rhsLower := rhs.lower.get rfl
 
@@ -222,15 +216,9 @@ def lhs' : ExprHigh String := [graph|
     m_right -> mux [from = "m_out", to = "in2"];
   ]
 
--- #eval matchModLeft lhs'
--- #eval matchModRight lhs'
--- #eval matcher lhs'
-
--- #eval (Abstraction.mk matchModLeft "mod_left").run "rw0_" lhs' |>.toOption |>.get! |> Prod.fst
---       |> (Abstraction.mk matchModRight "mod_right").run "rw1_"
-      -- |> matchModRight
-      -- |> calcSucc
-#eval rewrite.run "rw0_" lhs' |>.run' default |>.get! |> IO.print
+#guard_msgs (drop info) in
+#eval do
+  rewrite.run "rw0_" lhs' |>.run' default |>.get! |> IO.print
 
 end TEST
 

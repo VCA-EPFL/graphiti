@@ -146,10 +146,17 @@ def rhs : ExprHigh String := [graph|
 
 def rhsLower := rhs.lower.get rfl
 -- Double checking that the left and right abstracter seems to work:
+
+/-- info: ([m_right], []) -/
+#guard_msgs in
 #eval match (matchModRight lhs').run' default with | .some e => IO.print e | _ => IO.print ""
+/-- info: ([m_left], []) -/
+#guard_msgs in
 #eval match (matchModLeft lhs').run' default with | .some e => IO.print e | _ => IO.print ""
+/-- info: ([branch, tagger1, tagger2, m_left, m_right, merge], []) -/
+#guard_msgs in
 #eval match (matcher lhs').run' default with | .some e => IO.print e | _ => IO.print ""
-#eval IO.print lhs'
+-- #eval IO.print lhs'
 
 
 /--
@@ -198,6 +205,39 @@ def lhs' : ExprHigh String :=
 
   ]
 
+/--
+info: digraph {
+
+  "i_cond" [type = "io", label = "i_cond: io"];
+  "i_data" [type = "io", label = "i_data: io"];
+  "o_out" [type = "io", label = "o_out: io"];
+  "rw0__C_1_7" [type = "mod_left1", label = "rw0__C_1_7: mod_left1"];
+  "rw0__C_1_6" [type = "mod_left2", label = "rw0__C_1_6: mod_left2"];
+  "rw0__C_1_5" [type = "Join", label = "rw0__C_1_5: Join"];
+  "rw0__C_1_4" [type = "Branch", label = "rw0__C_1_4: Branch"];
+  "rw0__C_1_3" [type = "mod_right2", label = "rw0__C_1_3: mod_right2"];
+  "rw0__C_1_2" [type = "Merge", label = "rw0__C_1_2: Merge"];
+  "rw0__C_1_1" [type = "TaggerCntrlAligner", label = "rw0__C_1_1: TaggerCntrlAligner"];
+  "rw0__C_1_0" [type = "Split", label = "rw0__C_1_0: Split"];
+
+
+  "i_cond" -> "rw0__C_1_5" [to = "in2", headlabel = "in2"];
+  "i_data" -> "rw0__C_1_5" [to = "in1", headlabel = "in1"];
+ "rw0__C_1_1" -> "o_out" [from = "deq_untagged", taillabel = "deq_untagged"];
+
+  "rw0__C_1_2" -> "rw0__C_1_1" [from = "m_out", to = "complete_tagged", taillabel = "m_out", headlabel = "complete_tagged",];
+  "rw0__C_1_3" -> "rw0__C_1_2" [from = "m_out", to = "in2", taillabel = "m_out", headlabel = "in2",];
+  "rw0__C_1_6" -> "rw0__C_1_2" [from = "m_out", to = "in1", taillabel = "m_out", headlabel = "in1",];
+  "rw0__C_1_4" -> "rw0__C_1_3" [from = "false", to = "m_in", taillabel = "false", headlabel = "m_in",];
+  "rw0__C_1_4" -> "rw0__C_1_7" [from = "true", to = "m_in", taillabel = "true", headlabel = "m_in",];
+  "rw0__C_1_0" -> "rw0__C_1_4" [from = "out2", to = "cond", taillabel = "out2", headlabel = "cond",];
+  "rw0__C_1_0" -> "rw0__C_1_4" [from = "out1", to = "data", taillabel = "out1", headlabel = "data",];
+  "rw0__C_1_1" -> "rw0__C_1_0" [from = "tagged", to = "in1", taillabel = "tagged", headlabel = "in1",];
+  "rw0__C_1_5" -> "rw0__C_1_1" [from = "out1", to = "enq_untagged", taillabel = "out1", headlabel = "enq_untagged",];
+  "rw0__C_1_7" -> "rw0__C_1_6" [from = "m_out", to = "m_in", taillabel = "m_out", headlabel = "m_in",];
+}
+-/
+#guard_msgs in
 #eval rewrite.run "rw0_" lhs' |>.run' default |>.get! |> IO.print
 
 end TEST
