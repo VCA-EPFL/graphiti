@@ -1,7 +1,7 @@
 /-
-Copyright (c) 2024 VCA Lab, EPFL. All rights reserved.
+Copyright (c) 2024, 2025 VCA Lab, EPFL. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Ayatallah Elakhras
+Authors: Ayatallah Elakhras, Yann Herklotz
 -/
 
 import Graphiti.Core.Rewriter
@@ -40,8 +40,6 @@ def lhs (T : Type) (Tₛ : String) : ExprHigh String × IdentMap String (TModule
   ]
 
 def lhs_extract T₁ := (lhs Unit T₁).fst.extract ["fork"] |>.get rfl
-
--- #eval IO.print ((lhs Unit "T").fst)
 
 theorem lhs_type_independent a c T₁ : (lhs a T₁).fst = (lhs c T₁).fst := by rfl
 

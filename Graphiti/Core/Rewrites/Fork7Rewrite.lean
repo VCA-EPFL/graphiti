@@ -1,7 +1,7 @@
 /-
-Copyright (c) 2024 VCA Lab, EPFL. All rights reserved.
+Copyright (c) 2024, 2025 VCA Lab, EPFL. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Ayatallah Elakhras
+Authors: Ayatallah Elakhras, Yann Herklotz
 -/
 
 import Graphiti.Core.Rewriter
@@ -49,8 +49,6 @@ def lhs (T : Type) (Tₛ : String) : ExprHigh String × IdentMap String (TModule
 
 def lhs_extract T₁ := (lhs Unit T₁).fst.extract ["fork"] |>.get rfl
 
--- #eval IO.print ((lhs Unit "T").fst)
-
 theorem lhs_type_independent a c T₁ : (lhs a T₁).fst = (lhs c T₁).fst := by rfl
 
 theorem double_check_empty_snd T₁ : (lhs_extract T₁).snd = ExprHigh.mk ∅ ∅ := by rfl
@@ -82,17 +80,21 @@ def rhs (T : Type) (Tₛ : String) : ExprHigh String × IdentMap String (TModule
     fork2 -> o7 [from="out6"];
   ]
 
-def rhsLower T₁ := (rhs Unit T₁).fst.lower.get rfl
+def rhs_extract S₁ := (rhs Unit S₁).fst.extract ["fork1", "fork2"] |>.get rfl
 
--- #eval IO.print ((rhs Unit "T").fst)
+def rhsLower T₁ := (rhs_extract T₁).fst.lower.get rfl
 
 theorem rhs_type_independent a c T₁ : (rhs a T₁).fst = (rhs c T₁).fst := by rfl
+
+def findRhs mod := (rhs_extract "").fst.modules.find? mod |>.map Prod.fst
 
 def rewrite : Rewrite String :=
   { abstractions := [],
     pattern := matcher,
     rewrite := λ | [T₁] => pure ⟨lhsLower T₁, rhsLower T₁⟩ | _ => failure
     name := .some "fork-7"
+    transformedNodes := [.none]
+    addedNodes := [findRhs "fork1" |>.get rfl, findRhs "fork2" |>.get rfl]
   }
 
 end Graphiti.Fork7Rewrite
