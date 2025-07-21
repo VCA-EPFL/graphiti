@@ -211,34 +211,34 @@ info: digraph {
   "i_cond" [type = "io", label = "i_cond: io"];
   "i_data" [type = "io", label = "i_data: io"];
   "o_out" [type = "io", label = "o_out: io"];
-  "rw0__C_1_7" [type = "mod_left1", label = "rw0__C_1_7: mod_left1"];
-  "rw0__C_1_6" [type = "mod_left2", label = "rw0__C_1_6: mod_left2"];
-  "rw0__C_1_5" [type = "Join", label = "rw0__C_1_5: Join"];
-  "rw0__C_1_4" [type = "Branch", label = "rw0__C_1_4: Branch"];
-  "rw0__C_1_3" [type = "mod_right2", label = "rw0__C_1_3: mod_right2"];
-  "rw0__C_1_2" [type = "Merge", label = "rw0__C_1_2: Merge"];
-  "rw0__C_1_1" [type = "TaggerCntrlAligner", label = "rw0__C_1_1: TaggerCntrlAligner"];
-  "rw0__C_1_0" [type = "Split", label = "rw0__C_1_0: Split"];
+  "rw_4_7" [type = "mod_left1", label = "rw_4_7: mod_left1"];
+  "rw_4_6" [type = "mod_left2", label = "rw_4_6: mod_left2"];
+  "rw_4_5" [type = "Join", label = "rw_4_5: Join"];
+  "rw_4_4" [type = "Branch", label = "rw_4_4: Branch"];
+  "rw_4_3" [type = "mod_right2", label = "rw_4_3: mod_right2"];
+  "rw_4_2" [type = "Merge", label = "rw_4_2: Merge"];
+  "rw_4_1" [type = "TaggerCntrlAligner", label = "rw_4_1: TaggerCntrlAligner"];
+  "rw_4_0" [type = "Split", label = "rw_4_0: Split"];
 
 
-  "i_cond" -> "rw0__C_1_5" [to = "in2", headlabel = "in2"];
-  "i_data" -> "rw0__C_1_5" [to = "in1", headlabel = "in1"];
- "rw0__C_1_1" -> "o_out" [from = "deq_untagged", taillabel = "deq_untagged"];
+  "i_cond" -> "rw_4_5" [to = "in2", headlabel = "in2"];
+  "i_data" -> "rw_4_5" [to = "in1", headlabel = "in1"];
+ "rw_4_1" -> "o_out" [from = "deq_untagged", taillabel = "deq_untagged"];
 
-  "rw0__C_1_2" -> "rw0__C_1_1" [from = "m_out", to = "complete_tagged", taillabel = "m_out", headlabel = "complete_tagged",];
-  "rw0__C_1_3" -> "rw0__C_1_2" [from = "m_out", to = "in2", taillabel = "m_out", headlabel = "in2",];
-  "rw0__C_1_6" -> "rw0__C_1_2" [from = "m_out", to = "in1", taillabel = "m_out", headlabel = "in1",];
-  "rw0__C_1_4" -> "rw0__C_1_3" [from = "false", to = "m_in", taillabel = "false", headlabel = "m_in",];
-  "rw0__C_1_4" -> "rw0__C_1_7" [from = "true", to = "m_in", taillabel = "true", headlabel = "m_in",];
-  "rw0__C_1_0" -> "rw0__C_1_4" [from = "out2", to = "cond", taillabel = "out2", headlabel = "cond",];
-  "rw0__C_1_0" -> "rw0__C_1_4" [from = "out1", to = "data", taillabel = "out1", headlabel = "data",];
-  "rw0__C_1_1" -> "rw0__C_1_0" [from = "tagged", to = "in1", taillabel = "tagged", headlabel = "in1",];
-  "rw0__C_1_5" -> "rw0__C_1_1" [from = "out1", to = "enq_untagged", taillabel = "out1", headlabel = "enq_untagged",];
-  "rw0__C_1_7" -> "rw0__C_1_6" [from = "m_out", to = "m_in", taillabel = "m_out", headlabel = "m_in",];
+  "rw_4_2" -> "rw_4_1" [from = "m_out", to = "complete_tagged", taillabel = "m_out", headlabel = "complete_tagged",];
+  "rw_4_3" -> "rw_4_2" [from = "m_out", to = "in2", taillabel = "m_out", headlabel = "in2",];
+  "rw_4_6" -> "rw_4_2" [from = "m_out", to = "in1", taillabel = "m_out", headlabel = "in1",];
+  "rw_4_4" -> "rw_4_3" [from = "false", to = "m_in", taillabel = "false", headlabel = "m_in",];
+  "rw_4_4" -> "rw_4_7" [from = "true", to = "m_in", taillabel = "true", headlabel = "m_in",];
+  "rw_4_0" -> "rw_4_4" [from = "out2", to = "cond", taillabel = "out2", headlabel = "cond",];
+  "rw_4_0" -> "rw_4_4" [from = "out1", to = "data", taillabel = "out1", headlabel = "data",];
+  "rw_4_1" -> "rw_4_0" [from = "tagged", to = "in1", taillabel = "tagged", headlabel = "in1",];
+  "rw_4_5" -> "rw_4_1" [from = "out1", to = "enq_untagged", taillabel = "out1", headlabel = "enq_untagged",];
+  "rw_4_7" -> "rw_4_6" [from = "m_out", to = "m_in", taillabel = "m_out", headlabel = "m_in",];
 }
 -/
 #guard_msgs in
-#eval rewrite.run "rw0_" lhs' |>.run' default |>.get! |> IO.print
+#eval rewrite.run lhs' |>.run' default |>.get! |> IO.print
 
 end TEST
 

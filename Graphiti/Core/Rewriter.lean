@@ -186,7 +186,7 @@ however, currently the low-level expression language does not remember any names
   : RewriteResult (ExprHigh String) := do
 
   let current_state ← EStateM.get
-  let fresh_prefix := s!"rw_{current_state.fresh_prefix}"
+  let fresh_prefix := s!"rw_{current_state.fresh_prefix}_"
 
   -- Pattern match on the graph and extract the first list of nodes that correspond to the first subgraph.
   let (sub, types) ← rewrite.pattern g
@@ -344,7 +344,7 @@ framework should be enough.
   (abstraction : Abstraction String) (norm : Bool := false)
   : RewriteResult (ExprHigh String × Concretisation String) := do
   let current_state ← EStateM.get
-  let fresh_prefix := s!"rw_{current_state.fresh_prefix}"
+  let fresh_prefix := s!"rw_{current_state.fresh_prefix}_"
 
   -- Extract a list of modules that match the pattern.
   let (sub, _) ← abstraction.pattern g
@@ -391,7 +391,7 @@ still fresh in the graph.
 @[drunfold] def Concretisation.run (g : ExprHigh String)
   (concretisation : Concretisation String) (norm : Bool := false) (debug := false) : RewriteResult (ExprHigh String) := do
   let current_state ← EStateM.get
-  let fresh_prefix := s!"rw_{current_state.fresh_prefix}"
+  let fresh_prefix := s!"rw_{current_state.fresh_prefix}_"
 
   let g_lower ← ofOption (.error "could not lower graph") <| g.lower
 
