@@ -1,12 +1,12 @@
-- [Paper writing <code>[0/15]</code>](#orgb9b2529)
-- [Framework development <code>[2/13]</code>](#org9902882)
-- [Preprocessing of dot-graph for Dynamatic <code>[0/3]</code>](#org519f7c8)
-- [Post processing of dot-graph for Dynamatic <code>[0/4]</code>](#org5252620)
-- [Non-main-project todos <code>[0/4]</code>](#org95c0e02)
+- [Paper writing <code>[0/15]</code>](#orgacd8a6e)
+- [Framework development <code>[3/14]</code>](#orgead67e9)
+- [Preprocessing of dot-graph for Dynamatic <code>[0/3]</code>](#org676f0bc)
+- [Post processing of dot-graph for Dynamatic <code>[0/4]</code>](#orgb8504cd)
+- [Non-main-project todos <code>[0/4]</code>](#orgf476dd9)
 
 
 
-<a id="orgb9b2529"></a>
+<a id="orgacd8a6e"></a>
 
 # Paper writing <code>[0/15]</code>
 
@@ -45,9 +45,9 @@
 15. TODO Section 8: add related work on graph rewriting (with applications in SSA), as well as term rewriting for hardware
 
 
-<a id="org9902882"></a>
+<a id="orgead67e9"></a>
 
-# Framework development <code>[2/13]</code>
+# Framework development <code>[3/14]</code>
 
 1.  TODO Prove LHS specification given termination     :loop_rewrite:
 
@@ -82,7 +82,7 @@
     
         1.  Dependencies
         
-            -   [Generate a new environment from the rewrite](#org8dd143b)
+            -   [Generate a new environment from the rewrite](#org68e278e)
 
 7.  SMDY Make rewriter run in Lean 4     :rewriter:
 
@@ -96,7 +96,7 @@
     
     1.  Dependencies
     
-        -   [Generate a new environment from the rewrite](#org8dd143b)
+        -   [Generate a new environment from the rewrite](#org68e278e)
 
 9.  DONE Minimise the number of nodes that are rewritten     :rewriter:
 
@@ -121,7 +121,7 @@
         
         1.  Dependencies
         
-            -   [Add option to rewrite without renaming](#orgd54012a)
+            -   [Add option to rewrite without renaming](#org4bdebeb)
 
 11. TODO Support rewriting of loop bodies with `if` statements     :rewriter:
 
@@ -136,8 +136,12 @@
 
     -   Currently many of the proofs limit universes within module inputs/outputs as well as the environment.
 
+14. DONE Adhere to the research codebase manifesto
 
-<a id="org519f7c8"></a>
+    -   <https://www.moderndescartes.com/essays/research_code/>
+
+
+<a id="org676f0bc"></a>
 
 # Preprocessing of dot-graph for Dynamatic <code>[0/3]</code>
 
@@ -156,7 +160,7 @@
     -   I have found though that in all the cases for dot-graphs that you have sent me, the only thing I had to change is switch out2 which was feeding the init to out1. The rest of the fork tree then lined up. But having a more general solution would be useful too.
 
 
-<a id="org5252620"></a>
+<a id="orgb8504cd"></a>
 
 # Post processing of dot-graph for Dynamatic <code>[0/4]</code>
 
@@ -170,14 +174,14 @@
 
     -   Either expand the tagger into the implementation of FPGA'24, or implement the tagger from scratch.
 
-3.  TODO Adhere to the research codebase manifesto
+3.  TODO Support split and join of tag in loop body
 
-    -   <https://www.moderndescartes.com/essays/research_code/>
+    This may require implement new nodes for splitting and combining tags.
 
-4.  TODO Support split and join of tag in loop body
+4.  TODO Rerun experiments with dot graphs directly produced by the framework
 
 
-<a id="org95c0e02"></a>
+<a id="orgf476dd9"></a>
 
 # Non-main-project todos <code>[0/4]</code>
 
