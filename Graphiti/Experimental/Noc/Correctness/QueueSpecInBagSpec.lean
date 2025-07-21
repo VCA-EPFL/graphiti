@@ -5,9 +5,7 @@ import Graphiti.Projects.Noc.Lang
 import Graphiti.Projects.Noc.BuildModule
 import Graphiti.Projects.Noc.Spec
 
-namespace Graphiti.Noc
-
-section MQueueInBag
+namespace Graphiti.Projects.Noc
 
 variable {Data : Type} [BEq Data] [LawfulBEq Data] {netsz : Netsz}
 
@@ -169,5 +167,3 @@ theorem correct : n.spec_mqueue ⊑ n.spec_bag := by
       (refines_initial n)
       (refines_φ n)
   )
-
-end MQueueInBag

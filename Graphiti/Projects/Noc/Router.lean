@@ -10,7 +10,7 @@ import Graphiti.Core.Component
 import Graphiti.Core.ExprLow
 import Graphiti.Projects.Noc.Lang
 
-namespace Graphiti.Noc.Router
+namespace Graphiti.Projects.Noc.Router
 
   variable (netsz : Netsz) (Flit : Type)
 
@@ -24,10 +24,6 @@ namespace Graphiti.Noc.Router
         input_rel   := λ rid s flit s' => s' = s ++ [flit]
         output_rel  := λ rid s flit s' => s = flit :: s'
       }
-
-    def queueM : ExprLow String :=
-      .base { } "Hello"
-
 
     @[drunfold_defs]
     def bag : Router netsz Flit :=
@@ -64,4 +60,4 @@ namespace Graphiti.Noc.Router
 
   end Bounded
 
-end Graphiti.Noc.Router
+end Graphiti.Projects.Noc.Router

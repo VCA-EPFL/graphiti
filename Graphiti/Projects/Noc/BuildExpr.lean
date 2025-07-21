@@ -11,7 +11,7 @@ import Graphiti.Projects.Noc.Lang
 
 open Batteries (AssocList)
 
-namespace Graphiti.Noc
+namespace Graphiti.Projects.Noc
 
   variable {Data : Type} [ToString Data] [BEq Data] [LawfulBEq Data] {netsz : Netsz}
 
@@ -80,4 +80,4 @@ namespace Graphiti.Noc
     |> mkrouters
     |> mkconns
 
-end Graphiti.Noc
+end Graphiti.Projects.Noc

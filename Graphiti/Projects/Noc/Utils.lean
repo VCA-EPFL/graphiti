@@ -12,7 +12,7 @@ import Graphiti.Core.Component
 
 open Batteries (AssocList)
 
-namespace Graphiti.Noc
+namespace Graphiti.Projects.Noc
 
   @[simp] abbrev typeOf {α} (_ : α) := α
 
@@ -367,4 +367,25 @@ namespace Graphiti.Noc
 
   end dep_foldr'
 
-end Graphiti.Noc
+
+  section arith
+
+    theorem mul_add_one (x y) : x * (y + 1) = x + x * y := by
+      simpa [Nat.mul_add, Nat.add_comm]
+
+    theorem add_mul {n x y : Nat} (hltx : x < n) (hlty : y < n) : x * n + y < n * n := by
+      induction n generalizing x y with
+      | zero => contradiction
+      | succ n hr =>
+        rw [mul_add_one, mul_add_one]
+        rw (occs := [2]) [Nat.mul_comm]
+        rw [mul_add_one]
+        sorry
+
+  end arith
+
+  section portmap
+
+  end portmap
+
+end Graphiti.Projects.Noc

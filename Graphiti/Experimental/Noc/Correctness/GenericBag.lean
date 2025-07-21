@@ -4,17 +4,16 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz, Gurvan Debaussart
 -/
 
-import Graphiti.Examples.Noc.Lang
-import Graphiti.Examples.Noc.BuildModule
-import Graphiti.Examples.Noc.Topology.Torus
-import Graphiti.Examples.Noc.Spec
-import Graphiti.Examples.Noc.Router
+import Graphiti.Projects.Noc.Lang
+import Graphiti.Projects.Noc.BuildModule
+import Graphiti.Projects.Noc.Spec
+import Graphiti.Projects.Noc.Router
 
 open Batteries (AssocList)
 
 set_option Elab.async false
 
-namespace Graphiti.Noc.DirectedTorusAbsoluteUnboundedCorrect
+namespace Graphiti.Projects.Noc
 
   variable {Data : Type} [BEq Data] [LawfulBEq Data]
   variable {netsz : Netsz}
@@ -26,7 +25,26 @@ namespace Graphiti.Noc.DirectedTorusAbsoluteUnboundedCorrect
   @[drunfold_defs]
   abbrev spec := noc.spec_bag
 
+  -- TODO: We should first require that Routers are correct.
+  -- This require that they ⊑ spec_routerBag
+  -- We can then use RouterIn to prove full correctness and only use the
+  -- spec_routerbag router
+
+  -- We can then use the router inductive correctness definition
+
+  -- inductive output : noc.RouterID → noc.RouterID → noc.Flit → Prop where
+  -- | init :
+  --   ∀ cur flit dst,
+  --     output (noc.arbiter.mkhead cur flit dst)
+  -- | done :
+  --     ∀ cur flit flit', noc.arbiter.route cur flit = (noc.topology.DirLocal_out, flit')
+  --     → True
+
+  def reachable (n : Noc Data netsz) (src dst : n.RouterID) (flit : n.Flit) : Prop :=
+    True
+
   def φ (I : noc.State) (S : noc.spec_bagT) : Prop :=
+    -- ∀ src dst flit, reachable noc src dst flit → reachable (spec noc) src dst
     True
     -- TODO: Use an inductive which repeat the steping function
     -- inductive good where
@@ -58,7 +76,8 @@ namespace Graphiti.Noc.DirectedTorusAbsoluteUnboundedCorrect
         · rw [PortMap.rw_rule_execution RelIO.liftFinf_get]
           dsimp [drcomponents]
         · constructor
-        · sorry
+        · -- dsimp [drcomponents, drunfold_defs] at s
+          sorry
     · intros ident mid_i v Hrule
       case_transition Hcontains : (Module.outputs (mod noc)), ident,
        (PortMap.getIO_not_contained_false' Hrule)
@@ -66,6 +85,13 @@ namespace Graphiti.Noc.DirectedTorusAbsoluteUnboundedCorrect
       clear Hcontains
       subst ident
       dsimp [drcomponents] at v Hrule ⊢
+      rw [PortMap.rw_rule_execution RelIO.liftFinf_get] at Hrule
+      dsimp at Hrule
+      obtain ⟨head, ⟨Hhead1, Hhead2⟩, Hhead3⟩ := Hrule
+      have_hole Hv : typeOf v = _ := by
+        unfold typeOf
+        rewrite [RelIO.liftFinf_get]
+        dsimp
       apply Exists.intro _
       apply Exists.intro _
       · and_intros
@@ -87,9 +113,8 @@ namespace Graphiti.Noc.DirectedTorusAbsoluteUnboundedCorrect
       obtain ⟨val, mid_s, ⟨⟨H1, H2⟩, H3⟩, H4, H5⟩ := Hrule
       apply Exists.intro _
       · and_intros
+        · constructor
         · sorry
-        · sorry
-      · sorry
 
   -- Proven Useless
   theorem ϕ_indistinguishable :

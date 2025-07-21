@@ -13,7 +13,7 @@ set_option linter.all false
 
 open Batteries (AssocList)
 
-namespace Graphiti.Noc
+namespace Graphiti.Projects.Noc
 
   -- Topology definition -------------------------------------------------------
 
@@ -199,4 +199,4 @@ namespace Graphiti.Noc
   abbrev Noc.Rel_inp (n : Noc Data netsz) (T : Type) :=
     (rid : n.RouterID) → (dir : n.Dir_inp rid) → (old_s : n.State) → (val : T) → (old_s : n.State) → Prop
 
-end Graphiti.Noc
+end Graphiti.Projects.Noc

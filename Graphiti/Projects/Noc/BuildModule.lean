@@ -12,7 +12,7 @@ import Graphiti.Projects.Noc.Lang
 set_option autoImplicit false
 set_option linter.all false
 
-namespace Graphiti.Noc
+namespace Graphiti.Projects.Noc
 
   variable {Data : Type} [BEq Data] [LawfulBEq Data] {netsz : Netsz}
 
@@ -68,4 +68,4 @@ namespace Graphiti.Noc
       init_state := λ s => s = Vector.replicate netsz n.routers.init_state,
     }
 
-end Graphiti.Noc
+end Graphiti.Projects.Noc

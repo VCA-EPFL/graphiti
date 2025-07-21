@@ -15,7 +15,7 @@ import Graphiti.Projects.Noc.Topology.Torus
 import Graphiti.Projects.Noc.BuildExpr
 import Graphiti.Projects.Noc.BuildModule
 
-namespace Graphiti.Noc.Examples
+namespace Graphiti.Projects.Noc.Examples
 
   abbrev Data : Type := Nat
 
@@ -57,4 +57,4 @@ namespace Graphiti.Noc.Examples
   #eval! tmp' |> toString |> IO.print
 
 
-end Graphiti.Noc.Examples
+end Graphiti.Projects.Noc.Examples

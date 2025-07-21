@@ -14,7 +14,7 @@ import Graphiti.Projects.Noc.BuildExpr
 set_option autoImplicit false
 set_option linter.all false
 
-namespace Graphiti.Noc
+namespace Graphiti.Projects.Noc
 
 variable {Data : Type} [BEq Data] [LawfulBEq Data] {netsz : Netsz}
 
@@ -85,7 +85,6 @@ def Noc.mk_spec_bag_output_rule (n : Noc Data netsz) (rid : n.topology.RouterID)
       ∃ i : Fin oldS.length, newS = oldS.remove i ∧ (v, rid) = oldS.get i
   ⟩
 
--- Specification of a noc as a bag, all flit are sent unordered
 @[drcomponents]
 def Noc.spec_bag (n : Noc Data netsz) (name := "spec_bag") : NatModule (NatModule.Named name n.spec_bagT) :=
   {
@@ -110,7 +109,7 @@ abbrev Noc.spec_mqueueT (n : Noc Data netsz) : Type :=
   Vector n.spec_bagT (netsz * netsz)
 
 abbrev Noc.spec_mqueue_idx (n : Noc Data netsz) (src dst : n.topology.RouterID) : Fin (netsz * netsz) :=
-  ⟨src * netsz + dst, by sorry⟩ -- TODO
+  ⟨src * netsz + dst, by apply add_mul src.2 dst.2⟩
 
 @[drcomponents]
 def Noc.mk_spec_mqueue_input_rule (n : Noc Data netsz) (rid : n.topology.RouterID) : RelIO n.spec_mqueueT :=
@@ -154,4 +153,4 @@ instance (n : Noc Data netsz) : MatchInterface n.spec_bag n.spec_mqueue := by
   apply MatchInterface_symmetric
   repeat exact inferInstance
 
-end Graphiti.Noc
+end Graphiti.Projects.Noc

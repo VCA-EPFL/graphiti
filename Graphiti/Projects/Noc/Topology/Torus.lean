@@ -7,7 +7,7 @@ Authors: Yann Herklotz, Gurvan Debaussart
 import Graphiti.Core.Module
 import Graphiti.Projects.Noc.Lang
 
-namespace Graphiti.Noc
+namespace Graphiti.Projects.Noc
 
   variable (Data : Type) [BEq Data] [LawfulBEq Data]
 
@@ -32,32 +32,40 @@ namespace Graphiti.Noc
   def DirectedTorus.Neigh (d : DirectedTorus) :=
     Neigh' d.netsz
 
+  @[drcomponents]
   def DirectedTorus.get_x (d : DirectedTorus) (i : d.RouterID) : d.pos_x :=
     -- TODO
     ⟨i.toNat % d.size_x, by sorry⟩
 
+  @[drcomponents]
   def DirectedTorus.get_y (d : DirectedTorus) (i : d.RouterID) : d.pos_y :=
     -- TODO
     ⟨(i.toNat / d.size_x) % d.size_y, by sorry⟩
 
+  @[drcomponents]
   def DirectedTorus.get_rid (d : DirectedTorus) (x : d.pos_x) (y : d.pos_y) : d.RouterID :=
     -- TODO
     ⟨y * d.size_x + x, by sorry⟩
 
+  @[drcomponents]
   def DirectedTorus.get_succ_x (d : DirectedTorus) (x : d.pos_x) : d.pos_x :=
     -- TODO
     ⟨(x.1 + 1) % d.size_x, by sorry⟩
 
+  @[drcomponents]
   def DirectedTorus.get_succ_y (d : DirectedTorus) (y : d.pos_y) : d.pos_y :=
     -- TODO
     ⟨(y.1 + 1) % d.size_y, by sorry⟩
 
+  @[drcomponents]
   def DirectedTorus.get_pred_x (d : DirectedTorus) (x : d.pos_x) : d.pos_x :=
     ⟨if x.1 == 0 then d.size_x - 1 else x.1 - 1, by sorry⟩
 
+  @[drcomponents]
   def DirectedTorus.get_pred_y (d : DirectedTorus) (y : d.pos_y) : d.pos_y :=
     ⟨if y.1 == 0 then d.size_y - 1 else y.1 - 1, by sorry⟩
 
+  @[drcomponents]
   def DirectedTorus.neigh_out (d : DirectedTorus) : d.Neigh :=
     λ src =>
       let src_x := d.get_x src
@@ -67,6 +75,7 @@ namespace Graphiti.Noc
         d.get_rid src_x (d.get_succ_y src_y),
       ]
 
+  @[drcomponents]
   def DirectedTorus.neigh_inp (d : DirectedTorus) : d.Neigh :=
     λ src =>
       let src_x := d.get_x src
@@ -78,7 +87,7 @@ namespace Graphiti.Noc
 
   theorem DirectedTorus.neigh_ok (d : DirectedTorus) : Neigh_ok' d.netsz d.neigh_inp d.neigh_out := by
     intro rid rid'
-    dsimp [neigh_out, neigh_inp, get_rid]
+    dsimp [drcomponents]
     -- TODO
     sorry
 
@@ -165,4 +174,4 @@ namespace Graphiti.Noc
       mkhead      := d.relative_mkhead Data
     }
 
-end Graphiti.Noc
+end Graphiti.Projects.Noc

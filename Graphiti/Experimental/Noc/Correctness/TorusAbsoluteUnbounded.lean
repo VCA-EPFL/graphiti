@@ -14,7 +14,7 @@ open Batteries (AssocList)
 
 set_option Elab.async false
 
-namespace Graphiti.Noc.DirectedTorusAbsoluteUnboundedCorrect
+namespace Graphiti.Projects.Noc
 
   variable (Data : Type) [BEq Data] [LawfulBEq Data] (DataS : String)
   variable (dt : DirectedTorus)
