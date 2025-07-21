@@ -33,22 +33,6 @@ def matcher (g : ExprHigh String) : RewriteResult (List String × List String) :
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
-def nameMap (g : ExprHigh String) : RewriteResult (AssocList String (Option String)) := do
-  let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
-       if s.isSome then return s
-       unless "pure".isPrefixOf typ do return none
-
-       let (.some join) := followOutput g inst "out1" | return none
-       unless "join".isPrefixOf join.typ ∧ join.inputPort = "in2" do return none
-
-       let (.some t1) := typ.splitOn |>.get? 1 | return none
-       let (.some t2) := typ.splitOn |>.get? 2 | return none
-       let (.some t3) := join.typ.splitOn |>.get? 1 | return none
-
-       return .some [(inst, .some "pure"), (join.inst, .some "join")].toAssocList
-    ) none | MonadExceptOf.throw RewriteError.done
-  return list
-
 def lhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
     i_0 [type = "io"];
     i_1 [type = "io"];

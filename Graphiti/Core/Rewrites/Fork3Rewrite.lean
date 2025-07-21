@@ -66,17 +66,21 @@ def rhs (T : Type) (Tₛ : String) : ExprHigh String × IdentMap String (TModule
     fork2 -> o3 [from="out2"];
   ]
 
-def rhsLower T₁ := (rhs Unit T₁).fst.lower.get rfl
+def rhs_extract S₁ := (rhs Unit S₁).fst.extract ["fork1", "fork2"] |>.get rfl
 
--- #eval IO.print ((rhs Unit "T").fst)
+def rhsLower T₁ := (rhs_extract T₁).fst.lower.get rfl
 
 theorem rhs_type_independent a c T₁ : (rhs a T₁).fst = (rhs c T₁).fst := by rfl
+
+def findRhs mod := (rhs_extract "").fst.modules.find? mod |>.map Prod.fst
 
 def rewrite : Rewrite String :=
   { abstractions := [],
     pattern := matcher,
     rewrite := λ | [T₁] => pure ⟨lhsLower T₁, rhsLower T₁⟩ | _ => failure
     name := .some "fork-3"
+    transformedNodes := [.none]
+    addedNodes := [findRhs "fork1" |>.get rfl, findRhs "fork2" |>.get rfl]
   }
 
 end Graphiti.Fork3Rewrite

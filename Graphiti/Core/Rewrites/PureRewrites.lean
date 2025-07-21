@@ -349,46 +349,40 @@ def rewrite : Rewrite String :=
 
 end Fork
 
--- TODO: Fix unnecessary nameMap definition (results in segfault at compile time)
 def specialisedPureRewrites (p : Pattern String) :=
   [ { Constant.rewrite with
         pattern := fun g => do
           let (s :: _, t) ← p g | throw RewriteError.done
           Constant.match_node s g
-        nameMap := ∅
     }
   , { Operator1.rewrite with
         pattern := fun g => do
           let (s :: _, t) ← p g | throw RewriteError.done
           Operator1.match_node s g
-        nameMap := ∅
     }
   , { Operator2.rewrite with
         pattern := fun g => do
           let (s :: _, t) ← p g | throw RewriteError.done
           Operator2.match_node s g
-        nameMap := ∅
     }
   , { Operator3.rewrite with
         pattern := fun g => do
           let (s :: _, t) ← p g | throw RewriteError.done
           Operator3.match_node s g
-        nameMap := ∅
     }
   , { Fork.rewrite with
         pattern := fun g => do
           let (s :: _, t) ← p g | throw RewriteError.done
           Fork.match_node s g
-        nameMap := ∅
     }
   ]
 
 def singleNodePureRewrites (s : String) :=
-  [ {Constant.rewrite with pattern := Constant.match_node s, nameMap := ∅}
-  , {Operator1.rewrite with pattern := Operator1.match_node s, nameMap := ∅}
-  , {Operator2.rewrite with pattern := Operator2.match_node s, nameMap := ∅}
-  , {Operator3.rewrite with pattern := Operator3.match_node s, nameMap := ∅}
-  , {Fork.rewrite with pattern := Fork.match_node s, nameMap := ∅}
+  [ {Constant.rewrite with pattern := Constant.match_node s }
+  , {Operator1.rewrite with pattern := Operator1.match_node s }
+  , {Operator2.rewrite with pattern := Operator2.match_node s }
+  , {Operator3.rewrite with pattern := Operator3.match_node s }
+  , {Fork.rewrite with pattern := Fork.match_node s }
   ]
 
 def chainPureRewrites (l : List String) :=

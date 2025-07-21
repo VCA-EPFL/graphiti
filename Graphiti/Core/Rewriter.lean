@@ -77,7 +77,6 @@ structure DefiniteRewrite where
 structure Rewrite where
   pattern : Pattern Ident
   rewrite : List Ident → Option (DefiniteRewrite Ident)
-  nameMap : PortMapping String := PortMapping.mk .nil .nil
   transformedNodes : List (Option (PortMapping String)) := []
   addedNodes : List (PortMapping String) := []
   abstractions : List (Abstraction Ident) := []

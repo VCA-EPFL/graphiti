@@ -232,19 +232,19 @@ def reverse_rewrite_with_index (rinfo : RewriteInfo) : RewriteResult (Rewrite St
       return JoinAssocL.targetedRewrite s
     | "pure-fork" =>
       let s ← rinfo.matched_subgraph.get? 0
-      return {PureRewrites.Fork.rewrite with pattern := PureRewrites.Fork.match_node s, nameMap := ∅}
+      return {PureRewrites.Fork.rewrite with pattern := PureRewrites.Fork.match_node s}
     | "pure-operator3" =>
       let s ← rinfo.matched_subgraph.get? 0
-      return {PureRewrites.Operator3.rewrite with pattern := PureRewrites.Operator3.match_node s, nameMap := ∅}
+      return {PureRewrites.Operator3.rewrite with pattern := PureRewrites.Operator3.match_node s}
     | "pure-operator2" =>
       let s ← rinfo.matched_subgraph.get? 0
-      return {PureRewrites.Operator2.rewrite with pattern := PureRewrites.Operator2.match_node s, nameMap := ∅}
+      return {PureRewrites.Operator2.rewrite with pattern := PureRewrites.Operator2.match_node s}
     | "pure-operator1" =>
       let s ← rinfo.matched_subgraph.get? 0
-      return {PureRewrites.Operator1.rewrite with pattern := PureRewrites.Operator1.match_node s, nameMap := ∅}
+      return {PureRewrites.Operator1.rewrite with pattern := PureRewrites.Operator1.match_node s}
     | "pure-constant" =>
       let s ← rinfo.matched_subgraph.get? 0
-      return {PureRewrites.Constant.rewrite with pattern := PureRewrites.Constant.match_node s, nameMap := ∅}
+      return {PureRewrites.Constant.rewrite with pattern := PureRewrites.Constant.match_node s}
     | _ => rewrite_index.find? name
   reverse_rewrite rw rinfo
 
