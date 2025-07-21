@@ -52,7 +52,12 @@ instance : Lean.ToJson RewriteInfo where
       , ("debug", Lean.toJson r.debug)
       ]
 
-abbrev RewriteResult := EStateM RewriteError (List RewriteInfo)
+structure RewriteState where
+  runtime_trace : List RewriteInfo
+  fresh_prefix : Nat
+deriving Repr, Inhabited
+
+abbrev RewriteResult := EStateM RewriteError RewriteState
 
 section Rewrite
 
@@ -140,16 +145,20 @@ def portmappingToNameRename' (sub : List String) (p : PortMapping String) : Rewr
 
 def addRewriteInfo (rinfo : RewriteInfo) : RewriteResult Unit := do
   let l ← EStateM.get
-  EStateM.set <| l.concat rinfo
+  EStateM.set <| ⟨l.1.concat rinfo, l.2⟩
 
 def rmRewriteInfo : RewriteResult Unit := do
   let l ← EStateM.get
-  EStateM.set <| l.dropLast
+  EStateM.set <| ⟨l.1.dropLast, l.2⟩
 
 def updRewriteInfo (f : RewriteInfo → RewriteInfo) : RewriteResult Unit := do
   let l ← EStateM.get
-  let last ← ofOption (.error "last element in RewriteResult not available") <| l.getLast?
-  EStateM.set <| l.dropLast.concat (f last)
+  let last ← ofOption (.error "last element in RewriteResult not available") <| l.1.getLast?
+  EStateM.set <| ⟨l.1.dropLast.concat (f last), l.2⟩
+
+def updFreshPrefix : RewriteResult Unit := do
+  let l ← EStateM.get
+  EStateM.set ⟨l.1, l.2+1⟩
 
 def EStateM.guard {ε σ} (e : ε) (b : Bool) : EStateM ε σ Unit :=
   if b then pure () else EStateM.throw e
@@ -173,12 +182,15 @@ then reconstructing the graph.
 In the process, all names are generated again so that they are guaranteed to be fresh.  This could be unnecessary,
 however, currently the low-level expression language does not remember any names.
 -/
-@[drunfold] def Rewrite.run' (fresh_prefix : String) (g : ExprHigh String) (rewrite : Rewrite String) (norm : Bool := true)
+@[drunfold] def Rewrite.run' (g : ExprHigh String) (rewrite : Rewrite String) (norm : Bool := true)
   : RewriteResult (ExprHigh String) := do
+
+  let current_state ← EStateM.get
+  let fresh_prefix := s!"rw_{current_state.fresh_prefix}"
 
   -- Pattern match on the graph and extract the first list of nodes that correspond to the first subgraph.
   let (sub, types) ← rewrite.pattern g
-  let def_rewrite ← ofOption (.error s!"types {repr types} are not correct for rewrite {fresh_prefix}") <| rewrite.rewrite types
+  let def_rewrite ← ofOption (.error s!"types {repr types} are not correct for rewrite") <| rewrite.rewrite types
 
   -- Extract the actual subgraph from the input graph using the list of nodes `sub`.
   let (g₁, g₂) ← ofOption (.error "could not extract graph") <| g.extract sub
@@ -251,6 +263,8 @@ however, currently the low-level expression language does not remember any names
     addedNodes (.some (toString renamedNodes ++ "\n\n" ++ toString addedNodes)) rewrite.name
   -- updRewriteInfo λ rw => {rw with debug := (.some (toString e_output_norm))}
   EStateM.guard (.error s!"found duplicate node") out.modules.keysList.Nodup
+
+  updFreshPrefix
   return out
 
 def generateRenaming (l : List (PortMapping String)) (e : ExprLow String) : Option (PortMapping String) :=
@@ -326,9 +340,12 @@ referenced in the new graph.
 These two functions do not have to have any additional proofs, because the proofs that are already present in the
 framework should be enough.
 -/
-@[drunfold] def Abstraction.run (fresh_prefix : String) (g : ExprHigh String)
+@[drunfold] def Abstraction.run (g : ExprHigh String)
   (abstraction : Abstraction String) (norm : Bool := false)
   : RewriteResult (ExprHigh String × Concretisation String) := do
+  let current_state ← EStateM.get
+  let fresh_prefix := s!"rw_{current_state.fresh_prefix}"
+
   -- Extract a list of modules that match the pattern.
   let (sub, _) ← abstraction.pattern g
   let sub := sub.pwFilter (· ≠ ·)
@@ -363,6 +380,7 @@ framework should be enough.
     portMap ← portmappingToNameRename' sub norm
   let highered ← abstracted |>.higherSS |> ofOption (.error "Could not normalise names 1")
 
+  updFreshPrefix
   return (highered, ⟨g₁_lcr, abstraction.typ⟩)
 
 /--
@@ -370,8 +388,11 @@ Can be used to concretise the abstract node again.  Currently it assumes that it
 checked explicitly).  In addition to that, it currently assumes that the internal signals of the concretisation are
 still fresh in the graph.
 -/
-@[drunfold] def Concretisation.run (fresh_prefix : String) (g : ExprHigh String)
+@[drunfold] def Concretisation.run (g : ExprHigh String)
   (concretisation : Concretisation String) (norm : Bool := false) (debug := false) : RewriteResult (ExprHigh String) := do
+  let current_state ← EStateM.get
+  let fresh_prefix := s!"rw_{current_state.fresh_prefix}"
+
   let g_lower ← ofOption (.error "could not lower graph") <| g.lower
 
   -- may need to uniquify the concretisation internal connections
@@ -392,34 +413,35 @@ still fresh in the graph.
     portMap ← portmappingToNameRename' [concretisation.typ] norm
   let concr_g ← concr.higherSS |> ofOption (.error "Could not normalise names 2")
 
+  updFreshPrefix
   return concr_g
 
-@[drunfold] def Rewrite.run (fresh_prefix : String) (g : ExprHigh String) (rewrite : Rewrite String)
+@[drunfold] def Rewrite.run (g : ExprHigh String) (rewrite : Rewrite String)
   : RewriteResult (ExprHigh String) := do
   let (g, c, _) ← rewrite.abstractions.foldlM (λ (g', c', n) a => do
-      let (g'', c'') ← a.run (norm := true) (fresh_prefix ++ s!"_A_{n}_") g'
+      let (g'', c'') ← a.run (norm := true) g'
       return (g'', c''::c', n+1)
     ) (g, [], 0)
-  let g ← rewrite.run' (fresh_prefix ++ s!"_R_") g
+  let g ← rewrite.run' g
   c.foldlM (λ (g, n) (c : Concretisation String) => do
-    let g' ← c.run (norm := true) (fresh_prefix ++ s!"_C_{n}_") g
+    let g' ← c.run (norm := true) g
     return (g', n+1)) (g, 0) |>.map Prod.fst
 
 def update_state {α} (f : AssocList String (Option String) → α → RewriteResult α) (a : α) : RewriteResult α := do
-  let st ← get >>= λ a => ofOption (.error s!"{decl_name%}: could not get last element") a.getLast?
+  let st ← get >>= λ a => ofOption (.error s!"{decl_name%}: could not get last element") a.1.getLast?
   f st.renamed_input_nodes a
 
 def rewrite_loop' {α} (f : AssocList String (Option String) → α → RewriteResult α) (a : α)
-    (orig_n : Nat) (pref : String) (g : ExprHigh String)
+    (orig_n : Nat) (g : ExprHigh String)
     : (rewrites : List (Rewrite String)) → Nat → RewriteResult (Option (ExprHigh String × α))
 | _, 0 | [], _ => return .none
 | r :: rs, fuel' + 1 =>
   try
-    let g' ← r.run (pref ++ "_f" ++ toString (orig_n - fuel') ++ "_l" ++ toString (List.length <| r :: rs) ++ "_") g
+    let g' ← r.run g
     let a' ← update_state f a
-    return (← rewrite_loop' f a' orig_n pref g' (r :: rs) fuel').getD (g', a')
+    return (← rewrite_loop' f a' orig_n g' (r :: rs) fuel').getD (g', a')
   catch
-  | .done => rewrite_loop' f a orig_n pref g rs orig_n
+  | .done => rewrite_loop' f a orig_n g rs orig_n
   | .error s => throw <| .error s
 
 /--
@@ -427,28 +449,28 @@ Loops over the [rewrite] function, applying one rewrite exhaustively until movin
 timeout for each single rewrite as well, so that infinite loops in a single rewrite means the next one can still be
 started.
 -/
-def rewrite_loop (g : ExprHigh String) (rewrites : List (Rewrite String)) (pref : String := "rw") (depth : Nat := 10000)
+def rewrite_loop (g : ExprHigh String) (rewrites : List (Rewrite String)) (depth : Nat := 10000)
     : RewriteResult (ExprHigh String) := do
-  return (← rewrite_loop' (λ _ _ => pure Unit.unit) Unit.unit depth pref g rewrites depth).map (·.fst) |>.getD g
+  return (← rewrite_loop' (λ _ _ => pure Unit.unit) Unit.unit depth g rewrites depth).map (·.fst) |>.getD g
 
-def rewrite_fix (g : ExprHigh String) (rewrites : List (Rewrite String)) (pref : String := "rw") (max_depth : Nat := 10000) (depth : Nat := 10000)
+def rewrite_fix (g : ExprHigh String) (rewrites : List (Rewrite String)) (max_depth : Nat := 10000) (depth : Nat := 10000)
     : RewriteResult (ExprHigh String) := do
   match depth with
   | 0 => throw <| .error s!"{decl_name%}: ran out of fuel"
   | depth+1 =>
-    match ← rewrite_loop' (λ _ _ => pure Unit.unit) Unit.unit max_depth s!"{pref}_{max_depth-depth}_" g rewrites max_depth with
-    | .some (g', _) => rewrite_fix g' rewrites pref max_depth depth
+    match ← rewrite_loop' (λ _ _ => pure Unit.unit) Unit.unit max_depth g rewrites max_depth with
+    | .some (g', _) => rewrite_fix g' rewrites max_depth depth
     | .none => return g
 
 def rewrite_fix_rename {α} (g : ExprHigh String) (rewrites : List (Rewrite String))
       (upd : AssocList String (Option String) → α → RewriteResult α) (a : α)
-      (pref : String := "rw") (max_depth : Nat := 10000) (depth : Nat := 10000)
+      (max_depth : Nat := 10000) (depth : Nat := 10000)
     : RewriteResult (ExprHigh String × α) := do
   match depth with
   | 0 => throw <| .error s!"{decl_name%}: ran out of fuel"
   | depth+1 =>
-    match ← rewrite_loop' upd a max_depth s!"{pref}_{max_depth-depth}_" g rewrites max_depth with
-    | .some (g', a') => rewrite_fix_rename g' rewrites upd a' pref max_depth depth
+    match ← rewrite_loop' upd a max_depth g rewrites max_depth with
+    | .some (g', a') => rewrite_fix_rename g' rewrites upd a' max_depth depth
     | .none => return (g, a)
 
 /--

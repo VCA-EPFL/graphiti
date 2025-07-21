@@ -144,10 +144,10 @@ theorem refines_higher_correct {Ident} [DecidableEq Ident] {f} {ε g} {e : ExprL
 --   reverse_rewrite' def_rewrite rinfo
 
 theorem Rewrite_run'_correct {b} {ε_global : Env String} {g g' : ExprHigh String} {e_g : ExprLow String}
-        {s _st _st'} {rw : CorrectRewrite ε_global} :
+        {_st _st'} {rw : CorrectRewrite ε_global} :
   g.lower = some e_g →
   e_g.well_formed ε_global →
-  Rewrite.run' s g (toRewrite rw) b _st = .ok g' _st' →
+  Rewrite.run' g (toRewrite rw) b _st = .ok g' _st' →
   ([Ge| g', ε_global ]) ⊑ ([Ge| g, ε_global ]) := by
 
   unfold Rewrite.run'; simp; intro hlower_some hwell_formed_global hrewrite
@@ -186,7 +186,7 @@ theorem Rewrite_run'_correct {b} {ε_global : Env String} {g g' : ExprHigh Strin
   cases hverylower
   subst_vars
   repeat cases ‹Unit›
-  rename List RewriteInfo => rewrite_info
+  rename RewriteState => rewrite_info
   rename g.extract _ = _ => Hextract
   rename ExprHigh.lower _ = _ => Hlower
   rename (toRewrite rw).rewrite _ = _ => Hrewrite
@@ -203,8 +203,7 @@ theorem Rewrite_run'_correct {b} {ε_global : Env String} {g g' : ExprHigh Strin
   rename ExprHigh String => outGraph
   dsimp [toRewrite] at Hrewrite
   cases Hrewrite
-  cases hrewrite
-  rename_i wo wi _ _ _ _ _ _ _ _ _ _
+  rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _
   have rw_output_wf : ExprLow.well_formed ε_global rw.rewrite.output_expr = true := by
     apply ExprLow.refines_subset_well_formed
     apply rw.consistent.2

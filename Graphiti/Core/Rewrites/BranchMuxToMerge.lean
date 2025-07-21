@@ -218,7 +218,7 @@ def lhs' : ExprHigh String := [graph|
 
 #guard_msgs (drop info) in
 #eval do
-  rewrite.run "rw0_" lhs' |>.run' default |>.get! |> IO.print
+  rewrite.run lhs' |>.run' default |>.get! |> IO.print
 
 end TEST
 
