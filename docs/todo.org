@@ -338,6 +338,11 @@ CLOSED: [2025-07-17 Thu 14:13]
 
 - https://www.moderndescartes.com/essays/research_code/
 
+** TODO Support split and join of tag in loop body
+:PROPERTIES:
+:ID:       9bbec56d-9867-44ea-a17d-f4d57fa9596b
+:END:
+
 * Non-main-project todos [0/4]
 
 ** TODO Connect directly to bluespec back-end

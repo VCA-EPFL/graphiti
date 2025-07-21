@@ -1,12 +1,12 @@
-- [Paper writing <code>[0/15]</code>](#org6460664)
-- [Framework development <code>[2/11]</code>](#org7379467)
-- [Preprocessing of dot-graph for Dynamatic <code>[0/3]</code>](#org68215e9)
-- [Post processing of dot-graph for Dynamatic <code>[0/2]</code>](#orgb7c32a9)
-- [Non-main-project todos <code>[0/4]</code>](#org7f191b0)
+- [Paper writing <code>[0/15]</code>](#org9099c63)
+- [Framework development <code>[2/13]</code>](#orgfddf0de)
+- [Preprocessing of dot-graph for Dynamatic <code>[0/3]</code>](#org496bd02)
+- [Post processing of dot-graph for Dynamatic <code>[0/2]</code>](#orgce0911e)
+- [Non-main-project todos <code>[0/4]</code>](#org3267d84)
 
 
 
-<a id="org6460664"></a>
+<a id="org9099c63"></a>
 
 # Paper writing <code>[0/15]</code>
 
@@ -45,9 +45,9 @@
 15. TODO Section 8: add related work on graph rewriting (with applications in SSA), as well as term rewriting for hardware
 
 
-<a id="org7379467"></a>
+<a id="orgfddf0de"></a>
 
-# Framework development <code>[2/11]</code>
+# Framework development <code>[2/13]</code>
 
 1.  TODO Prove LHS specification given termination     :loop_rewrite:
 
@@ -82,7 +82,7 @@
     
         1.  Dependencies
         
-            -   [Generate a new environment from the rewrite](#orgcc2a179)
+            -   [Generate a new environment from the rewrite](#orge5cdaeb)
 
 7.  SMDY Make rewriter run in Lean 4     :rewriter:
 
@@ -96,7 +96,7 @@
     
     1.  Dependencies
     
-        -   [Generate a new environment from the rewrite](#orgcc2a179)
+        -   [Generate a new environment from the rewrite](#orge5cdaeb)
 
 9.  DONE Minimise the number of nodes that are rewritten     :rewriter:
 
@@ -121,7 +121,7 @@
         
         1.  Dependencies
         
-            -   [Add option to rewrite without renaming](#org20f286e)
+            -   [Add option to rewrite without renaming](#org4910c89)
 
 11. TODO Support rewriting of loop bodies with `if` statements     :rewriter:
 
@@ -130,8 +130,14 @@
     -   This is needed for `gsum-single` and `gsum-many`.
     -   We need to recursively generate pures and then apply the branch-merge to pure conversion.
 
+12. TODO Improve the performance of rewriting by only checking for invertibility once     :rewriter:
 
-<a id="org68215e9"></a>
+13. SMDY Improve on the universe bounds in proofs
+
+    -   Currently many of the proofs limit universes within module inputs/outputs as well as the environment.
+
+
+<a id="org496bd02"></a>
 
 # Preprocessing of dot-graph for Dynamatic <code>[0/3]</code>
 
@@ -150,7 +156,7 @@
     -   I have found though that in all the cases for dot-graphs that you have sent me, the only thing I had to change is switch out2 which was feeding the init to out1. The rest of the fork tree then lined up. But having a more general solution would be useful too.
 
 
-<a id="orgb7c32a9"></a>
+<a id="orgce0911e"></a>
 
 # Post processing of dot-graph for Dynamatic <code>[0/2]</code>
 
@@ -164,8 +170,14 @@
 
     -   Either expand the tagger into the implementation of FPGA'24, or implement the tagger from scratch.
 
+3.  TODO Adhere to the research codebase manifesto
 
-<a id="org7f191b0"></a>
+    -   <https://www.moderndescartes.com/essays/research_code/>
+
+4.  TODO Support split and join of tag in loop body
+
+
+<a id="org3267d84"></a>
 
 # Non-main-project todos <code>[0/4]</code>
 
