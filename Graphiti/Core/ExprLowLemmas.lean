@@ -206,10 +206,12 @@ theorem well_formed_connect {e c}:
   · intro hwf; simp [well_formed] at hwf; assumption
   · intro hwf; simpa [well_formed]
 
+omit [DecidableEq Ident] in
 theorem wf_product {e₁ e₂}:
   wf ε (e₁.product e₂) ↔ (wf ε e₁ ∧ wf ε e₂) := by
   constructor <;> (intro hwf; simp [wf, ExprLow.all, Module.product] at hwf ⊢; simp [*])
 
+omit [DecidableEq Ident] in
 theorem wf_connect {e c}:
   wf ε (e.connect c) ↔ wf ε e := by
   constructor
