@@ -1,12 +1,12 @@
-- [Paper writing <code>[0/15]</code>](#org9099c63)
-- [Framework development <code>[2/13]</code>](#orgfddf0de)
-- [Preprocessing of dot-graph for Dynamatic <code>[0/3]</code>](#org496bd02)
-- [Post processing of dot-graph for Dynamatic <code>[0/2]</code>](#orgce0911e)
-- [Non-main-project todos <code>[0/4]</code>](#org3267d84)
+- [Paper writing <code>[0/15]</code>](#orgb9b2529)
+- [Framework development <code>[2/13]</code>](#org9902882)
+- [Preprocessing of dot-graph for Dynamatic <code>[0/3]</code>](#org519f7c8)
+- [Post processing of dot-graph for Dynamatic <code>[0/4]</code>](#org5252620)
+- [Non-main-project todos <code>[0/4]</code>](#org95c0e02)
 
 
 
-<a id="org9099c63"></a>
+<a id="orgb9b2529"></a>
 
 # Paper writing <code>[0/15]</code>
 
@@ -45,7 +45,7 @@
 15. TODO Section 8: add related work on graph rewriting (with applications in SSA), as well as term rewriting for hardware
 
 
-<a id="orgfddf0de"></a>
+<a id="org9902882"></a>
 
 # Framework development <code>[2/13]</code>
 
@@ -82,7 +82,7 @@
     
         1.  Dependencies
         
-            -   [Generate a new environment from the rewrite](#orge5cdaeb)
+            -   [Generate a new environment from the rewrite](#org8dd143b)
 
 7.  SMDY Make rewriter run in Lean 4     :rewriter:
 
@@ -96,7 +96,7 @@
     
     1.  Dependencies
     
-        -   [Generate a new environment from the rewrite](#orge5cdaeb)
+        -   [Generate a new environment from the rewrite](#org8dd143b)
 
 9.  DONE Minimise the number of nodes that are rewritten     :rewriter:
 
@@ -121,7 +121,7 @@
         
         1.  Dependencies
         
-            -   [Add option to rewrite without renaming](#org4910c89)
+            -   [Add option to rewrite without renaming](#orgd54012a)
 
 11. TODO Support rewriting of loop bodies with `if` statements     :rewriter:
 
@@ -137,11 +137,11 @@
     -   Currently many of the proofs limit universes within module inputs/outputs as well as the environment.
 
 
-<a id="org496bd02"></a>
+<a id="org519f7c8"></a>
 
 # Preprocessing of dot-graph for Dynamatic <code>[0/3]</code>
 
--   **Effort:** 1d day(s)
+-   **Effort:** 2d day(s)
 
 1.  TODO Split up read-only memory controllers intro their own banks
 
@@ -156,11 +156,11 @@
     -   I have found though that in all the cases for dot-graphs that you have sent me, the only thing I had to change is switch out2 which was feeding the init to out1. The rest of the fork tree then lined up. But having a more general solution would be useful too.
 
 
-<a id="orgce0911e"></a>
+<a id="org5252620"></a>
 
-# Post processing of dot-graph for Dynamatic <code>[0/2]</code>
+# Post processing of dot-graph for Dynamatic <code>[0/4]</code>
 
--   **Effort:** 2d day(s)
+-   **Effort:** 4d day(s)
 
 1.  TODO Merge memories again
 
@@ -177,7 +177,7 @@
 4.  TODO Support split and join of tag in loop body
 
 
-<a id="org3267d84"></a>
+<a id="org95c0e02"></a>
 
 # Non-main-project todos <code>[0/4]</code>
 

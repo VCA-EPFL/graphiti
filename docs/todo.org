@@ -280,7 +280,7 @@ CLOSED: [2025-07-17 Thu 14:13]
 * Preprocessing of dot-graph for Dynamatic [0/3]
 :PROPERTIES:
 :ID:       8a81fbfa-03b9-4658-8d3b-3979df2be4b4
-:EFFORT:   1d
+:EFFORT:   2d
 :END:
 
 {{{effort}}}
@@ -308,10 +308,10 @@ CLOSED: [2025-07-17 Thu 14:13]
   switch out2 which was feeding the init to out1. The rest of the fork tree then lined up. But having a more general
   solution would be useful too.
 
-* Post processing of dot-graph for Dynamatic [0/2]
+* Post processing of dot-graph for Dynamatic [0/4]
 :PROPERTIES:
 :ID:       18ee918c-b9fe-4c97-a61e-d087a03b50e4
-:EFFORT:   2d
+:EFFORT:   4d
 :END:
 
 {{{effort}}}
