@@ -8,7 +8,7 @@
 
 <a id="orgacd8a6e"></a>
 
-# Paper writing <code>[0/15]</code>
+# Paper writing <code>[0/16]</code>
 
 1.  TODO Section 1: introduction
 
@@ -16,7 +16,7 @@
     
     2.  TODO Add more references
 
-2.  TODO Section 2: reread the motivation section
+2.  TODO Section 2: reread the motivation section. We may need to rethink the example but this should be the lowest in priority
 
 3.  TODO Section 3: add signposting and address comments
 
@@ -34,15 +34,17 @@
 
 10. TODO Section 6: describe the use of ghost state
 
-11. TODO Section 7: ensure text described experiments performed
+11. TODO Section 7: ensure text described experiments performed. Precisely, explain that we did a different timing model
 
-12. TODO Section 7: describe the implementation of the tagger used
+12. TODO Section 7: add a table and in-text explanation to give a sense of the runtime of the framework
 
-13. TODO Section 8: describe Lean MLIR in related work
+13. TODO Section 7: describe the implementation of the tagger used
 
-14. TODO Section 8: describe Cigr/Cilan more accurately
+14. TODO Section 8: describe Lean MLIR in related work
 
-15. TODO Section 8: add related work on graph rewriting (with applications in SSA), as well as term rewriting for hardware
+15. TODO Section 8: describe Cigr/Cilan more accurately
+
+16. TODO Section 8: add related work on graph rewriting (with applications in SSA), as well as term rewriting for hardware
 
 
 <a id="orgead67e9"></a>
@@ -162,7 +164,7 @@
 
 <a id="orgb8504cd"></a>
 
-# Post processing of dot-graph for Dynamatic <code>[0/4]</code>
+# Post processing of dot-graph for Dynamatic <code>[0/6]</code>
 
 -   **Effort:** 4d day(s)
 
@@ -178,7 +180,11 @@
 
     This may require implement new nodes for splitting and combining tags.
 
-4.  TODO Rerun experiments with dot graphs directly produced by the framework
+4.  TODO Identify the BBs of the newly added nodes, which is necessary for buffering.
+
+5.  TODO Add the delays of each of the new components. They differ with the bitwidths, so for now will map bitwidths to delays and in the future we can bound them in a function.
+
+6.  TODO Rerun experiments with dot graphs directly produced by the framework
 
 
 <a id="orgf476dd9"></a>
