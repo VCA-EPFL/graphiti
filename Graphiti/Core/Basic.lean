@@ -49,6 +49,12 @@ attribute [drlogic]
   forall_const
   not_false_iff not_true
 
+instance {α} [Inhabited α] : Alternative (Except α) where
+  failure := .error default
+  orElse a f := match a with
+                | .ok x => .ok x
+                | _ => f ()
+
 section SimpProc
 
 open Lean Meta Simp
@@ -267,6 +273,9 @@ def inverse (p : PortMapping Ident) :=
   {p with input := p.input.inverse, output := p.output.inverse}
 
 variable [DecidableEq Ident]
+
+def squash (a b : PortMapping Ident) :=
+  PortMapping.mk (a.input.squash b.input) (a.output.squash b.output)
 
 def filterId (p : PortMapping Ident) : PortMapping Ident :=
   ⟨p.input.filterId, p.output.filterId⟩

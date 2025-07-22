@@ -251,7 +251,7 @@ def reverse_rewrite_with_index (rinfo : RewriteInfo) : RewriteResult (Rewrite St
 
 def reverseRewrites (parsed : CmdArgs) (g : ExprHigh String) (st : RewriteState)
     : IO (ExprHigh String × RewriteState) := do
-  let st_worklist := st.1.reverse.tail.take 158
+  let st_worklist := st.1.reverse.tail.filter (fun rinfo => rinfo.type != .debug) |>.take 158
 
   let (g, st) ← runRewriter' parsed st <| st_worklist.foldlM (λ g rinfo => do
       let rewrite ← reverse_rewrite_with_index rinfo
@@ -259,6 +259,10 @@ def reverseRewrites (parsed : CmdArgs) (g : ExprHigh String) (st : RewriteState)
     ) g
 
   return (g, st)
+
+def reverseNameMapping (e : ExprHigh String) (map : AssocList String String) :=
+  let newModules := e.modules.mapKey (λ k => map.find? k |>.getD k)
+  {e with modules := newModules}.normaliseNames
 
 def main (args : List String) : IO Unit := do
   let parsed ←
@@ -275,7 +279,7 @@ def main (args : List String) : IO Unit := do
     IO.Process.exit 0
 
   let fileContents ← IO.FS.readFile parsed.inputFile.get!
-  let (exprHigh, assoc) ← IO.ofExcept fileContents.toExprHigh
+  let (exprHigh, assoc, name_mapping) ← IO.ofExcept fileContents.toExprHigh
 
   let mut rewrittenExprHigh := exprHigh
   let mut st : RewriteState := default
@@ -285,8 +289,14 @@ def main (args : List String) : IO Unit := do
     let (g', st') ← if parsed.reverse then reverseRewrites parsed g' st' else pure (g', st')
     rewrittenExprHigh := g'; st := st'
   -- IO.println (repr (rewrittenExprHigh.modules.toList.map Prod.fst))
+
+  let .some g' := reverseNameMapping rewrittenExprHigh name_mapping
+    | throw <| .userError s!"{decl_name%}: failed to undo name_mapping"
+  rewrittenExprHigh := g'
+
   let some l :=
     if parsed.noDynamaticDot then pure (toString rewrittenExprHigh)
+--    else dynamaticString rewrittenExprHigh (renameAssocAll assoc st.1 rewrittenExprHigh)
     else dynamaticString rewrittenExprHigh (renameAssocAll assoc st.1 rewrittenExprHigh)
     | IO.eprintln s!"Failed to print ExprHigh: {rewrittenExprHigh}"
   -- IO.print (repr rewrittenExprHigh)

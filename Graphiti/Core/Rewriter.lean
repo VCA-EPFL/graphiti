@@ -26,7 +26,9 @@ inductive RewriteType where
 | rewrite
 | abstraction
 | concretisation
-deriving Repr, Inhabited
+| debug
+| marker (s : String)
+deriving Repr, Inhabited, DecidableEq
 
 structure RewriteInfo where
   type : RewriteType
@@ -213,11 +215,11 @@ however, currently the low-level expression language does not remember any names
   -- addRewriteInfo <| RewriteInfo.mk RewriteType.rewrite g default sub default default (.some s!"{repr sub}") rewrite.name
   let (ext_mapping, int_mapping) ← liftError <| def_rewrite.input_expr.weak_beq e_sub
 
-  let comb_mapping := ext_mapping.append int_mapping
+  let comb_mapping := ext_mapping.append int_mapping |>.filterId
   -- EStateM.guard (.error "input mapping not invertible") <| comb_mapping.input.invertible
   -- EStateM.guard (.error "output mapping not invertible") <| comb_mapping.output.invertible
 
-  updRewriteInfo λ rw => {rw with debug := (.some (toString comb_mapping))}
+  updRewriteInfo λ rw => {rw with debug := (.some (toString ext_mapping))}
 
   -- We rewrite the output expression external ports to match the external ports of the internal expression it is
   -- replacing.  In addition to that, we also rename the internal ports of the input_expr so that they match the
@@ -229,14 +231,12 @@ however, currently the low-level expression language does not remember any names
   -- `norm` is a function that canonicalises the connections of the input expression given a list of connections as the
   -- ordering guide.
   -- We use def_rewrite, because we only want to normalise fresh internal names that are introduced.
-  -- TODO: add ensureIO check for proof.
-  let e_output_norm := def_rewrite.output_expr.normalisedNamesMap fresh_prefix
-  EStateM.guard (.error "normalisation modifies IO") <| e_sub_output'.ensureIOUnmodified e_output_norm
+  let e_output_norm := if norm then def_rewrite.output_expr.normalisedNamesMap fresh_prefix |>.filterId else ∅
 
   updRewriteInfo λ rw => {rw with debug := (.some (toString e_output_norm))}
+  EStateM.guard (.error "normalisation modifies IO") <| e_sub_output'.ensureIOUnmodified e_output_norm
 
-  let e_sub_output ← ofOption (.error "could not rename output")
-    <| if norm then e_sub_output'.renamePorts e_output_norm else pure e_sub_output'
+  let e_sub_output ← ofOption (.error "could not rename output") <| e_sub_output'.renamePorts e_output_norm
 
   -- We are now left with `e_sub_output` which contains an expression where the external ports are renamed, and the
   -- internal ports have not been renamed from the original graph.  `e_sub_input` where all signals have been renamed so
@@ -255,7 +255,9 @@ however, currently the low-level expression language does not remember any names
   let renamedNodes := rewrite.transformedNodes.map (·.map (renamePortMapping · comb_mapping))
     |>.map (·.map (renamePortMapping · e_output_norm))
     |>.map (·.map PortMapping.hashPortMapping)
-  let addedNodes := rewrite.addedNodes.map (renamePortMapping · comb_mapping) |>.map (renamePortMapping · e_output_norm) |>.map PortMapping.hashPortMapping
+  let addedNodes := rewrite.addedNodes.map (renamePortMapping · comb_mapping)
+    |>.map (renamePortMapping · e_output_norm)
+    |>.map PortMapping.hashPortMapping
 
   -- Using comb_mapping to find the portMap does not work because with rewrites where there is a single module, the name
   -- won't even appear in the rewrite.
@@ -273,8 +275,6 @@ def generateRenaming (l : List (PortMapping String)) (e : ExprLow String) : Opti
   |>.map PortMapping.combinePortMapping
 
 def reverse_rewrite' (def_rewrite : DefiniteRewrite String) (rinfo : RewriteInfo) : RewriteResult (Rewrite String) := do
-
-  addRewriteInfo <| RewriteInfo.mk RewriteType.rewrite default default default default .nil .none s!"rev-{rinfo.name.getD "unknown"}"
 
   -- First we get the list of PortMappings associated with the lhs in their original (unrenamed) form.
   let lhsNodes ← ofOption (.error "reverse_rewrite: nodes not found")
@@ -308,14 +308,14 @@ def reverse_rewrite' (def_rewrite : DefiniteRewrite String) (rinfo : RewriteInfo
 
   -- We generate a single renaming for correctness sake, i.e. renaming both expressions with the same renaming is
   -- correct regardless of the renaming.
-  let full_renaming := rhs_renaming ++ lhs_renaming
+  let full_renaming := rhs_renaming.squash lhs_renaming
 
   -- We rename the rhs and lhs expressions into the specialised forms that match the graph directly.  This allows
   -- us to apply the rewrites without renaming, allowing us to chain backwards rewrites.
   let lhs_renamed ← ofOption (.error "could not rename") <| def_rewrite.input_expr.renamePorts full_renaming
   let rhs_renamed ← ofOption (.error "could not rename") <| def_rewrite.output_expr.renamePorts full_renaming
 
-  rmRewriteInfo
+  addRewriteInfo <| RewriteInfo.mk RewriteType.debug default default default default .nil (.some <| s!"{repr lhs_renamed}\n\n{repr rhs_renamed}\n\n{repr full_renaming}\n\n{repr rhs_renaming}\n\n{repr lhs_renaming}") s!"rev-{rinfo.name.getD "unknown"}"
 
   return ({ pattern := λ _ => return (rhsNodes', []),
             rewrite := λ _ => some ⟨rhs_renamed, lhs_renamed⟩,

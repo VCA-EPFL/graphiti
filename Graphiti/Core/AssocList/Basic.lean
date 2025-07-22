@@ -112,4 +112,8 @@ def bijectivePortRenaming {α} [DecidableEq α] (p : AssocList α α) (i: α) : 
   | nil        => nil
   | cons k v t => cons (f k v) v (mapKey' f t)
 
+def squash {α β} [DecidableEq α] (a : AssocList α β) : AssocList α β → AssocList α β
+| nil => a
+| cons k v t => if a.contains k then squash a t else cons k v (squash a t)
+
 end Batteries.AssocList

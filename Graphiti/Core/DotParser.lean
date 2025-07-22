@@ -360,6 +360,9 @@ def dotToExprHigh (d : Parser.DotGraph) : Except String (ExprHigh String × Asso
 end Graphiti
 
 open Graphiti in
-def String.toExprHigh (s : String) : Except String (ExprHigh String × AssocList String (AssocList String String)) := do
+def String.toExprHigh (s : String) : Except String (ExprHigh String × AssocList String (AssocList String String) × AssocList String String) := do
   let l ← Parser.dotGraph.run s
-  dotToExprHigh l
+  let (e, attr) ← dotToExprHigh l
+  let hashed_names_e := {e with modules := e.modules.mapKey' λ x y => y.1.hashPortMapping}
+  let name_mapping := ((hashed_names_e.modules.toList.map Prod.fst).zip (e.modules.toList.map Prod.fst)).toAssocList
+  return (hashed_names_e, attr, name_mapping)
