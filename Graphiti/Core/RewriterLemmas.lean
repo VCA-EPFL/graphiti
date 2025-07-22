@@ -203,7 +203,7 @@ theorem Rewrite_run'_correct {b} {ε_global : Env String} {g g' : ExprHigh Strin
   rename ExprHigh String => outGraph
   dsimp [toRewrite] at Hrewrite
   cases Hrewrite
-  rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _
+  rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
   have rw_output_wf : ExprLow.well_formed ε_global rw.rewrite.output_expr = true := by
     apply ExprLow.refines_subset_well_formed
     apply rw.consistent.2
@@ -215,9 +215,7 @@ theorem Rewrite_run'_correct {b} {ε_global : Env String} {g g' : ExprHigh Strin
   have wo_wf : ExprLow.well_formed ε_global wo = true := by
     solve_by_elim [ExprLow.refines_renamePorts_well_formed]
   have lowered_wf : ExprLow.well_formed ε_global lowered = true := by
-    with_reducible split at ‹ite _ _ _ = _›
-    · solve_by_elim [ExprLow.refines_renamePorts_well_formed]
-    · cases ‹some _ = some _›; assumption
+    solve_by_elim [ExprLow.refines_renamePorts_well_formed]
   apply Module.refines_transitive
   dsimp [ExprHigh.build_module_expr, ExprHigh.build_module, ExprHigh.build_module']
   apply refines_higher_correct; assumption
@@ -235,38 +233,23 @@ theorem Rewrite_run'_correct {b} {ε_global : Env String} {g g' : ExprHigh Strin
     assumption
   · apply ExprLow.well_formed_implies_wf; assumption
   apply Module.refines_transitive (imod' := ([e| wi, ε_global ]))
-  · with_reducible split at ‹ite _ _ _ = _›
-    · apply Module.refines_transitive
-      apply ExprLow.refines_renamePorts_2'; rotate_left 1; assumption; rotate_right 1
-      · assumption
-      rw [ExprLow.ensureIOUnmodified_correct] <;> try assumption
-      apply Module.refines_transitive
-      apply ExprLow.refines_renamePorts_2'; rotate_left 1; assumption; rotate_right 1
-      · assumption
-      apply Module.refines_transitive
-      apply Module.refines_renamePorts
-      apply ExprLow.refines_subset
-      apply rw.consistent.2
-      apply rw.consistent.1
-      apply rw.wf.2
-      apply rw.wf.1
-      solve_by_elim [rw.refines]
-      apply ExprLow.refines_renamePorts_1'; rotate_left 1; assumption; rotate_right 1
-      · assumption
-    · cases ‹some _ = some _›
-      apply Module.refines_transitive
-      apply ExprLow.refines_renamePorts_2'; rotate_left 1; assumption; rotate_right 1
-      · assumption
-      apply Module.refines_transitive
-      apply Module.refines_renamePorts
-      apply ExprLow.refines_subset
-      apply rw.consistent.2
-      apply rw.consistent.1
-      apply rw.wf.2
-      apply rw.wf.1
-      solve_by_elim [rw.refines]
-      apply ExprLow.refines_renamePorts_1'; rotate_left 1; assumption; rotate_right 1
-      · assumption
+  · apply Module.refines_transitive
+    apply ExprLow.refines_renamePorts_2'; rotate_left 1; assumption; rotate_right 1
+    · assumption
+    rw [ExprLow.ensureIOUnmodified_correct] <;> try assumption
+    apply Module.refines_transitive
+    apply ExprLow.refines_renamePorts_2'; rotate_left 1; assumption; rotate_right 1
+    · assumption
+    apply Module.refines_transitive
+    apply Module.refines_renamePorts
+    apply ExprLow.refines_subset
+    apply rw.consistent.2
+    apply rw.consistent.1
+    apply rw.wf.2
+    apply rw.wf.1
+    solve_by_elim [rw.refines]
+    apply ExprLow.refines_renamePorts_1'; rotate_left 1; assumption; rotate_right 1
+    · assumption
   apply ExprLow.refines_comm_connections2'
   · apply ExprLow.refines_renamePorts_well_formed
     · assumption
