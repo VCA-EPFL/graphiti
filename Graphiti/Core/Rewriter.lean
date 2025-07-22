@@ -22,7 +22,7 @@ instance : ToString RewriteError where
   | .error s => s!"error: {s}"
   | .done => s!"done"
 
-inductive RewriteType where
+inductive EntryType where
 | rewrite
 | abstraction
 | concretisation
@@ -30,8 +30,8 @@ inductive RewriteType where
 | marker (s : String)
 deriving Repr, Inhabited, DecidableEq
 
-structure RewriteInfo where
-  type : RewriteType
+structure RuntimeEntry where
+  type : EntryType
   input_graph : ExprHigh String
   output_graph : ExprHigh String
   matched_subgraph : List String
@@ -41,7 +41,7 @@ structure RewriteInfo where
   name : Option String := .none
   deriving Repr, Inhabited
 
-instance : Lean.ToJson RewriteInfo where
+instance : Lean.ToJson RuntimeEntry where
   toJson r :=
     Lean.Json.mkObj
       [ ("type", Lean.Format.pretty <| repr r.type)
@@ -54,8 +54,10 @@ instance : Lean.ToJson RewriteInfo where
       , ("debug", Lean.toJson r.debug)
       ]
 
+@[simp] abbrev RuntimeTrace := List RuntimeEntry
+
 structure RewriteState where
-  runtime_trace : List RewriteInfo
+  runtime_trace : RuntimeTrace
   fresh_prefix : Nat
 deriving Repr, Inhabited
 
@@ -145,15 +147,15 @@ def portmappingToNameRename' (sub : List String) (p : PortMapping String) : Rewr
        | a, _, _ => pure a
        ) inps
 
-def addRewriteInfo (rinfo : RewriteInfo) : RewriteResult Unit := do
+def addRuntimeEntry (rinfo : RuntimeEntry) : RewriteResult Unit := do
   let l ← EStateM.get
   EStateM.set <| ⟨l.1.concat rinfo, l.2⟩
 
-def rmRewriteInfo : RewriteResult Unit := do
+def rmRuntimeEntry : RewriteResult Unit := do
   let l ← EStateM.get
   EStateM.set <| ⟨l.1.dropLast, l.2⟩
 
-def updRewriteInfo (f : RewriteInfo → RewriteInfo) : RewriteResult Unit := do
+def updRuntimeEntry (f : RuntimeEntry → RuntimeEntry) : RewriteResult Unit := do
   let l ← EStateM.get
   let last ← ofOption (.error "last element in RewriteResult not available") <| l.1.getLast?
   EStateM.set <| ⟨l.1.dropLast.concat (f last), l.2⟩
@@ -207,19 +209,19 @@ however, currently the low-level expression language does not remember any names
   let sub' ← ofOption (.error "could not extract base information") <| sub.mapM (λ a => g.modules.find? a)
   let g_lower := canon <| ExprLow.comm_bases sub'.reverse g_lower
 
-  addRewriteInfo <| RewriteInfo.mk RewriteType.rewrite g default sub default .nil .none rewrite.name
-  updRewriteInfo λ rw => {rw with debug := (.some <| (toString <| repr e_sub) ++ "\n\n" ++ ((toString <| repr def_rewrite.input_expr)))}
+  addRuntimeEntry <| RuntimeEntry.mk EntryType.rewrite g default sub default .nil .none rewrite.name
+  updRuntimeEntry λ rw => {rw with debug := (.some <| (toString <| repr e_sub) ++ "\n\n" ++ ((toString <| repr def_rewrite.input_expr)))}
 
   -- beq is an α-equivalence check that returns a mapping to rename one expression into the other.  This mapping is
   -- split into the external mapping and internal mapping.
-  -- addRewriteInfo <| RewriteInfo.mk RewriteType.rewrite g default sub default default (.some s!"{repr sub}") rewrite.name
+  -- addRuntimeEntry <| RuntimeEntry.mk EntryType.rewrite g default sub default default (.some s!"{repr sub}") rewrite.name
   let (ext_mapping, int_mapping) ← liftError <| def_rewrite.input_expr.weak_beq e_sub
 
   let comb_mapping := ext_mapping.append int_mapping |>.filterId
   -- EStateM.guard (.error "input mapping not invertible") <| comb_mapping.input.invertible
   -- EStateM.guard (.error "output mapping not invertible") <| comb_mapping.output.invertible
 
-  updRewriteInfo λ rw => {rw with debug := (.some (toString ext_mapping))}
+  updRuntimeEntry λ rw => {rw with debug := (.some (toString ext_mapping))}
 
   -- We rewrite the output expression external ports to match the external ports of the internal expression it is
   -- replacing.  In addition to that, we also rename the internal ports of the input_expr so that they match the
@@ -233,7 +235,7 @@ however, currently the low-level expression language does not remember any names
   -- We use def_rewrite, because we only want to normalise fresh internal names that are introduced.
   let e_output_norm := if norm then def_rewrite.output_expr.normalisedNamesMap fresh_prefix |>.filterId else ∅
 
-  updRewriteInfo λ rw => {rw with debug := (.some (toString e_output_norm))}
+  updRuntimeEntry λ rw => {rw with debug := (.some (toString e_output_norm))}
   EStateM.guard (.error "normalisation modifies IO") <| e_sub_output'.ensureIOUnmodified e_output_norm
 
   let e_sub_output ← ofOption (.error "could not rename output") <| e_sub_output'.renamePorts e_output_norm
@@ -261,9 +263,9 @@ however, currently the low-level expression language does not remember any names
 
   -- Using comb_mapping to find the portMap does not work because with rewrites where there is a single module, the name
   -- won't even appear in the rewrite.
-  updRewriteInfo <| λ _ => RewriteInfo.mk RewriteType.rewrite g out sub (sub.zip renamedNodes).toAssocList
+  updRuntimeEntry <| λ _ => RuntimeEntry.mk EntryType.rewrite g out sub (sub.zip renamedNodes).toAssocList
     addedNodes (.some (toString renamedNodes ++ "\n\n" ++ toString addedNodes)) rewrite.name
-  -- updRewriteInfo λ rw => {rw with debug := (.some (toString e_output_norm))}
+  -- updRuntimeEntry λ rw => {rw with debug := (.some (toString e_output_norm))}
   EStateM.guard (.error s!"found duplicate node") out.modules.keysList.Nodup
 
   updFreshPrefix
@@ -274,13 +276,13 @@ def generateRenaming (l : List (PortMapping String)) (e : ExprLow String) : Opti
   |>.mapM (Function.uncurry PortMapping.generateRenamingPortMapping)
   |>.map PortMapping.combinePortMapping
 
-def reverse_rewrite' (def_rewrite : DefiniteRewrite String) (rinfo : RewriteInfo) : RewriteResult (Rewrite String) := do
+def reverse_rewrite' (def_rewrite : DefiniteRewrite String) (rinfo : RuntimeEntry) : RewriteResult (Rewrite String) := do
 
   -- First we get the list of PortMappings associated with the lhs in their original (unrenamed) form.
   let lhsNodes ← ofOption (.error "reverse_rewrite: nodes not found")
     <| rinfo.matched_subgraph.mapM (λ x => rinfo.input_graph.modules.find? x |>.map Prod.fst)
 
-  -- addRewriteInfo <| RewriteInfo.mk RewriteType.rewrite default default default default .nil (.some <| s!"{repr }") rw.name
+  -- addRuntimeEntry <| RuntimeEntry.mk EntryType.rewrite default default default default .nil (.some <| s!"{repr }") rw.name
 
   -- Next we get the list of PortMappings for the rhs in their original form.  We split these up in multiple
   -- definitions so we can refer to different node groupings later on.  We first get the rhs nodes that were
@@ -315,7 +317,7 @@ def reverse_rewrite' (def_rewrite : DefiniteRewrite String) (rinfo : RewriteInfo
   let lhs_renamed ← ofOption (.error "could not rename") <| def_rewrite.input_expr.renamePorts full_renaming
   let rhs_renamed ← ofOption (.error "could not rename") <| def_rewrite.output_expr.renamePorts full_renaming
 
-  addRewriteInfo <| RewriteInfo.mk RewriteType.debug default default default default .nil (.some <| s!"{repr lhs_renamed}\n\n{repr rhs_renamed}\n\n{repr full_renaming}\n\n{repr rhs_renaming}\n\n{repr lhs_renaming}") s!"rev-{rinfo.name.getD "unknown"}"
+  addRuntimeEntry <| RuntimeEntry.mk EntryType.debug default default default default .nil (.some <| s!"{repr lhs_renamed}\n\n{repr rhs_renamed}\n\n{repr full_renaming}\n\n{repr rhs_renaming}\n\n{repr lhs_renaming}") s!"rev-{rinfo.name.getD "unknown"}"
 
   return ({ pattern := λ _ => return (rhsNodes', []),
             rewrite := λ _ => some ⟨rhs_renamed, lhs_renamed⟩,
@@ -326,9 +328,9 @@ def reverse_rewrite' (def_rewrite : DefiniteRewrite String) (rinfo : RewriteInfo
           })
 
 /--
-Generate a reverse rewrite from a rewrite and the RewriteInfo associated with the execution.
+Generate a reverse rewrite from a rewrite and the RuntimeEntry associated with the execution.
 -/
-def reverse_rewrite (rw : Rewrite String) (rinfo : RewriteInfo) : RewriteResult (Rewrite String) := do
+def reverse_rewrite (rw : Rewrite String) (rinfo : RuntimeEntry) : RewriteResult (Rewrite String) := do
   let (_nodes, l) ← rw.pattern rinfo.input_graph
   let def_rewrite ← ofOption (.error "could not generate rewrite") <| rw.rewrite l
   reverse_rewrite' def_rewrite rinfo

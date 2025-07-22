@@ -121,7 +121,7 @@ def pureGenerator' (n : Nat) (g : ExprHigh String) : List JSLangRewrite → Nat 
   let rw ← rewrite_fix rw ([PureSeqComp.rewrite] ++ movePureJoin ++ reduceSink)
   return rw
 | jsRw :: rst, fuel+1 => do
-  -- addRewriteInfo {(default : RewriteInfo) with debug := .some s!"{repr jsRw}"}
+  -- addRuntimeEntry {(default : RuntimeEntry) with debug := .some s!"{repr jsRw}"}
   let rw ← jsRw.mapToRewrite.run g
   let rst ← update_state JSLang.upd rst
 
@@ -148,14 +148,14 @@ def eggPureGenerator (fuel : Nat) (parsed : CmdArgs) (p : Pattern String) (g : E
       IO.eprintln e
       IO.Process.exit 1
 
-def renameAssoc (g : ExprHigh String) (assoc : AssocList String (AssocList String String)) (r : RewriteInfo) : AssocList String (AssocList String String) :=
+def renameAssoc (g : ExprHigh String) (assoc : AssocList String (AssocList String String)) (r : RuntimeEntry) : AssocList String (AssocList String String) :=
   assoc.mapKey (λ x =>
     if x ∈ g.modules.toList.map Prod.fst then x else
     match r.renamed_input_nodes.find? x with
     | .some (.some x') => x'
     | _ => x)
 
-def renameAssocAll assoc (rlist : List RewriteInfo) (g : ExprHigh String) := rlist.foldl (renameAssoc g) assoc
+def renameAssocAll assoc (rlist : List RuntimeEntry) (g : ExprHigh String) := rlist.foldl (renameAssoc g) assoc
 
 def writeLogFile (parsed : CmdArgs) (st : RewriteState) := do
   match parsed.logFile with
@@ -215,7 +215,7 @@ def rewriteGraphAbs (parsed : CmdArgs) (g : ExprHigh String) (st : RewriteState)
 
   return (g, st_final, st)
 
-def reverse_rewrite_with_index (rinfo : RewriteInfo) : RewriteResult (Rewrite String) := do
+def reverse_rewrite_with_index (rinfo : RuntimeEntry) : RewriteResult (Rewrite String) := do
   let rw ← ofOption (.error s!"{decl_name%}: rewrite generation failed") <| do
     let name ← rinfo.name
     match name with
@@ -249,6 +249,9 @@ def reverse_rewrite_with_index (rinfo : RewriteInfo) : RewriteResult (Rewrite St
     | _ => rewrite_index.find? name
   reverse_rewrite rw rinfo
 
+/--
+The reverseRewrites function will look through the runitme
+-/
 def reverseRewrites (parsed : CmdArgs) (g : ExprHigh String) (st : RewriteState)
     : IO (ExprHigh String × RewriteState) := do
   let st_worklist := st.1.reverse.tail.filter (fun rinfo => rinfo.type != .debug) |>.take 158
