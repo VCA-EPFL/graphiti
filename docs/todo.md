@@ -145,30 +145,32 @@
 
 <a id="org676f0bc"></a>
 
-# Preprocessing of dot-graph for Dynamatic <code>[0/3]</code>
+# Preprocessing of dot-graph for Dynamatic <code>[3/3]</code>
 
 -   **Effort:** 2d day(s)
 
-1.  TODO Split up read-only memory controllers intro their own banks
+1.  DONE Split up read-only memory controllers intro their own banks
 
     -   Attached to a single load.
 
-2.  TODO Transform `Merge` into `init Bool false`
+2.  DONE Transform `Merge` into `init Bool false`
 
     -   Remove the unnecessary additional input, and rewire the conditional input from in2 to in1.
+    -   Took care of it inside Dynamatic.
 
-3.  TODO Rewire the fork trees
+3.  DONE Rewire the fork trees
 
     -   I have found though that in all the cases for dot-graphs that you have sent me, the only thing I had to change is switch out2 which was feeding the init to out1. The rest of the fork tree then lined up. But having a more general solution would be useful too.
+    -   Took care of it inside Dynamatic.
 
 
 <a id="orgb8504cd"></a>
 
-# Post processing of dot-graph for Dynamatic <code>[0/6]</code>
+# Post processing of dot-graph for Dynamatic <code>[1/6]</code>
 
 -   **Effort:** 4d day(s)
 
-1.  TODO Merge memories again
+1.  DONE Merge memories again
 
     -   Ideally, we wouldn't need to do this, but I guess that this is because don't know how to synthesise the right arguments for the memory controllers.
 
@@ -184,7 +186,7 @@
 
 5.  TODO Add the delays of each of the new components. They differ with the bitwidths, so for now will map bitwidths to delays and in the future we can bound them in a function.
 
-6.  TODO Rerun experiments with dot graphs directly produced by the framework
+6.  TODO Rerun experiments with dot graphs directly produced by the framework.
 
 
 <a id="orgf476dd9"></a>
