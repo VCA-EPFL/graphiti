@@ -292,6 +292,10 @@ def normaliseNames (e : ExprHigh String) : Option (ExprHigh String) :=
       |> PortMapping.combinePortMapping
   e.renamePorts (λ x => PortMapping.getInstanceName x |>.getD default) renameMap
 
+def renameModules (e : ExprHigh String) (map : Batteries.AssocList String String) :=
+  let newModules := e.modules.mapKey (λ k => map.find? k |>.getD k)
+  {e with modules := newModules}.normaliseNames
+
 instance : ToString (ExprHigh String) where
   toString a :=
     -- let instances :=

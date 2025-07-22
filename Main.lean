@@ -260,10 +260,6 @@ def reverseRewrites (parsed : CmdArgs) (g : ExprHigh String) (st : RewriteState)
 
   return (g, st)
 
-def reverseNameMapping (e : ExprHigh String) (map : AssocList String String) :=
-  let newModules := e.modules.mapKey (λ k => map.find? k |>.getD k)
-  {e with modules := newModules}.normaliseNames
-
 def main (args : List String) : IO Unit := do
   let parsed ←
     try IO.ofExcept <| parseArgs <| args.flatMap preprocess
@@ -290,7 +286,7 @@ def main (args : List String) : IO Unit := do
     rewrittenExprHigh := g'; st := st'
   -- IO.println (repr (rewrittenExprHigh.modules.toList.map Prod.fst))
 
-  let .some g' := reverseNameMapping rewrittenExprHigh name_mapping
+  let .some g' := rewrittenExprHigh.renameModules name_mapping
     | throw <| .userError s!"{decl_name%}: failed to undo name_mapping"
   rewrittenExprHigh := g'
 
