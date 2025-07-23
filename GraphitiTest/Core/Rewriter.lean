@@ -115,4 +115,28 @@ namespace Graphiti.Rewriter.Test
       ] "merge" "branch"
   == none
 
+/- Searching between two instances of the same node will return none -/
+/-- info: true -/
+#guard_msgs in
+#eval findClosedRegion [graph|
+        i [type="io"];
+        o [type="io"];
+        o2 [type="io"];
+        merge [type="Merge"];
+        x1 [type="random"];
+        x2 [type="random"];
+        x3 [type="random"];
+        branch [type="Branch"];
+
+        i -> merge [to="0"];
+        branch -> o [from="0"];
+        merge -> x1 [from="0", to="0"];
+        x1 -> x2 [from="0", to="0"];
+        x2 -> branch [from="0", to="0"];
+        merge -> x3 [from="1", to="0"];
+        x3 -> branch [from="0", to="1"];
+        x3 -> o2 [from="0"];
+      ] "merge" "merge"
+  == none
+
 end Graphiti.Rewriter.Test

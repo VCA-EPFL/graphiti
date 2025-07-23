@@ -37,16 +37,16 @@ def matchAllNodes (g : ExprHigh String) : RewriteResult (List String × List Str
        let (.some mux) := followOutput g fork.inst "out2" | return none
        unless "mux".isPrefixOf mux.typ && mux.incomingPort == "in1" do return none
 
+       let (.some pp) := followInput g mux.inst "in3" | return none
+       if pp.inst == nn.inst then return none
+
        -- Gather all nodes between
-       let .some nodes := findClosedRegion g "branch" "mux" | return none
+       let .some nodes := findClosedRegion g nn.inst pp.inst | return none
 
        -- Check if there are any additional branches and muxes in the region
        unless nodes.all (λ x =>
          match g.modules.find? x with
-         | .some (_, typ) =>
-              x == branch_inst
-           || x == mux.inst
-           || (!"branch".isPrefixOf typ && !"mux".isPrefixOf typ)
+         | .some (_, typ) => !"branch".isPrefixOf typ && !"mux".isPrefixOf typ
          | .none => false
        )
        do return none
@@ -145,5 +145,44 @@ def rewrite : Rewrite String :=
     transformedNodes := [findRhs "branch" |>.get rfl, findRhs "mux" |>.get rfl, findRhs "fork" |>.get rfl]
     addedNodes := [findRhs "pure" |>.get rfl]
   }
+
+namespace Test
+
+/-- info: true -/
+#guard_msgs in
+#eval (matcherEmpty (lhs Unit "T").1 |>.run' default) == some (["branch", "mux", "fork"], [])
+
+def rhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+    i1 [type = "io"];
+    i2 [type = "io"];
+    i3 [type = "io"];
+    o1 [type = "io"];
+    o2 [type = "io"];
+
+    branch [typeImp = $(⟨_, branch T₁⟩), type = $(s!"branch {S₁}")];
+    mux [typeImp = $(⟨_, mux T₁⟩), type = $(s!"mux {S₁}")];
+    fork [typeImp = $(⟨_, fork Bool 2⟩), type = $(s!"fork Bool 2")];
+    pure [typeImp = $(⟨_, pure (@id T₁)⟩), type = $(s!"pure {S₁} {S₁}")];
+    pure2 [typeImp = $(⟨_, pure (@id T₁)⟩), type = $(s!"pure {S₁} {S₁}")];
+
+    i1 -> fork [to="in1"];
+    i2 -> branch [to="in1"];
+    i3 -> mux [to="in2"];
+
+    fork -> branch [from="out1",to="in2"];
+    fork -> mux [from="out2",to="in1"];
+    branch -> pure [from="out1",to="in1"];
+    pure -> pure2 [from="out1",to="in1"];
+    pure2 -> mux [from="out1",to="in3"];
+
+    branch -> o1 [from="out2"];
+    mux -> o2 [from="out1"];
+  ]
+
+/-- info: some true -/
+#guard_msgs in
+#eval (matchAllNodes (rhs Unit "T").1 |>.run' default).map (·.1.isPerm ["pure", "pure2"])
+
+end Test
 
 end Graphiti.BranchPureMuxLeft
