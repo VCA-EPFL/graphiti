@@ -26,12 +26,18 @@ structure NamedExprHigh (Ident : Type _) where
 
 structure NextNode (Ident) where
   inst : Ident
-  inputPort : Ident
-  outputPort : Ident
+  incomingPort : Ident
+  outgoingPort : Ident
   portMap : PortMapping Ident
   typ : Ident
   connection : Connection Ident
 deriving Repr, Inhabited
+
+@[deprecated NextNode.incomingPort (since := "2025-07-23")]
+abbrev NextNode.inputPort {Ident} := @NextNode.incomingPort Ident
+
+@[deprecated NextNode.outgoingPort (since := "2025-07-23")]
+abbrev NextNode.outputPort {Ident} := @NextNode.outgoingPort Ident
 
 namespace ExprHigh
 
