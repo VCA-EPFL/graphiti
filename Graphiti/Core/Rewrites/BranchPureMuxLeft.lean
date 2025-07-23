@@ -51,7 +51,7 @@ def matchAllNodes (g : ExprHigh String) : RewriteResult (List String × List Str
        )
        do return none
 
-       return some (nodes, [])
+       return some ([branch_inst, mux.inst, fork.inst] ++ nodes, [])
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
@@ -181,7 +181,7 @@ def rhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
 
 /-- info: some true -/
 #guard_msgs in
-#eval (matchAllNodes (rhs Unit "T").1 |>.run' default).map (·.1.isPerm ["pure", "pure2"])
+#eval (matchAllNodes (rhs Unit "T").1 |>.run' default).map (·.1 == ["branch", "mux", "fork", "pure", "pure2"])
 
 end Test
 
