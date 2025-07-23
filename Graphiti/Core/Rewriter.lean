@@ -41,6 +41,13 @@ structure RuntimeEntry where
   name : Option String := .none
   deriving Repr, Inhabited
 
+def RuntimeEntry.marker (s : String) : RuntimeEntry :=
+  {(default : RuntimeEntry) with type := .marker s}
+
+def RuntimeEntry.startMarker? (entry : RuntimeEntry) : Bool := entry.type == .marker "rev-start"
+
+def RuntimeEntry.stopMarker? (entry : RuntimeEntry) : Bool := entry.type == .marker "rev-stop"
+
 instance : Lean.ToJson RuntimeEntry where
   toJson r :=
     Lean.Json.mkObj
@@ -150,6 +157,10 @@ def portmappingToNameRename' (sub : List String) (p : PortMapping String) : Rewr
 def addRuntimeEntry (rinfo : RuntimeEntry) : RewriteResult Unit := do
   let l ← EStateM.get
   EStateM.set <| ⟨l.1.concat rinfo, l.2⟩
+
+def addRuntimeMarker (s : String) : RewriteResult Unit := do
+  let l ← EStateM.get
+  EStateM.set <| ⟨l.1.concat (RuntimeEntry.marker s), l.2⟩
 
 def rmRuntimeEntry : RewriteResult Unit := do
   let l ← EStateM.get
@@ -474,6 +485,9 @@ def rewrite_fix_rename {α} (g : ExprHigh String) (rewrites : List (Rewrite Stri
     match ← rewrite_loop' upd a max_depth g rewrites max_depth with
     | .some (g', a') => rewrite_fix_rename g' rewrites upd a' max_depth depth
     | .none => return (g, a)
+
+def withUndo {α} (rw : RewriteResult α) : RewriteResult α :=
+  addRuntimeMarker "rev-stop" *> rw <* addRuntimeMarker "rev-start"
 
 /--
 Follow an output to the next node.  A similar function could be written to

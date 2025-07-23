@@ -87,7 +87,8 @@ OPTIONS
 "
 
 def forkRewrites := [Fork10Rewrite.rewrite, Fork9Rewrite.rewrite, Fork8Rewrite.rewrite, Fork7Rewrite.rewrite, Fork6Rewrite.rewrite, Fork5Rewrite.rewrite, Fork4Rewrite.rewrite, Fork3Rewrite.rewrite]
-def combineRewrites := [CombineMux.rewrite, CombineBranch.rewrite, JoinSplitLoopCond.rewrite, JoinSplitLoopCondAlt.rewrite, LoadRewrite.rewrite]
+def combineRewrites := [CombineMux.rewrite, CombineBranch.rewrite, JoinSplitLoopCond.rewrite, JoinSplitLoopCondAlt.rewrite]
+def loadRewrite := [LoadRewrite.rewrite]
 def reduceRewrites := [ReduceSplitJoin.rewrite, JoinQueueLeftRewrite.rewrite, JoinQueueRightRewrite.rewrite, MuxQueueRightRewrite.rewrite]
 def reduceSink := [SplitSinkRight.rewrite, SplitSinkLeft.rewrite, PureSink.rewrite]
 def movePureJoin := [PureJoinLeft.rewrite, PureJoinRight.rewrite, PureSplitRight.rewrite, PureSplitLeft.rewrite]
@@ -95,6 +96,7 @@ def movePureJoin := [PureJoinLeft.rewrite, PureJoinRight.rewrite, PureSplitRight
 def normaliseLoop (e : ExprHigh String) : RewriteResult (ExprHigh String) := do
   let rw ← rewrite_fix e forkRewrites
   let rw ← rewrite_loop rw combineRewrites
+  let rw ← withUndo <| rewrite_loop rw loadRewrite
   let rw ← rewrite_fix rw reduceRewrites
   return rw
 
@@ -128,7 +130,7 @@ def pureGenerator' (n : Nat) (g : ExprHigh String) : List JSLangRewrite → Nat 
   let (rw, rst) ← rewrite_fix_rename rw ([PureSeqComp.rewrite] ++ movePureJoin ++ reduceSink) JSLang.upd rst
   pureGenerator' n rw rst fuel
 
-def pureGenerator n g js := pureGenerator' n g js (js.length + 1)
+def pureGenerator n g js := withUndo <| pureGenerator' n g js (js.length + 1)
 
 def eggPureGenerator (fuel : Nat) (parsed : CmdArgs) (p : Pattern String) (g : ExprHigh String) (st : RewriteState)
   : IO (ExprHigh String × RewriteState) := do
@@ -155,7 +157,7 @@ def renameAssoc (g : ExprHigh String) (assoc : AssocList String (AssocList Strin
     | .some (.some x') => x'
     | _ => x)
 
-def renameAssocAll assoc (rlist : List RuntimeEntry) (g : ExprHigh String) := rlist.foldl (renameAssoc g) assoc
+def renameAssocAll assoc (rlist : RuntimeTrace) (g : ExprHigh String) := rlist.foldl (renameAssoc g) assoc
 
 def writeLogFile (parsed : CmdArgs) (st : RewriteState) := do
   match parsed.logFile with
@@ -183,7 +185,8 @@ def runRewriter' {α} (parsed : CmdArgs) (st : RewriteState) (r : RewriteResult 
 def rewriteGraph (parsed : CmdArgs) (g : ExprHigh String) (st : RewriteState)
     : IO (ExprHigh String × RewriteState × RewriteState) := do
   let (rewrittenExprHigh, st) ← runRewriter parsed g st (normaliseLoop g)
-  let (rewrittenExprHigh, st) ← runRewriter parsed rewrittenExprHigh st (pureGeneration rewrittenExprHigh LoopRewrite.nonPureMatcher LoopRewrite.nonPureForkMatcher)
+  let (rewrittenExprHigh, st) ← runRewriter parsed rewrittenExprHigh st <| withUndo <|
+    pureGeneration rewrittenExprHigh LoopRewrite.nonPureMatcher LoopRewrite.nonPureForkMatcher
   let (rewrittenExprHigh, st) ← eggPureGenerator 100 parsed LoopRewrite.boxLoopBodyOther rewrittenExprHigh st <* writeLogFile parsed st
   let (rewrittenExprHigh, st) ← runRewriter parsed rewrittenExprHigh st (LoopRewrite2.rewrite.run rewrittenExprHigh)
   return (rewrittenExprHigh, st, st)
@@ -250,16 +253,28 @@ def reverse_rewrite_with_index (rinfo : RuntimeEntry) : RewriteResult (Rewrite S
   reverse_rewrite rw rinfo
 
 /--
-The reverseRewrites function will look through the runitme
+The reverseRewrites function will look through the runitme trace and identify the rewrites that should be inverted using
+`rev-start` and `rev-stop` markers.
 -/
 def reverseRewrites (parsed : CmdArgs) (g : ExprHigh String) (st : RewriteState)
     : IO (ExprHigh String × RewriteState) := do
-  let st_worklist := st.1.reverse.tail.filter (fun rinfo => rinfo.type != .debug) |>.take 158
+  let st_worklist := st.1.reverse.tail.filter (fun rinfo => rinfo.type != .debug)
 
-  let (g, st) ← runRewriter' parsed st <| st_worklist.foldlM (λ g rinfo => do
-      let rewrite ← reverse_rewrite_with_index rinfo
-      rewrite.run' (norm := false) g
-    ) g
+  let (_, _, st_worklist_to_be_inverted) := st_worklist.foldl (λ (reverse?, curr, list) entry =>
+      if reverse? then
+        if entry.stopMarker? then
+          (false, [], list.concat curr)
+        else
+          (true, curr.concat entry, list)
+      else (entry.startMarker?, [], list)
+    ) (false, [], [])
+
+  let (g, st) ← runRewriter' parsed st <|
+    st_worklist_to_be_inverted.foldlM (λ g st_worklist' =>
+      st_worklist'.foldlM (λ g rinfo => do
+        let rewrite ← reverse_rewrite_with_index rinfo
+        rewrite.run' (norm := false) g
+      ) g) g
 
   return (g, st)
 
