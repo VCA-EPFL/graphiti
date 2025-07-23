@@ -185,12 +185,15 @@ info: 'Graphiti.Module.refines_implies_trace_inclusion' depends on axioms: [prop
 #guard_msgs in
 #print axioms refines_implies_trace_inclusion
 
+def refines_no_indistinguishable {I S} {Ident} [DecidableEq Ident] (imod : Module Ident I) (smod : Module Ident S) :=
+  ∃ (mm : MatchInterface imod smod) (φ : I → S → Prop),
+    (imod ⊑_{φ} smod) ∧ refines_initial (mm := mm) imod smod φ
+
 -- FIXME: Uh
 theorem refines_implies_trace_inclusion' :
-  imp ⊑' spec →
+  refines_no_indistinguishable imp spec →
   trace_inclusion imp spec := by
-    intro ⟨mm, φ, H1, H2, H3⟩ l ⟨i1, i2, ⟨Hi1_init, Hi1_mod⟩, Hi2⟩
-    clear H2
+    intro ⟨mm, φ, H1, H3⟩ l ⟨i1, i2, ⟨Hi1_init, Hi1_mod⟩, Hi2⟩
     obtain ⟨s1, Hs1_init, Hs1_φ⟩ := H3 i1.state Hi1_init
     exists ⟨s1, spec⟩
     obtain ⟨s2, Hs2_1, Hs2_2⟩ :=
