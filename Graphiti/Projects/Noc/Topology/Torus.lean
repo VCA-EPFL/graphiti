@@ -132,7 +132,7 @@ namespace Graphiti.Projects.Noc
       else (d.DirLocal_out, flit)
 
   @[drunfold_defs]
-  def DirectedTorus.AbsoluteArbiter (d : DirectedTorus) : Arbiter d.to_topology Data :=
+  def DirectedTorus.AbsoluteRoutingPolicy (d : DirectedTorus) : RoutingPolicy d.to_topology Data :=
     {
       FlitHeader  := d.AbsoluteHeader,
       route       := d.absolute_route_xy Data
@@ -167,7 +167,7 @@ namespace Graphiti.Projects.Noc
       }
 
   @[drunfold_defs]
-  def DirectedTorus.RelativeArbiter (d : DirectedTorus) : Arbiter d.to_topology Data :=
+  def DirectedTorus.RelativeRoutingPolicy (d : DirectedTorus) : RoutingPolicy d.to_topology Data :=
     {
       FlitHeader  := d.RelativeHeader,
       route       := d.relative_route_xy Data

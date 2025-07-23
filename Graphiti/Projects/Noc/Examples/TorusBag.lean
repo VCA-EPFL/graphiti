@@ -30,8 +30,8 @@ namespace Graphiti.Projects.Noc.Examples
   def n : Noc Data dt.netsz :=
     {
       topology := topo
-      arbiter := dt.AbsoluteArbiter Data
-      routers := Router.Unbounded.bag dt.netsz (dt.AbsoluteFlit Data)
+      routing_policy := dt.AbsoluteRoutingPolicy Data
+      router := Router.Unbounded.bag dt.netsz (dt.AbsoluteFlit Data)
       DataS := "Nat"
     }
 

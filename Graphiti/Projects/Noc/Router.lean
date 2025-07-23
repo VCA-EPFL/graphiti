@@ -31,7 +31,9 @@ namespace Graphiti.Projects.Noc.Router
         State       := List Flit
         init_state  := []
         input_rel   := λ rid s flit s' => s' = s ++ [flit]
-        output_rel  := λ rid s flit s' => ∃ i : Fin (s.length), s' = s.remove i
+        output_rel  := λ rid s flit s' =>
+          ∃ i : Fin (s.length), s' = s.remove i
+          ∧ s[i] = flit
       }
 
   end Unbounded
@@ -55,7 +57,9 @@ namespace Graphiti.Projects.Noc.Router
         State       := List Flit
         init_state  := []
         input_rel   := λ rid s flit s' => s'.length < len ∧ s' = s ++ [flit]
-        output_rel  := λ rid s flit s' => ∃ i : Fin (s.length), s' = s.remove i
+        output_rel  := λ rid s flit s' =>
+          ∃ i : Fin (s.length), s' = s.remove i
+          ∧ s[i] = flit
       }
 
   end Bounded

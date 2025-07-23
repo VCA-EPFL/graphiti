@@ -6,7 +6,6 @@ Authors: Yann Herklotz, Gurvan Debaussart
 
 import Graphiti.Projects.Noc.Lang
 import Graphiti.Projects.Noc.BuildModule
-import Graphiti.Projects.Noc.Topology.Torus
 import Graphiti.Projects.Noc.Spec
 import Graphiti.Projects.Noc.Router
 
@@ -26,10 +25,10 @@ namespace Graphiti.Projects.Noc
 
   abbrev noc' : Noc Data netsz :=
     {
-      topology  := RP.noc.topology
-      arbiter   := RP.noc.arbiter
-      routers   := RP.router'
-      DataS     := RP.noc.DataS
+      topology        := RP.noc.topology
+      routing_policy  := RP.noc.routing_policy
+      router          := RP.router'
+      DataS           := RP.noc.DataS
     }
 
   abbrev nocM := RP.noc.build_module

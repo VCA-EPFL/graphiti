@@ -21,23 +21,24 @@
   + Study how to express liveness property refinement. A thing would be to have
     a φ which is preserved with a ∀ instead of an ∃
 
-## Other
+## Proof of BuildExpr correctness
+
+- Tried using Vector for `fin_range` to keep the length information in the type
+  to avoid cast, did not work
+
+## Implementation
 
 - We want an implementation of an ordered router and show that it is correct, so
   that we can use it to implement a `Torus` router and we can actually extract
   it to hardware
-
-- Tried using Vector for `fin_range` to keep the length information in the type
-  to avoid cast, did not work
 
 - We need to clean up proofs and definitions, it is getting everywhere…
 
 - We need to simplify `dep_foldr` when β is a product type, so when we are
   producing DPList'
 
-- We cannot really compile computable function into pure module unfortunately.
-  We could have our own custom small language to do it, but it would be very
-  annoying...
+- We cannot compile computable function into pure module unfortunately.
+  We could have our own custom small language to do it
 
 - We could have a `Router` implementation which depends on an `Arbiter`
   definition
@@ -45,6 +46,8 @@
 - `Router` is a name which is too generic, we should probably instead have a
   router string along the line of `RelativeRouter 5 5 Data` or maybe first
   argument is `Router Arbiter RouterID`
+
+- With insight, we could have sort of compiled to Constellation right?
 
 ## Compiling to hadrware
 
