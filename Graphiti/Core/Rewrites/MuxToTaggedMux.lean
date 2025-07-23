@@ -28,7 +28,7 @@ def matchModLeft' : Pattern String := fun g => do
     ) none | throw .done
   let (.some nn_first) := followOutput g pair.fst "true" | throw (.error "could not follow output")
   let (.some nn_last) := followInput g pair.snd "in1" | throw (.error "could not follow input")
-  let l ← ofOption (.error "could not find scc nodes") <| findSCCNodes g nn_first.inst nn_last.inst
+  let l ← ofOption (.error "could not find scc nodes") <| findClosedRegion g nn_first.inst nn_last.inst
   return (l, [])
 
 /--
@@ -46,7 +46,7 @@ def matcher' : Pattern String := fun g => do
       unless br ∈ branches do return none
       return some (br, x)
     ) none | throw .done
-  let l ← ofOption (.error "could not find scc nodes") <| findSCCNodes g pair.fst pair.snd
+  let l ← ofOption (.error "could not find scc nodes") <| findClosedRegion g pair.fst pair.snd
   return (l, [])
 
 end INCORRECT
@@ -66,7 +66,7 @@ def matchModLeft : Pattern String := fun g => do
       unless bag_nn.typ = "Bag" do return none
       let (.some prev_mux_nn) := followInput g mux_nn.inst "in1" | return none
       let (.some after_branch_nn) := followOutput g branch_nn.inst "true" | return none
-      let (.some scc) := findSCCNodes g after_branch_nn.inst prev_mux_nn.inst | return none
+      let (.some scc) := findClosedRegion g after_branch_nn.inst prev_mux_nn.inst | return none
       return some scc
     ) none | throw .done
   return (list, [])
@@ -86,7 +86,7 @@ def matchModRight : Pattern String := fun g => do
       unless bag_nn.typ = "Bag" do return none
       let (.some prev_mux_nn) := followInput g mux_nn.inst "in2" | return none
       let (.some after_branch_nn) := followOutput g branch_nn.inst "false" | return none
-      let (.some scc) := findSCCNodes g after_branch_nn.inst prev_mux_nn.inst | return none
+      let (.some scc) := findClosedRegion g after_branch_nn.inst prev_mux_nn.inst | return none
       return some scc
     ) none | throw .done
   return (list, [])
@@ -105,12 +105,12 @@ def matcher : Pattern String := fun g => do
       unless mux_nn.typ = "TaggedMux" && mux_nn.inputPort = "cond" do return none
       let (.some after_branch_nn0) := followOutput g branch_nn.inst "true" | return none
       let (.some after_branch_nn1) := followOutput g branch_nn.inst "false" | return none
-      -- Now that we go in two directions, we need two calls to findSCCNodes,
+      -- Now that we go in two directions, we need two calls to findClosedRegion,
       -- otherwise it will follow the fork and reach an output.
       --
       -- However, now that we have already abstracted the modules, we don't need to search anymore.
-      -- let (.some scc0) := findSCCNodes g after_branch_nn0.inst prev_mux_nn0.inst | return none
-      -- let (.some scc1) := findSCCNodes g after_branch_nn1.inst prev_mux_nn1.inst | return none
+      -- let (.some scc0) := findClosedRegion g after_branch_nn0.inst prev_mux_nn0.inst | return none
+      -- let (.some scc1) := findClosedRegion g after_branch_nn1.inst prev_mux_nn1.inst | return none
       return some [inst, after_branch_nn0.inst, mux_nn.inst, after_branch_nn1.inst, branch_nn.inst]
     ) none | throw .done
   return (list, [])

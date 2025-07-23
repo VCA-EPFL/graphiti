@@ -34,7 +34,7 @@ def boxLoopBody (g : ExprHigh String) : RewriteResult (List String × List (Conn
       unless String.isPrefixOf "branch" branch.typ do return none
 
       -- TODO: Something is being duplicated here which causes abstraction to fail.
-      let (.some scc) := findSCCNodes g mux.inst tag_split.inst | return none
+      let (.some scc) := findClosedRegion g mux.inst tag_split.inst | return none
       return some (scc.erase mux.inst |>.erase tag_split.inst, [ ⟨⟨.internal mux.inst, muxNext.outputPort⟩, ⟨.internal muxNext.inst, muxNext.inputPort⟩⟩
                                                                , ⟨⟨.internal tagPrev.inst, tagPrev.inputPort⟩, ⟨.internal tag_split.inst, tagPrev.outputPort⟩⟩])
     ) none | MonadExceptOf.throw RewriteError.done

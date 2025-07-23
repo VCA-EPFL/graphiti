@@ -27,7 +27,7 @@ def matchModLeft : Pattern String := fun g => do
       let (.some end_m) := followInput g inst "complete_tagged" | return none
       let (.some mux_nn) := followOutput g inst "deq_untagged" | return none
       unless mux_nn.typ = "Merge" do return none
-      let (.some scc) := findSCCNodes g begin_m.inst end_m.inst | return none
+      let (.some scc) := findClosedRegion g begin_m.inst end_m.inst | return none
       return some scc
     ) none | throw .done
   return (list, [])
@@ -46,7 +46,7 @@ def matchModRight : Pattern String := fun g => do
       let (.some end_m) := followInput g inst "complete_tagged" | return none
       let (.some mux_nn) := followOutput g inst "deq_untagged" | return none
       unless mux_nn.typ = "Merge" do return none
-      let (.some scc) := findSCCNodes g begin_m.inst end_m.inst | return none
+      let (.some scc) := findClosedRegion g begin_m.inst end_m.inst | return none
       return some scc
     ) none | throw .done
   return (list, [])

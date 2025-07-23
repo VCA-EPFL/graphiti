@@ -24,7 +24,7 @@ def matchModL : Pattern String := fun g => do
       unless tagger_r.typ = "TaggerCntrlAligner" do return none
       let (.some begin_l) := followOutput g tagger_l.inst "tagged" | return none
       let (.some end_l) := followInput g tagger_l.inst "complete_tagged" | return none
-      let (.some scc) := findSCCNodes g begin_l.inst end_l.inst | return none
+      let (.some scc) := findClosedRegion g begin_l.inst end_l.inst | return none
       return some scc
     ) none | throw .done
   return (list, [])
@@ -43,7 +43,7 @@ def matchModR : Pattern String := fun g => do
       unless tagger_r.typ = "TaggerCntrlAligner" do return none
       let (.some begin_r) := followOutput g tagger_r.inst "tagged" | return none
       let (.some end_r) := followInput g tagger_r.inst "complete_tagged" | return none
-      let (.some scc) := findSCCNodes g begin_r.inst end_r.inst | return none
+      let (.some scc) := findClosedRegion g begin_r.inst end_r.inst | return none
       return some scc
     ) none | throw .done
   return (list, [])

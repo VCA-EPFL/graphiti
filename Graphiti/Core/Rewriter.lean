@@ -665,11 +665,11 @@ Find post dominators of a node by finding dominators on the inverted graph.
 def findPostDom (fuel : Nat) (g : ExprHigh String) :=
   findDom fuel g.invert
 
-def findSCCNodes' (succ : Std.HashMap String (Array String)) (startN endN : String) : Option (List String):=
+def findClosedRegion' (succ : Std.HashMap String (Array String)) (startN endN : String) : Option (List String) :=
   go (succ.size+1) ∅ [startN]
   where
     go (worklist : Nat) (visited : List String) : List String → Option (List String)
-    | [] => some visited
+    | [] => if endN ∈ visited then some visited else none
     | x :: q => do
       match worklist with
       | 0 => none
@@ -682,15 +682,15 @@ def findSCCNodes' (succ : Std.HashMap String (Array String)) (startN endN : Stri
           if "_leaf_" ∈ nextNodes then none
           if startN ∈ nextNodes then none
           let nextNodes' := nextNodes.filter (· ∉ visited')
-          go w visited' (nextNodes' ++ q)
+          go w visited' (nextNodes'.union q)
 
 /--
 Find all nodes in between two nodes by performing a DFS that checks that one has
 never reached an output node.
 -/
-def findSCCNodes (g : ExprHigh String) (startN endN : String) : Option (List String) := do
-  let l ← findSCCNodes' (← fullCalcSucc g) startN endN
-  let l' ← findSCCNodes' (← fullCalcSucc g.invert) endN startN
+def findClosedRegion (g : ExprHigh String) (startN endN : String) : Option (List String) := do
+  let l ← findClosedRegion' (← fullCalcSucc g) startN endN
+  let l' ← findClosedRegion' (← fullCalcSucc g.invert) endN startN
   return l.union l'
 
 def extractType (s : String) : String :=
