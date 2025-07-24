@@ -4,19 +4,6 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Gurvan Debaussart
 -/
 
-import Lean
-import Init.Data.BitVec.Lemmas
-import Qq
-
-import Graphiti.Core.Simp
-import Graphiti.Core.AssocList.Lemmas
-import Graphiti.Core.Module
-import Graphiti.Core.ExprLow
-import Graphiti.Core.Component
-import Graphiti.Core.Reduce
-import Graphiti.Core.List
-import Graphiti.Core.ExprHighLemmas
-import Graphiti.Core.Tactic
 import Graphiti.Core.ModuleReduction
 
 namespace Graphiti.BagQueue
