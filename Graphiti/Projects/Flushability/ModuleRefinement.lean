@@ -67,7 +67,6 @@ end SimulationRelation
 section WeakSimulationRelation
 
 variable [sr: WeakSimulationRelation φ mod₁ mod₂]
-variable [id: Indistinguishable mod₁ mod₂ φ]
 
 -- TODO: What are the conditions here?
 theorem refines₁: mod₁ ⊑_{φ} mod₂ := by

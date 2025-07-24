@@ -286,17 +286,6 @@ namespace Graphiti.Noc
       sorry
     · sorry
 
-  -- Useless to prove
-  theorem ϕ_indistinguishable :
-    ∀ i s, (φ n ε) i s → Module.indistinguishable (expM n ε) (mod n) i s := by
-      sorry
-
-  theorem correct : (expM n ε) ⊑ (mod n) := by
-    apply (
-      Module.refines_φ_refines
-        (ϕ_indistinguishable n ε)
-        (refines_initial n ε)
-        (refines_φ n ε)
-    )
+  theorem correct : (expM n ε) ⊑ (mod n) := by sorry
 
 end Graphiti.Noc

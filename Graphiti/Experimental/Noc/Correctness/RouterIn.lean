@@ -9,6 +9,8 @@ import Graphiti.Projects.Noc.BuildModule
 import Graphiti.Projects.Noc.Spec
 import Graphiti.Projects.Noc.Router
 
+import Graphiti.Core.ModuleReduction
+
 open Batteries (AssocList)
 
 set_option Elab.async false
@@ -63,7 +65,7 @@ namespace Graphiti.Projects.Noc
         simp only [Fin.getElem_fin, Vector.getElem_replicate] at Hspec2 ⊢
         dsimp [routerS', noc'] at Hspec2
         specialize Hspec2 (by rfl)
-        obtain ⟨s, Hs1, Hs2, Hs3⟩ := Hspec2
+        obtain ⟨s, Hs1, Hs3⟩ := Hspec2
         dsimp [drcomponents] at Hs1
         subst s
         assumption
@@ -75,8 +77,8 @@ namespace Graphiti.Projects.Noc
       case_transition Hcontains : (Module.inputs (nocM' Data netsz)), ident,
        (PortMap.getIO_not_contained_false' Hrule)
       obtain ⟨idx, Hidx⟩ := RelIO.liftFinf_in Hcontains
-      obtain ROK' := Module.refines_refines' (ROK idx)
-      obtain ⟨Hok, -, -⟩ := Exists.choose_spec (ROK'.2)
+      obtain ROK' := ROK idx
+      obtain ⟨Hok, -⟩ := Exists.choose_spec (ROK'.2)
       dsimp at Hok
       specialize Hok i[idx] s[idx] (by sorry) -- sorry should be (Hφ idx)?
       obtain ⟨Hok_inp, -, -⟩ := Hok
@@ -139,8 +141,8 @@ namespace Graphiti.Projects.Noc
        (PortMap.getIO_not_contained_false' Hrule)
       obtain ⟨idx, Hidx⟩ := RelIO.liftFinf_in Hcontains
       clear Hcontains
-      obtain ROK' := Module.refines_refines' (ROK idx)
-      obtain ⟨Hok, -, -⟩ := Exists.choose_spec (ROK'.2)
+      obtain ROK' := ROK idx
+      obtain ⟨Hok, -⟩ := Exists.choose_spec (ROK'.2)
       dsimp at Hok
       specialize Hφ idx
       specialize Hok i[idx] s[idx] (by sorry) -- sorry should be Hφ?
@@ -163,8 +165,8 @@ namespace Graphiti.Projects.Noc
       dsimp [drcomponents] at HruleIn
       simp only [List.mem_map, Prod.exists] at HruleIn
       obtain ⟨conn_out, conn_inp, Hconn1, Hconn2⟩ := HruleIn
-      obtain ROK_out := Module.refines_refines' (ROK conn_out.1)
-      obtain ROK_inp := Module.refines_refines' (ROK conn_inp.1)
+      obtain ROK_out := ROK conn_out.1
+      obtain ROK_inp := ROK conn_inp.1
       obtain ⟨Hok_inp1, Hok_out1, Hok_int1⟩ := Exists.choose_spec ROK_inp
       obtain ⟨Hok_inp2, Hok_out2, Hok_int2⟩ := Exists.choose_spec ROK_out
       -- specialize Hφ idx
@@ -176,17 +178,8 @@ namespace Graphiti.Projects.Noc
       obtain ⟨val, mid_s, ⟨Hmid_s1, Hmid_s2⟩, ⟨Hmid_s3, Hmid_s4⟩⟩ := Hrule
       sorry
 
-  -- Proven useless
-  theorem ϕ_indistinguishable :
-    ∀ i s, (φ Data netsz ROK) i s → Module.indistinguishable (nocM' Data netsz) (nocM Data netsz) i s := by
-      sorry
-
+  include ROK in
   theorem correct : (nocM' Data netsz) ⊑ (nocM Data netsz) := by
-    apply (
-      Module.refines_φ_refines
-        (ϕ_indistinguishable Data netsz)
-        (refines_initial Data netsz ROK)
-        (refines_φ Data netsz ROK)
-    )
+    exists inferInstance, φ Data netsz ROK; solve_by_elim [refines_φ, refines_initial]
 
 end Graphiti.Projects.Noc

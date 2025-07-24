@@ -335,17 +335,7 @@ namespace Graphiti.Projects.Noc
               -- · sorry
           · sorry
 
-  -- Proven Useless
-  theorem ϕ_indistinguishable :
-    ∀ i s, (φ (noc' noc)) i s → Module.indistinguishable (mod (noc' noc)) (spec (noc' noc)) i s := by
-        sorry
-
   theorem correct : (mod (noc' noc)) ⊑ (spec (noc' noc)) := by
-    apply (
-      Module.refines_φ_refines
-        (ϕ_indistinguishable noc)
-        (refines_initial noc)
-        (refines_φ noc)
-    )
+    exists inferInstance, φ (noc' noc); solve_by_elim [refines_φ, refines_initial]
 
 end Graphiti.Projects.Noc

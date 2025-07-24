@@ -674,60 +674,6 @@ section DirectRefinement
 def φ (rhs : rhsModuleType T₁ T₂ T₃) (lhs : lhsModuleType T₁ T₂ T₃) : Prop :=
   (ψ rhs lhs) ∧ (partially_flushed lhs)
 
-theorem φ_indistinguishable :
-  ∀ x y, φ x y → Module.indistinguishable (rhsModule T₁ T₂ T₃) (lhsModule T₁ T₂ T₃) x y := by
-  intro ⟨⟨_, _⟩, ⟨⟨_, _⟩, _⟩⟩ ⟨⟨_, _⟩, ⟨_, _⟩⟩ Hφ
-  constructor <;> intro ident ⟨⟨_, _⟩, ⟨⟨_, _⟩, _⟩⟩ v H
-  . by_cases HContains: ((rhsModule T₁ T₂ T₃).inputs.contains ident)
-    . unfold rhsModule lhsModule at *; simp at v H HContains; simp
-      rcases HContains with h | h | h
-      all_goals
-        subst ident
-        rw [PortMap.rw_rule_execution] at *
-        apply Exists.intro ⟨ ⟨ _, _ ⟩, _, _ ⟩
-        rw [PortMap.rw_rule_execution]
-        unfold φ ψ at Hφ <;> simp at Hφ
-        dsimp
-        and_intros <;> rfl
-    . exfalso; exact (PortMap.getIO_not_contained_false H HContains)
-  . by_cases HContains: ((rhsModule T₁ T₂ T₃).outputs.contains ident)
-    . unfold rhsModule lhsModule at *; simp at v H HContains; simp
-      subst ident
-      rw [PortMap.rw_rule_execution] at *
-      simp at H
-      repeat cases ‹_ ∧ _›
-      subst_vars
-      cases ‹partially_flushed _› <;> simp at *
-      . rename_i left
-        rw [List.map_eq_cons_iff] at left
-        obtain ⟨ ⟨v'1, v'2⟩, j2lr, h1, h2, h3⟩ := left
-        subst_vars
-        obtain ⟨⟨v111, v112⟩, v12⟩ := v
-        dsimp at *
-        rename_i left
-        rw [List.cons.injEq] at left
-        repeat cases left
-        subst_vars
-        apply Exists.intro ⟨ ⟨ _, _ ⟩, _, _ ⟩
-        rw [PortMap.rw_rule_execution]
-        dsimp
-        and_intros <;> try rfl
-      . rename_i left
-        rw [List.map_eq_cons_iff] at left
-        obtain ⟨ ⟨v'1, v'2⟩, j2lr, h1, h2, h3⟩ := left
-        subst_vars
-        obtain ⟨⟨v111, v112⟩, v12⟩ := v
-        dsimp at *
-        rename_i left
-        rw [List.cons.injEq] at left
-        repeat cases left
-        subst_vars
-        apply Exists.intro ⟨ ⟨ _, _ ⟩, _, _ ⟩
-        rw [PortMap.rw_rule_execution]
-        dsimp
-        and_intros <;> try rfl
-    . exfalso; exact (PortMap.getIO_not_contained_false H HContains)
-
 theorem refines₀: rhsModule T₁ T₂ T₃ ⊑_{φ} lhsModule T₁ T₂ T₃ := by
   have flhs: Flushable (lhsModule T₁ T₂ T₃) := by infer_instance
   unfold Module.refines_φ
@@ -1032,25 +978,6 @@ by
     . rfl
     . rfl
   . exfalso; exact (PortMap.getIO_not_contained_false (by assumption) HContains)
-
-theorem φ₃_indistinguishable :
-  ∀ x y, φ₃ x y → Module.new_indistinguishable (rhsModule T₁ T₂ T₃) (lhsModule T₁ T₂ T₃) x y :=
-by
-  intro ⟨⟨_, _⟩, ⟨⟨_, _⟩, _⟩⟩ ⟨⟨_, _⟩, ⟨_, _⟩⟩ Hφ
-  constructor <;> intro ident ⟨⟨_, _⟩, ⟨⟨_, _⟩, _⟩⟩ v H
-  . by_cases HContains: ((rhsModule T₁ T₂ T₃).inputs.contains ident)
-    . unfold rhsModule lhsModule at *; simp at v H HContains; simp
-      rcases HContains with h | h | h
-      all_goals
-        subst ident
-        rw [PortMap.rw_rule_execution] at *
-        apply Exists.intro ⟨ ⟨ _, _ ⟩, _, _ ⟩
-        rw [PortMap.rw_rule_execution]
-        unfold φ₃ ψ at Hφ <;> simp at Hφ
-        dsimp
-        and_intros <;> rfl
-    . exfalso; exact (PortMap.getIO_not_contained_false H HContains)
-  . sorry
 
 theorem refines₃: rhsModule T₁ T₂ T₃ ⊑_{φ₃} lhsModule T₁ T₂ T₃ := by
   unfold Module.refines_φ

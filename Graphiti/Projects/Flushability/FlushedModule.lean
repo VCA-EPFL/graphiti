@@ -641,20 +641,6 @@ variable [DecidableEq Ident]
 
 section FlushedRefinesNonFlushed
 
-private theorem indistinguishable :
-  ∀ x y, x = y → Module.indistinguishable (flushed mod) mod x y :=
-by
-  intro x y h
-  subst h
-  constructor
-  . intros _ _ _ h
-    apply fm_imp_m at h
-    assumption
-  . intros _ new_i _ h
-    dsimp [flushed] at h
-    use new_i
-    assumption
-
 private theorem flushed_refinesφ_nonflushed:
   flushed mod ⊑_{Eq} mod := by
   unfold Module.refines_φ
@@ -693,15 +679,14 @@ by
   --. sorry -- only when mod has flushed initial states.
     -- TODO: Should this be included in the wellformness of a module?
 
-theorem flushed_refines_nonflushed: flushed mod ⊑' mod :=
+theorem flushed_refines_nonflushed: flushed mod ⊑ mod :=
 by
-  unfold Module.refines'
+  unfold Module.refines
   have mm: MatchInterface (flushed mod) mod := by infer_instance
   use mm
   use Eq
   and_intros
   . apply flushed_refinesφ_nonflushed
-  . apply indistinguishable
   . apply refines_init
 
 end FlushedRefinesNonFlushed
@@ -712,19 +697,6 @@ variable [qc: QuasiConfluent mod] -- TODO: Can we only use local confluence?
 variable [sm: RuleMaySwap mod] -- TODO: Can we derive this property from some sort of confluence?
 variable [fl: Flushable mod]
 variable [opfm: OutputPreservesFlushability mod] -- TODO: Definition of flushed should guarantee this
-
--- TODO: This is not provable without
--- `ReachabilityPreservesInputability` and `ReachabilityPreservesOutputability`
--- Yann mentionned that `indistinguishability` is not required anymore
-private theorem indistinguishable' :
-  ∀ x y, flushesTo mod x y → Module.indistinguishable mod (flushed mod) x y :=
-by
-  intro x y h
-  constructor
-  . intros
-    sorry
-  . intros
-    sorry
 
 theorem nonflushed_refinesφ_flushed:
   mod ⊑_{flushesTo mod} flushed mod :=
@@ -802,15 +774,14 @@ by
   . dsimp [flushed, isflushed] <;> assumption
   . sorry -- TODO: Wellformness should solve this
 
-theorem nonflushed_refines_flushed: mod ⊑' flushed mod :=
+theorem nonflushed_refines_flushed: mod ⊑ flushed mod :=
 by
-  unfold Module.refines'
+  unfold Module.refines
   have mm: MatchInterface mod (flushed mod) := by infer_instance
   use mm
   use (flushesTo mod)
   and_intros
   . apply nonflushed_refinesφ_flushed
-  . apply indistinguishable'
   . apply refines_init'
 
 end NonFlushedRefinesFlushed

@@ -17,6 +17,7 @@ import Graphiti.Core.Reduce
 import Graphiti.Core.List
 import Graphiti.Core.ExprHighLemmas
 import Graphiti.Core.Tactic
+import Graphiti.Core.ModuleReduction
 
 namespace Graphiti.BagQueue
 
@@ -24,17 +25,9 @@ open NatModule
 
 variable {T₁ : Type}
 
-instance : MatchInterface (queue T₁) (bag T₁) where
-  input_types := by intro ident; rfl
-  output_types := by
-    intro ident; dsimp [drcomponents]
-    by_cases H: ({ inst := InstIdent.top, name := 0 }: InternalPort Nat) = ident
-    <;> simpa [H, drunfold, drnat]
-  inputs_present := by intros; rfl
-  outputs_present := by
-    intros ident; dsimp [drcomponents]
-    by_cases H: ({ inst := InstIdent.top, name := 0 }: InternalPort Nat) = ident
-    <;> simpa [H, drnat]
+instance : MatchInterface (queue T₁) (bag T₁) := by
+  dsimp [queue, bag]
+  solve_match_interface
 
 def φ (I S : List T₁) : Prop := I = S
 
@@ -68,32 +61,7 @@ theorem queue_refine_ϕ_bag: queue T₁ ⊑_{φ} bag T₁ := by
     · rfl
   · exists mid_i
 
-theorem ϕ_indistinguishable:
-  ∀ x y, φ x y → Module.indistinguishable (queue T₁) (bag T₁) x y := by
-    intros x y Hϕ
-    constructor
-    <;> intros ident new_i v H
-    <;> exists new_i
-    <;> dsimp [drcomponents] at *
-    · by_cases Hident: ({ inst := InstIdent.top, name := 0 }: InternalPort Nat) = ident
-      · rw [PortMap.rw_rule_execution] at H
-        subst ident
-        rw [PortMap.rw_rule_execution]
-        rw [Hϕ] at H
-        exact H
-      · exfalso
-        apply (PortMap.getIO_cons_nil_false _ _ ident _ _ _ Hident H)
-    · by_cases Hident: ({ inst := InstIdent.top, name := 0 }: InternalPort Nat) = ident
-      · rw [PortMap.rw_rule_execution] at H
-        subst ident
-        rw [PortMap.rw_rule_execution (h := by apply PortMap.getIO_cons)]
-        rw [Hϕ] at H
-        rw [←H]
-        exists ⟨0, by simpa⟩
-      · exfalso
-        exact (PortMap.getIO_cons_nil_false _ _ ident _ _ _ Hident H)
-
 theorem queue_refine_bag: queue T₁ ⊑ bag T₁ := by
-  apply (Module.refines_φ_refines ϕ_indistinguishable φ_initial queue_refine_ϕ_bag)
+  exists inferInstance, φ; solve_by_elim [queue_refine_ϕ_bag, φ_initial]
 
 end Graphiti.BagQueue

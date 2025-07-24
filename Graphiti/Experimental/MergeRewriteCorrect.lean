@@ -100,29 +100,6 @@ theorem sigma_rw {S T : Type _} {m m' : Σ (y : Type _), S → y → T → Prop}
 
 def φ {T} (x : List T × List T) (y : List T) := (x.1 ++ x.2).Perm y
 
-theorem φ_indistinguishable {T} :
-  ∀ x y, φ x y → Module.indistinguishable (merge_sem T) (threemerge T) x y := by stop
-  unfold φ; intro x y H
-  constructor <;> intro ident new_i v Hsem
-  · have Hkeys := AssocList.keysInMap Hcontains; clear Hcontains
-    fin_cases Hkeys <;> (constructor; rfl)
-  · have Hkeys := AssocList.keysInMap Hcontains; clear Hcontains
-    fin_cases Hkeys
-    let ⟨ ⟨ i, Ha, Hc ⟩, Hb ⟩ := Hsem; clear Hsem
-    let (x1, x2) := x; clear x
-    let (new_i1, new_i2) := new_i; clear new_i
-    subst_vars; simp [seval,drunfold]
-    generalize h : x2[i] = y'
-    have Ht : ∃ (i : Fin x2.length), x2.get i = y' := by exists i
-    rw [← List.mem_iff_get] at Ht
-    have He := List.Perm.symm H
-    have Hiff := List.Perm.mem_iff (a := y') He
-    have Ht' : y' ∈ y := by rw [Hiff]; simp; cases Ht <;> tauto
-    rw [List.mem_iff_get] at Ht'
-    let ⟨ i', Hi' ⟩ := Ht'; clear Ht'
-    constructor; exists i'; and_intros; rfl
-    simp [←Hi']
-
 -- theorem correct_threeway_merge'' {T: Type _} [DecidableEq T]:
 --     threemerge T ⊑_{φ} (merge_sem T) := by
 --   intro ⟨ x1, x2 ⟩ y HPerm
@@ -207,10 +184,6 @@ theorem φ_indistinguishable {T} :
 --       rw [List.erase_cons_head]; assumption
 --     constructor; and_intros
 --     all_goals first | rfl | apply existSR.done | assumption
-
--- theorem correct_threeway_merge' {T: Type _} [DecidableEq T] :
---     (merge_sem' T).snd ⊑ threemerge' T :=
---   Module.refines_φ_refines φ_indistinguishable correct_threeway_merge''
 
 -- instance {T} : MatchInterface (merge_sem T).snd (threemerge T) :=
 --   inferInstanceAs (MatchInterface (merge_sem' T).snd (threemerge' T))

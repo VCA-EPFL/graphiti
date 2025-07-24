@@ -153,14 +153,9 @@ namespace Graphiti.Noc.DirectedTorusAbsoluteUnboundedCorrect
       · apply existSR.step i mid_i mid_i _ HruleIn2 Hrule2 (by constructor)
       · rfl
 
-  theorem ϕ_indistinguishable :
-    ∀ i s, (φ Data topology arbiter) i s → Module.indistinguishable (mod_queue Data topology arbiter) (mod_bag Data topology arbiter) i s := by
-      sorry
-
   theorem correct : (mod_queue Data topology arbiter) ⊑ (mod_bag Data topology arbiter) := by
     apply (
       Module.refines_φ_refines
-        (ϕ_indistinguishable Data topology arbiter)
         (refines_initial Data topology arbiter)
         (refines_φ Data topology arbiter)
     )

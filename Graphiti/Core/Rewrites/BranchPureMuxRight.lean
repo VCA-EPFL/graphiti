@@ -19,7 +19,7 @@ Matches a region that needs to be converted to a pure on the left hand side of a
 Additionally, it checks that none of the nodes between the branch/mux pair includes another branch.  It does not return
 any types.  The assumption is that `out1` from the fork feeds the `in2` of the branch, and `out2` feeds the mux.
 -/
-def matchAllNodes (g : ExprHigh String) : RewriteResult (List String × List String) := do
+def matchAllNodes : Pattern String := fun g => do
   let (.some list) ← g.modules.foldlM (λ s branch_inst (pmap, branch_typ) => do
        if s.isSome then return s
 
@@ -51,11 +51,18 @@ def matchAllNodes (g : ExprHigh String) : RewriteResult (List String × List Str
        )
        do return none
 
-       return some ([branch_inst, mux.inst, fork.inst] ++ nodes, [])
+       return some ([branch_inst, mux.inst, fork.inst, nn.inst, pp.inst] ++ (nodes.erase nn.inst |>.erase pp.inst), [])
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
-def matcherEmpty (g : ExprHigh String) : RewriteResult (List String × List String) := do
+/--
+Only return the first and last instances of the region.
+-/
+def matchPreAndPost : Pattern String := fun g => do
+  let ([_, _, _, n, p], _) ← matchAllNodes g | throw (.error s!"{decl_name%}: matchAllNodes not enough nodes")
+  return ([n, p], [])
+
+def matcherEmpty : Pattern String := fun g => do
   let (.some list) ← g.modules.foldlM (λ s branch_inst (pmap, branch_typ) => do
        if s.isSome then return s
 
@@ -182,6 +189,10 @@ def rhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
 /-- info: some true -/
 #guard_msgs in
 #eval (matchAllNodes (rhs Unit "T").1 |>.run' default).map (·.1 == ["branch", "mux", "fork", "pure", "pure2"])
+
+/-- info: some true -/
+#guard_msgs in
+#eval (matchPreAndPost (rhs Unit "T").1 |>.run' default).map (·.1 == ["pure", "pure2"])
 
 end Test
 

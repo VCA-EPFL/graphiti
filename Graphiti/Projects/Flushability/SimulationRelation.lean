@@ -81,7 +81,6 @@ instance [ws: SimulationRelation ψ mod₁ mod₂]: WeakSimulationRelation ψ mo
 
 -- True is a simulation relation (the weakest possible simulation relation, it doesn't give any information)
 -- It doesn't help at all when proving inputability or outputability
--- TODO: This simulation relation is indistinguishable iff the module can always input and can alwways output.
 def TTrue: S₁ → S₂ → Prop := λ _ _ => True
 instance: SimulationRelation TTrue mod₁ mod₂ := {
   inputs_preserved := by

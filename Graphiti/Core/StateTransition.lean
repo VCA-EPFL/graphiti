@@ -130,16 +130,4 @@ instance {b n} [Repr b] : Repr (Fin n → b) where
       s := s ++ (repr <| a nVal)
     return s
 
-section Indistinguishable
-
-variable {Event ImpState SpecState : Type _}
-
-variable [imp : StateTransition ImpState Event]
-variable [spec : StateTransition SpecState Event]
-
-def indistinguishable (i : ImpState) (s : SpecState) : Prop :=
-  ∀ e i', i -[ e ]-> i' → ∃ s', s -[ e ]*> s'
-
-end Indistinguishable
-
 end Graphiti
