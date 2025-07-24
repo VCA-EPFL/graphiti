@@ -16,9 +16,9 @@ testbench-dynamic: $(BUILD_DIR)/mkDynamicTestBench.ba
 	bsc $(BSCFLAGS) -sim -e mkDynamicTestBench -o testbench-dynamic $(BUILD_DIR)/mkDynamicTestBench.ba
 
 $(BUILD_DIR)/mkStaticTestBench.ba: arbiter-simulation.bsv
-	@mkdir -p build
+	@mkdir -p $(BUILD_DIR)
 	bsc $(BSCFLAGS) -u -sim -g mkStaticTestBench arbiter-simulation.bsv
 
 $(BUILD_DIR)/mkDynamicTestBench.ba: arbiter-simulation.bsv
-	@mkdir -p build
+	@mkdir -p $(BUILD_DIR)
 	bsc $(BSCFLAGS) -u -sim -g mkDynamicTestBench arbiter-simulation.bsv

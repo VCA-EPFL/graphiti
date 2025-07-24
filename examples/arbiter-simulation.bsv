@@ -143,7 +143,8 @@ module mkTestBench#(Bool t)();
     endrule
 
     rule finish if (output_num == 20);
-        $display("Finished(", $format("%0d", cycle), "): ", fshow(outputs));
+        $display("Finished: ", fshow(outputs));
+        $display("Cycles: ", $format("%0d", cycle));
         $finish;
     endrule
 
