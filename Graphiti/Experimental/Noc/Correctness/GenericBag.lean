@@ -8,6 +8,7 @@ import Graphiti.Projects.Noc.Lang
 import Graphiti.Projects.Noc.BuildModule
 import Graphiti.Projects.Noc.Spec
 import Graphiti.Projects.Noc.Router
+import Graphiti.Projects.Noc.Tactic
 
 open Batteries (AssocList)
 
@@ -40,6 +41,14 @@ namespace Graphiti.Projects.Noc
   @[simp, drcomponents]
   def noc' (noc : Noc Data netsz) :=
     { noc with router := Router.Unbounded.bag netsz noc.routing_policy.Flit }
+
+  theorem get_output' {noc : Noc Data netsz} {src dst flit} :
+    get_output noc src dst flit ↔ get_output (noc' noc) src dst flit := by
+    apply Iff.intro <;> intro h
+    · induction h
+      · sorry
+      · sorry
+    · sorry
 
   class NocCorrect (noc : Noc Data netsz) where
     routing_policy  : routing_policy_correct (noc' noc)
@@ -274,9 +283,9 @@ namespace Graphiti.Projects.Noc
       obtain ⟨idx_inp, dir_inp⟩ := conn_inp
       subst rule
       dsimp [drcomponents] at Hrule
-      obtain ⟨val, mid_s, ⟨⟨H1, ⟨H2, ⟨H3, H4⟩⟩⟩, H5⟩, H6, H7⟩ := Hrule
-      dsimp [drunfold_defs] at mid_s H1 H2 H3 H4 H5 H6 H7
-      apply Exists.intro _
+      obtain ⟨val, midest_i, ⟨⟨H1, ⟨H2, ⟨H3, H4⟩⟩⟩, H5⟩, H6, H7⟩ := Hrule
+      dsimp [drunfold_defs] at midest_i H1 H2 H3 H4 H5 H6 H7
+      apply Exists.intro s
       · and_intros
         · constructor
         · -- The new routing function is updated with our new move:
@@ -299,13 +308,7 @@ namespace Graphiti.Projects.Noc
             <;> rw [Heq1, Heq2]
             <;> simp [Heq1, Heq2]
             <;> simp [drcomponents, drunfold_defs] at Heq1 Heq2
-            -- <;> dsimp
-            -- <;> simp only [
-            --       Noc.RouterID, beq_iff_eq, beq_eq_false_iff_ne, ne_eq, Flit', Topology.Dir_out, Topology.out_len,
-            --       RouterID'
-            --     ] at Heq1 Heq2
-            · -- simp? [drunfold_defs, drcomponents] at Heq2 ⊢
-              -- We are not looking at the modified router nor the modified flit,
+            · -- We are not looking at the modified router nor the modified flit,
               -- we don't need an extra step
               apply Hrf1
               specialize (H5 src (by sorry))
@@ -336,7 +339,7 @@ namespace Graphiti.Projects.Noc
                 rw [H6, H3] at Hflit
                 -- We know by Heq2 that flit is not in the tail of Hflit,
                 -- So it must be in i.eraseIdx ...
-                -- Which is itself included in i[idx_nnp]
+                -- Which is itself included in i[idx_inp]
                 skip
                 sorry
               · specialize H7 _ Heq3
@@ -349,26 +352,47 @@ namespace Graphiti.Projects.Noc
               -- We first need to get back the old get_output that we would have
               -- had, and then we apply a step to obtain the final one.
               -- FIXME: Why is Heq2 not simplified?
-              stop
-              subst src flit
+              subst src -- flit
               have Hstep := Hrf1
                 (src := idx_out)
                 (flit := val)
                 (by
-                  -- by H4
-                  sorry)
+                  apply List.mem_of_getElem
+                  simp [drunfold_defs, drcomponents]
+                  exact H4
+                  exact H2.2)
               have Hdir : (noc' noc).topology.isConnDir_out dir_out := by
                 -- by Hconn1
                 sorry
-              apply get_output.step
-                (hdir := Hdir)
-                (flit' := ((noc' noc).routing_policy.route idx_inp val).2)
-              · dsimp
-                rw [H1]
-                simp [drcomponents, drunfold_defs]
-                congr
-                sorry
-              · -- apply Hrf1
+              -- simp at Hstep
+              have h : ∃ tmp, tmp = rf idx_out val := by exists rf idx_out val
+              obtain ⟨tmp, htmp⟩ := h
+              rw [←htmp] at Hstep
+              -- generalize (rf idx_out val) = rf_out at Hstep
+              -- generalize (noc' noc) = noc'' at Hstep
+              -- simp at Hstep
+              rw [←get_output'] at Hstep
+              -- We had a correctness before moving the flit around.
+              cases Hstep
+              -- The correctness was telling us to move to another router
+              · subst tmp
+                rename_i dir' hdir' H1' H2'
+                -- we have flitcross = flit by Heq2
+                apply get_output.step
+                  (hdir := hdir')
+                  (flit' := ((noc' noc).routing_policy.route idx_out val).snd)
+                · -- This is true actually!
+                  sorry -- simp [H1]; rfl
+                · dsimp
+                  -- we have to show that rf idx_out val = rf idx_inp flit
+                  sorry
+              -- The correctness was saying we should leave
+              · rename_i dir' hdir' h1' h2'
+                -- We cannot have a contradiction with H1 because actually
+                -- h1 is not val, and we don't have a way to know it is?
+                unfold routing_function_correct at Hrf1
+                rw [htmp] at h2' ⊢
+                skip
                 sorry
           -- routing_function_reconstruct
           · dsimp
