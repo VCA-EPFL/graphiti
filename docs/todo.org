@@ -377,3 +377,11 @@ This may require implement new nodes for splitting and combining tags.
 :PROPERTIES:
 :ID:       ac6005e8-8068-4655-b202-e6e2ba68805c
 :END:
+
+** TODO Move the graph into the RewriteResult Monad
+:PROPERTIES:
+:ID:       ce1eb7c2-f4f5-48f1-bcf1-0fdb93ad1d59
+:END:
+
+In most cases you need the graph, so it would make sense to add it into the monad.  Matchers are then functions that
+just return a list of nodes under the Monad.

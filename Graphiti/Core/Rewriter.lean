@@ -462,17 +462,17 @@ Loops over the [rewrite] function, applying one rewrite exhaustively until movin
 timeout for each single rewrite as well, so that infinite loops in a single rewrite means the next one can still be
 started.
 -/
-def rewrite_loop (g : ExprHigh String) (rewrites : List (Rewrite String)) (depth : Nat := 10000)
+def rewrite_loop (rewrites : List (Rewrite String)) (g : ExprHigh String) (depth : Nat := 10000)
     : RewriteResult (ExprHigh String) := do
   return (← rewrite_loop' (λ _ _ => pure Unit.unit) Unit.unit depth g rewrites depth).map (·.fst) |>.getD g
 
-def rewrite_fix (g : ExprHigh String) (rewrites : List (Rewrite String)) (max_depth : Nat := 10000) (depth : Nat := 10000)
+def rewrite_fix (rewrites : List (Rewrite String)) (g : ExprHigh String) (max_depth : Nat := 10000) (depth : Nat := 10000)
     : RewriteResult (ExprHigh String) := do
   match depth with
   | 0 => throw <| .error s!"{decl_name%}: ran out of fuel"
   | depth+1 =>
     match ← rewrite_loop' (λ _ _ => pure Unit.unit) Unit.unit max_depth g rewrites max_depth with
-    | .some (g', _) => rewrite_fix g' rewrites max_depth depth
+    | .some (g', _) => rewrite_fix rewrites g' max_depth depth
     | .none => return g
 
 def rewrite_fix_rename {α} (g : ExprHigh String) (rewrites : List (Rewrite String))
@@ -540,6 +540,42 @@ def calcSucc (g : ExprHigh String) : Option (Std.HashMap String (Array (NextNode
         ) ∅
       return succ.insert k a
     ) ∅
+
+def isNonPure' typ :=
+  !"split".isPrefixOf typ
+  && !"join".isPrefixOf typ
+  && !"pure".isPrefixOf typ
+  && !"fork".isPrefixOf typ
+
+def isNonPure (g : ExprHigh String) (node : String) : Bool :=
+  match g.modules.find? node with
+  | .none => false
+  | .some inst => isNonPure' inst.2
+
+def isNonPureFork' typ :=
+  !"split".isPrefixOf typ
+  && !"join".isPrefixOf typ
+  && !"pure".isPrefixOf typ
+
+def isNonPureFork (g : ExprHigh String) (node : String) : Bool :=
+  match g.modules.find? node with
+  | .none => false
+  | .some inst => isNonPureFork' inst.2
+
+def nonPureMatcher (p : Pattern String) : Pattern String
+| g => p g |>.map λ body => (body.1.filter (isNonPure g), [])
+
+def nonPureForkMatcher (p : Pattern String) : Pattern String
+| g => p g |>.map λ body => (body.1.filter (isNonPureFork g), [])
+
+def toPattern {α Ident} (f : ExprHigh Ident → RewriteResult (List Ident × α)) : Pattern Ident
+| g => f g >>= λ x => pure (x.1, [])
+
+def Pattern.nest {Ident} [DecidableEq Ident] (a b : Pattern Ident) : Pattern Ident
+| g => a g >>= λ x => b {g with modules := g.modules.filter λ k v => k ∈ x.1}
+
+def allPattern (f : String → Bool) : Pattern String
+| g => pure (g.modules.filter (λ _ (_, typ) => f typ) |>.toList |>.map Prod.fst, [])
 
 /--
 Calculate a successor hashmap for a graph which includes a single root node and

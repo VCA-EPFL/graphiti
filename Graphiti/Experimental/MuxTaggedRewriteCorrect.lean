@@ -351,8 +351,6 @@ attribute [dmod] Batteries.AssocList.find? BEq.beq
 --   m.snd x v y ↔ m'.snd x ((cast_first h).mp v) y := by
 --   constructor <;> (intros; subst h; assumption)
 
--- set_option maxHeartbeats 0
-
 -- theorem correct_threeway_merge'' {Tag T: Type _} [DecidableEq T]:
 --   rhsModule Tag T ⊑_{φ} lhs_intModule Tag T := by
 --   intro x y HPerm

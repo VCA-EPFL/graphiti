@@ -87,7 +87,6 @@ abbrev lhsType := (List Data ×
                     NatModule.Named "fork2" (List Bool × List Bool) ×
                       NatModule.Named "mux" (List Data × List Data × List Bool))
 
-set_option maxHeartbeats 0 in
 seal environmentLhs in
 def lhsEvaled : Module String (lhsType Data) := by
   precomputeTac [e| (rewriteLhsRhs DataS).input_expr, (environmentLhs DataS f).find? ] by
@@ -117,7 +116,6 @@ abbrev rhsType :=
               NatModule.Named "tagger_untagger_val" (List TagT × AssocList TagT Data × List Data) ×
                 NatModule.Named "split" (List (TagT × Data) × List Bool))
 
-set_option maxHeartbeats 0 in
 seal environmentRhs in
 def rhsEvaled : Module String (rhsType Data) := by
   precomputeTac [e| (rewriteLhsRhs DataS).output_expr, (environmentRhs DataS f).find? ] by
@@ -153,7 +151,6 @@ abbrev rhsGhostType :=
               NatModule.Named "tagger_untagger_val_ghost" (List (TagT × Data) × AssocList TagT (Data × (Nat × Data)) × List (Data × ℕ × Data)) ×
                 NatModule.Named "split" (List ((TagT × Data) × ℕ × Data) × List Bool))
 
-set_option maxHeartbeats 0 in
 seal environmentRhsGhost in
 def rhsGhostEvaled : Module String (rhsGhostType Data) := by
   precomputeTac [e| rhsGhostLower DataS, (environmentRhsGhost DataS f).find? ] by

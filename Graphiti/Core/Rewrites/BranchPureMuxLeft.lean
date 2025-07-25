@@ -56,7 +56,7 @@ def matchAllNodes : Pattern String := fun g => do
   return list
 
 /--
-Only return the first and last instances of the region.
+Only return the first and last instances of the region.  This is for the Egg rewriter.
 -/
 def matchPreAndPost : Pattern String := fun g => do
   let ([_, _, _, n, p], _) ← matchAllNodes g | throw (.error s!"{decl_name%}: matchAllNodes not enough nodes")
@@ -80,7 +80,9 @@ def matcherEmpty : Pattern String := fun g => do
        let (.some mux') := followOutput g fork.inst "out2" | return none
        unless mux'.inst = mux.inst && mux'.incomingPort == "in1" do return none
 
-       return some ([branch_inst, mux.inst, fork.inst], [])
+       let (.some t1) := branch_typ.splitOn |>.get? 1 | return none
+
+       return some ([branch_inst, mux.inst, fork.inst], [t1])
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
@@ -148,7 +150,7 @@ def rewrite : Rewrite String :=
   { abstractions := [],
     pattern := matcherEmpty,
     rewrite := λ | [S₁] => .some ⟨lhsLower S₁, rhsLower S₁⟩ | _ => failure,
-    name := "pure-split-right"
+    name := "branch-pure-mux-left"
     transformedNodes := [findRhs "branch" |>.get rfl, findRhs "mux" |>.get rfl, findRhs "fork" |>.get rfl]
     addedNodes := [findRhs "pure" |>.get rfl]
   }
@@ -157,7 +159,7 @@ namespace Test
 
 /-- info: true -/
 #guard_msgs in
-#eval (matcherEmpty (lhs Unit "T").1 |>.run' default) == some (["branch", "mux", "fork"], [])
+#eval (matcherEmpty (lhs Unit "T").1 |>.run' default) == some (["branch", "mux", "fork"], ["T"])
 
 def rhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
     i1 [type = "io"];

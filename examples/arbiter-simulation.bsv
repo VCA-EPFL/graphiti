@@ -112,7 +112,7 @@ endmodule
 module mkTestBench#(Bool t)();
 
     Reg#(Word) cycle <- mkReg(0);
-    Reg#(Vector#(20, Word)) inputs <- mkReg(vec(100, 10, 100, 10, 100, 10, 100, 10, 100, 10, 100, 10, 100, 10, 100, 10, 100, 10, 100, 10));
+    Reg#(Vector#(20, Word)) inputs <- mkReg(vec(100, 10, 101, 11, 102, 12, 103, 13, 104, 14, 105, 15, 106, 16, 107, 17, 108, 18, 109, 19));
     Reg#(Vector#(20, Word)) outputs <- mkReg(newVector());
     Reg#(Word) input_num <- mkReg(0);
     Reg#(Word) output_num <- mkReg(0);

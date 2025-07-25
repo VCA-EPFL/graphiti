@@ -127,7 +127,6 @@ instance : MatchInterface (rhsGhostEvaled f) (lhsEvaled f) := by
 /-
 # Proof state_relation_prserve in rhsGhost
 -/
-set_option maxHeartbeats 0
 
 theorem alpa {α : Type} {a : α} {l : List α} : a :: l = [a] ++ l := by simp only [List.singleton_append]
 
@@ -208,8 +207,7 @@ axiom in_eraseAll_noDup {α β γ δ} {l : List ((α × β) × γ × δ)} (Ta : 
 axiom notinfirst {A B} {x : List (A × B)} {a} :
   a ∉ List.map Prod.fst x → ∀ y, (a, y) ∉ x
 
-set_option maxHeartbeats 0
-
+set_option maxHeartbeats 0 in
 theorem state_relation_preserve:
   ∀ (s s' : rhsGhostType Data) rule,
     rule ∈ ( rhsGhostEvaled f).internals ->
@@ -758,38 +756,6 @@ theorem state_relation_preserve:
         (repeat rw [List.length_append] at H13)
         rw[H13]
         ac_nf at *
-    -- . obtain ⟨ x_module', ⟨x_branchD', x_branchB'⟩, x_merge', ⟨x_tagT', x_tagM', x_tagD' ⟩, ⟨x_splitD', x_splitB'⟩⟩ := cons
-    --   rename_i h
-    --   dsimp at h
-    --   simp_all; repeat cases ‹_ ∧ _›
-    --   subst_vars
-    --   cases h3
-    --   rename_i h h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 H13 H14 H15 Hnew Hnew2
-    --   simp at h
-    --   repeat cases ‹_ ∧ _›
-    --   subst_vars
-    --   constructor <;> (try rfl) <;> (try assumption)
-    --   . clear h10 h12 h13 h11 h4 h3
-    --     intro elem h1
-    --     specialize h9 elem
-    --     rw[← List.singleton_append ] at h9
-    --     ac_nf at *
-    --     specialize h9 h1
-    --     assumption
-    --   . clear h9 h12 h13 h11
-    --     intro elem h1
-    --     specialize h10 elem
-    --     rw[← List.singleton_append ] at h10
-    --     ac_nf at *
-    --     specialize h10 h1
-    --     assumption
-    --   . clear h3 h4 h13 h11 h12 h9 h10
-    --     (repeat rw [← List.append_assoc ])
-    --     (repeat rw [List.length_append])
-    --     rw[← List.singleton_append ] at H13
-    --     (repeat rw [List.length_append] at H13)
-    --     rw[H13]
-    --     ac_nf at *
   . replace h2 := h2.1 rfl
     simp only [List.concat_eq_append] at *
     obtain ⟨cons, newC, h⟩ := h2
@@ -816,8 +782,6 @@ theorem state_relation_preserve:
         . rename_i H _ _ _ _ _ _; cases H; rename_i H
           unfold iterate at H
           cases H; rename_i h _ _ Hf _ _ H _
-          --specialize H newC.2.1 h
-          --unfold apply at *
           by_cases hn : n < n'
           . specialize H n hn
             generalize hh : apply f n newC.2.2 = y at *
@@ -948,10 +912,6 @@ theorem state_relation_preserve:
       obtain ⟨fst_12, snd_1⟩ := snd_1
       obtain ⟨fst_13, snd_7⟩ := snd_7
       obtain ⟨fst_14, snd_8⟩ := snd_8
-      -- aesop_unfold at right
-      -- aesop_unfold at h1
-      -- aesop_unfold at h12
-      -- aesop_unfold at h
       simp_all only [Prod.mk.injEq, exists_eq_right_right, exists_and_right, exists_eq_right]
       cases h1 with
       | inl h_1 => simp_all only [true_or, forall_const]
@@ -1003,9 +963,7 @@ theorem state_relation_preserve:
 # Proof refinment rhsGhost ⊑ lhs
 -/
 
-set_option maxHeartbeats 0
-
-
+set_option maxHeartbeats 0 in
 theorem refine:
     rhsGhostEvaled f ⊑_{φ f} (lhsEvaled f) := by
   intro ⟨ x1, x2 ⟩ y HPerm

@@ -148,7 +148,7 @@ def rewrite : Rewrite String :=
   { abstractions := [],
     pattern := matcherEmpty,
     rewrite := λ | [S₁] => .some ⟨lhsLower S₁, rhsLower S₁⟩ | _ => failure,
-    name := "pure-split-right"
+    name := "branch-pure-mux-right"
     transformedNodes := [findRhs "branch" |>.get rfl, findRhs "mux" |>.get rfl, findRhs "fork" |>.get rfl]
     addedNodes := [findRhs "pure" |>.get rfl]
   }

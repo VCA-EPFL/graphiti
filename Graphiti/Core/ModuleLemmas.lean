@@ -140,7 +140,7 @@ instance MatchInterface_connect {I S} {o i} {imod : Module Ident I} {smod : Modu
          [mm : MatchInterface imod smod]
          : MatchInterface (imod.connect' o i) (smod.connect' o i) := by
   simp only [MatchInterface_simpler_iff] at *; intro ident; specializeAll ident
-  let ⟨mm1, mm2⟩ := mm; clear mm
+  obtain ⟨mm1, mm2⟩ := mm
   dsimp [Module.connect']
   constructor
   · simp only [AssocList.eraseAll_map_comm]
@@ -1182,8 +1182,7 @@ theorem refines_φ_product {J K} {imod₂ : Module Ident J} {smod₂ : Module Id
         dsimp [PortMap.getIO]; rw [hruleIn,h]; rfl
       rw [PortMap.rw_rule_execution cast_rule] at hrule
       dsimp [liftL] at hrule; rcases hrule with ⟨hrule⟩; subst_vars
-      rcases href₁ with ⟨href_in, href_out, href_int⟩
-      clear href_out href_int
+      rcases href₁ with ⟨href_in, -, -⟩
       have hcontains₂ : AssocList.contains ident imod.inputs := by
         apply AssocList.contains_some2; rw [h]; rfl
       have hrule₂ : (imod.inputs.getIO ident).snd init_i (cast2.mp hgetio) mid_i := by
@@ -1222,8 +1221,7 @@ theorem refines_φ_product {J K} {imod₂ : Module Ident J} {smod₂ : Module Id
         dsimp [PortMap.getIO]; rw [hruleIn,h]; rfl
       rw [PortMap.rw_rule_execution cast_rule] at hrule
       dsimp [liftL] at hrule; rcases hrule with ⟨hrule⟩; subst_vars
-      rcases href₂ with ⟨href_in, href_out, href_int⟩
-      clear href_out href_int
+      rcases href₂ with ⟨href_in, -, -⟩
       have hcontains₂ : AssocList.contains ident imod₂.inputs := by
         apply AssocList.contains_some2; rw [h]; rfl
       have hrule₂ : (imod₂.inputs.getIO ident).snd init_i₂ (cast2.mp hgetio) mid_i₂ := by
@@ -1275,8 +1273,7 @@ theorem refines_φ_product {J K} {imod₂ : Module Ident J} {smod₂ : Module Id
         dsimp [PortMap.getIO]; rw [hruleIn,h]; rfl
       rw [PortMap.rw_rule_execution cast_rule] at hrule
       dsimp [liftL] at hrule; rcases hrule with ⟨hrule⟩; subst_vars
-      rcases href₁ with ⟨href_in, href_out, href_int⟩
-      clear href_in href_int
+      rcases href₁ with ⟨-, href_out, -⟩
       have hcontains₂ : AssocList.contains ident imod.outputs := by
         apply AssocList.contains_some2; rw [h]; rfl
       have hrule₂ : (imod.outputs.getIO ident).snd init_i (cast2.mp hgetio) mid_i := by
@@ -1316,8 +1313,7 @@ theorem refines_φ_product {J K} {imod₂ : Module Ident J} {smod₂ : Module Id
         dsimp [PortMap.getIO]; rw [hruleIn,h]; rfl
       rw [PortMap.rw_rule_execution cast_rule] at hrule
       dsimp [liftL] at hrule; rcases hrule with ⟨hrule⟩; subst_vars
-      rcases href₂ with ⟨href_in, href_out, href_int⟩
-      clear href_in href_int
+      rcases href₂ with ⟨-, href_out, -⟩
       have hcontains₂ : AssocList.contains ident imod₂.outputs := by
         apply AssocList.contains_some2; rw [h]; rfl
       have hrule₂ : (imod₂.outputs.getIO ident).snd init_i₂ (cast2.mp hgetio) mid_i₂ := by
@@ -1360,7 +1356,7 @@ theorem refines_φ_product {J K} {imod₂ : Module Ident J} {smod₂ : Module Id
     dsimp [Module.product, PortMap.getIO] at hruleIn
     simp at hruleIn
     rcases hruleIn with ⟨ rule', hruleIn, hruleEq ⟩ | ⟨ rule', hruleIn, hruleEq ⟩ <;> subst_vars
-    · rcases href₁ with ⟨href_in, href_out, href_int⟩; clear href_in href_out
+    · rcases href₁ with ⟨-, -, href_int⟩
       obtain ⟨a, b⟩ := liftL'_rule_eq hRule; subst_vars
       specialize href_int _ mid_i₁ hruleIn a
       rcases href_int with ⟨mid_s, Hexists, hphi⟩
@@ -1368,7 +1364,7 @@ theorem refines_φ_product {J K} {imod₂ : Module Ident J} {smod₂ : Module Id
       · dsimp [Module.product]; solve_by_elim [existSR_append_left, existSR_liftL']
       · assumption
       · apply hφ.right
-    · rcases href₂ with ⟨href_in, href_out, href_int⟩; clear href_in href_out
+    · rcases href₂ with ⟨-, -, href_int⟩
       obtain ⟨a, b⟩ := liftR'_rule_eq hRule; subst_vars
       specialize href_int _ mid_i₂ hruleIn a
       rcases href_int with ⟨mid_s, Hexists, hphi⟩
@@ -1501,8 +1497,7 @@ theorem refines_φ_connect [MatchInterface imod smod] {φ i o} :
   intro init_i init_s hphi
   constructor
   · specialize href _ _ hphi
-    rcases href with ⟨href_in, href_out, href_int⟩
-    clear href_out href_int
+    rcases href with ⟨href_in, -, -⟩
     intro ident mid_i v hrule
     have hcont := PortMap.rule_contains hrule
     rcases Option.isSome_iff_exists.mp (AssocList.contains_some hcont) with ⟨rule, hruleIn⟩
@@ -1523,8 +1518,7 @@ theorem refines_φ_connect [MatchInterface imod smod] {φ i o} :
     · apply existSR_cons; assumption
     · assumption
   · specialize href _ _ hphi
-    rcases href with ⟨href_in, href_out, href_int⟩
-    clear href_in href_int
+    rcases href with ⟨-, href_out, -⟩
     intro ident mid_i v hrule
     have hcont := PortMap.rule_contains hrule
     rcases Option.isSome_iff_exists.mp (AssocList.contains_some hcont) with ⟨rule, hruleIn⟩
@@ -1551,11 +1545,11 @@ theorem refines_φ_connect [MatchInterface imod smod] {φ i o} :
     rcases Classical.em ((imod.outputs.getIO o).fst = (imod.inputs.getIO i).fst) with HEQ | HEQ
     · rcases hrule with ⟨hrule, _⟩
       rcases hrule HEQ with ⟨cons, outp, hrule1, hrule2⟩
-      rcases href init_i init_s ‹_› with ⟨h1, hout, h2⟩; clear h1 h2
+      rcases href init_i init_s ‹_› with ⟨-, hout, -⟩
       specialize hout o cons outp ‹_›
       rcases hout with ⟨almost_mid_s_o, mid_s_o, hstep_o, hrule_s_o, hphi_o⟩
       specialize href _ _ hphi_o
-      rcases href with ⟨href_in, h1, h2⟩; clear h1 h2
+      rcases href with ⟨href_in, -, -⟩
       specialize href_in i mid_i (HEQ.mp outp) ‹_›
       rcases href_in with ⟨alm_mid_s, mid_s_i, instep, exstep, hphi_i⟩
       exists mid_s_i; and_intros <;> try assumption
@@ -1580,9 +1574,9 @@ theorem refines_φ_connect [MatchInterface imod smod] {φ i o} :
       · constructor
     · rcases hrule with ⟨_, hrule⟩
       cases hrule HEQ
-    · specialize href _ _ hphi; rcases href with ⟨h1, h2, href⟩; clear h1 h2
+    · specialize href _ _ hphi; rcases href with ⟨-, -, href⟩
       specialize href _ _ ‹_› hrule
-      rcases href with ⟨mid_s, h1, h2⟩
+      rcases href with ⟨mid_s, _, _⟩
       exists mid_s; solve_by_elim [existSR_cons]
 
 theorem refines_connect {o i} :
@@ -1606,7 +1600,7 @@ theorem refines_φ_mapInputPorts {I S} {imod : Module Ident I} {smod : Module Id
   intro init_i init_s hphi
   specialize href _ _ hphi
   constructor
-  · rcases href with ⟨hinp, h1, h2⟩; clear h1 h2
+  · rcases href with ⟨hinp, -, -⟩
     intro ident mid_i v hrule
     have := Function.bijective_iff_existsUnique f |>.mp h ident
     rcases this with ⟨ident', mapIdent, uniq⟩
@@ -1646,7 +1640,7 @@ theorem refines_φ_mapOutputPorts {I S} {imod : Module Ident I} {smod : Module I
   specialize href _ _ hphi
   constructor
   · apply href.inputs
-  · rcases href with ⟨h1, hout, h2⟩; clear h1 h2
+  · rcases href with ⟨-, hout, -⟩
     intro ident mid_i v hrule
     have := Function.bijective_iff_existsUnique f |>.mp h ident
     rcases this with ⟨ident', mapIdent, uniq⟩
