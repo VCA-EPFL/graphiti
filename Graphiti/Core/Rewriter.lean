@@ -486,8 +486,11 @@ def rewrite_fix_rename {α} (g : ExprHigh String) (rewrites : List (Rewrite Stri
     | .some (g', a') => rewrite_fix_rename g' rewrites upd a' max_depth depth
     | .none => return (g, a)
 
-def withUndo {α} (rw : RewriteResult α) : RewriteResult α :=
-  addRuntimeMarker "rev-stop" *> rw <* addRuntimeMarker "rev-start"
+def withUndo {α} (rw : RewriteResult α) : RewriteResult α := do
+  match (addRuntimeMarker "rev-stop" *> rw) (← get) with
+  | .ok a st => set st *> addRuntimeMarker "rev-start" *> pure a
+  | .error .done st => set st *> addRuntimeMarker "rev-start" *> throw .done
+  | .error e st => set st *> addRuntimeMarker "rev-start" *> throw e
 
 /--
 Follow an output to the next node.  A similar function could be written to
