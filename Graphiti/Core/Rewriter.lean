@@ -44,6 +44,9 @@ structure RuntimeEntry where
 def RuntimeEntry.marker (s : String) : RuntimeEntry :=
   {(default : RuntimeEntry) with type := .marker s}
 
+def RuntimeEntry.debugEntry (s : String) : RuntimeEntry :=
+  {(default : RuntimeEntry) with type := .debug, debug := .some s }
+
 def RuntimeEntry.startMarker? (entry : RuntimeEntry) : Bool := entry.type == .marker "rev-start"
 
 def RuntimeEntry.stopMarker? (entry : RuntimeEntry) : Bool := entry.type == .marker "rev-stop"
@@ -53,8 +56,8 @@ instance : Lean.ToJson RuntimeEntry where
     Lean.Json.mkObj
       [ ("type", Lean.Format.pretty <| repr r.type)
       , ("name", Lean.toJson r.name)
-      , ("input_graph", toString r.input_graph)
-      , ("output_graph", toString r.output_graph)
+      , ("input_graph", toString (repr r.input_graph))
+      , ("output_graph", toString (repr r.output_graph))
       , ("matched_subgraph", Lean.toJson r.matched_subgraph)
       , ("renamed_input_nodes", Lean.Json.mkObj <| r.renamed_input_nodes.toList.map (λ a => (a.1, Lean.toJson a.2)))
       , ("new_output_nodes", Lean.toJson r.new_output_nodes)
@@ -110,6 +113,11 @@ def liftError {α σ} : Except String α → EStateM RewriteError σ α
 | .error s => throw (.error s)
 
 end Rewrite
+
+def errorIfDone {α σ} (s : String) (rw : EStateM RewriteError σ α) : EStateM RewriteError σ α :=
+  try rw catch
+  | .done => throw <| .error s
+  | .error s' => throw <| .error s'
 
 def generate_renaming (nameMap : AssocList String String) (fresh_prefix : String) (internals : List (InternalPort String)) :=
   go 0 nameMap ∅ internals
@@ -549,6 +557,9 @@ def isNonPure' typ :=
   && !"join".isPrefixOf typ
   && !"pure".isPrefixOf typ
   && !"fork".isPrefixOf typ
+  && !"sink".isPrefixOf typ
+  && !"mux".isPrefixOf typ
+  && !"branch".isPrefixOf typ
 
 def isNonPure (g : ExprHigh String) (node : String) : Bool :=
   match g.modules.find? node with
@@ -559,6 +570,9 @@ def isNonPureFork' typ :=
   !"split".isPrefixOf typ
   && !"join".isPrefixOf typ
   && !"pure".isPrefixOf typ
+  && !"sink".isPrefixOf typ
+  && !"mux".isPrefixOf typ
+  && !"branch".isPrefixOf typ
 
 def isNonPureFork (g : ExprHigh String) (node : String) : Bool :=
   match g.modules.find? node with
@@ -573,6 +587,9 @@ def nonPureForkMatcher (p : Pattern String) : Pattern String
 
 def toPattern {α Ident} (f : ExprHigh Ident → RewriteResult (List Ident × α)) : Pattern Ident
 | g => f g >>= λ x => pure (x.1, [])
+
+def Pattern.map {Ident} (f : List Ident → List Ident) (p : Pattern Ident) : Pattern Ident
+| g => p g >>= λ x => pure (f x.1, [])
 
 def Pattern.nest {Ident} [DecidableEq Ident] (a b : Pattern Ident) : Pattern Ident
 | g => a g >>= λ x => b {g with modules := g.modules.filter λ k v => k ∈ x.1}

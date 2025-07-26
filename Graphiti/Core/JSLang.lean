@@ -131,7 +131,7 @@ def rewriteWithEgg (eggCmd := "graphiti_oracle") (p : Pattern String) (rewritten
     : IO (List JSLangRewrite) := do
   let .some succ := calcSucc rewrittenExprHigh.invert | throw (.userError s!"{decl_name%}: could not calculate succ")
   let .ok ([first, last], _) _ := p rewrittenExprHigh |>.run default
-    | return []
+    | return [] -- throw (.userError s!"{decl_name%}: first/last not found")
   let .some constructed := JSLang.construct 10000 succ first (⟨last, default, default, default⟩)
     | throw (.userError s!"{decl_name%}: could not construct")
 

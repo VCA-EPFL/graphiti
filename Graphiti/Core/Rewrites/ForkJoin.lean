@@ -25,6 +25,10 @@ def matcher (g : ExprHigh String) : RewriteResult (List String × List String) :
        let (.some jt1) := typ.splitOn |>.get? 1 | return none
        let (.some jt2) := typ.splitOn |>.get? 2 | return none
 
+       -- -- TODO: prevent forks being moved away from branch/mux
+       -- let (.some mux) := followOutput g p.inst "out1" | return none
+       -- unless "mux".isPrefixOf mux.typ || "branch".isPrefixOf mux.typ do return none
+
        return some ([inst, p.inst], [jt1, jt2])
     ) none | MonadExceptOf.throw RewriteError.done
   return list

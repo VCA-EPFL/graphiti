@@ -349,6 +349,7 @@ def rewrite : Rewrite String :=
 
 end Fork
 
+-- TODO: do not pass the pattern, instead just precompute the pattern.
 def specialisedPureRewrites (p : Pattern String) :=
   [ { Constant.rewrite with
         pattern := fun g => do

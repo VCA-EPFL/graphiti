@@ -29,6 +29,10 @@ def matcher (g : ExprHigh String) : RewriteResult (List String × List String) :
 
        unless t1 = jt2 do throw (.error s!"{inst} :: {p.inst}")
 
+       -- -- TODO: prevent forks being moved away from branch/mux
+       -- let (.some mux) := followOutput g p.inst "out1" | return none
+       -- unless "mux".isPrefixOf mux.typ || "branch".isPrefixOf mux.typ do return none
+
        return some ([inst, p.inst], [jt1, jt2])
     ) none | MonadExceptOf.throw RewriteError.done
   return list

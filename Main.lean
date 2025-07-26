@@ -124,7 +124,6 @@ def pureGenerator' (n : Nat) (g : ExprHigh String) : List JSLangRewrite → Nat 
 | jsRw :: rst, fuel+1 => do
   let rw ← jsRw.mapToRewrite.run g
   let rst ← update_state JSLang.upd rst
-
   let (rw, rst) ← rewrite_fix_rename rw ([PureSeqComp.rewrite] ++ movePureJoin ++ reduceSink) JSLang.upd rst
   pureGenerator' n rw rst fuel
 
@@ -185,8 +184,24 @@ def rewriteGraph (parsed : CmdArgs) (g : ExprHigh String) (st : RewriteState)
   let (rewrittenExprHigh, st) ← runRewriter parsed g st <| do
     let rewrittenExprHigh ← normaliseLoop g
     withUndo <| do
-      pureGeneration rewrittenExprHigh <| (toPattern LoopRewrite.boxLoopBody).nest
-      pureGeneration rewrittenExprHigh <| toPattern LoopRewrite.boxLoopBody
+      let l ← errorIfDone "could not match if-statement" <| BranchPureMuxLeft.matchAllNodes rewrittenExprHigh
+      addRuntimeEntry <| {RuntimeEntry.debugEntry (toString (repr l)) with input_graph := rewrittenExprHigh, name := "debug1"}
+      let rewrittenExprHigh ← pureGeneration rewrittenExprHigh <| BranchPureMuxLeft.matchAllNodes.map (List.drop 3)
+      addRuntimeEntry <| {RuntimeEntry.debugEntry (toString rewrittenExprHigh) with name := "debug2"}
+      let l ← errorIfDone "could not match if-statement 2" <| BranchPureMuxRight.matchAllNodes rewrittenExprHigh
+      let rewrittenExprHigh ← pureGeneration rewrittenExprHigh <| BranchPureMuxRight.matchAllNodes.map (List.drop 3)
+      -- addRuntimeEntry <| {RuntimeEntry.debugEntry "" with input_graph := rewrittenExprHigh, name := "debug2"}
+      -- let l ← errorIfDone "could not match the loop" <| (nonPureMatcher (toPattern LoopRewrite.boxLoopBody)) rewrittenExprHigh
+      -- addRuntimeEntry <| {RuntimeEntry.debugEntry (toString (repr l)) with name := "debug3"}
+      -- addRuntimeEntry <| {RuntimeEntry.debugEntry (toString rewrittenExprHigh) with name := "debug4"}
+      -- pureGeneration rewrittenExprHigh <| toPattern LoopRewrite.boxLoopBody
+      return rewrittenExprHigh
+  let (rewrittenExprHigh, st) ← eggPureGenerator 100 parsed BranchPureMuxLeft.matchPreAndPost rewrittenExprHigh st <* writeLogFile parsed st
+  let (_, st) ← runRewriter' parsed st <| addRuntimeEntry <| {RuntimeEntry.debugEntry (toString rewrittenExprHigh) with name := "debug5"}
+  writeLogFile parsed st
+  let (rewrittenExprHigh, st) ← eggPureGenerator 100 parsed BranchPureMuxRight.matchPreAndPost rewrittenExprHigh st <* writeLogFile parsed st
+  let (rewrittenExprHigh, st) ← runRewriter parsed rewrittenExprHigh st <| rewrite_loop [BranchPureMuxLeft.rewrite, BranchPureMuxRight.rewrite, BranchMuxToPure.rewrite] rewrittenExprHigh
+  let (rewrittenExprHigh, st) ← runRewriter parsed rewrittenExprHigh st <| pureGeneration rewrittenExprHigh <| toPattern LoopRewrite.boxLoopBody
   let (rewrittenExprHigh, st) ← eggPureGenerator 100 parsed LoopRewrite.boxLoopBodyOther rewrittenExprHigh st <* writeLogFile parsed st
   let (rewrittenExprHigh, st) ← runRewriter parsed rewrittenExprHigh st (LoopRewrite2.rewrite.run rewrittenExprHigh)
   return (rewrittenExprHigh, st, st)

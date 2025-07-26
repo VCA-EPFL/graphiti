@@ -24,7 +24,7 @@ def matcher (g : ExprHigh String) : RewriteResult (List String × List String) :
 
        let (.some t1) := typ.splitOn |>.get? 1 | return none
        let (.some t2) := typ.splitOn |>.get? 2 | return none
-       let (.some t3) := sink.typ.splitOn |>.get? 2 | return none
+       let (.some t3) := sink.typ.splitOn |>.get? 1 | return none
 
        unless t2 = t3 do return none
 
