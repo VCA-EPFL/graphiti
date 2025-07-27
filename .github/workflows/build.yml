@@ -60,16 +60,16 @@ jobs:
 
       - name: test GCD example
         run: |
-          lake exe graphiti benchmarks/post-processed/gcd.dot -o out.dot --oracle $(pwd)/bin/graphiti_oracle --slow --reverse
+          lake exe graphiti benchmarks/post-processed/gcd.dot -o out.dot --oracle $(pwd)/bin/graphiti_oracle --reverse
 
       - name: test matvec example
         run: |
-          lake exe graphiti benchmarks/post-processed/matvec.dot -o out.dot --oracle $(pwd)/bin/graphiti_oracle --slow --reverse
+          lake exe graphiti benchmarks/post-processed/matvec.dot -o out.dot --oracle $(pwd)/bin/graphiti_oracle --reverse
 
       - name: test gemm example
         run: |
-          lake exe graphiti benchmarks/post-processed/gemm.dot -o out.dot --oracle $(pwd)/bin/graphiti_oracle --slow --reverse
+          lake exe graphiti benchmarks/post-processed/gemm.dot -o out.dot --oracle $(pwd)/bin/graphiti_oracle --reverse
 
       - name: test gsum_many example
         run: |
-          lake exe graphiti benchmarks/post-processed/gsum_many.dot -o out.dot --oracle $(pwd)/bin/graphiti_oracle --slow --reverse
+          lake exe graphiti benchmarks/post-processed/gsum_many.dot -o out.dot --oracle $(pwd)/bin/graphiti_oracle --reverse

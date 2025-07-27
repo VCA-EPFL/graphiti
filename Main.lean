@@ -23,7 +23,7 @@ structure CmdArgs where
   noDynamaticDot : Bool := false
   parseOnly : Bool := false
   graphitiOracle : String := "graphiti_oracle"
-  slow : Bool := false
+  fast : Bool := false
   reverse : Bool := false
   help : Bool := false
 deriving Inhabited
@@ -55,8 +55,8 @@ def parseArgs (args : List String) : Except String CmdArgs := go CmdArgs.empty a
       go {c with parseOnly := true} rst
     | .cons "--oracle" (.cons fp rst) =>
       go {c with graphitiOracle := fp} rst
-    | .cons "--slow" rst =>
-      go {c with slow := true} rst
+    | .cons "--fast" rst =>
+      go {c with fast := true} rst
     | .cons "--reverse" rst =>
       go {c with reverse := true} rst
     | .cons fp rst => do
@@ -82,7 +82,7 @@ OPTIONS
                       dot that is easier for debugging purposes.
   --oracle            Path to the oracle executable.  Default is graphiti_oracle.
   --parse-only        Only parse the input without performing rewrites.
-  --slow              Use the slow but verified rewrite approach.
+  --fast              Use the fast but unverified rewrite approach.
   --reverse           Feature flag for reverse rewriting.
 "
 
@@ -254,7 +254,7 @@ def main (args : List String) : IO Unit := do
   let mut st : RewriteState := default
 
   if !parsed.parseOnly then
-    let (g', _, st') ← (if parsed.slow then rewriteGraph else rewriteGraphAbs) parsed rewrittenExprHigh st
+    let (g', _, st') ← (if !parsed.fast then rewriteGraph else rewriteGraphAbs) parsed rewrittenExprHigh st
     let (g', st') ← if parsed.reverse then runRewriter' parsed st' <| reverseRewrites g' else pure (g', st')
     rewrittenExprHigh := g'; st := st'
 
