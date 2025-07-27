@@ -62,13 +62,19 @@ def rhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
     pure -> o_out [from = "out1"];
   ]
 
-def rhsLower := (rhs Unit Op).fst.lower.get rfl
+def rhs_extract := (rhs Unit Op).fst.extract ["pure"] |>.get rfl
+
+def rhsLower := (rhs_extract Op).fst.lower.get rfl
+
+def findRhs mod := (rhs_extract "").1.modules.find? mod |>.map Prod.fst
 
 def rewrite : Rewrite String :=
   { abstractions := [],
     pattern := matcher,
     rewrite := λ | [Op] => .some ⟨lhsLower Op, rhsLower Op⟩ | _ => failure
     name := "load-rewrite"
-    }
+    transformedNodes := [.none, .none]
+    addedNodes := [findRhs "pure" |>.get rfl]
+  }
 
 end Graphiti.LoadRewrite
