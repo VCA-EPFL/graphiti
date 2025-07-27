@@ -243,8 +243,20 @@ def get_all_products : ExprLow Ident → List (PortMapping Ident × Ident)
 | connect c e => get_all_products e
 | product e₁ e₂ => get_all_products e₁ ++ get_all_products e₂
 
+def higherSSS : ExprLow Ident → Option (ExprHigh Ident)
+| .base a b => do
+  return ExprHigh.mk [((compute_hash a), (a, b))].toAssocList ∅
+| .connect c e => do
+  let e' ← e.higherSSS
+  return { e' with connections := e'.connections.cons c }
+| .product e₁ e₂ => do
+  let e₁' ← e₁.higherSSS
+  let e₂' ← e₂.higherSSS
+  return ⟨ e₁'.1.append e₂'.1, e₁'.2.append e₂'.2 ⟩
+
 def higher_correct (e : ExprLow Ident) : Option (ExprHigh Ident) :=
   higher_correct_connections compute_hash (comm_bases (get_all_products e) e)
+  -- higherSSS compute_hash e
 
 end LowerToHigher
 
