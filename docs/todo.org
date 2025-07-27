@@ -90,7 +90,7 @@
 :ID:       37700f4e-0f3c-425e-9f34-1d68726fe14d
 :END:
 
-* Framework development [3/14]
+* Framework development [4/14]
 :PROPERTIES:
 :ID:       d90489ca-4ca8-4d1c-913a-83695b611810
 :END:
@@ -253,10 +253,14 @@ CLOSED: [2025-07-17 Thu 14:13]
 
 - [[id:9a94c5c8-a876-481b-829a-7cf9ccffc12f][Add option to rewrite without renaming]]
 
-** TODO Support rewriting of loop bodies with ~if~ statements      :rewriter:
+** DONE Support rewriting of loop bodies with ~if~ statements      :rewriter:
+CLOSED: [2025-07-27 Sun 19:22]
 :PROPERTIES:
 :ID:       e22e63b0-e51e-45db-b620-424f68082838
 :Effort:   4d
+:END:
+:LOGBOOK:
+- State "DONE"       from "TODO"       [2025-07-27 Sun 19:22]
 :END:
 
 {{{effort}}}
@@ -385,3 +389,10 @@ This may require implement new nodes for splitting and combining tags.
 
 In most cases you need the graph, so it would make sense to add it into the monad.  Matchers are then functions that
 just return a list of nodes under the Monad.
+
+** TODO Support loop to pure transformation for terminating loops.
+:PROPERTIES:
+:ID:       acd301a2-11f0-4320-bdd1-1ad00fabcc91
+:END:
+
+For loops that can be shown to terminate, we can support a translation towards a ~pure~ node.
