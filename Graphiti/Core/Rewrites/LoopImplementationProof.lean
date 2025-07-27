@@ -35,6 +35,10 @@ match n with
 def iterate (i: Data) (n : Nat) (i': Data) : Prop :=
   (∀ m, m < n -> (apply f m i).snd = true) ∧ apply f n i = (i', false) ∧ n > 0
 
+inductive iterate_full (i: Data) : Option Nat → Option Data → Prop where
+| terminate {n i'} : iterate f i n i' → iterate_full i (some n) (some i')
+| diverge : (∀ m, (apply f m i).snd = true) → iterate_full i none none
+
 inductive state_relation : rhsGhostType Data -> Prop where
 | intros : ∀ (s :  rhsGhostType Data) x_merge x_module x_branchD x_branchB x_tagT x_tagM x_tagD x_splitD x_splitB x_split_branchT x_split_branchF x_moduleT x_moduleF,
   ⟨ x_module, ⟨x_branchD, x_branchB⟩, x_merge, ⟨x_tagT, x_tagM, x_tagD ⟩, ⟨x_splitD, x_splitB⟩⟩ = s ->
@@ -58,7 +62,22 @@ inductive state_relation : rhsGhostType Data -> Prop where
   -- ( ∀ tag i, (i) ∈ x_tagD -> ∃ d n, iterate f i n d) ->
   state_relation s
 
+def default_lhs : lhsType Data := ⟨default, default, ⟨default, true⟩, default, ⟨default, default⟩ ,⟨default, default⟩, ⟨default, default⟩, default, default, default ⟩
 
+theorem state_relation_empty :
+  state_relation f default := by
+  constructor <;> try trivial
+  · intro elem hin; cases hin
+  · intro elem n i' hin; cases hin
+  · intro _ hin; cases hin
+  · intro _ hin; cases hin
+  · constructor
+  · intro _ hin; cases hin
+  · constructor
+  · intro _ _ _ _ hfind; simp at hfind
+  · intro _ hin; cases hin
+  · intro _ _ hin; cases hin
+  · intro _ hin; cases hin
 
 
 omit [Inhabited Data] in
@@ -117,6 +136,12 @@ inductive φ: rhsGhostType Data -> lhsType Data -> Prop where
     state_relation f i ->
     lhs_is_empty s ->
     φ i s
+
+theorem φ_empty : φ f default default_lhs := by
+  constructor <;> try trivial
+  · constructor
+  · apply state_relation_empty
+  · constructor <;> try trivial
 
 instance : MatchInterface (rhsGhostEvaled f) (lhsEvaled f) := by
   unfold rhsGhostEvaled lhsEvaled
