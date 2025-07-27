@@ -90,7 +90,7 @@
 :ID:       37700f4e-0f3c-425e-9f34-1d68726fe14d
 :END:
 
-* Framework development [4/14]
+* Framework development [5/14]
 :PROPERTIES:
 :ID:       d90489ca-4ca8-4d1c-913a-83695b611810
 :END:
@@ -111,10 +111,14 @@
 
 {{{effort}}}
 
-** TODO Prove φ holds for initial state                        :loop_rewrite:
+** DONE Prove φ holds for initial state                        :loop_rewrite:
+CLOSED: [2025-07-28 Mon 00:50]
 :PROPERTIES:
 :ID:       0ca6f802-8200-42a7-b349-1814720493e7
 :Effort:   0.25d
+:END:
+:LOGBOOK:
+- State "DONE"       from "TODO"       [2025-07-28 Mon 00:50]
 :END:
 
 {{{effort}}}
