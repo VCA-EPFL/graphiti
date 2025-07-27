@@ -207,6 +207,12 @@ axiom in_eraseAll_noDup {α β γ δ} {l : List ((α × β) × γ × δ)} (Ta : 
 axiom notinfirst {A B} {x : List (A × B)} {a} :
   a ∉ List.map Prod.fst x → ∀ y, (a, y) ∉ x
 
+theorem elem_in_third {α} {e : α} {a b c d : List _} :
+  e ∈ a ++ (b ++ (c ++ d)) → e ∈ a ++ (b ++ d) := by sorry
+
+theorem elem_in_erase_first {α} {e : α} {a b : List _} {n} :
+  e ∈ (List.eraseIdx a n) ++ b → e ∈ a ++ b := by sorry
+
 set_option maxHeartbeats 0 in
 theorem state_relation_preserve:
   ∀ (s s' : rhsGhostType Data) rule,
@@ -223,72 +229,22 @@ theorem state_relation_preserve:
     obtain ⟨cons, newC, h⟩ := h2
     obtain ⟨ x_module', ⟨x_branchD', x_branchB'⟩, x_merge', ⟨x_tagT', x_tagM', x_tagD' ⟩, ⟨x_splitD', x_splitB'⟩⟩ := cons
     dsimp at h
-    simp_all only [Prod.mk.injEq]; repeat cases ‹_ ∧ _›
+    simp_all only [Prod.mk.injEq]; repeat with_reducible cases ‹_ ∧ _›
     subst_vars
     cases h3
     rename_i h h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 H13 H14 H15 Hnew Hnewnew
     simp at h
-    repeat cases ‹_ ∧ _›
+    repeat with_reducible cases ‹_ ∧ _›
     subst_vars
     constructor <;> (try rfl) <;> (try assumption)
-    . clear h9 h10 h12
-      intro elem h1
-      specializeAll elem
-      constructor
-      . rw[← List.singleton_append] at *
-        aesop (add norm List.mem_append_right) (config := {useDefaultSimpSet := false})
-      . rw[← List.singleton_append] at *
-        aesop (add norm List.mem_append_right) (config := {useDefaultSimpSet := false})
+    . grind [←List.singleton_append]
     . clear h9 h10 h12 H13 H14 H15
       intro elem n i' h1 h2
       specializeAll elem
-      specializeAll n
-      specializeAll i'
-      simp_all only [List.append_assoc, Prod.mk.eta, List.map_append, List.map_map, List.mem_cons,
-        forall_eq_or_imp, Prod.forall, ge_iff_le, zero_le, true_and, forall_const]
+      simp only [List.mem_cons, forall_eq_or_imp, zero_le] at *
       cases h1
-      . subst_vars
-        -- aesop
-        rename_i left right
-        unfold Graphiti.LoopRewrite.iterate at h2
-        unfold Graphiti.LoopRewrite.iterate at Hnew
-        unfold Graphiti.LoopRewrite.iterate at Hnewnew
-        simp_all only [gt_iff_lt, true_and]
-        obtain ⟨fst, snd⟩ := s
-        obtain ⟨fst_1, snd_1⟩ := s'
-        obtain ⟨fst_2, snd_2⟩ := elem
-        obtain ⟨fst_3, snd⟩ := snd
-        obtain ⟨fst_4, snd_1⟩ := snd_1
-        obtain ⟨fst_2, snd_3⟩ := fst_2
-        obtain ⟨fst_5, snd_2⟩ := snd_2
-        obtain ⟨fst_3, snd_4⟩ := fst_3
-        obtain ⟨fst_6, snd⟩ := snd
-        obtain ⟨fst_4, snd_5⟩ := fst_4
-        obtain ⟨fst_7, snd_1⟩ := snd_1
-        obtain ⟨left_1, right_1⟩ := h2
-        obtain ⟨left_2, right_2⟩ := h3
-        obtain ⟨left_3, right_3⟩ := Hnewnew
-        obtain ⟨fst_8, snd⟩ := snd
-        obtain ⟨fst_9, snd_1⟩ := snd_1
-        obtain ⟨left_4, right_1⟩ := right_1
-        obtain ⟨left_2, right_4⟩ := left_2
-        obtain ⟨w, h⟩ := left_3
-        obtain ⟨fst_8, snd_6⟩ := fst_8
-        obtain ⟨fst_10, snd⟩ := snd
-        obtain ⟨fst_9, snd_7⟩ := fst_9
-        obtain ⟨fst_11, snd_1⟩ := snd_1
-        obtain ⟨w_1, h⟩ := h
-        obtain ⟨fst_12, snd_6⟩ := snd_6
-        obtain ⟨fst_13, snd_7⟩ := snd_7
-        obtain ⟨left_3, right_5⟩ := h
-        obtain ⟨left_5, right_5⟩ := right_5
-        subst right_4
-        rfl
-      . -- aesop
-        unfold Graphiti.LoopRewrite.iterate at Hnewnew
-        unfold Graphiti.LoopRewrite.iterate at h2
-        unfold Graphiti.LoopRewrite.iterate at Hnew
-        simp_all only [gt_iff_lt, forall_const, and_self]
+      . subst_vars; unfold Graphiti.LoopRewrite.iterate at h2; simp only [true_and, h3, h2]; rfl
+      . grind
     . clear h10 h9 h4 h3 H13 H14
       rename_i h _
       replace h := notinfirst h
@@ -322,20 +278,23 @@ theorem state_relation_preserve:
           specialize h12 (newC.1.1, i') h
           specialize h' i'
           solve_by_elim
-      . (repeat rw[List.map_append] at h11)
+      . repeat rw[List.map_append] at h11
         ac_nf at *
     . rename_i h14 h15
       clear h10 h9 h4 h11 h14 h15
       intro elem h1
       specialize h12 elem
       by_cases elem = (newC.1.1, newC.2.2)
+      . specialize H15 _ (by constructor)
+        grind [List.mem_append_right]
       . obtain ⟨⟨ newCT, newCD⟩, newCN, newCDI⟩ := newC
-        simp at h1
-        simp_all
-      . obtain ⟨⟨ newCT, newCD⟩, newCN, newCDI⟩ := newC
-        subst_vars
-        simp at h1
-        simp_all
+        repeat (rw [List.map_append] at h1)
+        rw [List.map_cons] at h1; dsimp at h1
+        cases h1
+        · grind
+        · apply List.mem_append_left
+          apply h12; repeat (rw [List.map_append])
+          assumption
     . clear h10 h9 h4  H13 H14 H15
       rename_i hn _
       rename_i x_tag _ _ _ _
@@ -351,16 +310,10 @@ theorem state_relation_preserve:
       specialize H14 tag d n i h1
       cases H14; rename_i H14 H14'
       constructor
-      . simp_all
+      . grind
       . assumption
-    . clear h10 h9 h4  H13 H14 h3 h11 h12
-      intro d h1
-      specialize H15 d
-      simp at H15
-      -- aesop
-      unfold Graphiti.LoopRewrite.iterate at Hnew
-      unfold Graphiti.LoopRewrite.iterate at Hnewnew
-      simp_all only [gt_iff_lt, List.mem_cons, forall_eq_or_imp, Prod.forall, or_true, forall_const]
+    . clear h10 h9 h4 H13 H14 h3 h11 h12
+      grind
     . intro tag i h1
       rename_i x_tagT _ _ _ _ _
       rw[List.mem_append] at h1
@@ -369,23 +322,21 @@ theorem state_relation_preserve:
       . simp at h1; subst_vars
         obtain ⟨⟨newC11, newC12⟩, newC21, newC22⟩ := newC
         cases h1
-        clear H14
-        dsimp at Hnewnew
         specialize Hnewnew (i, newC21, newC22)
         specialize Hnewnew (by simp)
-        dsimp at Hnewnew; assumption
+        assumption
     · intros; apply Hnewnew; simp [*]
   . replace h2 := h2.1 rfl
     simp only [List.concat_eq_append] at *
     obtain ⟨cons, newC, h⟩ := h2
     obtain ⟨ x_module', ⟨x_branchD', x_branchB'⟩, x_merge', ⟨x_tagT', x_tagM', x_tagD' ⟩, ⟨x_splitD', x_splitB'⟩⟩ := cons
     dsimp at h
-    simp_all; repeat cases ‹_ ∧ _›
+    simp_all only [Prod.mk.injEq]; repeat with_reducible cases ‹_ ∧ _›
     subst_vars
     cases h3
     rename_i h h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 H13 H14 H15 Hnew Hnew'
     simp at h
-    repeat cases ‹_ ∧ _›
+    repeat with_reducible cases ‹_ ∧ _›
     subst_vars
     constructor <;> (try rfl) <;> (try assumption)
     . clear h11 h12 h13 h9 h10
@@ -412,29 +363,26 @@ theorem state_relation_preserve:
       . unfold liftF2 at h1; unfold liftF at h1; simp at h1
         cases h1
         rename_i H _ _; cases H; rename_i H; cases H; rename_i H
-        simp at H
         rename_i x_merge _ _ w _
         have H1 := @List.mem_of_get? _ (x_merge) w newC
-        simp at H1; have H := Eq.symm H
+        simp only [List.get?_eq_getElem?, Fin.is_lt, getElem?_pos, Option.some.injEq] at H1; have H := Eq.symm H
         specialize H1 H
         obtain ⟨⟨ newCT, newCD⟩, newCN, newCDI⟩ := newC
         specialize h12  (newCT, newCDI)
         have H1' := @List.mem_map_of_mem _ _ x_merge ((newCT, newCD), newCN, newCDI) (fun x => match x with | ((x, _), _, y) => (x, y)) H1
         (repeat rw[List.map_append] at h12)
         have H1' := List.mem_append_left (List.map (fun x => match x with | ((x, snd), fst, y) => (x, y)) (List.map Prod.fst x_module) ++ List.map (fun x => match x with | ((x, snd), fst, y) => (x, y)) x_splitD ++ List.map (fun x => match x with | ((x, snd), fst, y) => (x, y)) x_branchD ++ List.map (fun x => match x with | ((x, snd), fst, y) => (x, y)) (List.map (fun x => ((x.1, x.2.1), x.2.2.1, x.2.2.2)) x_tagM.toList)) H1'
-        dsimp at H1'
-        simp only [] at h12
         ac_nf at *
         specialize h12 H1'
         specialize Hnew newCT newCDI h12
         cases Hnew; rename_i i Hnew; cases Hnew; rename_i n Hnew
         specialize h4 ((newCT, newCD), newCN, newCDI) n i H1 Hnew
-        simp at h4
+        simp [ge_iff_le, zero_le, true_and] at h4
         constructor; constructor; rotate_left
         . exact i
         . exact n
         subst_vars
-        simp
+        simp only [gt_iff_lt, add_pos_iff, zero_lt_one, true_or, true_and]
         cases h4
         have HT := apply_true f newCDI i n newCN
         rename_i hh
@@ -445,7 +393,6 @@ theorem state_relation_preserve:
           rw[← H] at hf; assumption
         . constructor
           . rename_i Hf _ _ H
-            simp only[] at Hf
             rw[H] at Hf
             rw[apply_plus_one_condiction] at Hf
             specialize HT Hf Hnew; omega
@@ -460,45 +407,41 @@ theorem state_relation_preserve:
       cases h1 <;> rename_i h
       . rename_i x_merge x_module x_branchD x_branchB x_tagT x_tagM x_tagD x_splitD x_splitB _
         have H1 := @List.mem_filter_of_mem (((TagT × Data) × ℕ × Data) × Bool) (fun x => x.2 == false) _ _ h
-        simp only [] at H1; simp only [beq_self_eq_true] at H1
+        simp only [beq_self_eq_true] at H1
         simp only [forall_const] at H1
         have H := @List.mem_map_of_mem (((TagT × Data) × ℕ × Data) × Bool) ((TagT × Data) × ℕ × Data) (List.filter (fun x => x.2 == false) ((x_branchD ++ x_splitD).zip (x_branchB ++ x_splitB))) ((elem, false)) Prod.fst H1
         simp only [] at H
         have H := List.mem_append_left (List.map Prod.fst (List.filter (fun x => x.2 == false) x_module)) H
         specialize h10 H; assumption
       . cases h <;> rename_i h
-        . simp_all only [and_self, implies_true, ge_iff_le, zero_le, true_and, Prod.forall, List.append_assoc,
-                         Prod.mk.eta, List.map_append, List.map_map, List.mem_append, List.mem_map, Prod.exists, Function.comp_apply,
-                         exists_and_right, Bool.exists_bool, Prod.mk.injEq, exists_eq_right_right, exists_eq_right, List.length_append,
-                         AssocList.find?_eq, Option.map_eq_some', forall_exists_index, beq_false, List.mem_filter, Bool.not_eq_eq_eq_not,
-                         Bool.not_true, or_true, forall_const]
+        . simp only [List.mem_append, List.mem_map, Prod.exists,
+                     exists_and_right, exists_eq_right, List.length_append,
+                     beq_false, List.mem_filter, Bool.not_eq_eq_eq_not,
+                     Bool.not_true] at h10
+          simp only [or_true, h, h10]
         . cases h;
           rename_i x_merge x_module x_branchD x_branchB x_tagT x_tagM x_tagD x_splitD x_splitB _ _ _
           rename_i H _ _; cases H; rename_i H; cases H; rename_i H
-          simp at H
           rename_i w _
           have H1 := @List.mem_of_get? _ (x_merge) w newC
-          simp at H1; have H := Eq.symm H
+          simp only [List.get?_eq_getElem?, Fin.is_lt, getElem?_pos, Option.some.injEq] at H1; have H := Eq.symm H
           specialize H1 H
           obtain ⟨⟨ newCT, newCD⟩, newCN, newCDI⟩ := newC
           specialize h12  (newCT, newCDI)
           have H1' := @List.mem_map_of_mem _ _ x_merge ((newCT, newCD), newCN, newCDI) (fun x => match x with | ((x, _), _, y) => (x, y)) H1
           (repeat rw[List.map_append] at h12)
           have H1' := List.mem_append_left (List.map (fun x => match x with | ((x, snd), fst, y) => (x, y)) (List.map Prod.fst x_module) ++ List.map (fun x => match x with | ((x, snd), fst, y) => (x, y)) x_splitD ++ List.map (fun x => match x with | ((x, snd), fst, y) => (x, y)) x_branchD ++ List.map (fun x => match x with | ((x, snd), fst, y) => (x, y)) (List.map (fun x => ((x.1, x.2.1), x.2.2.1, x.2.2.2)) x_tagM.toList)) H1'
-          dsimp at H1'
-          simp only [] at h12
           ac_nf at *
           specialize h12 H1'
           specialize Hnew newCT newCDI h12
           cases Hnew; rename_i i Hnew; cases Hnew; rename_i n Hnew
           specialize h4 ((newCT, newCD), newCN, newCDI) n i H1 Hnew
-          simp at h4
+          simp only [ge_iff_le, zero_le, true_and] at h4
           subst_vars; simp
           cases h4
           have HH := apply_false f newCDI i n newCN
           rename_i h
           rename_i Hf _ _ H
-          simp only[] at Hf
           rw[H] at Hf
           rw[apply_plus_one_condiction] at Hf
           specialize HH h Hf Hnew
@@ -515,16 +458,15 @@ theorem state_relation_preserve:
             rw[ho]
             generalize apply f (newCN + 1) newCDI = y at *
             cases y; congr
+            -- grind [apply_plus_one]
           . omega
     . clear h9 h12 h13 h10 h4
       unfold liftF2
       unfold liftF
-      simp_all
       rename_i H
       cases H; rename_i l H
       cases H; rename_i H1 H2
       subst x_merge'
-      simp_all
       ac_nf at *
       rename_i x_merge x_module x_branchD _ _ x_tagM _ x_splitD _
       have H : (List.map (Prod.fst ∘ Prod.fst) (List.eraseIdx x_merge ↑l) ++
@@ -538,7 +480,6 @@ theorem state_relation_preserve:
         rw[List.append_cons]
         rw[List.append_assoc _ (List.map (Prod.fst ∘ Prod.fst) x_splitD) (List.map (Prod.fst ∘ Prod.fst) x_branchD)]
         rw [List.perm_append_right_iff]
-        simp
         rw [erase_map]
         . have hh := List.perm_append_comm_assoc ((List.map (Prod.fst ∘ Prod.fst) x_merge).eraseIdx ↑l) (List.map (Prod.fst ∘ Prod.fst ∘ Prod.fst) x_module) ([x_merge[↑l].1.1] ++ (List.map (Prod.fst ∘ Prod.fst) x_splitD ++ List.map (Prod.fst ∘ Prod.fst) x_branchD))
           have h1 := @List.Perm.trans _ _ _ (List.map (Prod.fst ∘ Prod.fst) x_merge ++ List.map (Prod.fst ∘ Prod.fst ∘ Prod.fst) x_module ++ (List.map (Prod.fst ∘ Prod.fst) x_splitD ++ List.map (Prod.fst ∘ Prod.fst) x_branchD)) hh
@@ -566,6 +507,7 @@ theorem state_relation_preserve:
         . exact newC.2
       have H := List.Perm.symm H
       ac_nf at *
+      simp only [List.map_append, List.map_map] at h11
       have HH := List.Nodup.perm h11 H
       rw[← List.singleton_append] at *
       (repeat rw[ ← List.append_assoc])
@@ -573,7 +515,9 @@ theorem state_relation_preserve:
       rw[ ← List.append_assoc] at HH
       rw[ ← List.append_assoc] at HH
       rw[ ← List.append_assoc] at HH
-      assumption
+      simp only [List.append_nil, List.map_append, List.map_cons, List.map_nil, List.append_assoc, List.cons_append,
+  List.nil_append, Prod.mk.eta, List.map_map, H2]
+      simp only [List.append_assoc] at *; assumption
     . clear h9 h10 h4 h11
       rename_i x_merge x_module x_branchD x_branchB x_tagT x_tagM x_tagD x_splitD x_splitB _
       intro elem h1
@@ -585,34 +529,21 @@ theorem state_relation_preserve:
       clear h12
       rename_i H ; cases H; rename_i w H; cases H; rename_i H H1
       obtain ⟨⟨ newCT, newCD⟩, newCN, newCDI⟩ := newC
-      simp_all
-      cases h1
-      . constructor
-        aesop ( add safe forward List.mem_of_mem_eraseIdx) (config := {useDefaultSimpSet := false})
-      . rename_i h
-        cases h
-        . aesop (config := {useDefaultSimpSet := false})
-        . rename_i h; cases h
-          . constructor
-            constructor; rotate_left
-            . exact newCT
-            . constructor; rotate_left
-              . exact newCD
-              . constructor; rotate_left
-                . exact newCN
-                . aesop
-          . aesop (config := {useDefaultSimpSet := false})
+      subst x_merge'
+      simp only [List.map_append,←List.eraseIdx_map,List.map_map] at h1 ⊢
+      dsimp [Function.comp] at h1 ⊢
+      ac_nf at h1 ⊢; apply elem_in_third; apply elem_in_erase_first; assumption
   . replace h2 := h2.1 rfl
     simp only [List.concat_eq_append] at *
     obtain ⟨cons, newC, h⟩ := h2
     obtain ⟨ x_module', ⟨x_branchD', x_branchB'⟩, x_merge', ⟨x_tagT', x_tagM', x_tagD' ⟩, ⟨x_splitD', x_splitB'⟩⟩ := cons
     dsimp at h
-    simp_all; repeat cases ‹_ ∧ _›
+    simp_all only [Prod.mk.injEq]; repeat with_reducible cases ‹_ ∧ _›
     subst_vars
     cases h3
     rename_i h h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 H13 H14 H15 Hnew Hnew2
-    simp at h
-    repeat cases ‹_ ∧ _›
+    simp only [Prod.mk.injEq] at h
+    repeat with_reducible cases ‹_ ∧ _›
     subst_vars
     constructor <;> (try rfl) <;> (try assumption)
     . clear h10 h12 h13 h11
@@ -654,7 +585,7 @@ theorem state_relation_preserve:
       (repeat rw[List.map_append] at h11)
       have H : List.map Prod.fst [newC] = [newC.1] := by simp
       rw[H] at h11
-      simp_all
+      simp only [List.map_cons, List.cons_append, List.nil_append, List.append_assoc] at *
       (repeat rw[← List.append_assoc])
       rw[List.nodup_middle] at h11
       rename_i x_branch _ _ _ _ _ x_split _
@@ -663,24 +594,23 @@ theorem state_relation_preserve:
     . clear h9 h10 h4 h11 h13 h3 H13 Hnew H15
       intro elem h1
       specialize h12 elem
-      aesop
+      grind
     . clear h3 h4 h13 h11 h12 h9 h10
       (repeat rw [← List.append_assoc ])
       (repeat rw [List.length_append])
       (repeat rw [List.length_append] at H13)
-      rw[H13]
-      simp
+      rw[H13]; rfl
   . replace h2 := h2.1 rfl
     simp only [List.concat_eq_append] at *
     obtain ⟨cons, newC, h⟩ := h2
     obtain ⟨ x_module', ⟨x_branchD', x_branchB'⟩, x_merge', ⟨x_tagT', x_tagM', x_tagD' ⟩, ⟨x_splitD', x_splitB'⟩⟩ := cons
     dsimp at h
-    simp_all; repeat cases ‹_ ∧ _›
+    simp_all only [Prod.mk.injEq]; repeat with_reducible cases ‹_ ∧ _›
     subst_vars
     cases h3
     rename_i h h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 H13 H14 H15 Hnew Hnew2
     simp at h
-    repeat cases ‹_ ∧ _›
+    repeat with_reducible cases ‹_ ∧ _›
     subst_vars
     constructor <;> (try rfl) <;> (try assumption)
     . clear h10 h12 h13 h11 h4 h3
@@ -702,9 +632,7 @@ theorem state_relation_preserve:
       rw[← List.singleton_append ] at h11
       (repeat rw[List.map_append])
       (repeat rw[List.map_append] at h11)
-      --have H : List.map Prod.fst [newC] = [newC.1] := by simp
-      --rw[H] at h11
-      simp_all
+      simp only [List.map_map, List.map_cons, List.cons_append, List.append_assoc] at *
       (repeat rw[← List.append_assoc])
       (repeat rw[← List.append_assoc] at h11)
       rename_i x_merge x_module _ _ _ _ _ _
@@ -714,25 +642,24 @@ theorem state_relation_preserve:
     . clear h9 h10 h4 h11 h13 h3 H13
       intro elem h1
       specialize h12 elem
-      aesop
+      grind
     . clear h3 h4 h13 h11 h12 h9 h10
       (repeat rw [← List.append_assoc ])
       (repeat rw [List.length_append])
       rw[← List.singleton_append ] at H13
       (repeat rw [List.length_append] at H13)
-      rw[← H13]
-      ac_nf at *
+      rw[← H13]; ac_nf
   . replace h2 := h2.1 rfl
     simp only [List.concat_eq_append] at *
     obtain ⟨cons, newC, h⟩ := h2
     . obtain ⟨ x_module', ⟨x_branchD', x_branchB'⟩, x_merge', ⟨x_tagT', x_tagM', x_tagD' ⟩, ⟨x_splitD', x_splitB'⟩⟩ := cons
       dsimp at h
-      simp_all; repeat cases ‹_ ∧ _›
+      simp_all only [Prod.mk.injEq]; repeat with_reducible cases ‹_ ∧ _›
       subst_vars
       cases h3
       rename_i h h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 H13 H14 H15 Hnew Hnew2
-      simp at h
-      repeat cases ‹_ ∧ _›
+      simp only [Prod.mk.injEq] at h
+      repeat with_reducible cases ‹_ ∧ _›
       subst_vars
       constructor <;> (try rfl) <;> (try assumption)
       . clear h10 h12 h13 h11 h4 h3
@@ -761,12 +688,12 @@ theorem state_relation_preserve:
     obtain ⟨cons, newC, h⟩ := h2
     obtain ⟨ x_module', ⟨x_branchD', x_branchB'⟩, x_merge', ⟨x_tagT', x_tagM', x_tagD' ⟩, ⟨x_splitD', x_splitB'⟩⟩ := cons
     dsimp at h
-    simp_all; repeat cases ‹_ ∧ _›
+    simp_all only [Prod.mk.injEq]; repeat with_reducible cases ‹_ ∧ _›
     subst_vars
     cases h3
     rename_i h h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 H13 H14 H15 Hnew Hnew2
-    simp at h
-    repeat cases ‹_ ∧ _›
+    simp only [Prod.mk.injEq] at h
+    repeat with_reducible cases ‹_ ∧ _›
     subst_vars
     constructor <;> (try rfl) <;> (try assumption)
     . clear h10 h12 H13 h13
@@ -774,7 +701,10 @@ theorem state_relation_preserve:
       specialize h4 elem n i'
       specialize h9 elem
       cases h1
-      . simp_all
+      . simp only [List.cons_append, List.map_cons, zero_le,
+                   true_and, beq_true, List.zip_cons_cons, List.filter_cons_of_pos, List.mem_cons,
+                   exists_and_right, true_or,
+                   forall_const] at *
         cases h9; rename_i n' h9
         cases h9; rename_i h9
         repeat cases ‹_ ∧ _›
@@ -812,14 +742,14 @@ theorem state_relation_preserve:
       rename_i x_merge x_module _ x_tagM _ x_splitD _
       have H := @List.Nodup.perm _ _ (List.map Prod.fst (List.map Prod.fst (newC :: x_merge ++ List.map Prod.fst x_module ++ x_splitD ++ x_branchD' ++ List.map (fun x => ((x.1, x.2.1), x.2.2.1, x.2.2.2)) x_tagM.toList))) h11
       apply H
-      simp
+      simp only [List.append_assoc, Prod.mk.eta, List.cons_append, List.map_append, List.map_map, List.map_cons]
       (repeat rw [← List.append_assoc])
       have h := @List.perm_middle _ newC.1.1 (List.map (Prod.fst ∘ Prod.fst) x_merge ++ List.map (Prod.fst ∘ Prod.fst ∘ Prod.fst) x_module ++ List.map (Prod.fst ∘ Prod.fst) x_splitD ) (List.map (Prod.fst ∘ Prod.fst) x_branchD' ++ List.map (Prod.fst ∘ Prod.fst ∘ fun x => ((x.1, x.2.1), x.2.2)) x_tagM.toList)
       ac_nf at *
     . clear h9 h10 h4 h11 h13 h3 H13 Hnew
       intro elem h1
       specialize h12 elem
-      aesop
+      grind
     . clear h3 h4 h13 h11 h12 h9 h10
       (repeat rw [← List.append_assoc ])
       (repeat rw [List.length_append])
@@ -833,12 +763,12 @@ theorem state_relation_preserve:
     obtain ⟨cons, newC, h⟩ := h2
     obtain ⟨ x_module', ⟨x_branchD', x_branchB'⟩, x_merge', ⟨x_tagT', x_tagM', x_tagD' ⟩, ⟨x_splitD', x_splitB'⟩⟩ := cons
     dsimp at h
-    simp_all; repeat cases ‹_ ∧ _›
+    simp_all only [Prod.mk.injEq]; repeat with_reducible cases ‹_ ∧ _›
     subst_vars
     cases h3
     rename_i h h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 H13 H14 H15 Hnew Hnew2
-    simp at h
-    repeat cases ‹_ ∧ _›
+    simp only [Prod.mk.injEq] at h
+    repeat with_reducible cases ‹_ ∧ _›
     subst_vars
     constructor <;> (try rfl) <;> (try assumption)
     . intro elem
@@ -847,7 +777,7 @@ theorem state_relation_preserve:
       rw[← List.singleton_append ] at h10
       rw[← @List.singleton_append _ false] at h10
       have Hm := @List.zip_append _ _ [newC] (x_branchD' ++ X) [false] (x_branchB' ++ Y)
-      specialize Hm ( by simp)
+      specialize Hm (by simp)
       ac_nf at *
       rw[Hm] at h10
       (repeat rw[List.filter_append] at h10)
@@ -887,49 +817,9 @@ theorem state_relation_preserve:
       unfold Graphiti.LoopRewrite.iterate at H14
       unfold Graphiti.LoopRewrite.iterate at Hnew
       unfold Graphiti.LoopRewrite.iterate at Hnew2
-      simp_all only [AssocList.find?_eq, Option.map_eq_some_iff, Prod.exists, exists_eq_right, gt_iff_lt,
-        forall_exists_index, Prod.forall, Prod.mk.injEq, List.append_assoc, Prod.mk.eta, Batteries.AssocList.toList,
-        List.map_cons, List.map_append, List.map_map, List.mem_append, List.mem_map, Function.comp_apply,
-        exists_and_right, Bool.exists_bool, List.mem_cons, List.cons_append]
-      obtain ⟨fst, snd⟩ := s
-      obtain ⟨fst_1, snd_1⟩ := s'
-      obtain ⟨fst_2, snd_2⟩ := newC
-      obtain ⟨fst_3, snd_3⟩ := elem
-      obtain ⟨fst_4, snd⟩ := snd
-      obtain ⟨fst_5, snd_1⟩ := snd_1
-      obtain ⟨fst_2, snd_4⟩ := fst_2
-      obtain ⟨fst_6, snd_2⟩ := snd_2
-      obtain ⟨fst_4, snd_5⟩ := fst_4
-      obtain ⟨fst_7, snd⟩ := snd
-      obtain ⟨fst_5, snd_6⟩ := fst_5
-      obtain ⟨fst_8, snd_1⟩ := snd_1
-      obtain ⟨w, h⟩ := left
-      obtain ⟨fst_9, snd⟩ := snd
-      obtain ⟨fst_10, snd_1⟩ := snd_1
-      obtain ⟨fst_9, snd_7⟩ := fst_9
-      obtain ⟨fst_11, snd⟩ := snd
-      obtain ⟨fst_10, snd_8⟩ := fst_10
-      obtain ⟨fst_12, snd_1⟩ := snd_1
-      obtain ⟨fst_13, snd_7⟩ := snd_7
-      obtain ⟨fst_14, snd_8⟩ := snd_8
-      simp_all only [Prod.mk.injEq, exists_eq_right_right, exists_and_right, exists_eq_right]
-      cases h1 with
-      | inl h_1 => simp_all only [true_or, forall_const]
-      | inr h_2 =>
-        cases h_2 with
-        | inl h_1 => simp_all only [true_or, or_true, forall_const]
-        | inr h_3 =>
-          cases h_3 with
-          | inl h_1 => simp_all only [true_or, or_true, forall_const]
-          | inr h_2 =>
-            cases h_2 with
-            | inl h_1 => simp_all only [true_or, or_true, forall_const]
-            | inr h_3 =>
-              cases h_3 with
-              | inl h_1 => simp_all only [and_self, true_or, or_true, forall_const]
-              | inr h_2 => simp_all only [or_true, forall_const]
-    . dsimp at H13
-      omega
+      simp only [Batteries.AssocList.toList] at h1
+      grind
+    . grind
     . intro tag i n i' H
       rename_i x_merge x_module _ x_tagM _ x_splitD _ _ _
       cases (decEq tag newC.1.1)
@@ -941,23 +831,19 @@ theorem state_relation_preserve:
         assumption
       . subst tag
         rw[find?_cons_eq] at H
-        simp at H
-        repeat cases ‹_ ∧ _›
+        repeat with_reducible cases ‹_ ∧ _›
         subst_vars
-        rename_i H _ _ ; cases H; rename_i i'' H
+        rename_i H _ _
+        obtain ⟨⟨ newCT, newCD⟩, newCN, newCDI⟩ := newC
+        cases H; rename_i i'' H
         constructor
-        · have inright : ∀ {A} (l1 l2 : List A) (a : A), a ∈ l2 → a ∈ l1 ++ l2 := by intros; simp [List.mem_append_left, *]
-          specialize h12 (newC.1.1, newC.2.2) (by (repeat rw[List.map_append]); dsimp; ac_nf; apply inright; apply inright; apply inright; simp)
-          obtain ⟨⟨ newCT, newCD⟩, newCN, newCDI⟩ := newC
-          rename_i h; cases h
-          assumption
-        · specialize h10 newC
-            (by (repeat rw[List.map_append]); skip; simp [List.zip, List.filter, List.map])
-          obtain ⟨⟨ newCT, newCD⟩, newCN, newCDI⟩ := newC
-          dsimp at *
-          rename_i h; cases h
-          assumption
-
+        · grind
+        · simp only [List.cons_append, List.map_append, List.map_map,
+                    List.map_cons, List.mem_append, List.mem_cons,
+                    List.length_cons, List.length_append, List.zip_cons_cons,
+                    List.filter_cons_of_neg, List.mem_filter, beq_false,
+                    List.filter_cons_of_pos, Bool.not_eq_eq_eq_not, Bool.not_true, forall_eq_or_imp] at *
+          grind
 
 /-
 # Proof refinment rhsGhost ⊑ lhs
