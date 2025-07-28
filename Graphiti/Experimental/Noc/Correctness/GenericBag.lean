@@ -18,43 +18,36 @@ namespace Graphiti.Projects.Noc
 
   variable {Data : Type} [BEq Data] [LawfulBEq Data] {netsz : Netsz}
 
-  inductive get_output (noc : Noc Data netsz) : (src dst : noc.RouterID) → noc.Flit → Prop where
-  | step cur dst flit flit' dir (hdir : noc.topology.isConnDir_out dir) :
-      noc.routing_policy.route cur flit = (dir, flit')
-      → get_output noc (noc.topology.getConnDir_out hdir) dst flit'
-      → get_output noc cur dst flit
-  | done cur flit flit':
-      noc.routing_policy.route cur flit = (noc.topology.DirLocal_out, flit')
-      → get_output noc cur cur flit'
+  inductive get_output (noc : Noc Data netsz) :
+    (src dst : noc.RouterID) → (src_flit : noc.Flit) → (dst_data : Data) → Prop
+  where
+  | step src dst src_flit mid_flit dst_data dir (hdir : noc.topology.isConnDir_out dir) :
+      noc.routing_policy.route src src_flit = (dir, mid_flit)
+      → get_output noc (noc.topology.getConnDir_out hdir) dst mid_flit dst_data
+      → get_output noc src dst src_flit dst_data
+  | done src src_flit dst_flit:
+      noc.routing_policy.route src src_flit = (noc.topology.DirLocal_out, dst_flit)
+      → get_output noc src src src_flit dst_flit.1
 
+  -- This correctness is partial. It requires that the data is exactly the same
+  -- in the end.
+  -- This is true because we want to show that the noc behave as a bag, but it
+  -- would also be nice that it behaves like a bag + a pure function applied to
+  -- it.
   def routing_policy_correct (noc : Noc Data netsz) : Prop :=
     ∀ (src dst : (noc.RouterID)) data,
-      get_output noc src dst (data, noc.routing_policy.mkhead src dst data)
+      get_output noc src dst (data, noc.routing_policy.mkhead src dst data) data
 
   -- A weaker, more general version where we don't require that output will
   -- actually leave, but if they do, it has to be at the correct output router
   def routing_policy_correct' (noc : Noc Data netsz) : Prop :=
-    ∀ (src dst dst' : (noc.RouterID)) data,
-      get_output noc src dst' (data, noc.routing_policy.mkhead src dst data)
-      → dst = dst'
+    ∀ (src dst dst' : (noc.RouterID)) data data',
+      get_output noc src dst' (data, noc.routing_policy.mkhead src dst data) data'
+      → dst = dst' ∧ data = data'
 
   @[simp, drcomponents]
   def noc' (noc : Noc Data netsz) :=
     { noc with router := Router.Unbounded.bag netsz noc.routing_policy.Flit }
-
-  theorem get_output' {noc : Noc Data netsz} {src dst flit} :
-    get_output noc src dst flit ↔ get_output (noc' noc) src dst flit := by
-    apply Iff.intro <;> intro h
-    · induction h
-      · sorry
-      · sorry
-    · have : ∃ n, noc' noc = n := by exists noc' noc
-      obtain ⟨n, Hn⟩ := this
-      -- rw [Hn] at h
-      -- revert flit
-      -- rw [Hn]
-      -- We cannot do induction on h :(
-      sorry
 
   class NocCorrect (noc : Noc Data netsz) where
     routing_policy  : routing_policy_correct (noc' noc)
@@ -77,21 +70,23 @@ namespace Graphiti.Projects.Noc
   abbrev specT := (noc' noc).spec_bagT
 
   def routing_function : Type :=
-    (src : noc.RouterID) → (flit : noc.Flit) → noc.RouterID
+    (src : noc.RouterID) → (flit : noc.Flit) → (Data × noc.RouterID)
 
   @[simp]
   def routing_function_correct (rf : routing_function noc) (I : modT noc) : Prop :=
     ∀ (src : noc.RouterID) (flit : noc.Flit),
-      List.Mem flit I[src]
-      → get_output noc src (rf src flit) flit
+      List.Mem flit I[src] →
+      get_output noc src (rf src flit).2 flit (rf src flit).1
 
   @[simp]
   def routing_function_reconstruct (rf : routing_function noc) (I : modT noc) :=
-    I.mapFinIdx (λ i flitList h => flitList.map (λ flit => (flit.1, rf ⟨i, h⟩ flit)))
+    I.mapFinIdx (λ i flits h => flits.map (rf ⟨i, h⟩))
 
   def φ (I : (modT (noc' noc))) (S : (specT (noc' noc))) : Prop :=
     ∃ rf : routing_function noc,
       routing_function_correct noc rf I
+      -- Instead of flattening and then saying it is a subset, we could say that
+      -- any index is a subet which would be a bit more powerful
     ∧ (routing_function_reconstruct noc rf I).toList.flatten ⊆ S
 
   -- Initial correctness relies on the fact that routers of the noc are correct
@@ -105,7 +100,7 @@ namespace Graphiti.Projects.Noc
       exists []
       and_intros
       · rfl
-      · exists (λ src _ => src)
+      · exists (λ src flit => (flit.1, src))
         apply And.intro
         · intro src flit h
           simp only [Fin.getElem_fin, Vector.getElem_replicate] at h
@@ -143,12 +138,12 @@ namespace Graphiti.Projects.Noc
           dsimp [drcomponents]
         · constructor
         · -- We need to update the routing function to consider the new flit we
-          -- just added in the router, and we know that it should be outputted
-          -- at the required destination.
+          -- just added in the router (v), and we know that it should be
+          -- outputted at the required destination.
           exists (λ src flit =>
             if src == idx
             && flit == ((Hv.mp v).1, noc.routing_policy.mkhead idx (Hv.mp v).2 (Hv.mp v).1)
-            then (Hv.mp v).2
+            then Hv.mp v
             else rf src flit
           )
           apply And.intro
@@ -242,7 +237,10 @@ namespace Graphiti.Projects.Noc
       dsimp [drcomponents] at v Hrule ⊢
       rw [PortMap.rw_rule_execution RelIO.liftFinf_get] at Hrule
       dsimp [drunfold_defs] at Hrule
-      obtain ⟨head, ⟨Hhead1, ⟨id, Hid1, Hid2⟩⟩, Hhead3⟩ := Hrule
+      obtain ⟨out_head, out_flit, ⟨Hrule1, ⟨Hrule2, ⟨Hrule3_1, Hrule3_2, Hrule3_3⟩⟩, Hrule4⟩⟩ := Hrule
+      simp [
+        drunfold_defs, drcomponents
+      ] at out_head out_flit Hrule1 Hrule2 Hrule3_1 Hrule3_2 Hrule3_3 Hrule4
       have_hole Hv : typeOf v = _ := by
         unfold typeOf
         rewrite [RelIO.liftFinf_get]
@@ -258,22 +256,31 @@ namespace Graphiti.Projects.Noc
           and_intros
           exists idx.1, idx.2
           simp only [Fin.eta, List.mem_map, Prod.mk.injEq, Prod.exists]
-          exists (Hv.mp v), head
-          have HflitIn : List.Mem (Hv.mp v, head) i[idx] := List.mem_of_getElem Hid2
-          and_intros
-          · assumption
-          · rfl
-          · specialize Hrf1 idx (Hv.mp v, head) HflitIn
-            generalize (rf idx (Hv.mp v, head)) = dst at Hrf1
-            cases Hrf1
-            · rename_i f1 f2 f3 f4
-              simp only [noc', RoutingPolicy.Flit, Flit', Router.Unbounded.bag.eq_1, RouterID',
-                List.remove.eq_1, Fin.getElem_fin, Topology.Dir_out, Topology.out_len, typeOf,
-                eq_mp_eq_cast] at f4 Hhead1
-              simp only [f4] at Hhead1
-              subst f1
-              contradiction
-            · rfl
+          exists (Hv.mp v), out_head
+          have HflitIn : List.Mem out_flit i[idx] :=
+            List.mem_of_getElem Hrule3_3
+          simp only [Router.Unbounded.bag.eq_1, RouterID', List.remove.eq_1, Fin.getElem_fin,
+            typeOf, eq_mp_eq_cast, noc', RoutingPolicy.Flit, Flit', Noc.State,
+            routing_function_correct, Noc.RouterID, Topology.RouterID, Noc.Flit, modT,
+            Prod.forall
+          ] at HflitIn Hrf1
+          sorry
+          -- specialize Hrf1 idx (Hv.mp v) -- head HflitIn
+          -- generalize (rf idx (Hv.mp v, head)) = dst at Hrf1
+          -- cases dst; dsimp at Hrf1 ⊢
+          -- cases Hrf1
+          -- · rename_i f1 f2 f3 f4
+          --   simp only [noc', RoutingPolicy.Flit, Flit', Router.Unbounded.bag.eq_1, RouterID',
+          --     List.remove.eq_1, Fin.getElem_fin, Topology.Dir_out, Topology.out_len, typeOf,
+          --     eq_mp_eq_cast] at f3 Hhead1
+          --   simp only [f3] at Hhead1
+          --   subst f1
+          --   contradiction
+          -- rename_i dst_flit Hdst_flit
+          -- and_intros
+          -- · assumption
+          -- · congr
+          --   sorry
       obtain ⟨sidx, Hsidx⟩ := in_list_idx Hvin
       exists s, (List.remove s sidx)
       and_intros
@@ -283,7 +290,7 @@ namespace Graphiti.Projects.Noc
         exists sidx
         and_intros
         · rfl
-        · simp only [Fin.getElem_fin, typeOf, eq_mp_eq_cast] at Hsidx
+        · simp [drunfold_defs, drcomponents] at Hsidx
           simpa only [cast_cast, Hsidx]
       · -- We do not need to take extra care for the routing function:
         -- we have less element in the router, so everything in it was also
@@ -297,17 +304,17 @@ namespace Graphiti.Projects.Noc
           apply Hrf1
           -- Are we looking at the modified router?
           by_cases Heq: idx = src
-          · subst src
+          · -- Yes, we are
+            subst src
             simp only [Router.Unbounded.bag.eq_1, RouterID', List.remove.eq_1, Fin.getElem_fin,
               Noc.Flit, RoutingPolicy.Flit, Flit', modT, Noc.State, noc', Noc.RouterID,
               Topology.RouterID] at Hflit ⊢
-            rw [Hid1] at Hflit
+            rw [Hrule3_2] at Hflit
             apply list_mem_eraseIdx Hflit
-          · specialize Hhead3 src Heq
-            simp only [noc', RoutingPolicy.Flit, Flit', Router.Unbounded.bag.eq_1, RouterID',
-              List.remove.eq_1, Fin.getElem_fin, Noc.Flit, modT, Noc.State, Noc.RouterID,
-              Topology.RouterID] at Hhead3 ⊢
-            rwa [←Hhead3]
+          · -- No, we are not
+            specialize Hrule4 src Heq
+            simp [drcomponents, drunfold_defs] at Hrule4 ⊢
+            rwa [←Hrule4]
         -- routing_function_reconstruct
         · dsimp
           intro flit Hflit
@@ -325,8 +332,9 @@ namespace Graphiti.Projects.Noc
       obtain ⟨idx_inp, dir_inp⟩ := conn_inp
       subst rule
       dsimp [drcomponents] at Hrule
-      obtain ⟨val, midest_i, ⟨⟨H1, ⟨H2, ⟨H3, H4⟩⟩⟩, H5⟩, H6, H7⟩ := Hrule
-      dsimp [drunfold_defs] at midest_i H1 H2 H3 H4 H5 H6 H7
+      obtain ⟨val, midest_i, ⟨out_val, H1, ⟨H2, ⟨H3, H4, H5⟩⟩, H6⟩, H7, H8⟩ := Hrule
+      -- obtain ⟨val, midest_i, ⟨⟨H1, ⟨H2, ⟨H3, H4⟩⟩⟩, H5⟩, H6, H7⟩ := Hrule
+      dsimp [drunfold_defs] at val midest_i out_val H1 H2 H3 H4 H5 H6 H7 H8
       apply Exists.intro s
       · and_intros
         · constructor
@@ -336,36 +344,36 @@ namespace Graphiti.Projects.Noc
           -- So if we are this modified flit, we can recover the original target
           -- by going back
           exists (λ rid flit =>
-            if (noc.routing_policy.2 idx_inp val).2 == flit && rid == idx_out
-            then rf idx_inp flit
+            if val == flit && rid == idx_inp
+            then rf idx_out out_val
             else rf rid flit
           )
           apply And.intro
           -- routing_function_correct
           · intro src flit Hflit
             -- Are we looking at a modified flit?
-            cases Heq1 : src == idx_out
+            cases Heq1 : src == idx_inp
             <;> dsimp at ⊢ Heq1
             <;> rw [Heq1]
             <;> simp [drcomponents, drunfold_defs] at Heq1 flit
             <;> simp [Heq1]
             · -- We are not looking at the modified router, we don't need an extra step
               apply Hrf1
-              specialize (H5 src (by intro h; apply Heq1; rw [h]))
+              specialize (H8 src (by intro h; apply Heq1; rw [h]))
               simp only [noc', RoutingPolicy.Flit, Flit', Router.Unbounded.bag.eq_1, RouterID',
                               List.remove.eq_1, Fin.getElem_fin, Noc.Flit, modT, Noc.State, Noc.RouterID,
                 Topology.RouterID] at ⊢ H5 Hflit
-              rw [←H5]
-              by_cases Heq3: idx_inp = src
+              rw [H8] at Hflit
+              by_cases Heq3: idx_out = src
               · subst src
-                rw [H6] at Hflit
-                -- TODO: We can conclude by Hflit and Heq2
+                rw [H4] at Hflit
+                -- TODO: Done by Hflit
                 sorry
-              · specialize H7 _ Heq3
-                rwa [←H7]
+              · specialize H6 _ Heq3
+                rwa [←H6]
             · -- We are looking at a modified router.
               -- Are we looking at the modified flit?
-              cases Heq2 : (noc.routing_policy.route idx_inp val).2 == flit
+              cases Heq2 : val == flit
               <;> simp [drcomponents, drunfold_defs] at Heq2 flit ⊢
               · -- We are not looking at the modified flit
                 -- We don't need an extra step
@@ -376,12 +384,12 @@ namespace Graphiti.Projects.Noc
                   Topology.RouterID] at Hflit
                 by_cases Heq3 : idx_inp = idx_out
                 · subst idx_out
-                  rw [H6] at Hflit
-                  -- TODO: We can conclude with Hflit combined with Heq2
-                  sorry
-                · specialize H7 _ Heq3
-                  rw [H7, H3] at Hflit
+                  rw [H7, H4] at Hflit
                   -- TODO: We can conclude with Hflit
+                  sorry
+                · specialize H8 _ Heq3
+                  rw [H7] at Hflit
+                  -- TODO: We have that flit ∈ i ++ [val] which is not enough
                   sorry
               · -- We are looking at the modified flit
                 -- We need to take an extra step in the get_output
@@ -390,61 +398,42 @@ namespace Graphiti.Projects.Noc
                 subst src flit
                 have Hstep := Hrf1
                   (src := idx_out)
-                  (flit := val)
+                  (flit := out_val)
                   (by
                     apply List.mem_of_getElem
                     simp only [noc', RoutingPolicy.Flit, Flit', Router.Unbounded.bag.eq_1,
                       RouterID', List.remove.eq_1, Fin.getElem_fin, Noc.Flit, modT, Noc.State,
                       Noc.RouterID, Topology.RouterID]
-                    exact H4
-                    exact H2.2)
+                    exact H5
+                    exact H3.2)
                 have Hdir : (noc' noc).topology.isConnDir_out dir_out := by
                   exact conns_isConn_out Hconn1
-                have h : ∃ tmp, tmp = rf idx_out val := by exists rf idx_out val
-                obtain ⟨tmp, htmp⟩ := h
-                rw [←htmp] at Hstep
+                have h1 : ∃ tmp1, tmp1 = (rf idx_out out_val).1 := by
+                  exists (rf idx_out out_val).1
+                have h2 : ∃ tmp2, tmp2 = (rf idx_out out_val).2 := by
+                  exists (rf idx_out out_val).2
+                obtain ⟨tmp1, htmp1⟩ := h1
+                obtain ⟨tmp2, htmp2⟩ := h2
+                rw [←htmp1, ←htmp2] at Hstep
                 -- We had a correctness before moving the flit around,
                 -- what was it?
                 cases Hstep
                 -- The correctness was telling us to move to another router
-                · subst tmp
-                  rename_i dir' hdir' H1' H2'
-                  apply get_output.step
-                    (hdir := hdir')
-                    (flit' := ((noc' noc).routing_policy.route idx_out val).snd)
-                  · -- This is true actually!
-                    rename_i flit'
-                    have : ((noc' noc).routing_policy.route idx_out val).2 = flit' := by
-                      rw [H1']
-                    rw [this]
-                    dsimp
-                    sorry -- simp [H1]; rfl
-                  · rw [←get_output']
-                    dsimp at ⊢ H1'
-                    rw [H1']
-                    -- have : rf idx_inp (rf idx_inp (noc.routing_policy.route idx_inp val).snd) = rf idx_out val := by
-                    --   dsimp at Hrf1
-                    --   sorry
-                    --   sorry
-                    -- rwa [this]
+                · subst tmp1 tmp2
+                  rename_i mid_flit dir' hdir' H1' H2'
+                  dsimp at H1' H2'
+                  rw [H1] at H1'
+                  obtain ⟨rfl, rfl⟩ := H1'
+                  have : (noc.topology.getConnDir_out hdir') = idx_inp := by
+                    -- True by Hconn1
                     sorry
-                -- The correctness was saying we should leave,
-                -- we should have a contradiction?
+                  rw [this] at H2'
+                  assumption
                 · rename_i dir' Hdir' flit' Hflit'
-                  -- This is a bit unclear…
-                  -- We should have a contradiction here, right?
-                  -- We have that dir_out should be equal to
-                  -- ((noc' noc).routing_policy.route idx_out h1').fst
-                  -- and Hconn1 gives us that dir_out is not a local dir.
-
-                  -- htmp is very interesting: idx_out = rf idx_out val
-                  -- this should give us that
-                  -- (noc' noc).routing_policy.route idx_out val = dirlocal,
-                  -- which gives us the contradiction
-                  -- But this is false, idx_out = rf idx_out val could mean that
-                  -- we first have to go out to another router, this modifies
-                  -- the flit and send it back to us and then we leave.
-                  sorry
+                  subst dir_out
+                  simp [drcomponents, drunfold_defs] at Hdir Hflit'
+                  rw [Hflit'] at Hdir
+                  contradiction
           -- routing_function_reconstruct
           · dsimp
             intro flit Hflit

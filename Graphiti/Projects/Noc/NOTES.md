@@ -72,6 +72,11 @@
 ## Current limitations
 
 - Necessarily uniform routers
-- Arbiter can't modify the `Data`, only the `FlitHeader`
-- Router are necessarily deterministic
-- Router only have one initial state
+- Routers are necessarily deterministic
+- Routers only have one initial state
+
+## Design choices
+
+- We have embedded the `FlitHeader` into the `Noc` definition to allow
+  refinement. We could consider relying on the user to embed it into `Data`, but
+  we wouldn't be able to compare multiple `Noc` implementation this way

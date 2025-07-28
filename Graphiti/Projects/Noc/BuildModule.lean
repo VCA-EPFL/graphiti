@@ -36,35 +36,37 @@ namespace Graphiti.Projects.Noc
 
   @[drcomponents]
   abbrev Noc.output_rel (n : Noc Data netsz) : n.Rel_out n.Flit :=
-    λ (rid : n.RouterID) (dir : n.Dir_out rid) old_s val new_s =>
-      n.router_output_rel rid dir old_s[rid] val new_s[rid]
-      ∧ ∀ (rid' : n.RouterID), rid ≠ rid' → new_s[rid'] = old_s[rid']
+    λ rid dir old_s val new_s =>
+      ∃ out_flit,
+        n.routing_policy.route rid out_flit = (dir, val)
+        ∧ n.router_output_rel rid dir old_s[rid] out_flit new_s[rid]
+        ∧ ∀ rid', rid ≠ rid' → new_s[rid'] = old_s[rid']
 
   @[drcomponents]
-  def Noc.mk_router_input (n : Noc Data netsz) (rid : n.RouterID) (dir : n.Dir_inp rid) : RelIO n.State :=
+  def Noc.mk_router_input (n : Noc Data netsz) (rid : n.RouterID) : RelIO n.State :=
     ⟨
-      Data × n.topology.RouterID, n.input_rel' rid dir
+      Data × n.topology.RouterID, n.input_rel' rid n.topology.DirLocal_inp
     ⟩
 
   @[drcomponents]
-  def Noc.mk_router_output (n : Noc Data netsz) (rid : n.RouterID) (dir : n.Dir_out rid) : RelIO n.State :=
+  def Noc.mk_router_output (n : Noc Data netsz) (rid : n.RouterID) : RelIO n.State :=
     ⟨
       Data,
-      λ old_s out new_s => ∃ head, n.output_rel rid dir old_s (out, head) new_s
+      λ old_s val new_s =>
+        ∃ head, n.output_rel rid n.topology.DirLocal_out old_s (val, head) new_s
     ⟩
 
   @[drcomponents]
   def Noc.mk_router_conn (n : Noc Data netsz) (conn : n.topology.Conn) : RelInt n.State :=
     λ old_s new_s => ∃ (val : n.Flit) (mid_s : n.State),
-      let val' := n.routing_policy.route conn.1.1 val
       n.output_rel conn.1.1 conn.1.2 old_s val mid_s ∧
-      n.input_rel conn.2.1 conn.2.2 mid_s val'.2 new_s
+      n.input_rel conn.2.1 conn.2.2 mid_s val new_s
 
   @[drcomponents]
   def Noc.build_module (n : Noc Data netsz) : Module Nat n.State :=
     {
-      inputs := RelIO.liftFinf netsz (λ rid => n.mk_router_input rid n.topology.DirLocal_inp)
-      outputs := RelIO.liftFinf netsz (λ rid => n.mk_router_output rid n.topology.DirLocal_out)
+      inputs := RelIO.liftFinf netsz n.mk_router_input,
+      outputs := RelIO.liftFinf netsz n.mk_router_output,
       internals := (n.topology.conns).map (n.mk_router_conn),
       init_state := λ s => s = Vector.replicate netsz n.router.init_state,
     }
