@@ -115,26 +115,54 @@ theorem state_relation_empty :
 
 theorem alpa {α : Type} {a : α} {l : List α} : a :: l = [a] ++ l := by simp only [List.singleton_append]
 
+theorem perm_comm {α : Type} {l1 l2 l3 : List α} : (l1).Perm (l2 ++ l3) -> (l1).Perm (l3 ++ l2) := by
+  intros
+  apply List.Perm.trans; assumption
+  apply List.perm_append_comm
+
 attribute [aesop unsafe 50% forward] List.Nodup.cons List.perm_append_singleton
 attribute [aesop norm] List.perm_comm
 
-axiom apply_plus_one (i: Data) (n : Nat) : (f (apply f n i).1).1 = (apply f (1 + n) i).1
+theorem apply_plus_one (i: Data) (n : Nat) : (f (apply f n i).1).1 = (apply f (1 + n) i).1 := by
+  rw [show 1 + n = n + 1 by omega]; rfl
 
-axiom apply_plus_one_condiction (i: Data) (n : Nat) : (f (apply f n i).1).2 = (apply f (n +1) i).2
+theorem apply_plus_one_condiction (i: Data) (n : Nat) : (f (apply f n i).1).2 = (apply f (n + 1) i).2 := rfl
 
-axiom apply_true (i : Data) (i' : Option Data) (n : Option Nat) ( k : Nat) : lt_current k n -> (apply f (k + 1) i).2 = true -> iterate_full f i n i' -> lt_current (k + 1) n
+theorem apply_true (i : Data) (i' : Option Data) (n : Option Nat) (k : Nat) :
+  lt_current k n ->
+  (apply f (k + 1) i).2 = true ->
+  iterate_full f i n i' ->
+  lt_current (k + 1) n := by
+  intro hl1 happly hiter
+  cases hiter
+  · unfold iterate at *; cases hl1; constructor; grind
+  · constructor
 
-axiom apply_false (i : Data) (i' : Option Data) (n : Option Nat) ( k : Nat) : lt_current k n -> (apply f (k + 1) i).2 = false -> iterate_full f i n i' -> some (k + 1) = n
+theorem apply_false (i : Data) (i' : Option Data) (n : Option Nat) (k : Nat) :
+  lt_current k n →
+  (apply f (k + 1) i).2 = false →
+  iterate_full f i n i' →
+  some (k + 1) = n := by
+  intro hl1 happly hiter
+  cases hiter
+  · unfold iterate at *; cases hl1; grind
+  · grind
 
+theorem erase_map {α β γ : Type} {l : List ((α × β) × γ)} {k : Nat} :
+  List.map (Prod.fst ∘ Prod.fst) (List.eraseIdx l k) = (List.map (Prod.fst ∘ Prod.fst) l).eraseIdx k := by
+  simp [List.eraseIdx_map]
 
-axiom erase_map {α β γ : Type} {a : α} {b : β} {c : γ} {l : List ((α × β) × γ)} {k : Nat} : List.map (Prod.fst ∘ Prod.fst) (List.eraseIdx l k) = (List.map (Prod.fst ∘ Prod.fst) l).eraseIdx k
-
-axiom perm_comm {α : Type} {l1 l2 l3 : List α} : (l1).Perm (l2 ++ l3) -> (l1).Perm (l3 ++ l2)
-
-axiom erase_perm  {α β γ : Type} {a : α} {b : β} {c : γ} {l : List ((α × β) × γ)} (k : Fin (List.length l)): ((List.map (Prod.fst ∘ Prod.fst) l).eraseIdx k ++ [(l[k].1.1)]).Perm (List.map (Prod.fst ∘ Prod.fst) l)
+theorem erase_perm {α β γ : Type} {l : List ((α × β) × γ)} (k : Fin (List.length l)):
+  ((List.map (Prod.fst ∘ Prod.fst) l).eraseIdx k ++ [(l[k].1.1)]).Perm (List.map (Prod.fst ∘ Prod.fst) l) := by
+  rw [←erase_map]
+  rw [show [l[k].1.1] = List.map (Prod.fst ∘ Prod.fst) [l[k]] by rfl]
+  rw [show List.map (Prod.fst ∘ Prod.fst) (l.eraseIdx ↑k) ++ List.map (Prod.fst ∘ Prod.fst) [l[k]] = List.map (Prod.fst ∘ Prod.fst) (l.eraseIdx ↑k ++ [l[k]]) by simp]
+  apply List.Perm.map
+  apply List.Perm.trans
+  apply List.perm_append_singleton
+  apply List.getElem_cons_eraseIdx_perm
 
 theorem map_fst {α β γ η  : Type} {i : α} {l : List ((α × β) × γ × η)}:  i ∈ (l.map Prod.fst).map Prod.fst -> ∃ i', (i, i') ∈ l.map (fun x => (x.1.1, x.2.2)) := by aesop
-
 
 axiom getIO_cons_neq {α} {a b x} {xs}:
   a ≠ b ->
@@ -146,11 +174,11 @@ theorem getIO_nil {α} {b}:
 axiom getIO_cons_eq {α} {a x} {xs}:
   @PortMap.getIO String _ α (.cons a x xs) a = x
 
-axiom find?_cons_eq {α β} [DecidableEq α] {a x} {xs : Batteries.AssocList α β}:
-  Batteries.AssocList.find? a (xs.cons a x) = x
+theorem find?_cons_eq {α β} [DecidableEq α] {a x} {xs : Batteries.AssocList α β}:
+  Batteries.AssocList.find? a (xs.cons a x) = x := by simp
 
-axiom find?_cons_neq {α β} [DecidableEq α] {a x} y {xs : Batteries.AssocList α β}:
-  ¬(a = y) -> Batteries.AssocList.find? a (xs.cons y x) = Batteries.AssocList.find? a xs
+theorem find?_cons_neq {α β} [DecidableEq α] {a x} y {xs : Batteries.AssocList α β}:
+  ¬(a = y) -> Batteries.AssocList.find? a (xs.cons y x) = Batteries.AssocList.find? a xs := by simp; grind
 
 axiom forall₂_cons_reverse {α}{β} {R : α → β → Prop} {a b l₁ l₂} :
     List.Forall₂ R (l₁ ++ [a]) (l₂ ++ [b]) ↔ R a b ∧ List.Forall₂ R l₁ l₂
@@ -189,14 +217,15 @@ axiom in_eraseAll_noDup {α β γ δ} {l : List ((α × β) × γ × δ)} (Ta : 
 @[simp] axiom not_in_eraseAll_list {α β} {Ta : α} {elem : (α × β)} [DecidableEq α] (a : AssocList α β):
   elem ∈ (AssocList.eraseAllP_TR (fun k x => decide (k = Ta)) a).toList -> elem.1 = Ta -> False
 
-axiom notinfirst {A B} {x : List (A × B)} {a} :
-  a ∉ List.map Prod.fst x → ∀ y, (a, y) ∉ x
+theorem notinfirst {A B} {x : List (A × B)} {a} :
+  a ∉ List.map Prod.fst x → ∀ y, (a, y) ∉ x := by
+  grind
 
 theorem elem_in_third {α} {e : α} {a b c d : List _} :
-  e ∈ a ++ (b ++ (c ++ d)) → e ∈ a ++ (b ++ d) := by sorry
+  e ∈ a ++ (b ++ (c ++ d)) → e ∉ c → e ∈ a ++ (b ++ d) := by grind
 
 theorem elem_in_erase_first {α} {e : α} {a b : List _} {n} :
-  e ∈ (List.eraseIdx a n) ++ b → e ∈ a ++ b := by sorry
+  e ∈ (List.eraseIdx a n) ++ b → e ∈ a ++ b := by grind [List.mem_of_mem_eraseIdx]
 
 set_option maxHeartbeats 0 in
 theorem state_relation_preserve:
@@ -494,12 +523,6 @@ theorem state_relation_preserve:
           rw [List.perm_append_left_iff]
           rw [List.perm_append_left_iff]
           apply erase_perm l
-          . exact newC.1.1
-          . exact newC.1.2
-          . exact newC.2
-        . exact newC.1.1
-        . exact newC.1.2
-        . exact newC.2
       have H := List.Perm.symm H
       ac_nf at *
       simp only [List.map_append, List.map_map] at h11
@@ -527,7 +550,13 @@ theorem state_relation_preserve:
       subst x_merge'
       simp only [List.map_append,←List.eraseIdx_map,List.map_map] at h1 ⊢
       dsimp [Function.comp] at h1 ⊢
-      ac_nf at h1 ⊢; apply elem_in_third; apply elem_in_erase_first; assumption
+      ac_nf at h1 ⊢
+      by_cases helem : elem = (newCT, newCDI)
+      · apply List.mem_append_left; grind
+      · apply elem_in_erase_first; apply elem_in_third; assumption
+        intro helem2
+        apply helem; cases helem2; rfl
+        contradiction
   . replace h2 := h2.1 rfl
     simp only [List.concat_eq_append] at *
     obtain ⟨cons, newC, h⟩ := h2
