@@ -17,6 +17,7 @@ namespace Graphiti.Projects.Noc
 
   -- Topology definition -------------------------------------------------------
 
+  @[simp]
   abbrev Netsz : Type :=
     Nat
 
@@ -41,9 +42,11 @@ namespace Graphiti.Projects.Noc
 
   variable {netsz : Netsz}
 
+  @[simp]
   abbrev Topology.RouterID (t : Topology netsz) :=
     RouterID' netsz
 
+  @[simp]
   abbrev Topology.Neigh (t : Topology netsz) :=
     Neigh' netsz
 
@@ -117,25 +120,30 @@ namespace Graphiti.Projects.Noc
       simp [Topology.mkDir_inp]
 
   -- An output connection is a router id and an output port on this router
-  abbrev Topology.Conn_out (t : Topology netsz) :=
+  @[simp]
+  abbrev Topology.Conn_out (t : Topology netsz) : Type :=
     Σ (rid : t.RouterID), t.Dir_out rid
 
   -- A more complete Conn_out where we also know the ID of the router we are
   -- connected to
-  abbrev Topology.Conn_out' (t : Topology netsz) :=
+  @[simp]
+  abbrev Topology.Conn_out' (t : Topology netsz) : Type :=
     Σ (rid : t.RouterID), t.Dir_out rid × t.RouterID
 
   -- An input connection is a router id and an input port on this router
-  abbrev Topology.Conn_inp (t : Topology netsz) :=
+  @[simp]
+  abbrev Topology.Conn_inp (t : Topology netsz) : Type :=
     Σ (rid : t.RouterID), t.Dir_inp rid
 
   -- A more complete Conn_inp where we also know the ID of the router we are
   -- connected to
-  abbrev Topology.Conn_inp' (t : Topology netsz) :=
+  @[simp]
+  abbrev Topology.Conn_inp' (t : Topology netsz) : Type :=
     Σ (rid : t.RouterID), t.Dir_inp rid × t.RouterID
 
   -- A full connection
-  abbrev Topology.Conn (t : Topology netsz) :=
+  @[simp]
+  abbrev Topology.Conn (t : Topology netsz) : Type :=
     t.Conn_out × t.Conn_inp
 
   -- Give the list of all output connections on a router
@@ -200,12 +208,15 @@ namespace Graphiti.Projects.Noc
 
   variable {t : Topology netsz} {Data : Type}
 
+  @[simp]
   abbrev RoutingPolicy.Flit (rp : RoutingPolicy t Data) :=
     Flit' Data rp.FlitHeader
 
+  @[simp]
   abbrev RoutingPolicy.Route (rp : RoutingPolicy t Data) :=
     Route' t rp.Flit
 
+  @[simp]
   abbrev RoutingPolicy.MkHead (rp : RoutingPolicy t Data) :=
     MkHead' t Data rp.FlitHeader
 
@@ -225,6 +236,7 @@ namespace Graphiti.Projects.Noc
     input_rel   : RouterRel' netsz Flit State
     output_rel  : RouterRel' netsz Flit State
 
+  @[simp]
   abbrev Router.Rel {netsz : Netsz} {Flit : Type} (r : Router netsz Flit) :=
     RouterRel' netsz Flit r.State
 

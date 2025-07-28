@@ -289,6 +289,44 @@ namespace Graphiti.Projects.Noc
             apply heq
             cases idx; cases idx'; simp at heq h <;> simp [h]
 
+    theorem list_mem_concat_either {α} {elt : α} {l1 l2 : List α} :
+      List.Mem elt (l1 ++ l2) → List.Mem elt l1 ∨ List.Mem elt l2 := by
+        induction l1 with
+        | nil => dsimp; intro h; right; assumption
+        | cons hd tl HR =>
+          dsimp
+          by_cases Heq: hd = elt
+          · subst hd; intro h; left; constructor
+          · intro h; cases h
+            · contradiction
+            · rename_i Hmem; specialize HR Hmem; cases HR
+              · left; apply List.Mem.tail; assumption
+              · right; assumption
+
+    theorem list_mem_concat_either' {α} {elt : α} {l1 l2 : List α} :
+      List.Mem elt l1 ∨ List.Mem elt l2 → List.Mem elt (l1 ++ l2) := by
+        intro h;
+        cases h
+        · induction l1
+          · contradiction
+          · rename_i hd tl HR H
+            cases H
+            · constructor
+            · rename_i H
+              apply List.Mem.tail _ (HR H)
+        · sorry
+
+    theorem list_mem_concat_false {α} {elt1 elt2 : α} {l: List α} :
+      ¬elt1 = elt2 → List.Mem elt1 (l ++ [elt2]) → List.Mem elt1 l := by
+        intro H1 H2
+        cases list_mem_concat_either H2
+        · assumption
+        · rename_i h
+          cases h <;> contradiction
+
+    theorem list_mem_eraseIdx {α} {elt : α} {l: List α} {idx}:
+      List.Mem elt (l.eraseIdx idx) → List.Mem elt l := by sorry
+
   -- DPList --------------------------------------------------------------------
 
   section DPList

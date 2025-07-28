@@ -48,20 +48,21 @@ namespace Graphiti.Projects.Noc
     · induction h
       · sorry
       · sorry
-    · sorry
+    · have : ∃ n, noc' noc = n := by exists noc' noc
+      obtain ⟨n, Hn⟩ := this
+      -- rw [Hn] at h
+      -- revert flit
+      -- rw [Hn]
+      -- We cannot do induction on h :(
+      sorry
 
   class NocCorrect (noc : Noc Data netsz) where
     routing_policy  : routing_policy_correct (noc' noc)
 
   variable (noc : Noc Data netsz)
   variable [NC : NocCorrect (noc' noc)]
-  -- Maybe we should require BEq and LawfulBEq for all FlitHeader, but unsure
+  -- Maybe we should require BEq and LawfulBEq for all FlitHeader (in the lang), but unsure
   variable [BEq noc.routing_policy.FlitHeader] [LawfulBEq noc.routing_policy.FlitHeader]
-  -- The following sould not be necessary, but it does not work otherwise for
-  -- some reason.
-  -- They could be defined by infer_instance instead of taken as a variable, but
-  -- eh
-  variable [BEq (noc' noc).routing_policy.FlitHeader] [LawfulBEq (noc' noc).routing_policy.FlitHeader]
 
   @[simp, drunfold_defs]
   abbrev mod := (noc' noc).build_module
@@ -164,8 +165,9 @@ namespace Graphiti.Projects.Noc
               · subst src
                 simp [drunfold_defs, drcomponents] at Hflit h
                 rw [Hrule1] at Hflit
-                -- Then, with h, we know that the flit is not in the tail
-                sorry
+                cases list_mem_concat_either Hflit
+                · assumption
+                · rename_i h'; cases h' <;> contradiction
               · specialize Hrule2 src (by intro _; subst idx; apply hsrceqidx; rfl)
                 -- set_option pp.explicit true in trace_state
                 simp [drunfold_defs, drcomponents] at Hflit ⊢
@@ -178,26 +180,42 @@ namespace Graphiti.Projects.Noc
           · intro v' hv'
             simp at hv'
             obtain ⟨l, hl1, hl2⟩ := hv'
-            obtain ⟨i, hi1, hi2⟩ := hl1
+            obtain ⟨idx_inp, hi1, hi2⟩ := hl1
             subst l
             simp at hl2
             obtain ⟨data, dst, HflitIn, HflitEq⟩ := hl2
-            cases h: (⟨i, hi1⟩ == idx && (data, dst) == ((cast Hv v).1,
+            cases h: (⟨idx_inp, hi1⟩ == idx && (data, dst) == ((cast Hv v).1,
               noc.routing_policy.mkhead idx (cast Hv v).2 (cast Hv v).1))
             <;> rw [h] at HflitEq
             <;> subst v'
             <;> dsimp
-            · simp [drunfold_defs, drcomponents] at ⊢
-              unfold routing_function_correct at Hrf1
-              unfold routing_function_reconstruct at Hrf2
+            · simp? [drunfold_defs, drcomponents] at ⊢ HflitIn Hrule1
+              left
+              apply Hrf2
+              simp
+              by_cases Heq3: idx = idx_inp
+              · subst idx_inp
+                rw [Hrule1] at HflitIn
+                simp at HflitIn
+                cases HflitIn
+                · rename_i HflitIn
+                  skip
+                  apply Exists.intro _
+                  and_intros
+                  · exists idx.1, idx.2
+                  · simp; exists data, dst
+                · rename_i HflitIn
+                  obtain ⟨rfl, rfl⟩ := HflitIn
+                  simp at h
+              · specialize Hrule2 ⟨idx_inp, hi1⟩ (by sorry)
+                sorry
               -- Seems obviously true, it is in the head
               -- apply List.mem_concat_hd
               -- apply Hrf2
-              sorry
             · simp only [typeOf, Bool.and_eq_true, beq_iff_eq, Prod.mk.injEq] at h
               obtain ⟨rfl, rfl, rfl⟩ := h
-              -- Obviously true, it is in the tail
-              sorry
+              rw [List.mem_append]
+              right; simpa
     -- Output rule
     · intros ident mid_i v Hrule
       case_transition Hcontains : (Module.outputs (mod noc)), ident,
@@ -237,42 +255,41 @@ namespace Graphiti.Projects.Noc
             · rfl
       obtain ⟨sidx, Hsidx⟩ := in_list_idx Hvin
       exists s, (List.remove s sidx)
-      · and_intros
-        · constructor
-        · rw [PortMap.rw_rule_execution RelIO.liftFinf_get]
-          dsimp [drcomponents]
-          exists sidx
-          and_intros
-          · rfl
-          · simp at Hsidx
-            simpa [Hsidx]
-        · -- We do not need to take extra care for the routing function:
-          -- we have less element in the router, so everything in it was also
-          -- exactly at the same place in the other router, which in turn means
-          -- that the old routing function is still correct
-          exists rf
-          and_intros
-          -- routing_function_correct
-          · intro src flit Hflit
-            dsimp at src flit
-            apply Hrf1
-            -- Are we looking at the modified router?
-            by_cases Heq: idx = src
-            · subst src
-              simp [drunfold_defs, drcomponents] at Hflit ⊢
-              rw [Hid1] at Hflit
-              -- TODO: flit ∈ s.eraseIdx id → flit ∈ s
-              sorry
-            · specialize Hhead3 src Heq
-              simp [drunfold_defs, drcomponents] at Hhead3 ⊢
-              rwa [←Hhead3]
-          -- routing_function_reconstruct
-          · dsimp
-            intro flit Hflit
-            -- We need a case analysis: flit ∈ a map to list flatten, is it in
-            -- simp at Hflit
-            -- obtain ⟨l, ⟨i, h, Hil⟩, Hl⟩ := Hflit
-            sorry
+      and_intros
+      · constructor
+      · rw [PortMap.rw_rule_execution RelIO.liftFinf_get]
+        dsimp [drcomponents]
+        exists sidx
+        and_intros
+        · rfl
+        · simp at Hsidx
+          simpa [Hsidx]
+      · -- We do not need to take extra care for the routing function:
+        -- we have less element in the router, so everything in it was also
+        -- exactly at the same place in the other router, which in turn means
+        -- that the old routing function is still correct
+        exists rf
+        and_intros
+        -- routing_function_correct
+        · intro src flit Hflit
+          dsimp at src flit
+          apply Hrf1
+          -- Are we looking at the modified router?
+          by_cases Heq: idx = src
+          · subst src
+            simp [drunfold_defs, drcomponents] at Hflit ⊢
+            rw [Hid1] at Hflit
+            apply list_mem_eraseIdx Hflit
+          · specialize Hhead3 src Heq
+            simp [drunfold_defs, drcomponents] at Hhead3 ⊢
+            rwa [←Hhead3]
+        -- routing_function_reconstruct
+        · dsimp
+          intro flit Hflit
+          -- We need a case analysis: flit ∈ a map to list flatten, is it in
+          -- simp at Hflit
+          -- obtain ⟨l, ⟨i, h, Hil⟩, Hl⟩ := Hflit
+          sorry
     -- Internal rule
     · intro rule mid_i HruleIn Hrule
       dsimp [drcomponents] at HruleIn
@@ -294,7 +311,7 @@ namespace Graphiti.Projects.Noc
           -- So if we are this modified flit, we can recover the original target
           -- by going back
           exists (λ rid flit =>
-            if ((noc' noc).routing_policy.2 idx_inp val).2 == flit && rid == idx_out
+            if (noc.routing_policy.2 idx_inp val).2 == flit && rid == idx_out
             then rf idx_inp flit
             else rf rid flit
           )
@@ -303,15 +320,13 @@ namespace Graphiti.Projects.Noc
           · intro src flit Hflit
             -- Are we looking at a modified flit?
             cases Heq1 : src == idx_out
-            <;> cases Heq2 : ((noc' noc).routing_policy.route idx_inp val).2 == flit
-            <;> dsimp at ⊢ Heq1 Heq2
-            <;> rw [Heq1, Heq2]
-            <;> simp [Heq1, Heq2]
-            <;> simp [drcomponents, drunfold_defs] at Heq1 Heq2
-            · -- We are not looking at the modified router nor the modified flit,
-              -- we don't need an extra step
+            <;> dsimp at ⊢ Heq1
+            <;> rw [Heq1]
+            <;> simp [drcomponents, drunfold_defs] at Heq1 flit
+            <;> simp [Heq1]
+            · -- We are not looking at the modified router, we don't need an extra step
               apply Hrf1
-              specialize (H5 src (by sorry))
+              specialize (H5 src (by intro h; apply Heq1; rw [h]))
               simp [drunfold_defs, drcomponents] at ⊢ H5 Hflit
               rw [←H5]
               by_cases Heq3: idx_inp = src
@@ -321,79 +336,84 @@ namespace Graphiti.Projects.Noc
                 sorry
               · specialize H7 _ Heq3
                 rwa [←H7]
-            · -- We are not looking at the modified router,
-              -- we don't need an extra step
-              -- FIXME: Why is Heq2 not simplified?
-              -- I would guess that the LawfulBEq instance is incorrect
-              stop
-              subst flit
-              apply Hrf1
-              sorry
-            · -- We are looking at a modified router but not a modified flit,
-              -- we don't need an extra step
-              subst src
-              apply Hrf1
-              by_cases Heq3: idx_inp = idx_out
-              · subst idx_out
-                simp [drcomponents, drunfold_defs] at Hflit H6
-                rw [H6, H3] at Hflit
-                -- We know by Heq2 that flit is not in the tail of Hflit,
-                -- So it must be in i.eraseIdx ...
-                -- Which is itself included in i[idx_inp]
-                skip
-                sorry
-              · specialize H7 _ Heq3
+            · -- We are looking at a modified router.
+              -- Are we looking at the modified flit?
+              cases Heq2 : (noc.routing_policy.route idx_inp val).2 == flit
+              <;> simp [drcomponents, drunfold_defs] at Heq2 flit ⊢
+              · -- We are not looking at the modified flit
+                -- We don't need an extra step
+                apply Hrf1
+                subst src
                 simp [drcomponents, drunfold_defs] at Hflit
-                rw [H7, H3] at Hflit
-                -- We can conclude with HFlit
-                sorry
-            · -- We are looking at the modifed router and modified flit!
-              -- We need to take an extra step in the get_output
-              -- We first need to get back the old get_output that we would have
-              -- had, and then we apply a step to obtain the final one.
-              -- FIXME: Why is Heq2 not simplified?
-              subst src -- flit
-              have Hstep := Hrf1
-                (src := idx_out)
-                (flit := val)
-                (by
-                  apply List.mem_of_getElem
-                  simp [drunfold_defs, drcomponents]
-                  exact H4
-                  exact H2.2)
-              have Hdir : (noc' noc).topology.isConnDir_out dir_out := by
-                -- by Hconn1
-                sorry
-              -- simp at Hstep
-              have h : ∃ tmp, tmp = rf idx_out val := by exists rf idx_out val
-              obtain ⟨tmp, htmp⟩ := h
-              rw [←htmp] at Hstep
-              -- generalize (rf idx_out val) = rf_out at Hstep
-              -- generalize (noc' noc) = noc'' at Hstep
-              -- simp at Hstep
-              rw [←get_output'] at Hstep
-              -- We had a correctness before moving the flit around.
-              cases Hstep
-              -- The correctness was telling us to move to another router
-              · subst tmp
-                rename_i dir' hdir' H1' H2'
-                -- we have flitcross = flit by Heq2
-                apply get_output.step
-                  (hdir := hdir')
-                  (flit' := ((noc' noc).routing_policy.route idx_out val).snd)
-                · -- This is true actually!
-                  sorry -- simp [H1]; rfl
-                · dsimp
-                  -- we have to show that rf idx_out val = rf idx_inp flit
+                by_cases Heq3 : idx_inp = idx_out
+                · subst idx_out
+                  rw [H6] at Hflit
+                  -- TODO: We can conclude with Hflit combined with Heq2
                   sorry
-              -- The correctness was saying we should leave
-              · rename_i dir' hdir' h1' h2'
-                -- We cannot have a contradiction with H1 because actually
-                -- h1 is not val, and we don't have a way to know it is?
-                unfold routing_function_correct at Hrf1
-                rw [htmp] at h2' ⊢
-                skip
-                sorry
+                · specialize H7 _ Heq3
+                  rw [H7, H3] at Hflit
+                  -- TODO: We can conclude with Hflit
+                  sorry
+              · -- We are looking at the modified flit
+                -- We need to take an extra step in the get_output
+                -- We first need to get back the old get_output that we would have
+                -- had, and then we apply a step to obtain the final one.
+                subst src flit
+                have Hstep := Hrf1
+                  (src := idx_out)
+                  (flit := val)
+                  (by
+                    apply List.mem_of_getElem
+                    simp [drunfold_defs, drcomponents]
+                    exact H4
+                    exact H2.2)
+                have Hdir : (noc' noc).topology.isConnDir_out dir_out := by
+                  exact conns_isConn_out Hconn1
+                have h : ∃ tmp, tmp = rf idx_out val := by exists rf idx_out val
+                obtain ⟨tmp, htmp⟩ := h
+                rw [←htmp] at Hstep
+                -- We had a correctness before moving the flit around,
+                -- what was it?
+                cases Hstep
+                -- The correctness was telling us to move to another router
+                · subst tmp
+                  rename_i dir' hdir' H1' H2'
+                  apply get_output.step
+                    (hdir := hdir')
+                    (flit' := ((noc' noc).routing_policy.route idx_out val).snd)
+                  · -- This is true actually!
+                    rename_i flit'
+                    have : ((noc' noc).routing_policy.route idx_out val).2 = flit' := by
+                      rw [H1']
+                    rw [this]
+                    dsimp
+                    sorry -- simp [H1]; rfl
+                  · rw [←get_output']
+                    dsimp at ⊢ H1'
+                    rw [H1']
+                    -- have : rf idx_inp (rf idx_inp (noc.routing_policy.route idx_inp val).snd) = rf idx_out val := by
+                    --   dsimp at Hrf1
+                    --   sorry
+                    --   sorry
+                    -- rwa [this]
+                    sorry
+                -- The correctness was saying we should leave,
+                -- we should have a contradiction?
+                · rename_i dir' Hdir' flit' Hflit'
+                  -- This is a bit unclear…
+                  -- We should have a contradiction here, right?
+                  -- We have that dir_out should be equal to
+                  -- ((noc' noc).routing_policy.route idx_out h1').fst
+                  -- and Hconn1 gives us that dir_out is not a local dir.
+
+                  -- htmp is very interesting: idx_out = rf idx_out val
+                  -- this should give us that
+                  -- (noc' noc).routing_policy.route idx_out val = dirlocal,
+                  -- which gives us the contradiction
+                  -- But this is false, idx_out = rf idx_out val could mean that
+                  -- we first have to go out to another router, this modifies
+                  -- the flit and send it back to us and then we leave.
+                  sorry
           -- routing_function_reconstruct
           · dsimp
             intro flit Hflit
