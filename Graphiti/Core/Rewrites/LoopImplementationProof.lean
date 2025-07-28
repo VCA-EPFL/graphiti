@@ -24,8 +24,6 @@ variable [Inhabited Data]
 
 attribute [drunfold] AssocList.eraseAll
 
-
-
 def apply (n : Nat) (i : Data) : Data × Bool :=
 match n with
 | 0 => (i, true)
@@ -39,26 +37,58 @@ inductive iterate_full (i: Data) : Option Nat → Option Data → Prop where
 | terminate {n i'} : iterate f i n i' → iterate_full i (some n) (some i')
 | diverge : (∀ m, (apply f m i).snd = true) → iterate_full i none none
 
+theorem exists_minimal_m {i} {m} :
+  (apply f m i).2 = false →
+  ∃ m', (apply f m' i).2 = false ∧ (∀ n, n < m' → (apply f n i).snd = true) := by
+  induction m using Nat.strong_induction_on; grind
+
+theorem iterate_deterministic {i n i' n2 i'2} :
+  iterate f i n i' →
+  iterate f i n2 i'2 →
+  n = n2 ∧ i' = i'2 := by grind [iterate]
+
+theorem iterate_full_deterministic {i n i' n2 i'2} :
+  iterate_full f i n i' →
+  iterate_full f i n2 i'2 →
+  n = n2 ∧ i' = i'2 := by
+  intro ha hb; cases ha <;> cases hb <;> grind [iterate_deterministic, iterate]
+
+theorem iterate_full_complete {i} :
+  ∃ n d, iterate_full f i n d := by
+  cases Classical.em (∀ m, (apply f m i).snd = true)
+  · exists none, none; constructor; assumption
+  · simp at *; rename_i h; obtain ⟨x, h⟩ := h
+    have := exists_minimal_m f h
+    obtain ⟨m', ha⟩ := this
+    exists m', (apply f m' i).1
+    constructor; constructor <;> try grind
+    rw [←ha.1]; constructor; simp
+    cases m' <;> grind [apply]
+
+inductive lt_current : Nat → Option Nat → Prop :=
+| some {n final} : n < final → lt_current n (some final)
+| none {n} : lt_current n none
+
 inductive state_relation : rhsGhostType Data -> Prop where
 | intros : ∀ (s :  rhsGhostType Data) x_merge x_module x_branchD x_branchB x_tagT x_tagM x_tagD x_splitD x_splitB x_split_branchT x_split_branchF x_moduleT x_moduleF,
   ⟨ x_module, ⟨x_branchD, x_branchB⟩, x_merge, ⟨x_tagT, x_tagM, x_tagD ⟩, ⟨x_splitD, x_splitB⟩⟩ = s ->
   ( ∀ elem, elem ∈ x_tagD ->  elem.1 = elem.2.2 ∧ elem.2.1 = 0) ->
-  (∀ elem n i', elem ∈ x_merge -> iterate f elem.2.2 n i' -> elem.2.1 ≥ 0 ∧ elem.2.1 < n ∧ elem.1.2 = (apply f elem.2.1 elem.2.2).1) ->
+  (∀ elem n i', elem ∈ x_merge -> iterate_full f elem.2.2 n i' -> elem.2.1 ≥ 0 ∧ lt_current elem.2.1 n ∧ elem.1.2 = (apply f elem.2.1 elem.2.2).1) ->
   List.map Prod.fst (List.filter (fun x => x.2 == true) (List.zip (x_branchD ++ x_splitD ) ( x_branchB ++ x_splitB))) = x_split_branchT ->
   List.map Prod.fst (List.filter (fun x => x.2 == false) (List.zip (x_branchD ++ x_splitD ) (x_branchB ++ x_splitB ))) = x_split_branchF ->
   List.map Prod.fst (List.filter (fun x => x.2 == true) (x_module)) = x_moduleT ->
   List.map Prod.fst (List.filter (fun x => x.2 == false) (x_module)) = x_moduleF ->
-  (∀ elem , elem ∈ x_split_branchT ++ x_moduleT -> ∃ n i', iterate f elem.2.2 n i' ∧
-    elem.2.1 > 0 ∧ elem.2.1 < n ∧ elem.1.2 = (apply f elem.2.1 elem.2.2).1) ->
-  (∀ elem, elem ∈ x_split_branchF ++ x_moduleF ->  iterate f elem.2.2 elem.2.1 elem.1.2) ->
+  (∀ elem , elem ∈ x_split_branchT ++ x_moduleT -> ∃ n i', iterate_full f elem.2.2 n i' ∧
+    elem.2.1 > 0 ∧ lt_current elem.2.1 n ∧ elem.1.2 = (apply f elem.2.1 elem.2.2).1) ->
+  (∀ elem, elem ∈ x_split_branchF ++ x_moduleF ->  iterate_full f elem.2.2 elem.2.1 elem.1.2) ->
   ((((x_merge ++ (x_module.map Prod.fst) ++ x_splitD ++ x_branchD ++ x_tagM.toList.map (λ x => ((x.1, x.2.1), x.2.2.1, x.2.2.2))).map Prod.fst).map Prod.fst).Nodup) ->
   (∀ elem, elem ∈ ((x_merge ++ (x_module.map Prod.fst) ++ x_splitD ++ x_branchD ++ x_tagM.toList.map (λ x => ((x.1, x.2.1), x.2.2.1, x.2.2.2))).map (fun ((x, _), _, y) => (x, y)))-> elem ∈ x_tagT) ->
   ((x_tagT.map Prod.fst).Nodup) ->
   (x_branchD ++ x_splitD).length = (x_branchB ++ x_splitB).length ->
-  ( ∀ tag d n i, x_tagM.find? tag = some (d, n, i) -> (tag, i ) ∈ x_tagT ∧ iterate f i n d) ->
+  ( ∀ tag d n i, x_tagM.find? tag = some (d, n, i) -> (tag, i ) ∈ x_tagT ∧ iterate_full f i n d) ->
   ( ∀ d, d ∈ x_tagD -> d.2 = (0, d.1)) ->
-  ( ∀ tag i, (tag, i) ∈ x_tagT -> ∃ d n, iterate f i n d) ->
-  ( ∀ e, e ∈ x_tagD -> ∃ d n, iterate f e.1 n d) ->
+  ( ∀ tag i, (tag, i) ∈ x_tagT -> ∃ d n, iterate_full f i n d) ->
+  ( ∀ e, e ∈ x_tagD -> ∃ d n, iterate_full f e.1 n d) ->
   -- ( ∀ tag i, (i) ∈ x_tagD -> ∃ d n, iterate f i n d) ->
   state_relation s
 
@@ -79,76 +109,6 @@ theorem state_relation_empty :
   · intro _ _ hin; cases hin
   · intro _ hin; cases hin
 
-
-omit [Inhabited Data] in
-@[simp]
-theorem input_rule_isData {input_rule} :
-  ((lhsEvaled f).inputs.find? ↑"i_in") = .some input_rule ->
-  Data = input_rule.fst := by
-  unfold lhsEvaled
-  simp; intro h1
-  subst_vars; rfl
-
-inductive lhs_is_empty  : lhsType Data -> Prop where
-| intro : ∀  (s :  lhsType Data) s_queue_out s_initL s_initB,
-          ⟨s_queue_out, [], ⟨s_initL, s_initB⟩, [], ⟨[], []⟩ ,⟨[], []⟩, ⟨[], []⟩, [], [], [] ⟩ = s ->
-          (s_initB = true -> s_initL = []) ∧ (s_initB = false ->  s_initL = [false]) ->
-          lhs_is_empty s
-
-axiom flushing_lhs' {s i s_queue_out s_initL s_initB} :
-  ⟨s_queue_out, [], ⟨s_initL, s_initB⟩, [], ⟨[], []⟩ ,⟨[], []⟩, ⟨[], []⟩, [i], [], [] ⟩ = s ->
-  (s_initB = true -> s_initL = []) ∧ (s_initB = false ->  s_initL = [false]) ->
-  ∃ s'' n v, existSR (lhsEvaled f).internals s s''
-    ∧ s'' = ⟨s_queue_out.concat v, [], ⟨[false], false⟩, [], ⟨[], []⟩ ,⟨[], []⟩, ⟨[], []⟩, [], [], [] ⟩
-    ∧ iterate f i n v
-
-axiom iterate_congr  (i i' a' : Data) (n : Nat) ( k : Nat) : iterate f i n i' -> iterate f i k a' -> n = k ∧ i' = a'
-
-
-theorem flushing_lhs {n v} {s i s_queue_out s_initL s_initB} :
-  ⟨s_queue_out, [], ⟨s_initL, s_initB⟩, [], ⟨[], []⟩ ,⟨[], []⟩, ⟨[], []⟩, [i], [], [] ⟩ = s ->
-  (s_initB = true -> s_initL = []) ∧ (s_initB = false ->  s_initL = [false]) ->
-  iterate f i n v ->
-  ∃ s'', existSR (lhsEvaled f).internals s s''
-    ∧ s'' = ⟨s_queue_out.concat v, [], ⟨[false], false⟩, [], ⟨[], []⟩ ,⟨[], []⟩, ⟨[], []⟩, [], [], [] ⟩
-  := by
-  intros
-  have := flushing_lhs' (by assumption) (by assumption) (by assumption)
-  have ⟨a, b, c, d, e, f⟩ := this
-  rename_i iter; have := iterate_congr _ _ _ _ _ _ iter f; cases this; subst_vars
-  apply Exists.intro; and_intros <;> trivial
-
-theorem iterate_complete {s : lhsType Data} {i s_queue_out s_initL s_initB} :
-  ⟨s_queue_out, [], ⟨s_initL, s_initB⟩, [], ⟨[], []⟩ ,⟨[], []⟩, ⟨[], []⟩, [i], [], [] ⟩ = s ->
-  (s_initB = true -> s_initL = []) ∧ (s_initB = false ->  s_initL = [false]) ->
-  ∃ v n, iterate f i n v := by
-  intros; have := flushing_lhs' (by assumption) (by assumption) (by assumption)
-  have ⟨a, b, c, d, e, f⟩ := this
-  constructor; constructor; assumption
-
-inductive φ: rhsGhostType Data -> lhsType Data -> Prop where
-| intro : ∀ (i :rhsGhostType Data) i_merge i_module i_branchD i_branchB i_tagT i_tagM i_tagD i_splitD i_splitB i_out s_queue_out  s_queue
-            (s : lhsType Data) s_initL s_initB s_module s_splitD s_splitB s_branchD s_branchB s_forkR s_forkL s_muxB s_muxI s_muxC,
-    ⟨i_module, ⟨i_branchD, i_branchB⟩, i_merge, ⟨i_tagT, i_tagM, i_tagD ⟩, ⟨i_splitD, i_splitB⟩⟩ = i ->
-    ⟨s_queue_out, s_queue, ⟨s_initL, s_initB⟩, s_module, ⟨s_splitD, s_splitB⟩ ,⟨s_branchD, s_branchB⟩, ⟨s_forkR, s_forkL⟩, s_muxB, s_muxI, s_muxC ⟩ = s ->
-    ((i_tagT.map Prod.snd) ++ (i_tagD.map Prod.fst)) = i_out ->
-    List.Forall₂ (fun (a : Data) (b : Data) => ∃ n, iterate f b n a) s_queue_out i_out ->
-    state_relation f i ->
-    lhs_is_empty s ->
-    φ i s
-
-theorem φ_empty : φ f default default_lhs := by
-  constructor <;> try trivial
-  · constructor
-  · apply state_relation_empty
-  · constructor <;> try trivial
-
-instance : MatchInterface (rhsGhostEvaled f) (lhsEvaled f) := by
-  unfold rhsGhostEvaled lhsEvaled
-  solve_match_interface
-
-
-
 /-
 # Proof state_relation_prserve in rhsGhost
 -/
@@ -162,9 +122,9 @@ axiom apply_plus_one (i: Data) (n : Nat) : (f (apply f n i).1).1 = (apply f (1 +
 
 axiom apply_plus_one_condiction (i: Data) (n : Nat) : (f (apply f n i).1).2 = (apply f (n +1) i).2
 
-axiom apply_true (i i' : Data) (n : Nat) ( k : Nat) : k < n -> (apply f (k + 1) i).2 = true -> iterate f i n i' -> k + 1 < n
+axiom apply_true (i : Data) (i' : Option Data) (n : Option Nat) ( k : Nat) : lt_current k n -> (apply f (k + 1) i).2 = true -> iterate_full f i n i' -> lt_current (k + 1) n
 
-axiom apply_false (i i' : Data) (n : Nat) ( k : Nat) : k < n -> (apply f (k + 1) i).2 = false -> iterate f i n i' -> k + 1 = n
+axiom apply_false (i : Data) (i' : Option Data) (n : Option Nat) ( k : Nat) : lt_current k n -> (apply f (k + 1) i).2 = false -> iterate_full f i n i' -> some (k + 1) = n
 
 
 axiom erase_map {α β γ : Type} {a : α} {b : β} {c : γ} {l : List ((α × β) × γ)} {k : Nat} : List.map (Prod.fst ∘ Prod.fst) (List.eraseIdx l k) = (List.map (Prod.fst ∘ Prod.fst) l).eraseIdx k
@@ -268,7 +228,14 @@ theorem state_relation_preserve:
       specializeAll elem
       simp only [List.mem_cons, forall_eq_or_imp, zero_le] at *
       cases h1
-      . subst_vars; unfold Graphiti.LoopRewrite.iterate at h2; simp only [true_and, h3, h2]; rfl
+      . and_intros
+        · trivial
+        · cases h2
+          · constructor
+            unfold iterate at *
+            grind
+          · constructor
+        · subst_vars; simp only [true_and, h3, h2]; rfl
       . grind
     . clear h10 h9 h4 h3 H13 H14
       rename_i h _
@@ -410,18 +377,19 @@ theorem state_relation_preserve:
         simp only [gt_iff_lt, add_pos_iff, zero_lt_one, true_or, true_and]
         cases h4
         have HT := apply_true f newCDI i n newCN
-        rename_i hh
+        rename_i hh _
         specialize HT hh
         --simp at HT
-        constructor
+        and_intros
+        · rename_i H; rename _ = true => H'''; rw [H] at H'''
+          rw [add_comm]
+          solve_by_elim
         . have hf := apply_plus_one f newCDI newCN; rename_i H
           rw[← H] at hf; assumption
-        . constructor
-          . rename_i Hf _ _ H
-            rw[H] at Hf
-            rw[apply_plus_one_condiction] at Hf
-            specialize HT Hf Hnew; omega
-          . assumption
+        . rename_i Hf _ _ H
+          rw[H] at Hf
+          rw[apply_plus_one_condiction] at Hf
+          specialize HT Hf Hnew; omega
     . clear h9
       intro elem
       specialize h10 elem
@@ -465,20 +433,22 @@ theorem state_relation_preserve:
           subst_vars; simp
           cases h4
           have HH := apply_false f newCDI i n newCN
-          rename_i h
-          rename_i Hf _ _ H
-          rw[H] at Hf
+          rename_i H
+          rename_i Hf _ _ _ h
+          rw[H.1] at Hf
           rw[apply_plus_one_condiction] at Hf
           specialize HH h Hf Hnew
           rw[← HH] at Hnew
           dsimp at h10
-          unfold iterate; and_intros
+          have HH''' := HH
+          cases HH'''; cases Hnew
+          constructor; unfold iterate; and_intros
           . intro k hh
-            subst n
-            cases Hnew; rename_i H _
-            apply H
+            subst_vars
+            rename_i H
+            apply H.1
             omega
-          . rw [H,apply_plus_one]
+          . rw [H.1,apply_plus_one]
             have ho : 1 + newCN = newCN + 1 := by omega
             rw[ho]
             generalize apply f (newCN + 1) newCDI = y at *
@@ -734,15 +704,7 @@ theorem state_relation_preserve:
         cases h9; rename_i h9
         repeat cases ‹_ ∧ _›
         constructor
-        . rename_i H _ _ _ _ _ _; cases H; rename_i H
-          unfold iterate at H
-          cases H; rename_i h _ _ Hf _ _ H _
-          by_cases hn : n < n'
-          . specialize H n hn
-            generalize hh : apply f n newC.2.2 = y at *
-            cases y
-            simp at H; subst_vars; simp at Hf
-          . omega
+        . grind [iterate_full_deterministic]
         . assumption
       . rename_i h
         specialize h4 h h2
@@ -874,6 +836,486 @@ theorem state_relation_preserve:
 # Proof refinment rhsGhost ⊑ lhs
 -/
 
+omit [Inhabited Data] in
+@[simp]
+theorem input_rule_isData {input_rule} :
+  ((lhsEvaled f).inputs.find? ↑"i_in") = .some input_rule ->
+  Data = input_rule.fst := by
+  unfold lhsEvaled
+  simp; intro h1
+  subst_vars; rfl
+
+def init_node_state (s : List Bool × Bool) : Prop :=
+  (s.2 = false -> s.1 = []) ∧ (s.2 = true -> s.1 = [false])
+
+theorem false_is_init_node_state :
+  init_node_state ([false], true) := by simp [init_node_state]
+
+inductive lhs_is_empty  : lhsType Data -> Prop where
+| intro : ∀ (s : lhsType Data) muxF init_s,
+  ([], [], init_s, [], ([], []), ([], []), ([], []), [], muxF, []) = s ->
+  init_node_state init_s ->
+  lhs_is_empty s
+
+theorem flush_lhs_continue {v muxF} :
+  existSR (lhsEvaled f).internals
+    ([], [], ([], true), [(v, true)], ([], []), ([], []), ([], []), [], muxF, [])
+    ([], [], ([true], true), [], ([], []), ([], []), ([], []), [v], muxF, []) := by
+  apply existSR_transitive
+  apply existSR.step _ (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _) (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+  · (iterate 3 apply List.mem_cons_of_mem); constructor
+  · dsimp [Module.connect'', Module.liftR, Module.liftL]
+    and_intros <;> try (intro; contradiction)
+    intro hwf; clear hwf
+    apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+    apply Exists.intro _
+    dsimp
+    and_intros <;> try rfl
+  · apply existSR.done
+
+  apply existSR_transitive
+  apply existSR.step _ (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _) (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+  · (iterate 4 apply List.mem_cons_of_mem); constructor
+  · dsimp [Module.connect'', Module.liftR, Module.liftL]
+    and_intros <;> try (intro; contradiction)
+    intro hwf; clear hwf
+    apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+    apply Exists.intro _
+    dsimp
+    and_intros <;> try rfl
+  · apply existSR.done
+
+  apply existSR_transitive
+  apply existSR.step _ (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _) (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+  · (iterate 5 apply List.mem_cons_of_mem); constructor
+  · dsimp [Module.connect'', Module.liftR, Module.liftL]
+    and_intros <;> try (intro; contradiction)
+    intro hwf; clear hwf
+    apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+    apply Exists.intro _
+    dsimp
+    and_intros <;> try rfl
+  · apply existSR.done
+
+  apply existSR_transitive
+  apply existSR.step _ (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _) (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+  · (iterate 1 apply List.mem_cons_of_mem); constructor
+  · dsimp [Module.connect'', Module.liftR, Module.liftL]
+    and_intros <;> try (intro; contradiction)
+    intro hwf; clear hwf
+    apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+    apply Exists.intro _
+    dsimp
+    and_intros <;> try rfl
+  · apply existSR.done
+
+  apply existSR_transitive
+  apply existSR.step _ (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _) (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+  · (iterate 2 apply List.mem_cons_of_mem); constructor
+  · dsimp [Module.connect'', Module.liftR, Module.liftL]
+    and_intros <;> try (intro; contradiction)
+    intro hwf; clear hwf
+    apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+    apply Exists.intro _
+    dsimp
+    and_intros <;> try rfl
+  · apply existSR.done
+
+  apply existSR_transitive
+  apply existSR.step _ (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _) (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+  · (iterate 7 apply List.mem_cons_of_mem); constructor
+  · dsimp [Module.connect'', Module.liftR, Module.liftL]
+    and_intros <;> try (intro; contradiction)
+    intro hwf; clear hwf
+    apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+    apply Exists.intro _
+    dsimp
+    and_intros <;> try rfl
+  · apply existSR.done
+
+  apply existSR_transitive
+  apply existSR.step _ (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _) (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+  · (iterate 8 apply List.mem_cons_of_mem); constructor
+  · dsimp [Module.connect'', Module.liftR, Module.liftL]
+    and_intros <;> try (intro; contradiction)
+    intro hwf; clear hwf
+    apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+    apply Exists.intro _
+    dsimp
+    and_intros <;> try rfl
+  · apply existSR.done
+
+  apply existSR.done
+
+theorem flush_lhs_exit {v muxF} :
+  existSR (lhsEvaled f).internals
+    ([], [], ([], true), [(v, false)], ([], []), ([], []), ([], []), [], muxF, [])
+    ([v], [], ([false], true), [], ([], []), ([], []), ([], []), [], muxF, []) := by
+  apply existSR_transitive
+  apply existSR.step _ (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _) (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+  · (iterate 3 apply List.mem_cons_of_mem); constructor
+  · dsimp [Module.connect'', Module.liftR, Module.liftL]
+    and_intros <;> try (intro; contradiction)
+    intro hwf; clear hwf
+    apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+    apply Exists.intro _
+    dsimp
+    and_intros <;> try rfl
+  · apply existSR.done
+
+  apply existSR_transitive
+  apply existSR.step _ (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _) (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+  · (iterate 4 apply List.mem_cons_of_mem); constructor
+  · dsimp [Module.connect'', Module.liftR, Module.liftL]
+    and_intros <;> try (intro; contradiction)
+    intro hwf; clear hwf
+    apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+    apply Exists.intro _
+    dsimp
+    and_intros <;> try rfl
+  · apply existSR.done
+
+  apply existSR_transitive
+  apply existSR.step _ (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _) (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+  · (iterate 5 apply List.mem_cons_of_mem); constructor
+  · dsimp [Module.connect'', Module.liftR, Module.liftL]
+    and_intros <;> try (intro; contradiction)
+    intro hwf; clear hwf
+    apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+    apply Exists.intro _
+    dsimp
+    and_intros <;> try rfl
+  · apply existSR.done
+
+  apply existSR_transitive
+  apply existSR.step _ (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _) (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+  · (iterate 1 apply List.mem_cons_of_mem); constructor
+  · dsimp [Module.connect'', Module.liftR, Module.liftL]
+    and_intros <;> try (intro; contradiction)
+    intro hwf; clear hwf
+    apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+    apply Exists.intro _
+    dsimp
+    and_intros <;> try rfl
+  · apply existSR.done
+
+  apply existSR_transitive
+  apply existSR.step _ (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _) (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+  · (iterate 2 apply List.mem_cons_of_mem); constructor
+  · dsimp [Module.connect'', Module.liftR, Module.liftL]
+    and_intros <;> try (intro; contradiction)
+    intro hwf; clear hwf
+    apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+    apply Exists.intro _
+    dsimp
+    and_intros <;> try rfl
+  · apply existSR.done
+
+  apply existSR_transitive
+  apply existSR.step _ (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _) (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+  · (iterate 9 apply List.mem_cons_of_mem); constructor
+  · dsimp [Module.connect'', Module.liftR, Module.liftL]
+    and_intros <;> try (intro; contradiction)
+    intro hwf; clear hwf
+    apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+    apply Exists.intro _
+    dsimp
+    and_intros <;> try rfl
+  · apply existSR.done
+
+  apply existSR.done
+
+theorem flush_lhs_loop {m i v n muxF} :
+  iterate f i n v →
+  m + 1 < n →
+  existSR (lhsEvaled f).internals
+    ([], [], ([true], true), [], ([], []), ([], []), ([], []), [(apply f m i).1], muxF, [])
+    ([], [], ([true], true), [], ([], []), ([], []), ([], []), [(apply f (m + 1) i).1], muxF, []) := by
+  intro it hm
+  apply existSR_transitive; rotate_left 1
+  · apply flush_lhs_continue
+  · unfold lhsEvaled
+    apply existSR.step _ (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _) (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+    · (iterate 0 apply List.mem_cons_of_mem); constructor
+    · dsimp [Module.connect'', Module.liftR, Module.liftL]
+      and_intros <;> try (intro; contradiction)
+      intro hwf; clear hwf
+      apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+      apply Exists.intro _
+      dsimp
+      and_intros <;> try rfl
+    · apply existSR.step _ (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _) (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+      · (iterate 6 apply List.mem_cons_of_mem); constructor
+      · dsimp [Module.connect'', Module.liftR, Module.liftL]
+        and_intros <;> try (intro; contradiction)
+        intro hwf; clear hwf
+        apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+        apply Exists.intro _
+        dsimp
+        and_intros <;> try rfl
+        exists true
+      · rw [show (f (apply f m i).1) = ((f (apply f m i).1).1, true) by grind [apply, iterate]]; apply existSR.done
+
+theorem flush_lhs_init1 {i muxF init_s} :
+  init_node_state init_s ->
+  (f i).2 = true →
+  existSR (lhsEvaled f).internals
+    ([], [], init_s, [], ([], []), ([], []), ([], []), [], i :: muxF, [])
+    ([], [], ([true], true), [], ([], []), ([], []), ([], []), [(f i).1], muxF, []) := by
+  intro it hm
+  obtain ⟨h1, h2⟩ := init_s
+  dsimp [init_node_state] at it
+  cases h2b : h2
+  · subst h2; obtain ⟨it, -⟩ := it; obtain it := it rfl; subst h1
+    apply existSR_transitive; rotate_left 1
+    · rw [show (f i).1 = (apply f 1 i).1 by rfl]; apply flush_lhs_continue
+    · unfold lhsEvaled
+      apply existSR.step _ (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _) (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+      · (iterate 0 apply List.mem_cons_of_mem); constructor
+      · dsimp [Module.connect'', Module.liftR, Module.liftL]
+        and_intros <;> try (intro; contradiction)
+        intro hwf; clear hwf
+        apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+        apply Exists.intro _
+        dsimp
+        and_intros <;> try rfl
+      · apply existSR.step _ (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _) (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+        · (iterate 6 apply List.mem_cons_of_mem); constructor
+        · dsimp [Module.connect'', Module.liftR, Module.liftL]
+          and_intros <;> try (intro; contradiction)
+          intro hwf; clear hwf
+          apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+          apply Exists.intro _
+          dsimp
+          and_intros <;> try rfl
+          exists false
+        · rw [show f i = ((f i).1, true) by rw [←hm]]; apply existSR.done
+  · subst h2; obtain ⟨-, it⟩ := it; obtain it := it rfl; subst h1
+    apply existSR_transitive; rotate_left 1
+    · rw [show (f i).1 = (apply f 1 i).1 by rfl]; apply flush_lhs_continue
+    · unfold lhsEvaled
+      apply existSR.step _ (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _) (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+      · (iterate 0 apply List.mem_cons_of_mem); constructor
+      · dsimp [Module.connect'', Module.liftR, Module.liftL]
+        and_intros <;> try (intro; contradiction)
+        intro hwf; clear hwf
+        apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+        apply Exists.intro _
+        dsimp
+        and_intros <;> try rfl
+      · apply existSR.step _ (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _) (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+        · (iterate 6 apply List.mem_cons_of_mem); constructor
+        · dsimp [Module.connect'', Module.liftR, Module.liftL]
+          and_intros <;> try (intro; contradiction)
+          intro hwf; clear hwf
+          apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+          apply Exists.intro _
+          dsimp
+          and_intros <;> try rfl
+          exists false
+        · rw [show f i = ((f i).1, true) by rw [←hm]]; apply existSR.done
+
+theorem flush_lhs_init2 {i muxF init_s} :
+  init_node_state init_s ->
+  (f i).2 = false →
+  existSR (lhsEvaled f).internals
+    ([], [], init_s, [], ([], []), ([], []), ([], []), [], i :: muxF, [])
+    ([(f i).1], [], ([false], true), [], ([], []), ([], []), ([], []), [], muxF, []) := by
+  intro it hm
+  obtain ⟨h1, h2⟩ := init_s
+  dsimp [init_node_state] at it
+  cases h2b : h2
+  · subst h2; obtain ⟨it, -⟩ := it; obtain it := it rfl; subst h1
+    apply existSR_transitive; rotate_left 1
+    · apply flush_lhs_exit
+    · unfold lhsEvaled
+      apply existSR.step _ (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _) (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+      · (iterate 0 apply List.mem_cons_of_mem); constructor
+      · dsimp [Module.connect'', Module.liftR, Module.liftL]
+        and_intros <;> try (intro; contradiction)
+        intro hwf; clear hwf
+        apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+        apply Exists.intro _
+        dsimp
+        and_intros <;> try rfl
+      · apply existSR.step _ (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _) (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+        · (iterate 6 apply List.mem_cons_of_mem); constructor
+        · dsimp [Module.connect'', Module.liftR, Module.liftL]
+          and_intros <;> try (intro; contradiction)
+          intro hwf; clear hwf
+          apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+          apply Exists.intro _
+          dsimp
+          and_intros <;> try rfl
+          exists false
+        · rw [show f i = ((f i).1, false) by rw [←hm]]; apply existSR.done
+  · subst h2; obtain ⟨-, it⟩ := it; obtain it := it rfl; subst h1
+    apply existSR_transitive; rotate_left 1
+    · apply flush_lhs_exit
+    · unfold lhsEvaled
+      apply existSR.step _ (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _) (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+      · (iterate 0 apply List.mem_cons_of_mem); constructor
+      · dsimp [Module.connect'', Module.liftR, Module.liftL]
+        and_intros <;> try (intro; contradiction)
+        intro hwf; clear hwf
+        apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+        apply Exists.intro _
+        dsimp
+        and_intros <;> try rfl
+      · apply existSR.step _ (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _) (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+        · (iterate 6 apply List.mem_cons_of_mem); constructor
+        · dsimp [Module.connect'', Module.liftR, Module.liftL]
+          and_intros <;> try (intro; contradiction)
+          intro hwf; clear hwf
+          apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+          apply Exists.intro _
+          dsimp
+          and_intros <;> try rfl
+          exists false
+        · rw [show f i = ((f i).1, false) by rw [←hm]]; apply existSR.done
+
+theorem flush_lhs_end {m i v muxF} :
+  iterate f i (m + 1) v →
+  existSR (lhsEvaled f).internals
+    ([], [], ([true], true), [], ([], []), ([], []), ([], []), [(apply f m i).1], muxF, [])
+    ([v], [], ([false], true), [], ([], []), ([], []), ([], []), [], muxF, []) := by
+  intro it
+  apply existSR_transitive; rotate_left 1
+  · apply flush_lhs_exit
+  · unfold lhsEvaled
+    apply existSR.step _ (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _) (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+    · (iterate 0 apply List.mem_cons_of_mem); constructor
+    · dsimp [Module.connect'', Module.liftR, Module.liftL]
+      and_intros <;> try (intro; contradiction)
+      intro hwf; clear hwf
+      apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+      apply Exists.intro _
+      dsimp
+      and_intros <;> try rfl
+    · apply existSR.step _ (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _) (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+      · (iterate 6 apply List.mem_cons_of_mem); constructor
+      · dsimp [Module.connect'', Module.liftR, Module.liftL]
+        and_intros <;> try (intro; contradiction)
+        intro hwf; clear hwf
+        apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+        apply Exists.intro _
+        dsimp
+        and_intros <;> try rfl
+        exists true
+      · suffices h : (f (apply f m i).1) = (v, false) by rw [h]; apply existSR.done
+        rw [← it.2.1]; rfl
+
+theorem flush_lhs_loop_compl {m n i v muxF} :
+  iterate f i n v →
+  m < n →
+  existSR (lhsEvaled f).internals
+    ([], [], ([true], true), [], ([], []), ([], []), ([], []), [i], muxF, [])
+    ([], [], ([true], true), [], ([], []), ([], []), ([], []), [(apply f m i).1], muxF, []) := by
+  induction m with
+  | zero => intros; apply existSR.done
+  | succ m ihm =>
+    intros
+    apply existSR_transitive
+    · apply ihm <;> grind
+    · apply flush_lhs_loop <;> try assumption
+
+theorem iterate_f_false {i n v} :
+  iterate f i n v →
+  (f i).2 = false →
+  n = 1 ∧ v = (f i).1 := by
+  intro hiterate hf
+  unfold iterate at hiterate
+  obtain ⟨hi1, hi2, hi3⟩ := hiterate
+  by_cases h : n = 1
+  · subst n; dsimp [apply] at hi2
+    simp [*]
+  · have hn : 1 < n := by omega
+    specialize hi1 _ hn; dsimp [apply] at hi1
+    grind
+
+theorem apply_twice' {m n i} :
+  n > 0 →
+  apply f n (apply f m i).1 = apply f (n + m) i := by
+  induction n generalizing m with
+  | zero => intro h; contradiction
+  | succ n ih =>
+    intro h
+    rw [show n + 1 + m = (n + m) + 1 by omega]
+    dsimp [apply]
+    by_cases hn : n = 0
+    · subst n; dsimp [apply]; rw [show 0 + m = m by omega]
+    · rw [ih]; omega
+
+theorem apply_twice {m n i} :
+  (apply f n (apply f m i).1).1 = (apply f (n + m) i).1 := by
+  by_cases hn : n = 0
+  · subst n; dsimp [apply]; rw [show 0 + m = m by omega]
+  · rw [apply_twice']; omega
+
+theorem iterate_apply {m n i v} :
+  n > 0 →
+  iterate f i (n + m) v →
+  iterate f (apply f m i).1 n v := by
+  unfold iterate
+  intro hng ⟨hi1, hi2, hi3⟩; and_intros
+  · intro m1 hm1
+    by_cases hm1' : m1 = 0
+    · subst m1; dsimp [apply]
+    · rw [apply_twice']; apply hi1; omega; omega
+  · rw [apply_twice']; assumption; omega
+  · omega
+
+theorem flush_lhs {i v n muxF init_s} :
+  iterate f i n v →
+  init_node_state init_s ->
+  existSR (lhsEvaled f).internals
+    ([], [], init_s, [], ([], []), ([], []), ([], []), [], i :: muxF, [])
+    ([v], [], ([false], true), [], ([], []), ([], []), ([], []), [], muxF, []) := by
+  intro hi hn
+  by_cases hb : (f i).2
+  · apply existSR_transitive
+    · solve_by_elim [flush_lhs_init1]
+    · rw [show (f i) = (apply f 1 i) by rfl]
+      by_cases h : n = 2
+      · subst n; solve_by_elim [flush_lhs_end]
+      · by_cases H : n = 1
+        · subst n; have hi' := hi.2.1
+          dsimp [apply] at hi'; grind
+        · have hn0 := hi.2.2
+          have hn2 : 2 < n := by omega
+          cases n <;> try contradiction
+          rename_i n
+          apply existSR_transitive
+          · apply flush_lhs_loop_compl
+            apply iterate_apply
+            exact show n > 0 by omega
+            assumption
+            exact show n - 1 < n by omega
+          · rw [apply_twice]; rw [show n - 1 + 1 = n by omega]
+            solve_by_elim [flush_lhs_end]
+  · simp only [Bool.not_eq_true] at hb
+    obtain ⟨_, _⟩ := iterate_f_false f hi hb; subst_vars
+    solve_by_elim [flush_lhs_init2]
+
+inductive φ : rhsGhostType Data -> lhsType Data -> Prop where
+| intro : ∀ (i :rhsGhostType Data) i_merge i_module i_branchD i_branchB i_tagT i_tagM i_tagD i_splitD i_splitB s_queue_out  s_queue
+            (s : lhsType Data) s_initL s_initB s_module s_splitD s_splitB s_branchD s_branchB s_forkR s_forkL s_muxT s_muxF s_muxC,
+  ⟨i_module, ⟨i_branchD, i_branchB⟩, i_merge, ⟨i_tagT, i_tagM, i_tagD ⟩, ⟨i_splitD, i_splitB⟩⟩ = i ->
+  ⟨s_queue_out, s_queue, ⟨s_initL, s_initB⟩, s_module, ⟨s_splitD, s_splitB⟩, ⟨s_branchD, s_branchB⟩, ⟨s_forkR, s_forkL⟩, s_muxT, s_muxF, s_muxC ⟩ = s ->
+  ((i_tagT.map Prod.snd) ++ (i_tagD.map Prod.fst)) = s_muxF ->
+  state_relation f i ->
+  lhs_is_empty s ->
+  φ i s
+
+theorem φ_empty : φ f default default_lhs := by
+  constructor <;> try trivial
+  · apply state_relation_empty
+  · constructor <;> try trivial
+
+instance : MatchInterface (rhsGhostEvaled f) (lhsEvaled f) := by
+  unfold rhsGhostEvaled lhsEvaled
+  solve_match_interface
+
 set_option maxHeartbeats 0 in
 theorem refine:
     rhsGhostEvaled f ⊑_{φ f} (lhsEvaled f) := by
@@ -886,177 +1328,7 @@ theorem refine:
     . unfold PortMap.getIO
       subst ident
       rw[PortMap.rw_rule_execution (getIO_cons_eq (α := (rhsGhostType Data)))] at Hcontains
-      -- unfold lhsEvaled
-      dsimp
-      cases HPerm
-      subst_vars
-      have HH := @flushing_lhs Data f _
-      rename_i H_lhs _
-      cases H_lhs
-      rename_i He _
-      cases He
-      have : ∃ i n, iterate f v n i :=
-        iterate_complete (s := (‹List Data›, [], (‹List Bool›, ‹Bool›), [], ([], []), ([], []), ([], []), [v], [], [])) f rfl (by assumption)
-      have this' := this
-      obtain ⟨i_v, n_v, Hiter_v ⟩ := this
-      rename List Data => s_queue_out_d
-      rename Bool => s_initB
-      rename List Bool => s_initL
-      rename _ ∧ _ => init_P
-      obtain HH := HH (s := (s_queue_out_d, [], (s_initL, s_initB), [], ([], []), ([], []), ([], []), [v], [], [])) rfl (by assumption) (by assumption)
-      obtain ⟨ s'', HH, HEQ ⟩ := HH
-      cases HEQ
-      apply Exists.intro ⟨_, _, ⟨_, _⟩, _, ⟨_, _⟩ ,⟨_, _⟩, ⟨_, _⟩, _, _, _⟩ ; constructor; constructor
-      . unfold lhsEvaled; rw[PortMap.rw_rule_execution (by rw[find?_cons_eq])]
-        dsimp; constructor; and_intros <;> (try rfl)
-        rfl
-      . and_intros
-        . apply HH
-        . dsimp
-          constructor <;> (try rfl) <;> try dsimp; rotate_right 2
-          . rename_i h _ _ _ _
-            cases h
-            subst_vars
-            rename_i H1 H2 H3 H4 H5 H6 H7 H8 H9
-            cases H9
-            rename_i H _ _ _ _ _ _ _ _ _ _ _ _ _ _; simp at H
-            repeat cases ‹_ ∧ _›
-            subst_vars
-            rename_i hh1 hh2 hh3 hh4 hh5 hh6
-            simp at hh1; simp at hh2; simp at hh3; simp at hh4; simp at hh5; simp at hh6
-            rw[hh6]
-            rw[List.concat_eq_append]
-            rw[List.map_append]
-            rw[← List.append_assoc]
-            rw[← @List.unzip_fst _ _ [(v, 0, v)]]
-            simp
-            rw[← List.append_assoc]
-            rw[forall₂_cons_reverse]
-            constructor
-            . constructor; rotate_left
-              . exact n_v
-              . unfold iterate
-                constructor
-                . assumption
-                . constructor
-                  . assumption
-                  . solve_by_elim
-            . rw[hh5]
-              assumption
-          . rename_i h _ _ _
-            cases h
-            rename_i H1 H2 H3 H4 H5 H6 H7 H8 _ _ _ _ _ _ _ HH _
-            cases H1
-            repeat cases ‹_ ∧ _›
-            subst_vars
-            rename_i hh1 hh2 hh3 hh4 hh5 hh6
-            simp at hh1; simp at hh2; simp at hh3; simp at hh4; simp at hh5; simp at hh6
-            constructor <;> (try rfl) <;> dsimp
-            . let ⟨ branch, _, _, split⟩ := x'2
-              let ⟨ _, _ ⟩ := split
-              let ⟨ _, _ ⟩ := branch
-              simp at hh3; simp at hh1
-              repeat cases ‹_ ∧ _›
-              subst_vars
-              intro elem h1
-              simp at hh6; rw[hh6] at h1
-              rw[List.mem_append] at h1
-              cases h1 <;> rename_i h1
-              . simp at h1
-                rename_i Hh _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
-                specialize H2 elem h1; assumption
-              . simp only [List.mem_singleton] at h1
-                aesop(config := {useDefaultSimpSet := false})
-            . rename_i H _ _ _ _ _ _ _ _ _ _ _ _ _ _; -- simp at H
-              repeat cases ‹_ ∧ _›
-              subst_vars
-              assumption
-            . let ⟨ branch, _, _, split⟩ := x'2
-              let ⟨ _, _ ⟩ := split
-              let ⟨ _, _ ⟩ := branch
-              simp at hh3; simp at hh1
-              repeat cases ‹_ ∧ _›
-              subst_vars
-              dsimp
-              assumption
-            . let ⟨ branch, _, _, split⟩ := x'2
-              let ⟨ _, _ ⟩ := split
-              let ⟨ _, _ ⟩ := branch
-              simp at hh3; simp at hh1
-              repeat cases ‹_ ∧ _›
-              subst_vars
-              dsimp
-              assumption
-            . let ⟨ branch, _, _, split⟩ := x'2
-              let ⟨ _, _ ⟩ := split
-              let ⟨ _, _ ⟩ := branch
-              simp at hh3; simp at hh1
-              repeat cases ‹_ ∧ _›
-              subst_vars
-              dsimp
-              assumption
-            . let ⟨ branch, _, _, split⟩ := x'2
-              let ⟨ _, _ ⟩ := split
-              let ⟨ _, _ ⟩ := branch
-              simp at hh3; simp at hh1
-              repeat cases ‹_ ∧ _›
-              subst_vars
-              dsimp
-              assumption
-            . let ⟨ branch, _, _, split⟩ := x'2
-              let ⟨ _, _ ⟩ := split
-              let ⟨ _, _ ⟩ := branch
-              simp at hh3; simp at hh1
-              repeat cases ‹_ ∧ _›
-              subst_vars
-              dsimp
-              assumption
-            . let ⟨ branch, _, _, split⟩ := x'2
-              let ⟨ _, _ ⟩ := split
-              let ⟨ _, _ ⟩ := branch
-              simp at hh3; simp at hh1
-              repeat cases ‹_ ∧ _›
-              subst_vars
-              dsimp
-              assumption
-            . let ⟨ branch, _, _, split⟩ := x'2
-              let ⟨ _, _ ⟩ := split
-              let ⟨ _, _ ⟩ := branch
-              simp at hh3; simp at hh1
-              repeat cases ‹_ ∧ _›
-              subst_vars
-              dsimp
-              assumption
-            . let ⟨ branch, _, _, split⟩ := x'2
-              let ⟨ _, _ ⟩ := split
-              let ⟨ _, _ ⟩ := branch
-              simp at hh3; simp at hh1
-              repeat cases ‹_ ∧ _›
-              subst_vars
-              dsimp
-              intro elem h1
-              simp at hh6; rw[hh6] at h1
-              rw[List.mem_append] at h1
-              cases h1 <;> rename_i h1
-              . simp at h1
-                rename_i Hh _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
-                specialize Hh elem h1; assumption
-              . simp only [List.mem_singleton] at h1
-                aesop(config := {useDefaultSimpSet := false})
-            . intro tag i h1
-              rw[hh5] at h1
-              specialize HH tag i h1
-              assumption
-            · rw[hh6]; intro eleme hlist
-              rw [List.mem_append] at hlist
-              cases hlist
-              · solve_by_elim
-              · rename_i hlist
-                simp at hlist
-                cases hlist
-                assumption
-          . constructor <;> (try rfl)
-            . simp
+
     . unfold PortMap.getIO
       rw[PortMap.rw_rule_execution (getIO_cons_neq heq (α := (rhsGhostType Data)))] at Hcontains
       rw[PortMap.rw_rule_execution (getIO_nil (α := (rhsGhostType Data)) (b := ident))] at Hcontains

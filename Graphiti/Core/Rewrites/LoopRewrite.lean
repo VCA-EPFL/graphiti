@@ -126,7 +126,7 @@ def lhs (T : Type) [Inhabited T] (Tₛ : String) (f : T → T × Bool)
     queue [typeImp = $(⟨_, queue T⟩), type = $("queue " ++ Tₛ)];
     queue_out [typeImp = $(⟨_, queue T⟩), type = $("queue " ++ Tₛ)];
 
-    i_in -> mux [to="in3"];
+    i_in -> mux [to="in2"];
     queue_out -> o_out [from="out1"];
 
     loop_init -> mux [from="out1", to="in1"];
@@ -137,7 +137,7 @@ def lhs (T : Type) [Inhabited T] (Tₛ : String) (f : T → T × Bool)
     tag_split -> condition_fork [from="out2", to="in1"];
     mux -> mod [from="out1", to="in1"];
     branch -> queue [from="out1", to="in1"];
-    queue -> mux [from="out1", to="in2"];
+    queue -> mux [from="out1", to="in3"];
     branch -> queue_out [from="out2", to="in1"];
   ]
 

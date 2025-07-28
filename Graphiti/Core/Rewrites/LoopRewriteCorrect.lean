@@ -102,9 +102,7 @@ def lhsEvaled : Module String (lhsType Data) := by
      unfold Module.connect'; dsimp
      dsimp only [reduceEraseAll]
      dsimp; dsimp [reduceAssocListfind?]
-
-     unfold Module.connect''
-     dsimp [Module.liftL, Module.liftR, drcomponents])
+     )
     unfold PortMap.getIO
     dsimp [reduceAssocListfind?]
 
