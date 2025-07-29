@@ -1593,6 +1593,10 @@ theorem refine:
         . assumption
         . assumption
 
+/--
+info: 'Graphiti.LoopRewrite.refine' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
 #print axioms refine
 
 end Proof
