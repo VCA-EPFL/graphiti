@@ -6,6 +6,8 @@ Authors: Yann Herklotz
 
 import Graphiti.Core.AssocList.Basic
 import Graphiti.Core.Simp
+import Mathlib.Data.List.Nodup
+import Mathlib.Data.Prod.Basic
 
 namespace Batteries.AssocList
 
@@ -376,12 +378,16 @@ theorem find?_ge : ∀ {α} [DecidableEq α] {β x},
       · have : i ≠ k := by assumption
         symm_saturate; simp (disch := assumption) only [eraseAll_cons_eq, find?_cons_neq, *]
 
-@[simp] def find?_eraseAll_neg {α β} { T : α} { T' : α} [DecidableEq α] (a : AssocList α β) (i : β):
+@[simp] theorem find?_eraseAll_neg {α β} { T : α} { T' : α} [DecidableEq α] (a : AssocList α β) (i : β):
   Batteries.AssocList.find? T (AssocList.eraseAllP (fun k x => decide (k = T')) a) = some i -> ¬ (T = T') -> (Batteries.AssocList.find? T a = some i) := by
   intro hfind hne
   have := find?_eraseAll_neq (a := a) hne
   unfold eraseAll at this
   simp only [BEq.beq] at this; rw [eraseAllP_TR_eraseAll] at *; rwa [this] at hfind
+
+theorem find?_eraseAll_neg_full {α β} { T : α} { T' : α} [DecidableEq α] {a : AssocList α β} {i : β}:
+  (AssocList.eraseAll T' a).find? T = some i → T ≠ T' ∧ a.find? T = some i := by
+  by_cases h : T = T' <;> grind [find?_eraseAll_eq, find?_eraseAll_neq]
 
 theorem find?_eraseAll {α β} [DecidableEq α] {a : AssocList α β} {i i' v} :
   (a.eraseAll i').find? i = some v → a.find? i = some v := by
@@ -511,18 +517,76 @@ theorem bijectivePortRenaming_invert {α} [DecidableEq α] {p : AssocList α α}
   p.bijectivePortRenaming = fun i => ((p.filterId.append p.inverse.filterId).find? i).getD i := by
   unfold AssocList.bijectivePortRenaming; simp +contextual
 
-@[simp] axiom in_eraseAll_list {α β} {Ta : α} {elem : (α × β)} [DecidableEq α] (a : AssocList α β):
-  elem ∈ (AssocList.eraseAllP (fun k x => decide (k = Ta)) a).toList -> elem ∈ a.toList
+@[simp] theorem in_eraseAll_list {α β} {Ta : α} {elem : (α × β)} [DecidableEq α] (a : AssocList α β):
+  elem ∈ (AssocList.eraseAllP (fun k x => decide (k = Ta)) a).toList -> elem ∈ a.toList := by
+  induction a with
+  | nil => simp
+  | cons k v xs ht =>
+    dsimp; intro ha
+    by_cases h' : decide (k = Ta)
+    · simp at h'; subst k; simp at ha
+      obtain ht := ht ha
+      grind
+    · have : decide (k = Ta) = false := by simp [*]
+      rw [this] at ha; dsimp at ha
+      grind
 
-@[simp] axiom not_in_eraseAll_list {α β} {Ta : α} {elem : (α × β)} [DecidableEq α] (a : AssocList α β):
-  elem ∈ (AssocList.eraseAllP (fun k x => decide (k = Ta)) a).toList -> elem.1 = Ta -> False
+@[simp] theorem in_eraseAll_list' {α β} {Ta : α} {elem : (α × β)} [DecidableEq α] {a : AssocList α β}:
+  elem ∈ (AssocList.eraseAll Ta a).toList -> elem ∈ a.toList := by
+  unfold AssocList.eraseAll
+  rw [eraseAllP_TR_eraseAll]
+  apply in_eraseAll_list
 
-axiom in_eraseAll_noDup {α β γ δ} {l : List ((α × β) × γ × δ)} (Ta : α) [DecidableEq α](a : AssocList α (β × γ × δ)):
+theorem noDup_subset {α} {l1 l2 l2' : List α} : l2'.Nodup → l2' ⊆ l2 → (l1 ++ l2).Nodup → (l1 ++ l2').Nodup := by
+  simp only [List.nodup_append']
+  intro hp ha hb; simp [*]
+  obtain ⟨_, _, _⟩ := hb
+  solve_by_elim [List.disjoint_of_subset_right]
+
+theorem eraseAll_Nodup' {α β} [DecidableEq α] {p : AssocList α β} {k} :
+  p.toList.Nodup → (eraseAll k p).toList.Nodup := by
+  induction p generalizing k with
+  | nil => intros; simp [keysList]
+  | cons k' v xs ih =>
+    intro hnodup
+    simp [keysList_cons] at hnodup
+    by_cases heq : k' = k
+    · grind [eraseAll_cons_eq]
+    · rw [eraseAll_cons_neq] <;> try assumption
+      simp [keysList_cons]
+      and_intros
+      · intro hin
+        apply hnodup.left
+        simp only [←keysList_contains_iff] at *
+        apply in_eraseAll_list'; assumption
+      · grind
+
+theorem eraseAll_sublist {α β} [DecidableEq α] {k} {a : AssocList α β} :
+  (eraseAll k a).toList.Sublist a.toList := by
+  induction a with
+  | nil => constructor
+  | cons k' v xs ih =>
+    by_cases heq : k' = k
+    · subst k; rw [eraseAll_cons_eq]; constructor; assumption
+    · rw [eraseAll_cons_neq] <;> simp [*]
+
+theorem in_eraseAll_noDup {α β γ δ} {l : List ((α × β) × γ × δ)} (Ta : α) [DecidableEq α](a : AssocList α (β × γ × δ)):
   (List.map Prod.fst ( List.map Prod.fst (l ++ (List.map (fun x => ((x.1, x.2.1), x.2.2.1, x.2.2.2)) a.toList)))).Nodup ->
-  (List.map Prod.fst ( List.map Prod.fst (l ++ List.map (fun x => ((x.1, x.2.1), x.2.2.1, x.2.2.2)) (AssocList.eraseAllP (fun k x => decide (k = Ta)) a).toList))).Nodup
-
-@[simp] axiom in_eraseAll_map_comm {α β} (Ta : α) [DecidableEq α] (a : AssocList α β):
-  (a.toList).Nodup -> ((AssocList.eraseAllP (fun k x => decide (k = Ta)) a).toList).Nodup
+  (List.map Prod.fst ( List.map Prod.fst (l ++ List.map (fun x => ((x.1, x.2.1), x.2.2.1, x.2.2.2)) (AssocList.eraseAllP (fun k x => decide (k = Ta)) a).toList))).Nodup := by
+  simp at *; intro hnodup
+  apply noDup_subset <;> try assumption
+  · obtain hnodup := List.Nodup.of_append_right hnodup
+    apply List.Nodup.sublist <;> try assumption
+    apply List.Sublist.map
+    have hthis := eraseAll_sublist (k := Ta) (a := a)
+    unfold eraseAll at hthis; rwa [eraseAllP_TR_eraseAll] at hthis
+  · dsimp [· ⊆ ·, List.Subset]; intro a ha
+    have h' := List.exists_of_mem_map ha
+    obtain ⟨a', ha1, ha2⟩ := h'
+    rw [← ha2]
+    apply List.mem_map_of_mem
+    apply in_eraseAll_list
+    assumption
 
 theorem eraseAll_comm {α β} [DecidableEq α] {a b : α} {m : AssocList α β}:
   (m.eraseAll a).eraseAll b = (m.eraseAll b).eraseAll a := by

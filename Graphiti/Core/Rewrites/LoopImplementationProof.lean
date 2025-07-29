@@ -92,7 +92,7 @@ inductive state_relation : rhsGhostType Data -> Prop where
   -- ( ∀ tag i, (i) ∈ x_tagD -> ∃ d n, iterate f i n d) ->
   state_relation s
 
-def default_lhs : lhsType Data := ⟨default, default, ⟨default, true⟩, default, ⟨default, default⟩ ,⟨default, default⟩, ⟨default, default⟩, default, default, default ⟩
+def default_lhs : lhsType Data := default
 
 theorem state_relation_empty :
   state_relation f default := by
@@ -164,36 +164,24 @@ theorem erase_perm {α β γ : Type} {l : List ((α × β) × γ)} (k : Fin (Lis
 
 theorem map_fst {α β γ η  : Type} {i : α} {l : List ((α × β) × γ × η)}:  i ∈ (l.map Prod.fst).map Prod.fst -> ∃ i', (i, i') ∈ l.map (fun x => (x.1.1, x.2.2)) := by aesop
 
-axiom getIO_cons_neq {α} {a b x} {xs}:
+theorem getIO_cons_neq {α} {a b x} {xs}:
   a ≠ b ->
-  PortMap.getIO (.cons a x xs) b = @PortMap.getIO String _ α xs b
+  PortMap.getIO (.cons a x xs) b = @PortMap.getIO String _ α xs b := by
+  unfold PortMap.getIO; intro heq
+  rw [Batteries.AssocList.find?_cons_neq]; assumption
 
 theorem getIO_nil {α} {b}:
   @PortMap.getIO String _ α .nil b = ⟨ Unit, λ _ _ _ => False ⟩ := by aesop
 
-axiom getIO_cons_eq {α} {a x} {xs}:
-  @PortMap.getIO String _ α (.cons a x xs) a = x
+theorem getIO_cons_eq {α} {a x} {xs}:
+  @PortMap.getIO String _ α (.cons a x xs) a = x := by
+  unfold PortMap.getIO; rw [Batteries.AssocList.find?_cons_eq]; rfl
 
 theorem find?_cons_eq {α β} [DecidableEq α] {a x} {xs : Batteries.AssocList α β}:
   Batteries.AssocList.find? a (xs.cons a x) = x := by simp
 
 theorem find?_cons_neq {α β} [DecidableEq α] {a x} y {xs : Batteries.AssocList α β}:
   ¬(a = y) -> Batteries.AssocList.find? a (xs.cons y x) = Batteries.AssocList.find? a xs := by simp; grind
-
-axiom forall₂_cons_reverse {α}{β} {R : α → β → Prop} {a b l₁ l₂} :
-    List.Forall₂ R (l₁ ++ [a]) (l₂ ++ [b]) ↔ R a b ∧ List.Forall₂ R l₁ l₂
-
-@[simp] axiom find?_eraseAll_neg {α β} { T : α} { T' : α} [DecidableEq α] (a : AssocList α β) (i : β):
-  Batteries.AssocList.find? T (AssocList.eraseAllP_TR (fun k x => k == T') a) = some i -> ¬ (T = T') -> (Batteries.AssocList.find? T a = some i) -- := by
-  -- intro hfind hne
-  -- have := find?_eraseAll_neq (a := a) hne
-  -- unfold eraseAll at this
-  -- simp only [BEq.beq] at this; rw [eraseAllP_TR_eraseAll] at *; rwa [this] at hfind
-
-@[simp] axiom find?_eraseAll_list {α β} { T : α} [DecidableEq α] (a : AssocList α β):
-  List.find? (fun x => x.1 == T) (AssocList.eraseAllP_TR (fun k x => k == T) a).toList = none--  := by
-  -- rw [←Batteries.AssocList.findEntry?_eq, ←Option.map_eq_none', ←Batteries.AssocList.find?_eq_findEntry?]
-  -- have := find?_eraseAll_eq a T; unfold eraseAll at *; rw [eraseAllP_TR_eraseAll] at *; assumption
 
 theorem state_relation_preserve_input:
   ∀ (s s' : rhsGhostType Data) rule,
@@ -207,15 +195,12 @@ theorem state_relation_preserve_input:
   dsimp [Module.liftR, Module.liftL] at *
   grind
 
-axiom in_eraseAll_noDup {α β γ δ} {l : List ((α × β) × γ × δ)} (Ta : α) [DecidableEq α](a : AssocList α (β × γ × δ)):
+theorem in_eraseAll_noDup {α β γ δ} {l : List ((α × β) × γ × δ)} (Ta : α) [DecidableEq α](a : AssocList α (β × γ × δ)):
   (List.map Prod.fst ( List.map Prod.fst (l ++ (List.map (fun x => ((x.1, x.2.1), x.2.2.1, x.2.2.2)) a.toList)))).Nodup ->
-  (List.map Prod.fst ( List.map Prod.fst (l ++ List.map (fun x => ((x.1, x.2.1), x.2.2.1, x.2.2.2)) (AssocList.eraseAllP_TR (fun k x => decide (k = Ta)) a).toList))).Nodup
-
-@[simp] axiom in_eraseAll_list {α β} {Ta : α} {elem : (α × β)} [DecidableEq α] (a : AssocList α β):
-  elem ∈ (AssocList.eraseAllP_TR (fun k x => decide (k = Ta)) a).toList -> elem ∈ a.toList
-
-@[simp] axiom not_in_eraseAll_list {α β} {Ta : α} {elem : (α × β)} [DecidableEq α] (a : AssocList α β):
-  elem ∈ (AssocList.eraseAllP_TR (fun k x => decide (k = Ta)) a).toList -> elem.1 = Ta -> False
+  (List.map Prod.fst ( List.map Prod.fst (l ++ List.map (fun x => ((x.1, x.2.1), x.2.2.1, x.2.2.2)) (AssocList.eraseAll Ta a).toList))).Nodup := by
+  unfold AssocList.eraseAll
+  rw [Batteries.AssocList.eraseAllP_TR_eraseAll]
+  apply Batteries.AssocList.in_eraseAll_noDup
 
 theorem notinfirst {A B} {x : List (A × B)} {a} :
   a ∉ List.map Prod.fst x → ∀ y, (a, y) ∉ x := by
@@ -230,7 +215,7 @@ theorem elem_in_erase_first {α} {e : α} {a b : List _} {n} :
 set_option maxHeartbeats 0 in
 theorem state_relation_preserve:
   ∀ (s s' : rhsGhostType Data) rule,
-    rule ∈ ( rhsGhostEvaled f).internals ->
+    rule ∈ (rhsGhostEvaled f).internals ->
     rule s s' ->
     state_relation f s ->
     state_relation f s' := by
@@ -880,6 +865,9 @@ def init_node_state (s : List Bool × Bool) : Prop :=
 theorem false_is_init_node_state :
   init_node_state ([false], true) := by simp [init_node_state]
 
+theorem empty_is_init_node_state :
+  init_node_state ([], false) := by simp [init_node_state]
+
 inductive lhs_is_empty  : lhsType Data -> Prop where
 | intro : ∀ (s : lhsType Data) muxF init_s,
   ([], [], init_s, [], ([], []), ([], []), ([], []), [], muxF, []) = s ->
@@ -1341,6 +1329,68 @@ theorem φ_empty : φ f default default_lhs := by
   · apply state_relation_empty
   · constructor <;> try trivial
 
+theorem nodup_in_first {α} {a b c d e : List α} {l} :
+  (a ++ (b ++ (c ++ (d ++ e)))).Nodup →
+  l ∈ e →
+  l ∉ ((a ++ b) ++ c) ++ d := by
+  simp; intros; grind
+
+theorem state_relation_output_preserved {x_splitD x_splitB x_module x_branchD x_branchB x_tagT x_tagM x_tagD x_merge tag val iters init} :
+  state_relation f (x_module, (x_branchD, x_branchB), x_merge, ((tag, init) :: x_tagT, x_tagM, x_tagD), (x_splitD, x_splitB)) →
+  x_tagM.find? tag = .some (val, iters, init) →
+  state_relation f (x_module, (x_branchD, x_branchB), x_merge, (x_tagT, x_tagM.eraseAll tag, x_tagD), (x_splitD, x_splitB)) := by
+  intro hstate_relation hfind
+  cases hstate_relation
+  cases ‹(_, _) = (_, _)›
+  rename_i h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 h14 h15 h16
+  subst_vars
+  constructor <;> try solve | rfl | solve_by_elim [in_eraseAll_noDup]
+  · intro elem hin
+    simp only [List.map_append, List.mem_append] at hin h13
+    specialize h13 elem
+    simp only [List.append_assoc, List.map_append, List.map_map] at h12
+    simp only [List.map_cons, List.nodup_cons, List.mem_map, Prod.exists, exists_and_right,
+      exists_eq_right, not_exists] at h6
+    by_cases heq : elem = (tag, init)
+    · subst elem; exfalso
+      have hn : tag ∈ List.map (Prod.fst ∘ Prod.fst ∘ fun x => ((x.1, x.2.1), x.2.2.1, x.2.2.2)) x_tagM.toList := by
+        have := Batteries.AssocList.find?_in_toList hfind
+        grind
+      have nodup := nodup_in_first (l := tag) h12 hn
+      apply nodup; simp only [List.map_append, List.mem_append]; clear nodup
+      rcases hin with hin | hin
+      · clear h5 h7 h8 h1 h2 h16 h6 h12 h13 h11 h10 h9 hfind
+        grind only [List.contains_map,
+        = List.mem_map, =_ List.map_map, =_ List.contains_iff_mem, List.contains_eq_mem,
+        = List.any_eq, → List.eq_nil_of_map_eq_nil, = List.map_map, cases eager Prod, cases Or]
+      · exfalso
+        simp only [Prod.mk.eta, List.map_map, List.mem_map, Function.comp_apply, Prod.mk.injEq,
+          Prod.exists, exists_eq_right_right, exists_and_right, exists_eq_right] at hin
+        obtain ⟨t1, t2, hin⟩ := hin
+        have : (AssocList.eraseAll tag x_tagM).contains tag := by
+          unfold Batteries.AssocList.contains; simp only [AssocList.any_eq, List.any_eq_true,
+            beq_iff_eq, Prod.exists, exists_and_right, exists_eq_right]; grind
+        grind [Batteries.AssocList.eraseAll_not_contains2]
+    · have : elem ∈ (tag, init) :: x_tagT → elem ∈ x_tagT := by grind
+      apply this; apply h13
+      rcases hin with ((((hin | hin) | hin) | hin) | hin)
+      · grind
+      · grind
+      · grind
+      · grind
+      · right
+        simp only [Prod.mk.eta, List.map_map, List.mem_map, Function.comp_apply, Prod.exists] at hin ⊢
+        obtain ⟨a, b, c, d, hin, hin'⟩ := hin; subst elem
+        exists a, b, c, d
+        and_intros <;> try rfl;
+        apply Batteries.AssocList.in_eraseAll_list
+        rw [← Batteries.AssocList.eraseAllP_TR_eraseAll]; assumption
+  · cases h6; assumption
+  · intro tag' d n i hfind
+    have herase := AssocList.find?_eraseAll_neg_full hfind
+    clear h5 h6 h7 h9 h10 h11 h12 h13 h16 h1 h2; grind
+  · intros; apply h7; simp only [List.mem_cons]; right; assumption
+
 instance : MatchInterface (rhsGhostEvaled f) (lhsEvaled f) := by
   unfold rhsGhostEvaled lhsEvaled
   solve_match_interface
@@ -1357,7 +1407,127 @@ theorem refine:
     . unfold PortMap.getIO
       subst ident
       rw[PortMap.rw_rule_execution (getIO_cons_eq (α := (rhsGhostType Data)))] at Hcontains
-
+      dsimp [reduceAssocListfind?]
+      apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+      apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+      with_reducible and_intros; any_goals apply existSR.done
+      · dsimp [Module.liftR, Module.liftL]
+        and_intros <;> rfl
+      · cases HPerm; constructor <;> try rfl;
+        · dsimp at Hcontains; grind
+        · rename_i h _ _
+          cases h
+          rename_i H1 H2 H3 H4 H5 H6 H7 H8 _ _ _ _ _ _ _ HH _
+          cases H1
+          repeat cases ‹_ ∧ _›
+          subst_vars
+          rename_i hh1 hh2 hh3 hh4 hh5 hh6
+          simp at hh1; simp at hh2; simp at hh3; simp at hh4; simp at hh5; simp at hh6
+          constructor <;> (try rfl) <;> dsimp
+          . let ⟨ branch, _, _, split⟩ := x'2
+            let ⟨ _, _ ⟩ := split
+            let ⟨ _, _ ⟩ := branch
+            simp at hh3; simp at hh1
+            repeat cases ‹_ ∧ _›
+            subst_vars
+            intro elem h1
+            simp at hh6; rw[hh6] at h1
+            rw[List.mem_append] at h1
+            cases h1 <;> rename_i h1
+            . simp at h1
+              rename_i Hh _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+              specialize H2 elem h1; assumption
+            . simp only [List.mem_singleton] at h1
+              aesop(config := {useDefaultSimpSet := false})
+          . rename_i H _ _ _ _ _ _ _ _ _ _ _ _ _ _; -- simp at H
+            repeat cases ‹_ ∧ _›
+            subst_vars
+            assumption
+          . let ⟨ branch, _, _, split⟩ := x'2
+            let ⟨ _, _ ⟩ := split
+            let ⟨ _, _ ⟩ := branch
+            simp at hh3; simp at hh1
+            repeat cases ‹_ ∧ _›
+            subst_vars
+            dsimp
+            assumption
+          . let ⟨ branch, _, _, split⟩ := x'2
+            let ⟨ _, _ ⟩ := split
+            let ⟨ _, _ ⟩ := branch
+            simp at hh3; simp at hh1
+            repeat cases ‹_ ∧ _›
+            subst_vars
+            dsimp
+            assumption
+          . let ⟨ branch, _, _, split⟩ := x'2
+            let ⟨ _, _ ⟩ := split
+            let ⟨ _, _ ⟩ := branch
+            simp at hh3; simp at hh1
+            repeat cases ‹_ ∧ _›
+            subst_vars
+            dsimp
+            assumption
+          . let ⟨ branch, _, _, split⟩ := x'2
+            let ⟨ _, _ ⟩ := split
+            let ⟨ _, _ ⟩ := branch
+            simp at hh3; simp at hh1
+            repeat cases ‹_ ∧ _›
+            subst_vars
+            dsimp
+            assumption
+          . let ⟨ branch, _, _, split⟩ := x'2
+            let ⟨ _, _ ⟩ := split
+            let ⟨ _, _ ⟩ := branch
+            simp at hh3; simp at hh1
+            repeat cases ‹_ ∧ _›
+            subst_vars
+            dsimp
+            assumption
+          . let ⟨ branch, _, _, split⟩ := x'2
+            let ⟨ _, _ ⟩ := split
+            let ⟨ _, _ ⟩ := branch
+            simp at hh3; simp at hh1
+            repeat cases ‹_ ∧ _›
+            subst_vars
+            dsimp
+            assumption
+          . let ⟨ branch, _, _, split⟩ := x'2
+            let ⟨ _, _ ⟩ := split
+            let ⟨ _, _ ⟩ := branch
+            simp at hh3; simp at hh1
+            repeat cases ‹_ ∧ _›
+            subst_vars
+            dsimp
+            assumption
+          . let ⟨ branch, _, _, split⟩ := x'2
+            let ⟨ _, _ ⟩ := split
+            let ⟨ _, _ ⟩ := branch
+            simp at hh3; simp at hh1
+            repeat cases ‹_ ∧ _›
+            subst_vars
+            dsimp
+            intro elem h1
+            simp at hh6; rw[hh6] at h1
+            rw[List.mem_append] at h1
+            cases h1 <;> rename_i h1
+            . simp at h1
+              rename_i Hh _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+              specialize Hh elem h1; assumption
+            . simp only [List.mem_singleton] at h1
+              aesop(config := {useDefaultSimpSet := false})
+          . intro tag i h1
+            rw[hh5] at h1
+            specialize HH tag i h1
+            assumption
+          · rw[hh6]; intro eleme hlist
+            rw [List.mem_append] at hlist
+            cases hlist
+            · solve_by_elim
+            · rw [exists_comm]; apply iterate_full_complete
+        . cases ‹lhs_is_empty _›
+          cases ‹_ = y›
+          constructor; rfl
+          grind
     . unfold PortMap.getIO
       rw[PortMap.rw_rule_execution (getIO_cons_neq heq (α := (rhsGhostType Data)))] at Hcontains
       rw[PortMap.rw_rule_execution (getIO_nil (α := (rhsGhostType Data)) (b := ident))] at Hcontains
@@ -1369,198 +1539,43 @@ theorem refine:
     . unfold PortMap.getIO
       subst ident
       rw[PortMap.rw_rule_execution (getIO_cons_eq (α := (rhsGhostType Data)))] at Hcontains
-      unfold lhsEvaled
-      dsimp
-      simp at Hcontains
-      repeat cases ‹_ ∧ _›
-      subst_vars
-      rename_i H _
-      cases H; rename_i H
-      repeat cases ‹_ ∧ _›
-      obtain ⟨⟨i_branchD, i_branchB⟩, i_merge, ⟨i_tagT, i_tagM, i_tagD ⟩, ⟨i_splitD, i_splitB⟩⟩ := x2
-      obtain ⟨⟨i_branchD', i_branchB'⟩, i_merge', ⟨i_tagT', i_tagM', i_tagD' ⟩, ⟨i_splitD', i_splitB'⟩⟩ := x'2
-      rename_i h1 h2 h3 h4 h5 h6 h7
-      simp at h7; simp at h6; simp at h5; simp at h4; simp at h3; simp at h2; simp at h1
-      cases h5; rename_i tagv datav h5
-      subst_vars
       cases HPerm
-      rename_i h8 h2' h3 h4' h5 h6
-      simp at h8; simp at h4'
-      repeat cases ‹_ ∧ _›
+      cases ‹lhs_is_empty _›
+      cases ‹_ = y›
+      cases ‹_ = ([], _)›
+      cases ‹_ = (_, _)›
+      have hst := ‹state_relation _ _›
+      obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hassoclist, _, _, _⟩ := ‹state_relation _ _›
+      cases ‹_ = (_, (_, _), _)›
+      dsimp [reduceAssocListfind?] at Hcontains ⊢
+      repeat with_reducible cases ‹_ ∧ _›
       subst_vars
-      cases h4'
-      rename_i H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 H15 HHH _
-      simp at H1
-      repeat cases ‹_ ∧ _›
-      subst_vars
-      cases h1; rename_i n h1; cases h1; rename_i data h1; cases h1; rename_i tag h1
-      have HH14 := H14
-      specialize H14 tagv v n data
-      rw[Batteries.AssocList.find?_eq] at H14
-      simp at H14
-      specialize H14 tag h1
-      cases H14; rename_i H14 H14'
-      cases H14
-      . subst_vars
-        cases h3; rename_i d1 ld h1 h2
-        cases h1; rename_i k h3
-        simp at h3
-        have h4 := iterate_congr f _ _ _ _ _ h3 H14'
-        let ⟨ h5, h6⟩ := h4
-        subst_vars
-        apply Exists.intro ⟨_, _, ⟨_, _⟩, _, ⟨_, _⟩ ,⟨_, _⟩, ⟨_, _⟩, _, _, _⟩;
-        apply Exists.intro ⟨_, _, ⟨_, _⟩, _, ⟨_, _⟩ ,⟨_, _⟩, ⟨_, _⟩, _, _, _⟩;
-        and_intros
-        · apply existSR.done
-        · dsimp
-        . dsimp
+      repeat with_reducible cases ‹Exists _›
+      repeat with_reducible cases ‹_ ∧ _›
+      repeat with_reducible cases ‹_ × _›
+      rename Batteries.AssocList.find? _ _ = _ => hassoc
+      specialize hassoclist _ _ _ _ hassoc
+      cases hassoclist.2
+      subst_vars; dsimp at *
+      have ha1 := hassoclist.1
+      cases ha1; rotate_left 1
+      · cases ‹List.Nodup _›;
+        rename_i h1 h2 h3
+        have h1' := List.mem_map_of_mem (f := Prod.fst) h1
+        specialize h3 _ h1'
+        contradiction
+      apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+      apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
+      and_intros
+      · apply flush_lhs <;> try assumption
+      · rfl
+      · rfl
+      . repeat cases ‹(_, _) = (_, _)›
         . constructor <;> (try rfl)
-          . simp at h2; assumption
-          . constructor <;> (try rfl) <;> (try assumption)
-            . rename_i x_tagM _ _ _ _
-              unfold AssocList.eraseAll; apply in_eraseAll_noDup tagv x_tagM
-              assumption
-            . clear h4; intro elem HH
-              specialize H11 elem
-              cases elem; rename_i tag_elem data_elem
-              cases (decEq tagv tag_elem)
-              . rw[List.map_append] at HH
-                rw[List.mem_append] at HH
-                cases HH <;> rename_i HH
-                . rename_i x_merge x_module x_branchD x_branchB x_tagM x_tagD x_splitD x_splitB _
-                  rw[List.map_append] at H11
-                  rw[List.mem_append] at H11
-                  specialize H11 (Or.inl HH)
-                  simp at H11
-                  cases H11 <;> rename_i H11
-                  . cases H11
-                    subst_vars
-                    solve_by_elim
-                  . assumption
-                . rename_i x_merge x_module x_branchD x_branchB x_tagM x_tagD x_splitD x_splitB _
-                  rw[List.map_append] at H11
-                  rw[List.mem_append] at H11
-                  rename_i x_tagM _ _ _ _ _
-                  have HH := List.exists_of_mem_map HH
-                  cases HH; rename_i HH
-                  cases HH; rename_i HH _
-                  have HH := List.exists_of_mem_map HH
-                  cases HH; rename_i HH; cases HH; rename_i HH _
-                  have HH := in_eraseAll_list _ HH
-                  rename_i elem _ _
-                  have HH' := List.mem_map_of_mem (f := (fun x => ((x.1, x.2.1), x.2.2.1, x.2.2.2))) HH
-                  have HH'' := List.mem_map_of_mem (f := (fun x => match x with | ((x, snd), fst, y) => (x, y))) HH'
-                  rename_i h3 _ h1 _  h2 _; clear h1 h2 h3
-                  rename_i h; simp at h; subst_vars
-                  rename_i h; simp at h
-                  cases h ; rename_i h1 h2
-                  subst_vars
-                  specialize H11 (Or.inr HH'')
-                  simp at H11
-                  cases H11
-                  . rename_i h
-                    cases h
-                    subst_vars
-                    solve_by_elim
-                  . assumption
-              . subst_vars
-                rw[List.map_append] at HH
-                rw[List.mem_append] at HH
-                cases HH <;> rename_i HH
-                . rw[List.map_append] at H11
-                  rw[List.mem_append] at H11
-                  specialize H11 (Or.inl HH)
-                  simp at H11
-                  cases H11
-                  . subst_vars
-                    have h1' := h1
-                    have h1 := List.find?_some h1
-                    simp at h1
-                    subst tag
-                    rename_i x_tagM _ _ _ _
-                    have h1' := List.mem_of_find?_eq_some  h1'
-                    have HH := List.exists_of_mem_map HH
-                    cases HH; rename_i HH; cases HH; rename_i HH _
-                    rename_i hw; simp at hw; cases hw
-                    rw[List.map_append ] at H10; rw[List.map_append ] at H10
-                    rw[List.nodup_append] at H10
-                    let ⟨_, _, H10 ⟩ := H10
-                    -- rw[List.disjoint_right ] at H10
-                    have h1' := List.mem_map_of_mem (f := (fun x => ((x.1, x.2.1), x.2.2.1, x.2.2.2))) h1'
-                    have h1' := List.mem_map_of_mem (f := Prod.fst) h1'
-                    have h1' := List.mem_map_of_mem (f := Prod.fst) h1'
-                    -- specialize H10 h1'
-                    have HH := List.mem_map_of_mem (f := Prod.fst) HH
-                    have HH := List.mem_map_of_mem (f := Prod.fst) HH
-                    rename_i w _ _ _ _ _ _ ; rw[w] at HH
-                    specialize H10 _ HH _ h1'
-                    simp only [ Function.comp_apply, Prod.exists] at H10
-                    solve_by_elim
-                  . assumption
-                . have HH := List.exists_of_mem_map HH
-                  cases HH; rename_i HH; cases HH; rename_i HH _
-                  have HH := List.exists_of_mem_map HH
-                  cases HH; rename_i HH; cases HH; rename_i HH _
-                  rename_i h3 _ h1 _  _ _; clear h1 h3
-                  rename_i h; simp at h; subst_vars
-                  rename_i h; simp at h
-                  cases h ; rename_i h1 h2
-                  have HH := not_in_eraseAll_list _ HH h1
-                  solve_by_elim
-            . have H := List.Nodup.of_cons H12
-              assumption
-            . intro T D N I H1
-              have HH1 := H1
-              simp at H1
-              cases H1; rename_i tag' H1
-              cases (decEq T tagv)
-              . rename_i x_tagM _ _ _ _
-                subst_vars
-                have h1' := List.find?_some h1
-                simp at h1'
-                have H1' := List.find?_some H1
-                simp at H1'
-                subst tag tag'
-                have H1 := List.mem_of_find?_eq_some H1
-                have H1 := in_eraseAll_list _ H1
-                constructor
-                . specialize HH14 T D N I
-                  rename_i Hdif _ _
-                  have Hh := find?_eraseAll_neg _ _ HH1 Hdif
-                  specialize HH14 Hh
-                  cases HH14
-                  rename_i H _; simp at H
-                  cases H
-                  . repeat cases ‹_ ∧ _›
-                    subst_vars
-                    solve_by_elim
-                  . assumption
-                . specialize HH14 T D N I
-                  rename_i Hdif _ _
-                  have Hh := find?_eraseAll_neg _ _ HH1 Hdif
-                  specialize HH14 Hh
-                  cases HH14
-                  assumption
-              . subst_vars
-                rename_i x_tagM _ _ _ _
-                have H1' := @find?_eraseAll_list _ _ T _ x_tagM
-                unfold AssocList.eraseAll at H1; rw[H1] at H1'
-                simp at H1'
-            . intro tag i hh1
-              have hh := @List.mem_append_right _ (tag, i) [(tagv, data)] i_tagT'
-              specialize hh hh1
-              specialize HHH tag i hh
-              assumption
-          . cases h6
-            rename_i H1 _
-            simp at H1
-            repeat cases ‹_ ∧ _›
-            subst_vars
-            constructor <;> (try rfl)
-            constructor <;> assumption
-      . simp at H12
-        let ⟨ H12, H12' ⟩ := H12
-        solve_by_elim
+          . apply state_relation_output_preserved <;> assumption
+          · constructor
+            · rfl
+            · apply false_is_init_node_state
     . unfold PortMap.getIO
       rw[PortMap.rw_rule_execution (getIO_cons_neq heq (α := (rhsGhostType Data)))] at Hcontains
       rw[PortMap.rw_rule_execution (getIO_nil (α := (rhsGhostType Data)) (b := ident))] at Hcontains
@@ -1574,13 +1589,7 @@ theorem refine:
       . have H := state_relation_preserve f (x1, x2) _ rule hr hrr h_state_relation
         have h := state_relation_preserve_input f (x1, x2) _ rule hr hrr h_state_relation
         constructor <;> ( try rfl)
-        . simp at h
-          rw[← h]; clear h
-          subst_vars
-          rename_i h1 _ hf; simp at h1
-          cases h1; subst_vars
-          simp
-          assumption
+        . rw[← h]; clear h; subst_vars; rename_i h1 _; cases h1; simp
         . assumption
         . assumption
 
