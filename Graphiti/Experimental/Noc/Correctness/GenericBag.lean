@@ -244,7 +244,7 @@ namespace Graphiti.Projects.Noc
       have_hole Hv : typeOf v = _ := by
         unfold typeOf
         rewrite [RelIO.liftFinf_get]
-        dsimp
+        dsimp [drunfold_defs, drcomponents]
       have Hvin : (Hv.mp v, idx) ∈ s :=
         by
           apply Hrf2
@@ -256,31 +256,44 @@ namespace Graphiti.Projects.Noc
           and_intros
           exists idx.1, idx.2
           simp only [Fin.eta, List.mem_map, Prod.mk.injEq, Prod.exists]
-          exists (Hv.mp v), out_head
+          exists out_flit.1, out_flit.2
           have HflitIn : List.Mem out_flit i[idx] :=
             List.mem_of_getElem Hrule3_3
-          simp only [Router.Unbounded.bag.eq_1, RouterID', List.remove.eq_1, Fin.getElem_fin,
-            typeOf, eq_mp_eq_cast, noc', RoutingPolicy.Flit, Flit', Noc.State,
+          simp only [RouterID', List.remove.eq_1, Fin.getElem_fin,
+            typeOf, eq_mp_eq_cast, RoutingPolicy.Flit, Flit', Noc.State,
             routing_function_correct, Noc.RouterID, Topology.RouterID, Noc.Flit, modT,
             Prod.forall
           ] at HflitIn Hrf1
-          sorry
-          -- specialize Hrf1 idx (Hv.mp v) -- head HflitIn
-          -- generalize (rf idx (Hv.mp v, head)) = dst at Hrf1
-          -- cases dst; dsimp at Hrf1 ⊢
-          -- cases Hrf1
-          -- · rename_i f1 f2 f3 f4
-          --   simp only [noc', RoutingPolicy.Flit, Flit', Router.Unbounded.bag.eq_1, RouterID',
-          --     List.remove.eq_1, Fin.getElem_fin, Topology.Dir_out, Topology.out_len, typeOf,
-          --     eq_mp_eq_cast] at f3 Hhead1
-          --   simp only [f3] at Hhead1
-          --   subst f1
-          --   contradiction
-          -- rename_i dst_flit Hdst_flit
-          -- and_intros
-          -- · assumption
-          -- · congr
-          --   sorry
+          specialize Hrf1 idx out_flit.1 out_flit.2 HflitIn
+          have ⟨rf_out, Hrf_out⟩ : ∃ x, x = rf idx (out_flit.1, out_flit.2) := by
+            exists rf idx (out_flit.1, out_flit.2)
+          have ⟨rf_out1, Hrf_out1⟩ : ∃ x, x = rf_out.1 := by
+            exists rf_out.1
+          have ⟨rf_out2, Hrf_out2⟩ : ∃ x, x = rf_out.2 := by
+            exists rf_out.2
+          rw [←Hrf_out, ←Hrf_out1, ←Hrf_out2] at Hrf1
+          cases Hrf1
+          · rename_i f1 f2 f3 f4
+            simp only [noc', RoutingPolicy.Flit, Flit', Router.Unbounded.bag.eq_1, RouterID',
+              List.remove.eq_1, Fin.getElem_fin, Topology.Dir_out, Topology.out_len, typeOf,
+              eq_mp_eq_cast] at f3 Hrule1
+            simp only [f3] at Hrule1
+            injections
+            subst f1
+            contradiction
+          · rename_i f1 f2
+            and_intros
+            · assumption
+            · rw [←Hrf_out]
+              cases rf_out
+              rename_i rf_out1 rf_out2
+              congr
+              · dsimp at Hrf_out1;
+                simp at f2
+                rw [Hrule1] at f2
+                injection f2 with _ f2
+                rw [←Hrf_out1, ←f2]
+              · dsimp at Hrf_out2; subst idx; rfl
       obtain ⟨sidx, Hsidx⟩ := in_list_idx Hvin
       exists s, (List.remove s sidx)
       and_intros
@@ -388,8 +401,10 @@ namespace Graphiti.Projects.Noc
                   -- TODO: We can conclude with Hflit
                   sorry
                 · specialize H8 _ Heq3
-                  rw [H7] at Hflit
-                  -- TODO: We have that flit ∈ i ++ [val] which is not enough
+                  specialize H6 idx_inp (by sorry)
+                  rw [H7, H6] at Hflit
+                  -- TODO: We have that flit ∈ i ++ [val]
+                  -- and flit ≠ val, we can conclude
                   sorry
               · -- We are looking at the modified flit
                 -- We need to take an extra step in the get_output
@@ -408,12 +423,10 @@ namespace Graphiti.Projects.Noc
                     exact H3.2)
                 have Hdir : (noc' noc).topology.isConnDir_out dir_out := by
                   exact conns_isConn_out Hconn1
-                have h1 : ∃ tmp1, tmp1 = (rf idx_out out_val).1 := by
+                have ⟨tmp1, htmp1⟩ : ∃ tmp1, tmp1 = (rf idx_out out_val).1 := by
                   exists (rf idx_out out_val).1
-                have h2 : ∃ tmp2, tmp2 = (rf idx_out out_val).2 := by
+                have ⟨tmp2, htmp2⟩ : ∃ tmp2, tmp2 = (rf idx_out out_val).2 := by
                   exists (rf idx_out out_val).2
-                obtain ⟨tmp1, htmp1⟩ := h1
-                obtain ⟨tmp2, htmp2⟩ := h2
                 rw [←htmp1, ←htmp2] at Hstep
                 -- We had a correctness before moving the flit around,
                 -- what was it?
