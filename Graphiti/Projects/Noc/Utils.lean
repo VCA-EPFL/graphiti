@@ -289,6 +289,10 @@ namespace Graphiti.Projects.Noc
             apply heq
             cases idx; cases idx'; simp at heq h <;> simp [h]
 
+    theorem list_perm_in {l1 l2 : List α} (hPerm : l1.Perm l2) :
+      ∀ x, x ∈ l1 → x ∈ l2 := by
+        sorry
+
     theorem list_mem_concat_either {α} {elt : α} {l1 l2 : List α} :
       List.Mem elt (l1 ++ l2) → List.Mem elt l1 ∨ List.Mem elt l2 := by
         induction l1 with

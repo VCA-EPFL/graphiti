@@ -97,6 +97,10 @@ namespace Graphiti.Projects.Noc
     ⟩
     (t.neigh_out rid)[dir']
 
+  -- TODO:
+  -- def Topology.getConnDir_inp (t : Topology netsz) {rid : t.RinperID} {dir : t.Dir_inp rid} (Hdir : t.isConnDir_inp dir) : t.RouterID :=
+  --   sorry
+
   -- An input direction corresponds to a connection to another router if it is
   -- not the local input
   @[simp]
@@ -110,14 +114,6 @@ namespace Graphiti.Projects.Noc
   -- Utils to make a connection input direction
   def Topology.mkDir_inp (t : Topology netsz) (rid : t.RouterID) (i : Nat) (h : i < (t.inp_len rid)) : t.Dir_inp rid :=
     ⟨i + 1, by simpa only [Nat.add_lt_add_iff_right]⟩
-
-  theorem mkDir_isConn_out {t : Topology netsz} rid i h:
-    t.isConnDir_out (t.mkDir_out rid i h) := by
-      simp [Topology.mkDir_out]
-
-  theorem mkDir_isConn_inp {t : Topology netsz} rid i h:
-    t.isConnDir_inp (t.mkDir_inp rid i h) := by
-      simp [Topology.mkDir_inp]
 
   -- An output connection is a router id and an output port on this router
   @[simp]
@@ -172,18 +168,10 @@ namespace Graphiti.Projects.Noc
               ⟨conn_inp.1, conn_inp.2.1⟩
             ⟩
             (conns_inp.eraseIdx conn_inp_idx, conn :: conns)
-        | .none => (conns_inp, conns) -- TODO: Provably unreachable
+        | .none => (conns_inp, conns) -- Provably unreachable
       )
       (conns_inp, [])
       conns_out).2
-
-  theorem conns_isConn_out {t : Topology netsz} {conn} (Hconn : conn ∈ t.conns) :
-    t.isConnDir_out conn.1.2 := by
-      sorry
-
-  theorem conns_isConn_inp {t : Topology netsz} {conn} (Hconn : conn ∈ t.conns) :
-    t.isConnDir_inp conn.2.2 := by
-      sorry
 
   -- Routing Policy ------------------------------------------------------------
   -- Limitations:
