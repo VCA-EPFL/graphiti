@@ -61,9 +61,7 @@ theorem iterate_full_complete {i} :
     have := exists_minimal_m f h
     obtain ⟨m', ha⟩ := this
     exists m', (apply f m' i).1
-    constructor; constructor <;> try grind
-    rw [←ha.1]; constructor; simp
-    cases m' <;> grind [apply]
+    constructor; constructor <;> grind [apply]
 
 inductive lt_current : Nat → Option Nat → Prop :=
 | some {n final} : n < final → lt_current n (some final)
