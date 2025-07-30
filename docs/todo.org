@@ -28,6 +28,8 @@
 :ID:       04758f02-e653-4bbb-bcaa-c1e6b769f4c4
 :END:
 
+- We may need to rethink the example but this should be the lowest in priority
+
 ** TODO Section 3: add signposting and address comments
 :PROPERTIES:
 :ID:       c15ffbe1-66e9-4c0c-855e-6f4de32de980
@@ -70,6 +72,13 @@
 :ID:       1dd9cce6-a923-406e-9d31-424239820b88
 :END:
 
+- Precisely, explain that we did a different timing model
+
+** TODO Section 7: add a table and in-text explanation to give a sense of the runtime of the framework
+:PROPERTIES:
+:ID:       b27bd4f5-c5b9-49dd-a3e2-0f80a7412dc0
+:END:
+
 ** TODO Section 7: describe the implementation of the tagger used
 :PROPERTIES:
 :ID:       fe6072f5-b690-4401-83d5-bd575f37a664
@@ -90,15 +99,19 @@
 :ID:       37700f4e-0f3c-425e-9f34-1d68726fe14d
 :END:
 
-* Framework development [5/14]
+* Framework development [8/14]
 :PROPERTIES:
 :ID:       d90489ca-4ca8-4d1c-913a-83695b611810
 :END:
 
-** TODO Prove LHS specification given termination              :loop_rewrite:
+** DONE Prove LHS specification given termination              :loop_rewrite:
+CLOSED: [2025-07-30 Wed 11:15]
 :PROPERTIES:
 :ID:       f2a8021c-7377-44ff-9c6c-e995b5b1dd65
 :Effort:   1d
+:END:
+:LOGBOOK:
+- State "DONE"       from "TODO"       [2025-07-30 Wed 11:15]
 :END:
 
 {{{effort}}}
@@ -131,9 +144,13 @@ CLOSED: [2025-07-28 Mon 00:50]
 
 {{{effort}}}
 
-** SMDY Prove termination of the loop                          :loop_rewrite:
+** DONE Prove termination of the loop                          :loop_rewrite:
+CLOSED: [2025-07-30 Wed 11:23]
 :PROPERTIES:
 :ID:       30028627-b199-4fc8-b376-bd380237765d
+:END:
+:LOGBOOK:
+- State "DONE"       from "SMDY"       [2025-07-30 Wed 11:23]
 :END:
 
 Either:
@@ -273,10 +290,13 @@ CLOSED: [2025-07-27 Sun 19:22]
 - We need to recursively generate pures and then apply the branch-merge to pure conversion.
 
 
-** TODO Improve the performance of rewriting by only checking for invertibility once :rewriter:
+** KILL Improve the performance of rewriting by only checking for invertibility once :rewriter:
+CLOSED: [2025-07-30 Wed 11:15]
 :PROPERTIES:
 :ID:       6f045ed5-1133-4e54-ac86-0d4cbca8d8e0
 :END:
+
+Does't seem to be needed, because the execution speed is the same.
 
 ** SMDY Improve on the universe bounds in proofs
 :PROPERTIES:
@@ -296,7 +316,7 @@ CLOSED: [2025-07-21 Mon 16:41]
 
 - https://www.moderndescartes.com/essays/research_code/
 
-* Preprocessing of dot-graph for Dynamatic [0/3]
+* Preprocessing of dot-graph for Dynamatic [3/3]
 :PROPERTIES:
 :ID:       8a81fbfa-03b9-4658-8d3b-3979df2be4b4
 :EFFORT:   2d
@@ -304,30 +324,43 @@ CLOSED: [2025-07-21 Mon 16:41]
 
 {{{effort}}}
 
-** TODO Split up read-only memory controllers intro their own banks
+** DONE Split up read-only memory controllers intro their own banks
+CLOSED: [2025-07-30 Wed 11:16]
 :PROPERTIES:
 :ID:       63b61d0d-2dd0-4805-8091-e4bca0b621b8
+:END:
+:LOGBOOK:
+- State "DONE"       from "TODO"       [2025-07-30 Wed 11:16]
 :END:
 
 - Attached to a single load.
 
-** TODO Transform ~Merge~ into ~init Bool false~
+** DONE Transform ~Merge~ into ~init Bool false~
+CLOSED: [2025-07-30 Wed 11:16]
 :PROPERTIES:
 :ID:       ea5156e3-b0bd-4c20-8bd0-854911287716
 :END:
+:LOGBOOK:
+- State "DONE"       from "TODO"       [2025-07-30 Wed 11:16]
+:END:
 
 - Remove the unnecessary additional input, and rewire the conditional input from in2 to in1.
+- Took care of it inside Dynamatic.
 
-** TODO Rewire the fork trees
+** DONE Rewire the fork trees
+CLOSED: [2025-07-30 Wed 11:17]
 :PROPERTIES:
 :ID:       32b50806-d235-4d27-8d32-f7c0dc8dce06
+:END:
+:LOGBOOK:
+- State "DONE"       from "TODO"       [2025-07-30 Wed 11:17]
 :END:
 
 - I have found though that in all the cases for dot-graphs that you have sent me, the only thing I had to change is
   switch out2 which was feeding the init to out1. The rest of the fork tree then lined up. But having a more general
   solution would be useful too.
 
-* Post processing of dot-graph for Dynamatic [0/4]
+* Post processing of dot-graph for Dynamatic [1/4]
 :PROPERTIES:
 :ID:       18ee918c-b9fe-4c97-a61e-d087a03b50e4
 :EFFORT:   4d
@@ -335,9 +368,13 @@ CLOSED: [2025-07-21 Mon 16:41]
 
 {{{effort}}}
 
-** TODO Merge memories again
+** DONE Merge memories again
+CLOSED: [2025-07-30 Wed 11:16]
 :PROPERTIES:
 :ID:       e83c39c1-3e8e-4f79-a393-518456ff35aa
+:END:
+:LOGBOOK:
+- State "DONE"       from "TODO"       [2025-07-30 Wed 11:16]
 :END:
 
 - Ideally, we wouldn't need to do this, but I guess that this is because don't know how to synthesise the right
@@ -356,6 +393,18 @@ CLOSED: [2025-07-21 Mon 16:41]
 :END:
 
 This may require implement new nodes for splitting and combining tags.
+
+** TODO Identify the BBs of the newly added nodes, which is necessary for buffering.
+:PROPERTIES:
+:ID:       0dc25288-2046-4c5d-962d-95f5c5432ec4
+:END:
+
+** TODO Add the delays of each of the new components
+:PROPERTIES:
+:ID:       ef19fff9-15b7-4fef-96df-7abe463b1455
+:END:
+
+- They differ with the bitwidths, so for now will map bitwidths to delays and in the future we can bound them in a function.
 
 ** TODO Rerun experiments with dot graphs directly produced by the framework
 :PROPERTIES:

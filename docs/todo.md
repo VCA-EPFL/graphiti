@@ -1,14 +1,14 @@
-- [Paper writing <code>[0/15]</code>](#orgacd8a6e)
-- [Framework development <code>[3/14]</code>](#orgead67e9)
-- [Preprocessing of dot-graph for Dynamatic <code>[0/3]</code>](#org676f0bc)
-- [Post processing of dot-graph for Dynamatic <code>[0/4]</code>](#orgb8504cd)
-- [Non-main-project todos <code>[0/4]</code>](#orgf476dd9)
+- [Paper writing <code>[0/15]</code>](#org25f1f64)
+- [Framework development <code>[8/14]</code>](#orgeac718e)
+- [Preprocessing of dot-graph for Dynamatic <code>[3/3]</code>](#orgec7d4ee)
+- [Post processing of dot-graph for Dynamatic <code>[1/4]</code>](#orgb9542c0)
+- [Non-main-project todos <code>[0/4]</code>](#org4d17329)
 
 
 
-<a id="orgacd8a6e"></a>
+<a id="org25f1f64"></a>
 
-# Paper writing <code>[0/16]</code>
+# Paper writing <code>[0/15]</code>
 
 1.  TODO Section 1: introduction
 
@@ -16,7 +16,9 @@
     
     2.  TODO Add more references
 
-2.  TODO Section 2: reread the motivation section. We may need to rethink the example but this should be the lowest in priority
+2.  TODO Section 2: reread the motivation section
+
+    -   We may need to rethink the example but this should be the lowest in priority
 
 3.  TODO Section 3: add signposting and address comments
 
@@ -34,7 +36,9 @@
 
 10. TODO Section 6: describe the use of ghost state
 
-11. TODO Section 7: ensure text described experiments performed. Precisely, explain that we did a different timing model
+11. TODO Section 7: ensure text described experiments performed
+
+    -   Precisely, explain that we did a different timing model
 
 12. TODO Section 7: add a table and in-text explanation to give a sense of the runtime of the framework
 
@@ -47,11 +51,11 @@
 16. TODO Section 8: add related work on graph rewriting (with applications in SSA), as well as term rewriting for hardware
 
 
-<a id="orgead67e9"></a>
+<a id="orgeac718e"></a>
 
-# Framework development <code>[3/14]</code>
+# Framework development <code>[8/14]</code>
 
-1.  TODO Prove LHS specification given termination     :loop_rewrite:
+1.  DONE Prove LHS specification given termination     :loop_rewrite:
 
     -   **Effort:** 1d day(s)
 
@@ -59,7 +63,7 @@
 
     -   **Effort:** 1d day(s)
 
-3.  TODO Prove φ holds for initial state     :loop_rewrite:
+3.  DONE Prove φ holds for initial state     :loop_rewrite:
 
     -   **Effort:** 0.25d day(s)
 
@@ -67,7 +71,7 @@
 
     -   **Effort:** 0.5d day(s)
 
-5.  SMDY Prove termination of the loop     :loop_rewrite:
+5.  DONE Prove termination of the loop     :loop_rewrite:
 
     Either:
     
@@ -84,7 +88,7 @@
     
         1.  Dependencies
         
-            -   [Generate a new environment from the rewrite](#org68e278e)
+            -   [Generate a new environment from the rewrite](#orgd915e33)
 
 7.  SMDY Make rewriter run in Lean 4     :rewriter:
 
@@ -98,7 +102,7 @@
     
     1.  Dependencies
     
-        -   [Generate a new environment from the rewrite](#org68e278e)
+        -   [Generate a new environment from the rewrite](#orgd915e33)
 
 9.  DONE Minimise the number of nodes that are rewritten     :rewriter:
 
@@ -123,16 +127,18 @@
         
         1.  Dependencies
         
-            -   [Add option to rewrite without renaming](#org4bdebeb)
+            -   [Add option to rewrite without renaming](#orgfa6ff19)
 
-11. TODO Support rewriting of loop bodies with `if` statements     :rewriter:
+11. DONE Support rewriting of loop bodies with `if` statements     :rewriter:
 
     -   **Effort:** 4d day(s)
     
     -   This is needed for `gsum-single` and `gsum-many`.
     -   We need to recursively generate pures and then apply the branch-merge to pure conversion.
 
-12. TODO Improve the performance of rewriting by only checking for invertibility once     :rewriter:
+12. KILL Improve the performance of rewriting by only checking for invertibility once     :rewriter:
+
+    Does't seem to be needed, because the execution speed is the same.
 
 13. SMDY Improve on the universe bounds in proofs
 
@@ -143,7 +149,7 @@
     -   <https://www.moderndescartes.com/essays/research_code/>
 
 
-<a id="org676f0bc"></a>
+<a id="orgec7d4ee"></a>
 
 # Preprocessing of dot-graph for Dynamatic <code>[3/3]</code>
 
@@ -161,12 +167,11 @@
 3.  DONE Rewire the fork trees
 
     -   I have found though that in all the cases for dot-graphs that you have sent me, the only thing I had to change is switch out2 which was feeding the init to out1. The rest of the fork tree then lined up. But having a more general solution would be useful too.
-    -   Took care of it inside Dynamatic.
 
 
-<a id="orgb8504cd"></a>
+<a id="orgb9542c0"></a>
 
-# Post processing of dot-graph for Dynamatic <code>[1/6]</code>
+# Post processing of dot-graph for Dynamatic <code>[1/4]</code>
 
 -   **Effort:** 4d day(s)
 
@@ -184,12 +189,14 @@
 
 4.  TODO Identify the BBs of the newly added nodes, which is necessary for buffering.
 
-5.  TODO Add the delays of each of the new components. They differ with the bitwidths, so for now will map bitwidths to delays and in the future we can bound them in a function.
+5.  TODO Add the delays of each of the new components
 
-6.  TODO Rerun experiments with dot graphs directly produced by the framework.
+    -   They differ with the bitwidths, so for now will map bitwidths to delays and in the future we can bound them in a function.
+
+6.  TODO Rerun experiments with dot graphs directly produced by the framework
 
 
-<a id="orgf476dd9"></a>
+<a id="org4d17329"></a>
 
 # Non-main-project todos <code>[0/4]</code>
 
@@ -202,3 +209,11 @@
 3.  TODO Verify abstraction
 
 4.  TODO Verify concretisation
+
+5.  TODO Move the graph into the RewriteResult Monad
+
+    In most cases you need the graph, so it would make sense to add it into the monad. Matchers are then functions that just return a list of nodes under the Monad.
+
+6.  TODO Support loop to pure transformation for terminating loops.
+
+    For loops that can be shown to terminate, we can support a translation towards a `pure` node.
