@@ -6,8 +6,6 @@ Authors: Yann Herklotz
 
 import Graphiti.Core.AssocList.Basic
 import Graphiti.Core.Simp
-import Mathlib.Data.List.Nodup
-import Mathlib.Data.Prod.Basic
 
 namespace Batteries.AssocList
 
@@ -538,10 +536,10 @@ theorem bijectivePortRenaming_invert {α} [DecidableEq α] {p : AssocList α α}
   apply in_eraseAll_list
 
 theorem noDup_subset {α} {l1 l2 l2' : List α} : l2'.Nodup → l2' ⊆ l2 → (l1 ++ l2).Nodup → (l1 ++ l2').Nodup := by
-  simp only [List.nodup_append']
+  simp only [List.nodup_append]
   intro hp ha hb; simp [*]
   obtain ⟨_, _, _⟩ := hb
-  solve_by_elim [List.disjoint_of_subset_right]
+  grind
 
 theorem eraseAll_Nodup' {α β} [DecidableEq α] {p : AssocList α β} {k} :
   p.toList.Nodup → (eraseAll k p).toList.Nodup := by
@@ -570,12 +568,15 @@ theorem eraseAll_sublist {α β} [DecidableEq α] {k} {a : AssocList α β} :
     · subst k; rw [eraseAll_cons_eq]; constructor; assumption
     · rw [eraseAll_cons_neq] <;> simp [*]
 
+private theorem of_append_right {α} {l₁ l₂ : List α} : List.Nodup (l₁ ++ l₂) → List.Nodup l₂ :=
+  List.Nodup.sublist (List.sublist_append_right l₁ l₂)
+
 theorem in_eraseAll_noDup {α β γ δ} {l : List ((α × β) × γ × δ)} (Ta : α) [DecidableEq α](a : AssocList α (β × γ × δ)):
   (List.map Prod.fst ( List.map Prod.fst (l ++ (List.map (fun x => ((x.1, x.2.1), x.2.2.1, x.2.2.2)) a.toList)))).Nodup ->
   (List.map Prod.fst ( List.map Prod.fst (l ++ List.map (fun x => ((x.1, x.2.1), x.2.2.1, x.2.2.2)) (AssocList.eraseAllP (fun k x => decide (k = Ta)) a).toList))).Nodup := by
   simp at *; intro hnodup
   apply noDup_subset <;> try assumption
-  · obtain hnodup := List.Nodup.of_append_right hnodup
+  · obtain hnodup := of_append_right hnodup
     apply List.Nodup.sublist <;> try assumption
     apply List.Sublist.map
     have hthis := eraseAll_sublist (k := Ta) (a := a)
