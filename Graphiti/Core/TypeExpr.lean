@@ -5,7 +5,7 @@ Authors: Yann Herklotz
 -/
 
 import Lean
-import Graphiti.Core.ExprHigh
+import Batteries.Data.AssocList
 
 open Std.Internal (Parsec)
 open Std.Internal.Parsec String
@@ -20,6 +20,18 @@ inductive TypeExpr where
 | unit
 | pair (left right : TypeExpr)
 deriving Repr, DecidableEq, Inhabited
+
+namespace TypeExpr
+
+def toBlueSpec : TypeExpr → String
+| .nat => "Bit#(32)"
+| .tag => "Token"
+| .bool => "Bool"
+| .unit => "Void"
+| .pair left right =>
+  s!"Tuple2#({toBlueSpec left}, {toBlueSpec right})"
+
+end TypeExpr
 
 noncomputable def TypeExpr.denote : TypeExpr → Type
 | nat => Nat

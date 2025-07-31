@@ -21,6 +21,7 @@ structure CmdArgs where
   logFile : Option System.FilePath := none
   logStdout : Bool := false
   noDynamaticDot : Bool := false
+  blueSpecDot : Bool := false
   parseOnly : Bool := false
   graphitiOracle : String := "graphiti_oracle"
   fast : Bool := false
@@ -51,6 +52,8 @@ def parseArgs (args : List String) : Except String CmdArgs := go CmdArgs.empty a
       go {c with logStdout := true} rst
     | .cons "--no-dynamatic-dot" rst =>
       go {c with noDynamaticDot := true} rst
+    | .cons "--bluespec-dot" rst =>
+      go {c with blueSpecDot := true} rst
     | .cons "--parse-only" rst =>
       go {c with parseOnly := true} rst
     | .cons "--oracle" (.cons fp rst) =>
@@ -80,6 +83,7 @@ OPTIONS
   --log-stdout        Set JSON log output to STDOUT
   --no-dynamatic-dot  Don't output dynamatic DOT, instead output the raw
                       dot that is easier for debugging purposes.
+  --bluespec-dot      Output a dot with BlueSpec types.
   --oracle            Path to the oracle executable.  Default is graphiti_oracle.
   --parse-only        Only parse the input without performing rewrites.
   --fast              Use the fast but unverified rewrite approach.
@@ -263,7 +267,10 @@ def main (args : List String) : IO Unit := do
   rewrittenExprHigh := g'
 
   let some l :=
-    if parsed.noDynamaticDot then pure (toString rewrittenExprHigh)
+    if parsed.noDynamaticDot then
+      if parsed.blueSpecDot
+      then pure rewrittenExprHigh.toBlueSpec
+      else pure (toString rewrittenExprHigh)
     else dynamaticString rewrittenExprHigh (renameAssocAll assoc st.1 rewrittenExprHigh)
     | IO.eprintln s!"Failed to print ExprHigh: {rewrittenExprHigh}"
 
