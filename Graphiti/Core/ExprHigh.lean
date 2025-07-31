@@ -382,7 +382,7 @@ def toBlueSpec (a : ExprHigh String): String :=
       a.modules.foldl
         (λ s k v =>
           let (typ, args) := TypeExpr.Parser.parseNode v.snd |>.getD ("unknown", [])
-          let args' := (List.range args.length).zip args |>.map (λ (n, arg) => s!"arg{n} = \"{arg.toBlueSpec}\"")
+          let args' := (List.range args.length).zip args |>.map (λ (n, arg) => arg.toBlueSpec n)
           s ++ s!"  \"{k}\" [type = \"{typ}\", {", ".intercalate args'}, label = \"{k}: {v.snd}\"];\n"
           ) ""
     let connections :=

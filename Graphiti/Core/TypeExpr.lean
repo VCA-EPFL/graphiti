@@ -33,19 +33,47 @@ def toBlueSpec : TypeExpr → String
 
 end TypeExpr
 
-noncomputable def TypeExpr.denote : TypeExpr → Type
-| nat => Nat
-| tag => Unit
-| bool => Bool
-| unit => Unit
-| pair t1 t2 => t1.denote × t2.denote
-
 inductive ValExpr where
 | nat (n : Nat)
 | bool (b : Bool)
 | unit
 | pair (left right : ValExpr)
 deriving Repr, DecidableEq
+
+namespace ValExpr
+
+def toBlueSpec : ValExpr → String
+| .nat n => s!"{n}"
+| .bool b => s!"{b}"
+| .unit => "?"
+| .pair left right =>
+  s!"tuple2({left.toBlueSpec}, {right.toBlueSpec})"
+
+end ValExpr
+
+inductive Argument where
+| type_arg (t : TypeExpr)
+| val_arg (t : ValExpr)
+deriving Inhabited, Repr
+
+namespace Argument
+
+def toBlueSpec (n : Nat) : Argument → String
+| .type_arg t => s!"targ{n} = \"{t.toBlueSpec}\""
+| .val_arg t => s!"varg{n} = \"{t.toBlueSpec}\""
+
+def getType! : Argument → TypeExpr
+| .type_arg t => t
+| _ => panic "Error: could not get type"
+
+end Argument
+
+noncomputable def TypeExpr.denote : TypeExpr → Type
+| nat => Nat
+| tag => Unit
+| bool => Bool
+| unit => Unit
+| pair t1 t2 => t1.denote × t2.denote
 
 def ValExpr.type : ValExpr → TypeExpr
 | nat _ => .nat
@@ -82,22 +110,39 @@ namespace TypeExpr.Parser
 
 @[inline] def skipStringWs (s : String) := skipString s <* ws
 
-partial def parseTypeExpr' : Parser TypeExpr :=
-    ws *> ( skipStringWs "Nat" *> pure .nat
-            <|> skipStringWs "TagT" *> pure .unit
-            <|> skipStringWs "T" *> pure .nat
-            <|> skipStringWs "Bool" *> pure .bool
-            <|> skipStringWs "Unit" *> pure .unit
-            <|> (do skipStringWs "("
-                    let t ← parseTypeExpr'
-                    skipStringWs "×"
-                    let t' ← parseTypeExpr'
-                    skipStringWs ")"
-                    return .pair t t'
-                ))
+partial def parseTypeExpr' : Nat → Parser TypeExpr
+| 0 => failure
+| n+1 =>
+  ws *> ( skipStringWs "Nat" *> pure .nat
+          <|> skipStringWs "TagT" *> pure .unit
+          <|> skipStringWs "T" *> pure .nat
+          <|> skipStringWs "Bool" *> pure .bool
+          <|> skipStringWs "Unit" *> pure .unit
+          <|> (do skipStringWs "("
+                  let t ← parseTypeExpr' n
+                  skipStringWs "×"
+                  let t' ← parseTypeExpr' n
+                  skipStringWs ")"
+                  return .pair t t'
+              ))
+
+def parseValExpr' : Nat → Parser ValExpr
+| 0 => failure
+| n+1 =>
+  ws *> ( ValExpr.nat <$> (Lean.Json.Parser.nat <* ws)
+          <|> skipStringWs "true" *> pure (.bool true)
+          <|> skipStringWs "false" *> pure (.bool false)
+          <|> skipStringWs "unit" *> pure .unit
+          <|> (do skipStringWs "("
+                  let t ← parseValExpr' n
+                  skipStringWs ","
+                  let t' ← parseValExpr' n
+                  skipStringWs ")"
+                  return .pair t t'
+              ))
 
 def parseTypeExpr (s : String): Option TypeExpr :=
-  match parseTypeExpr' |>.run s with
+  match parseTypeExpr' s.length |>.run s with
   | .ok r => .some r
   | .error _ => .none
 
@@ -131,15 +176,18 @@ def parserId : Parser String := do
   let chars ← many1 (satisfy (fun c => !c.isWhitespace))
   return String.mk chars.toList
 
-def parserNode : Parser (String × List TypeExpr) := do
+def parseArgument (fuel : Nat) : Parser Argument :=
+  .type_arg <$> parseTypeExpr' fuel
+  <|> .val_arg <$> parseValExpr' fuel
+
+def parserNode (fuel : Nat) : Parser (String × List Argument) := do
   ws
   let name ← parserId
-  let ts ← many1 parseTypeExpr' <* ws
+  let ts ← many1 (parseArgument fuel) <* ws
   return (name, ts.toList)
 
-
-def parseNode (s : String): Option (String × List TypeExpr) :=
-  match parserNode |>.run s with
+def parseNode (s : String): Option (String × List Argument) :=
+  match parserNode s.length |>.run s with
   | .ok r => .some r
   | .error _ => .none
 

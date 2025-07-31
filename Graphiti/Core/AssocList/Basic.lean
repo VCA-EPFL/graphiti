@@ -102,6 +102,17 @@ def invertible_efficient {α} [DecidableEq α] (p : AssocList α α) : Bool := t
 def invertible {α} [DecidableEq α] (p : AssocList α α) : Bool :=
   p.filterId.keysList.inter p.inverse.filterId.keysList = ∅ ∧ p.keysList.Nodup ∧ p.inverse.keysList.Nodup
 
+/--
+Just like bijectivePortRenaming, but pushes the function generation into the definition.  This doesn't seem to make a
+big difference.
+-/
+def bijectivePortRenaming_quick {α} [DecidableEq α] (p : AssocList α α) : α → α :=
+  if p.invertible then
+    let map := p.filterId.append p.inverse.filterId
+    fun i => map.find? i |>.getD i
+  else id
+
+-- @[implemented_by bijectivePortRenaming]
 def bijectivePortRenaming {α} [DecidableEq α] (p : AssocList α α) (i: α) : α :=
   if p.invertible then
     let map := p.filterId.append p.inverse.filterId
