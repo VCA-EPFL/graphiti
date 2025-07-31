@@ -31,21 +31,21 @@ namespace Graphiti.TypeExpr.Parser.Test
 /-- info: true -/
 #guard_msgs in
 #eval (parseNode ("split (T × (Bool × (T × T))) Bool")).get!.2[0]!
-  == .pair (.nat) (.pair (.bool) (.pair (.nat) (.nat)))
+  == .type_arg (.pair (.nat) (.pair (.bool) (.pair (.nat) (.nat))))
 
 /-- info: true -/
 #guard_msgs in
 #eval (parseNode ("branch (T × T)")).get!.2[0]!
-  == .pair (.nat) (.nat)
+  == .type_arg (.pair (.nat) (.nat))
 
 /-- info: true -/
 #guard_msgs in
 #eval (parseNode ("join T (TagT × Bool)")).get!.2[1]!
-  == .pair (.unit) (.bool)
+  == .type_arg (.pair (.unit) (.bool))
 
 /-- info: true -/
 #guard_msgs in
 #eval (parseNode ("mux (T × (T × Bool))")).get!.2[0]!
-  == .pair (.nat) (.pair (.nat) (.bool))
+  == .type_arg (.pair (.nat) (.pair (.nat) (.bool)))
 
 end Graphiti.TypeExpr.Parser.Test

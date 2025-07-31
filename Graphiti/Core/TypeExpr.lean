@@ -54,7 +54,7 @@ end ValExpr
 inductive Argument where
 | type_arg (t : TypeExpr)
 | val_arg (t : ValExpr)
-deriving Inhabited, Repr
+deriving Inhabited, Repr, DecidableEq
 
 namespace Argument
 
