@@ -160,7 +160,7 @@ namespace Graphiti.Projects.Noc
       | cons hd tl HR =>
         rw [List.mem_cons] at H
         cases H <;> rename_i H
-        · rw [H]; apply Exists.intro ⟨0, by simpa⟩; simpa
+        · subst x; apply Exists.intro ⟨0, by simpa⟩; rfl
         · obtain ⟨i, Hi'⟩ := HR H; exists ⟨i + 1, by simpa⟩
 
   variable {α} {n : Nat}
@@ -175,6 +175,55 @@ namespace Graphiti.Projects.Noc
     v.toList.flatten.Perm l →
     (v.set idx (v[idx] ++ [elt])).toList.flatten.Perm (l ++ [elt]) := by
       sorry
+
+  theorem vec_set_map {α β} {v : Vector α n} {idx : Fin n} {elt : α}
+    {f : (idx : Nat) → α → (idx < n) → β} :
+    (v.set idx elt).mapFinIdx f = (v.mapFinIdx f).set idx (f idx.1 elt idx.2) := by
+      sorry
+
+  theorem vec_set_toList {v : Vector α n} {idx : Fin n} {elt : α} :
+    (v.set idx elt).toList = v.toList.set idx elt := by
+      sorry
+
+  theorem list_set_flatten {l : List (List α)} {l1 : List α} {elt : α}
+    {idx : Nat} {hidx : idx < l.length}  :
+    (l.set idx (l1 ++ [elt])).flatten
+    = (l.set idx l1).flatten.insertIdx (idx + List.length l1) elt := by
+    induction l with
+    | nil => contradiction
+    | cons hd tl HR => sorry
+
+  theorem list_Perm_insertIdx {l1 l2 : List α} {hPerm : l1.Perm l2} {idx1 idx2
+  : Nat} {hidx1 : idx1 <= l1.length} {hidx2 : idx2 <= l2.length} {elt : α} :
+    (l1.insertIdx idx1 elt).Perm (l2.insertIdx idx2 elt) := by sorry
+
+  theorem list_map_eraseIdx {α β} {l : List α} {idx : Fin l.length} {f : α → β} :
+    (l.eraseIdx idx).map f = (l.map f).eraseIdx idx := by
+      induction l with
+      | nil => rfl
+      | cons hd tl HR =>
+        simp
+        cases heq: idx.toNat with
+        | zero => simp at heq; subst idx; simpa
+        | succ idx' =>
+            obtain ⟨idxv, idxh⟩ := idx
+            simp only [List.length_cons, Fin.toNat_eq_val] at heq
+            simp only [heq, List.eraseIdx_cons_succ, List.map_cons, List.cons.injEq, true_and]
+            rw [heq] at idxh
+            simp only [List.length_cons, Nat.add_lt_add_iff_right] at idxh
+            exact @HR ⟨idx', idxh⟩
+
+  theorem list_set_eraseIdx {l : List (List α)} {l1 : List α}
+    {idx idx1 : Nat}  {hidx : idx < l.length} {hidx1 : idx1 < l1.length} :
+    ∃ idx' : Fin (l.set idx l1).flatten.length,
+      (l.set idx (l1.eraseIdx idx1)).flatten = (l.set idx l1).flatten.eraseIdx idx'
+      ∧ l1[idx1] = (l.set idx l1).flatten[idx']
+      := by sorry
+
+  theorem list_Perm_eraseIdx {l1 l2 : List α} {idx1 idx2 : Nat} {hidx1 : idx1 <
+  l1.length} {hidx2 : idx2 < l2.length} {heq : l1[idx1] = l2[idx2]} {hperm :
+  l1.Perm l2} :
+    (l1.eraseIdx idx1).Perm (l2.eraseIdx idx2) := by sorry
 
   theorem vec_set_concat_in {v : Vector (List α) n} {idx : Fin n} {l : List α} {elt : α} :
     v.toList.flatten ⊆ l →
@@ -261,10 +310,11 @@ namespace Graphiti.Projects.Noc
             · apply h ⟨0, by simpa [←sz2]⟩
             · apply @HR1 (n - 1)
               · intros idx
-                let idx' : Fin n := ⟨idx.1 + 1, by sorry⟩
+                obtain ⟨idxv, idxh⟩ := idx
+                let idx' : Fin n := ⟨idxv + 1, by sorry⟩
                 specialize h idx'
                 simp only [List.getElem_cons_succ, idx'] at h
-                assumption
+                exact h
               · simpa [←sz1]
               · simpa [←sz2]
 
@@ -283,7 +333,9 @@ namespace Graphiti.Projects.Noc
         · dsimp [Fin.getElem_fin]
           rw [Vector.getElem_set_ne]
           · apply H1
-            sorry
+            intro h
+            apply heq
+            rw [h]
           · simp
             intros h
             apply heq
@@ -292,6 +344,17 @@ namespace Graphiti.Projects.Noc
     theorem list_perm_in {l1 l2 : List α} (hPerm : l1.Perm l2) :
       ∀ x, x ∈ l1 → x ∈ l2 := by
         sorry
+
+     theorem perm_eraseIdx {l1 l2 : List α} {hPerm : l1.Perm l2}
+      {idx1 : Fin l1.length} {idx2 : Fin l2.length} :
+      l1[idx1] = l2[idx2] → (l1.eraseIdx idx1).Perm (l2.eraseIdx idx2)
+      := by
+        revert idx1 idx2
+        induction hPerm with
+        | nil => intro ⟨_, _⟩; contradiction
+        | cons x l1 l2 => sorry
+        | swap x y l => sorry
+        | trans _ _ H1 H2 => sorry
 
     theorem list_mem_concat_either {α} {elt : α} {l1 l2 : List α} :
       List.Mem elt (l1 ++ l2) → List.Mem elt l1 ∨ List.Mem elt l2 := by
@@ -330,8 +393,6 @@ namespace Graphiti.Projects.Noc
 
     theorem list_mem_eraseIdx {α} {elt : α} {l: List α} {idx}:
       List.Mem elt (l.eraseIdx idx) → List.Mem elt l := by sorry
-
-  -- DPList --------------------------------------------------------------------
 
   section DPList
 
@@ -408,7 +469,6 @@ namespace Graphiti.Projects.Noc
         rw [dep_foldr_1']
 
   end dep_foldr'
-
 
   section arith
 

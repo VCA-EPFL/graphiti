@@ -25,9 +25,20 @@ namespace Graphiti.Projects.Noc
       noc.routing_policy.route src src_flit = (dir, mid_flit)
       → get_output noc (noc.topology.getConnDir_out hdir) dst mid_flit dst_data
       → get_output noc src dst src_flit dst_data
-  | done src src_flit dst_flit:
+  | done src src_flit dst_flit :
       noc.routing_policy.route src src_flit = (noc.topology.DirLocal_out, dst_flit)
       → get_output noc src src src_flit dst_flit.1
+
+  -- get_output is deterministic, and thus the destination must be unique
+  theorem get_output_unique {noc : Noc Data netsz}
+    {src dst dst' : noc.RouterID} {src_flit : noc.Flit} {dst_data dst_data' : Data} :
+    get_output noc src dst src_flit dst_data →
+    get_output noc src dst' src_flit dst_data' →
+    dst = dst' ∧ dst_data = dst_data' := by
+      intro h1
+      induction h1 with
+      | step src dst src_flit mid_flit dst_data dir hdir h1_1 h1_2 HR => sorry
+      | done src src_flit dst_flit => sorry
 
   -- This correctness is partial. It requires that the data is exactly the same
   -- in the end.
@@ -86,6 +97,9 @@ namespace Graphiti.Projects.Noc
   def φ (I : (modT (noc' noc))) (S : (specT (noc' noc))) : Prop :=
     ∃ rf : routing_function noc,
       routing_function_correct noc rf I
+    -- We could use Setoids with ≈ but does not seem to work well
+    -- We would like to use Quotient but I don't know how to…
+    -- Quotient.mk (
     ∧ (routing_function_reconstruct _ rf I).Perm S
 
   -- Initial correctness relies on the fact that routers of the noc are correct
@@ -128,7 +142,7 @@ namespace Graphiti.Projects.Noc
       have_hole Hv : typeOf v = _ := by
         unfold typeOf
         rewrite [RelIO.liftFinf_get]
-        dsimp
+        dsimp [drcomponents, drunfold_defs]
       apply Exists.intro _
       apply Exists.intro _
       · and_intros
@@ -165,7 +179,6 @@ namespace Graphiti.Projects.Noc
                 | inl Hflit' => assumption
                 | inr Hflit' => cases Hflit' <;> contradiction
               · specialize Hrule2 src (by intro _; subst idx; apply hsrceqidx; rfl)
-                -- set_option pp.explicit true in trace_state
                 simp only [Router.Unbounded.bag.eq_1, RouterID', List.remove.eq_1, Fin.getElem_fin,
                   Noc.Flit, RoutingPolicy.Flit, Flit', modT, Noc.State, noc', Noc.RouterID,
                   Topology.RouterID] at Hflit ⊢
@@ -175,7 +188,43 @@ namespace Graphiti.Projects.Noc
               simp only [BEq.rfl, Bool.and_self, ↓reduceIte]
               apply NC.routing_policy
           -- routing_function_reconstruct
-          · sorry
+          · simp
+            rw [vec_set_reconstruct
+              (f := λ i => i ++ [((Hv.mp v).1, noc.routing_policy.mkhead idx
+              (Hv.mp v).2 (Hv.mp v).1)]) Hrule2 Hrule1
+            ]
+            rw [vec_set_map]
+            simp only [
+              Bool.and_eq_true, beq_iff_eq, Fin.eta, BEq.rfl, Bool.true_and,
+              Fin.getElem_fin, typeOf, eq_mp_eq_cast, List.map_append,
+              List.map_cons, Bool.and_self, ↓reduceIte, List.map_nil
+            ]
+            rw [vec_set_toList]
+            rw [list_set_flatten (hidx := by simpa)]
+            rw [←List.insertIdx_length_self]
+            apply list_Perm_insertIdx (hidx2 := by rfl)
+            · apply List.Perm.trans _ Hrf2
+              rw [←vec_set_toList, ←vec_set_map]
+              have :
+                rf idx ((Hv.mp v).1, noc.routing_policy.mkhead idx (Hv.mp v).2 (Hv.mp v).1)
+                = Hv.mp v := by
+                  dsimp at Hrf1
+                  have tmp := Hrf1 idx
+                  have tmp2 := NC.routing_policy
+                  unfold routing_policy_correct at tmp2
+                  specialize tmp2 idx (Hv.mp v).2 (Hv.mp v).1
+                  specialize tmp
+                    ((Hv.mp v).1, noc.routing_policy.mkhead idx (Hv.mp v).2 (Hv.mp v).1)
+                    (by sorry)
+                  have ⟨tmp3, tmp4⟩ := get_output_unique tmp tmp2
+                  -- We are basically done here
+                  sorry
+               -- We need to rewrite `this` inside the if, which is annoying to
+               -- do
+              sorry
+            · simp
+              -- TODO
+              sorry
     -- Output rule
     · intros ident mid_i v Hrule
       case_transition Hcontains : (Module.outputs (mod noc)), ident,
@@ -215,9 +264,11 @@ namespace Graphiti.Projects.Noc
             rw [←Hrf_out, ←Hrf_out1, ←Hrf_out2] at Hrf1
             cases Hrf1
             · rename_i f1 f2 f3 f4
-              simp only [noc', RoutingPolicy.Flit, Flit', Router.Unbounded.bag.eq_1, RouterID',
-                List.remove.eq_1, Fin.getElem_fin, Topology.Dir_out, Topology.out_len, typeOf,
-                eq_mp_eq_cast] at f3 Hrule1
+              simp only [
+                noc', RoutingPolicy.Flit, Flit', Router.Unbounded.bag.eq_1,
+                RouterID', List.remove.eq_1, Fin.getElem_fin, Topology.Dir_out,
+                Topology.out_len, typeOf, eq_mp_eq_cast
+              ] at f3 Hrule1
               simp only [f3] at Hrule1
               injections
               subst f1
@@ -265,9 +316,10 @@ namespace Graphiti.Projects.Noc
           by_cases Heq: idx = src
           · -- Yes, we are
             subst src
-            simp only [Router.Unbounded.bag.eq_1, RouterID', List.remove.eq_1, Fin.getElem_fin,
-              Noc.Flit, RoutingPolicy.Flit, Flit', modT, Noc.State, noc', Noc.RouterID,
-              Topology.RouterID] at Hflit ⊢
+            simp only [Router.Unbounded.bag.eq_1, RouterID', List.remove.eq_1,
+              Fin.getElem_fin, Noc.Flit, RoutingPolicy.Flit, Flit', modT,
+              Noc.State, noc', Noc.RouterID, Topology.RouterID
+            ] at Hflit ⊢
             rw [Hrule3_2] at Hflit
             apply list_mem_eraseIdx Hflit
           · -- No, we are not
@@ -275,7 +327,48 @@ namespace Graphiti.Projects.Noc
             simp [drcomponents, drunfold_defs] at Hrule4 ⊢
             rwa [←Hrule4]
         -- routing_function_reconstruct
-        · sorry
+        · rw [vec_set_reconstruct (f := λ i => i.eraseIdx Hrule3_1) Hrule4 Hrule3_2]
+          dsimp
+          rw [vec_set_map]
+          rw [list_map_eraseIdx]
+          rw [vec_set_toList]
+          have ⟨idx', Hidx'1, Hidx'2⟩ := list_set_eraseIdx
+            (l := (Vector.mapFinIdx i (λ i flits h => List.map (rf ⟨i, h⟩) flits)).toList)
+            (idx := idx)
+            (l1 := (List.map (rf idx) i[↑idx]))
+            (idx1 := Hrule3_1)
+            (hidx1 := by sorry)
+            (hidx := by sorry)
+          simp [drcomponents, drunfold_defs] at ⊢ Hidx'1
+          rw [Hidx'1]
+          apply list_Perm_eraseIdx
+          · simp [drunfold_defs, drcomponents] at Hsidx Hidx'2 ⊢
+            rw [Hrule3_3] at Hidx'2
+            rw [Hsidx]
+            obtain Hrule1' := Hrf1 idx out_flit (by sorry)
+            have ⟨x, Hx⟩ : ∃ x, (rf idx out_flit) = x := by exists rf idx out_flit
+            rw [Hx] at Hrule1'
+            obtain ⟨x1, x2⟩ := x; dsimp only at Hrule1'
+            cases Hrule1' with
+            | step src dst src_flit mid_flit dst_data dir hdir h1 h2 =>
+              dsimp at h1
+              rw [Hrule1] at h1
+              injections h1
+              subst dir
+              contradiction
+            | done src src_flit dst_flit h1 =>
+              dsimp at h1
+              rw [Hrule1] at h1
+              injections h1
+              rename_i h1_1 h1_2
+              subst dst_flit
+              dsimp at Hx
+              rw [Hx] at Hidx'2
+              simp only [Hidx'2]
+              rfl
+          · apply List.Perm.trans _ Hrf2
+            rw [←vec_set_toList, ←vec_set_map, Vector.set_getElem_self]
+            exact List.Perm.rfl
     -- Internal rule
     · intro rule mid_i HruleIn Hrule
       dsimp [drcomponents] at HruleIn
@@ -386,8 +479,26 @@ namespace Graphiti.Projects.Noc
                   rw [Hflit'] at Hdir
                   contradiction
           -- routing_function_reconstruct
-          · dsimp
-            sorry
+          · apply List.Perm.trans _ Hrf2
+            dsimp
+            rw [vec_set_reconstruct (f := λ i => i ++ [val]) H8 H7]
+            rw [vec_set_reconstruct (f := λ i => i.eraseIdx H3) H6 H4]
+            rw [vec_set_map]
+            by_cases Heq: idx_out = idx_inp
+            <;> simp [Heq]
+            · subst idx_out
+              rw [vec_set_map]
+              rw [Vector.set_set]
+              rw [vec_set_toList]
+              -- We will have to show that out_val and val have the same rf
+              -- (almost)
+              sorry
+            · rw [Vector.getElem_set_ne idx_out.2 idx_inp.2 (by
+                simp; intro h;
+                apply Heq; cases idx_out; cases idx_inp; simp only at h; simp only [h])
+              ]
+              rw [vec_set_toList]
+              sorry
 
   theorem correct : (mod (noc' noc)) ⊑ (spec (noc' noc)) := by
     exists inferInstance, φ (noc' noc); solve_by_elim [refines_φ, refines_initial]
