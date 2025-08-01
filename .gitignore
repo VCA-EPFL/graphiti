@@ -2,3 +2,14 @@
 bin/
 .crates.toml
 .crates2.json
+
+*.so
+*.o
+*.ba
+*.bo
+examples/*.h
+examples/*.cxx
+examples/*.sched
+examples/build_dir
+examples/testbench-dynamic
+examples/testbench-static
