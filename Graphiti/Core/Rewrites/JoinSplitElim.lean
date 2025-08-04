@@ -13,7 +13,7 @@ namespace Graphiti.JoinSplitElim
 
 open StringModule
 
-def identMatcher (s : String) (g : ExprHigh String) : RewriteResult (List String × List String) := do
+def identMatcher (s : String) (g : ExprHigh String String) : RewriteResult (List String × List String) := do
   let n ← ofOption (.error s!"{decl_name%}: could not find '{s}'") <| g.modules.find? s
   unless "join".isPrefixOf n.2 do throw (.error s!"{decl_name%}: type of '{s}' is '{n.2}' instead of 'join'")
   let next1 ← ofOption (.error s!"{decl_name%}: could not find next node") <| followInput g s "in1"
@@ -37,13 +37,13 @@ def identMatcher (s : String) (g : ExprHigh String) : RewriteResult (List String
 
   return ([s, next1.inst], [t1, t2])
 
-def matcher (g : ExprHigh String) : RewriteResult (List String × List String) :=
+def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) :=
   throw (.error s!"{decl_name%}: matcher not implemented")
 
-def identRenaming (s : String) (g : ExprHigh String) : RewriteResult (AssocList String (Option String)) :=
+def identRenaming (s : String) (g : ExprHigh String String) : RewriteResult (AssocList String (Option String)) :=
   pure .nil
 
-def lhs (T₁ T₂ : Type) (S₁ S₂ : String) : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def lhs (T₁ T₂ : Type) (S₁ S₂ : String) : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i_0 [type = "io"];
     o_out [type = "io"];
 
@@ -64,7 +64,7 @@ theorem double_check_empty_snd S₁ S₂ : (lhs_extract S₁ S₂).snd = ExprHig
 
 def lhsLower S₁ S₂ := (lhs_extract S₁ S₂).fst.lower.get rfl
 
-def rhs (T₁ T₂ : Type) (S₁ S₂ : String) : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def rhs (T₁ T₂ : Type) (S₁ S₂ : String) : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i_0 [type = "io"];
     o_out [type = "io"];
 
@@ -79,7 +79,7 @@ def rhsLower S₁ S₂ := (rhs Unit Unit S₁ S₂).fst.lower.get rfl
 
 def findRhs mod := (rhs Unit Unit "" "").1.modules.find? mod |>.map Prod.fst
 
-def rewrite : Rewrite String :=
+def rewrite : Rewrite String String :=
   { abstractions := [],
     pattern := matcher,
     rewrite := λ | [S₁, S₂] => pure ⟨lhsLower S₁ S₂, rhsLower S₁ S₂⟩ | _ => failure,
@@ -88,7 +88,7 @@ def rewrite : Rewrite String :=
     addedNodes := [findRhs "pure" |>.get rfl]
   }
 
-def targetedRewrite (s : String) : Rewrite String :=
+def targetedRewrite (s : String) : Rewrite String String :=
   { rewrite with pattern := identMatcher s }
 
 end Graphiti.JoinSplitElim

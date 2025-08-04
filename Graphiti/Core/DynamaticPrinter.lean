@@ -190,7 +190,7 @@ def fixComponentNames (s : String) : String :=
 --fmt.1: Type
 --fmt.2.1 and fmt.2.2.1: Input and output attributes
 --fmt.2.2.2: Additional options.
-def dynamaticString (a: ExprHigh String) (m : AssocList String (AssocList String String)): Option String := do
+def dynamaticString (a: ExprHigh String String) (m : AssocList String (AssocList String String)): Option String := do
   -- let instances :=
   --   a.modules.foldl (λ s inst mod => s ++ s!"\n {inst} [mod = \"{mod}\"];") ""
   let a ← a.normaliseNames

@@ -11,7 +11,7 @@ namespace Graphiti.Fork6Rewrite
 
 open StringModule
 
-def matcher (g : ExprHigh String) : RewriteResult (List String × List String) := do
+def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) := do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
       if s.isSome then return s
 
@@ -25,7 +25,7 @@ def matcher (g : ExprHigh String) : RewriteResult (List String × List String) :
     ) none | throw .done
   return list
 
-def lhs (T : Type) (Tₛ : String) : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def lhs (T : Type) (Tₛ : String) : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i [type = "io"];
     o1 [type = "io"];
     o2 [type = "io"];
@@ -53,7 +53,7 @@ theorem double_check_empty_snd T₁ : (lhs_extract T₁).snd = ExprHigh.mk ∅ �
 
 def lhsLower T₁ := lhs_extract T₁ |>.fst.lower.get rfl
 
-def rhs (T : Type) (Tₛ : String) : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def rhs (T : Type) (Tₛ : String) : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i [type = "io"];
     o1 [type = "io"];
     o2 [type = "io"];
@@ -84,7 +84,7 @@ theorem rhs_type_independent a c T₁ : (rhs a T₁).fst = (rhs c T₁).fst := b
 
 def findRhs mod := (rhs_extract "").fst.modules.find? mod |>.map Prod.fst
 
-def rewrite : Rewrite String :=
+def rewrite : Rewrite String String :=
   { abstractions := [],
     pattern := matcher,
     rewrite := λ | [T₁] => pure ⟨lhsLower T₁, rhsLower T₁⟩ | _ => failure

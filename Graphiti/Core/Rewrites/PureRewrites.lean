@@ -27,12 +27,12 @@ def extract_type (typ : String) : RewriteResult (List String) := do
 
 def match_node := Graphiti.match_node extract_type
 
-def matcher (g : ExprHigh String) : RewriteResult (List String × List String) :=
+def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) :=
   throw (.error s!"{decl_name%}: matcher not implemented")
 
 variable (n : Nat)
 
-def lhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def lhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i [type = "io"];
     o [type = "io"];
 
@@ -48,7 +48,7 @@ theorem double_check_empty_snd : (lhs_extract n).snd = ExprHigh.mk ∅ ∅ := by
 
 def lhsLower := lhs_extract n |>.fst.lower.get rfl
 
-def rhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def rhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i [type = "io"];
     o [type = "io"];
 
@@ -62,7 +62,7 @@ def findRhs mod := (rhs 0).1.modules.find? mod |>.map Prod.fst
 
 def rhsLower := (rhs n).fst.lower.get rfl
 
-def rewrite : Rewrite String :=
+def rewrite : Rewrite String String :=
   { abstractions := [],
     pattern := matcher,
     rewrite := λ l => do
@@ -86,14 +86,14 @@ def extract_type (typ : String) : RewriteResult (List String) := do
 
 def match_node := Graphiti.match_node extract_type
 
-def matcher (g : ExprHigh String) : RewriteResult (List String × List String) :=
+def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) :=
   throw (.error s!"{decl_name%}: not implemented")
 
 variable (T₁ T : Type)
 variable [Inhabited T]
 variable (T₁ₛ Tₛ Op : String)
 
-def lhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def lhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i [type = "io"];
     o [type = "io"];
 
@@ -109,7 +109,7 @@ theorem double_check_empty_snd : (lhs_extract T₁ₛ Tₛ Op).snd = ExprHigh.mk
 
 def lhsLower := lhs_extract T₁ₛ Tₛ Op |>.fst.lower.get rfl
 
-def rhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def rhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i [type = "io"];
     o [type = "io"];
 
@@ -124,7 +124,7 @@ def findRhs mod := (rhs Unit Unit "" "" "").1.modules.find? mod |>.map Prod.fst
 
 def rhsLower := (rhs Unit Unit T₁ₛ Tₛ Op).fst.lower.get rfl
 
-def rewrite : Rewrite String :=
+def rewrite : Rewrite String String :=
   { abstractions := [],
     pattern := matcher,
     rewrite :=
@@ -145,14 +145,14 @@ def extract_type (typ : String) : RewriteResult (List String) := do
 
 def match_node := Graphiti.match_node extract_type
 
-def matcher (g : ExprHigh String) : RewriteResult (List String × List String) :=
+def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) :=
   throw (.error s!"{decl_name%}: not implemented")
 
 variable (T₁ T₂ T : Type)
 variable [Inhabited T]
 variable (T₁ₛ T₂ₛ Tₛ Op : String)
 
-def lhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def lhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i1 [type = "io"];
     i2 [type = "io"];
     o [type = "io"];
@@ -170,7 +170,7 @@ theorem double_check_empty_snd : (lhs_extract T₁ₛ T₂ₛ Tₛ Op).snd = Exp
 
 def lhsLower := lhs_extract T₁ₛ T₂ₛ Tₛ Op |>.fst.lower.get rfl
 
-def rhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def rhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i1 [type = "io"];
     i2 [type = "io"];
     o [type = "io"];
@@ -191,7 +191,7 @@ def findRhs mod := (rhs_extract "" "" "" "").1.modules.find? mod |>.map Prod.fst
 
 def rhsLower := (rhs_extract T₁ₛ T₂ₛ Tₛ Op).fst.lower.get rfl
 
-def rewrite : Rewrite String :=
+def rewrite : Rewrite String String :=
   { abstractions := [],
     pattern := matcher,
     rewrite :=
@@ -213,14 +213,14 @@ def extract_type (typ : String) : RewriteResult (List String) := do
 
 def match_node := Graphiti.match_node extract_type
 
-def matcher (g : ExprHigh String) : RewriteResult (List String × List String) :=
+def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) :=
   throw (.error s!"{decl_name%}: not implemented")
 
 variable (T₁ T₂ T₃ T : Type)
 variable [Inhabited T]
 variable (T₁ₛ T₂ₛ T₃ₛ Tₛ Op : String)
 
-def lhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def lhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i1 [type = "io"];
     i2 [type = "io"];
     i3 [type = "io"];
@@ -240,7 +240,7 @@ theorem double_check_empty_snd : (lhs_extract T₁ₛ T₂ₛ T₃ₛ Tₛ Op).s
 
 def lhsLower := lhs_extract T₁ₛ T₂ₛ T₃ₛ Tₛ Op |>.fst.lower.get rfl
 
-def rhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def rhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i1 [type = "io"];
     i2 [type = "io"];
     i3 [type = "io"];
@@ -267,7 +267,7 @@ def findRhs mod := (rhs_extract "" "" "" "" "").1.modules.find? mod |>.map Prod.
 
 def rhsLower := (rhs_extract T₁ₛ T₂ₛ T₃ₛ Tₛ Op).fst.lower.get rfl
 
-def rewrite : Rewrite String :=
+def rewrite : Rewrite String String :=
   { abstractions := [],
     pattern := matcher,
     rewrite :=
@@ -290,14 +290,14 @@ def extract_type (typ : String) : RewriteResult (List String) := do
 
 def match_node := Graphiti.match_node extract_type
 
-def matcher (g : ExprHigh String) : RewriteResult (List String × List String) :=
+def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) :=
   throw (.error s!"{decl_name%}: not implemented")
 
 variable (T : Type)
 variable [Inhabited T]
 variable (Tₛ : String)
 
-def lhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def lhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i [type = "io"];
     o1 [type = "io"];
     o2 [type = "io"];
@@ -315,7 +315,7 @@ theorem double_check_empty_snd : (lhs_extract Tₛ).snd = ExprHigh.mk ∅ ∅ :=
 
 def lhsLower := lhs_extract Tₛ |>.fst.lower.get rfl
 
-def rhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def rhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i [type = "io"];
     o1 [type = "io"];
     o2 [type = "io"];
@@ -336,7 +336,7 @@ def rhsLower := (rhs_extract Tₛ).fst.lower.get rfl
 
 def findRhs mod := (rhs_extract "").1.modules.find? mod |>.map Prod.fst
 
-def rewrite : Rewrite String :=
+def rewrite : Rewrite String String :=
   { abstractions := [],
     pattern := matcher,
     rewrite :=
@@ -350,7 +350,7 @@ def rewrite : Rewrite String :=
 end Fork
 
 -- TODO: do not pass the pattern, instead just precompute the pattern.
-def specialisedPureRewrites (p : Pattern String) :=
+def specialisedPureRewrites (p : Pattern String String) :=
   [ { Constant.rewrite with
         pattern := fun g => do
           let (s :: _, t) ← p g | throw RewriteError.done

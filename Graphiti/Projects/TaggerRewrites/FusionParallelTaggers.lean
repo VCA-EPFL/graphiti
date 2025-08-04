@@ -14,7 +14,7 @@ namespace Graphiti.FusionParallelTagger
 /--
 Matcher used for abstraction of the top module.
 -/
-def matchModL : Pattern String := fun g => do
+def matchModL : Pattern String String := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
       if s.isSome then return s
       unless typ = "Join" do return none
@@ -33,7 +33,7 @@ def matchModL : Pattern String := fun g => do
 /--
 Matcher used for abstraction of the right module
 -/
-def matchModR : Pattern String := fun g => do
+def matchModR : Pattern String String := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
       if s.isSome then return s
       unless typ = "Join" do return none
@@ -49,7 +49,7 @@ def matchModR : Pattern String := fun g => do
   return (list, [])
 
 
-def matcher : Pattern String := fun g => do
+def matcher : Pattern String String := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
       if s.isSome then return s
       unless typ = "Join" do return none
@@ -66,7 +66,7 @@ def matcher : Pattern String := fun g => do
     ) none | throw .done
   return (list, [])
 
-def lhs' : ExprHigh String := [graph|
+def lhs' : ExprHigh String String := [graph|
     i_datal [type = "io"];
     i_datar [type = "io"];
     o_data [type = "io"];
@@ -101,7 +101,7 @@ theorem double_check_empty_snd : lhs.snd = ExprHigh.mk ∅ ∅ := by rfl
 def lhsLower := lhs.fst.lower.get rfl
 
 
-def rhs : ExprHigh String := [graph|
+def rhs : ExprHigh String String := [graph|
     i_datal [type = "io"];
     i_datar [type = "io"];
     o_data [type = "io"];
@@ -155,7 +155,7 @@ This rewrite adds abstractions to the definition, which provide patterns to
 extract parts of the graph.  The `type` given to each extracted node has to
 match the `type` of the node in LHS and RHS graphs.
 -/
-def rewrite : Rewrite String :=
+def rewrite : Rewrite String String :=
   { abstractions := [⟨matchModL, "mod_left"⟩, ⟨matchModR, "mod_right"⟩],
     pattern := matcher,
     rewrite := fun _ => pure ⟨lhsLower, rhsLower⟩
@@ -163,7 +163,7 @@ def rewrite : Rewrite String :=
 
 namespace TEST
 
-def lhs' : ExprHigh String :=
+def lhs' : ExprHigh String String :=
 [graph|
     i_datal [type = "io"];
     i_datar [type = "io"];

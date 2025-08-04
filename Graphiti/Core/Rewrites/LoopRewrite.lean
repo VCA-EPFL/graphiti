@@ -11,7 +11,7 @@ namespace Graphiti.LoopRewrite
 
 open StringModule
 
-def boxLoopBody (g : ExprHigh String) : RewriteResult (List String × List (Connection String)) := do
+def boxLoopBody (g : ExprHigh String String) : RewriteResult (List String × List (Connection String)) := do
  let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
       if s.isSome then return s
       unless typ = "init Bool false" do return none
@@ -40,7 +40,7 @@ def boxLoopBody (g : ExprHigh String) : RewriteResult (List String × List (Conn
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
-def boxLoopBodyOther (g : ExprHigh String) : RewriteResult (List String × List String) := do
+def boxLoopBodyOther (g : ExprHigh String String) : RewriteResult (List String × List String) := do
  let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
       if s.isSome then return s
       unless typ = "init Bool false" do return none
@@ -70,16 +70,16 @@ def boxLoopBodyOther (g : ExprHigh String) : RewriteResult (List String × List 
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
-def boxLoopBodyOther' (g : ExprHigh String) : RewriteResult (List String × List String) := do
+def boxLoopBodyOther' (g : ExprHigh String String) : RewriteResult (List String × List String) := do
   let (.cons inp _ .nil) := g.modules.filter (λ _ (p, _) => p.input.any (λ a b => b.inst.isTop)) | throw .done
   let (.cons out _ .nil) := g.modules.filter (λ _ (p, _) => p.output.any (λ a b => b.inst.isTop)) | throw .done
   return ([inp, out], [])
 
-def nonPureMatcher : Pattern String := Graphiti.nonPureMatcher <| toPattern boxLoopBody
+def nonPureMatcher : Pattern String String := Graphiti.nonPureMatcher <| toPattern boxLoopBody
 
-def nonPureForkMatcher : Pattern String := Graphiti.nonPureForkMatcher <| toPattern boxLoopBody
+def nonPureForkMatcher : Pattern String String := Graphiti.nonPureForkMatcher <| toPattern boxLoopBody
 
-def matcher (g : ExprHigh String) : RewriteResult (List String × List String) := do
+def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) := do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
        if s.isSome then return s
        unless typ = "init Bool false" do return none
@@ -113,7 +113,7 @@ def matcher (g : ExprHigh String) : RewriteResult (List String × List String) :
 
 @[drunfold_defs]
 def lhs (T : Type) [Inhabited T] (Tₛ : String) (f : T → T × Bool)
-      : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+      : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i_in [type = "io"];
     o_out [type = "io"];
 
@@ -166,7 +166,7 @@ def liftF {α β γ δ} (f : α -> β × δ) : γ × α -> (γ × β) × δ | (g
 
 @[drunfold_defs]
 def rhs (T : Type) [Inhabited T] (Tₛ : String) (f : T → T × Bool)
-    : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+    : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i_in [type = "io"];
     o_out [type = "io"];
 
@@ -202,7 +202,7 @@ theorem rhs_type_independent b f b₂ f₂ T [Inhabited b] [Inhabited b₂]
 -- #eval IO.print ((rhs Unit "T" (λ _ => default)).fst)
 
 @[drunfold_defs]
-def rewrite : Rewrite String :=
+def rewrite : Rewrite String String :=
   { abstractions := [],
     pattern := unsafe matcher,
     rewrite := λ | [T] => pure ⟨lhsLower T, rhsLower T⟩ | _ => failure
@@ -254,7 +254,7 @@ def liftF2 {α β γ δ} (f : α -> β × δ) : α × (Nat × γ) -> (β × (Nat
 
 @[drunfold_defs]
 def ghost_rhs {Data : Type} (DataS : String) (f : Data → Data × Bool)
-    : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+    : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i_in [type = "io"];
     o_out [type = "io"];
 

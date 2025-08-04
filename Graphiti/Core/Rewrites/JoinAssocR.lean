@@ -13,7 +13,7 @@ namespace Graphiti.JoinAssocR
 
 open StringModule
 
-def identMatcher (s : String) (g : ExprHigh String) : RewriteResult (List String × List String) := do
+def identMatcher (s : String) (g : ExprHigh String String) : RewriteResult (List String × List String) := do
   let n ← ofOption (.error s!"{decl_name%}: could not find '{s}'") <| g.modules.find? s
   unless "join".isPrefixOf n.2 do throw (.error s!"type of '{s}' is '{n.2}' instead of 'join'")
   let next ← ofOption (.error s!"{decl_name%}: could not find next node") <| followInput g s "in1"
@@ -25,14 +25,14 @@ def identMatcher (s : String) (g : ExprHigh String) : RewriteResult (List String
 
   return ([s, next.inst], [t1, t2, t3])
 
-def matcher (g : ExprHigh String) : RewriteResult (List String × List String) :=
+def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) :=
   throw (.error s!"{decl_name%}: matcher not implemented")
 
-def identRenaming (s : String) (g : ExprHigh String) : RewriteResult (AssocList String (Option String)) := do
+def identRenaming (s : String) (g : ExprHigh String String) : RewriteResult (AssocList String (Option String)) := do
   let next ← ofOption (.error s!"{decl_name%}: could not find next node") <| followInput g s "in1"
   return [(next.inst, (.some "join1")), (s, (.some "join2"))].toAssocList
 
-def lhs (T₁ T₂ T₃ : Type) (S₁ S₂ S₃ : String) : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def lhs (T₁ T₂ T₃ : Type) (S₁ S₂ S₃ : String) : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i_0 [type = "io"];
     i_1 [type = "io"];
     i_2 [type = "io"];
@@ -56,7 +56,7 @@ theorem double_check_empty_snd S₁ S₂ S₃ : (lhs_extract S₁ S₂ S₃).snd
 
 def lhsLower S₁ S₂ S₃ := (lhs_extract S₁ S₂ S₃).fst.lower.get rfl
 
-def rhs (T₁ T₂ T₃ : Type) (S₁ S₂ S₃ : String) : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def rhs (T₁ T₂ T₃ : Type) (S₁ S₂ S₃ : String) : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i_0 [type = "io"];
     i_1 [type = "io"];
     i_2 [type = "io"];
@@ -83,7 +83,7 @@ def rhsLower S₁ S₂ S₃ := (rhs_extract S₁ S₂ S₃).fst.lower.get rfl
 
 def findRhs mod := (rhs Unit Unit Unit "" "" "").1.modules.find? mod |>.map Prod.fst
 
-def rewrite : Rewrite String :=
+def rewrite : Rewrite String String :=
   { abstractions := [],
     pattern := matcher,
     rewrite := λ | [S₁, S₂, S₃] => pure ⟨lhsLower S₁ S₂ S₃, rhsLower S₁ S₂ S₃⟩ | _ => failure,
@@ -92,7 +92,7 @@ def rewrite : Rewrite String :=
     addedNodes := [findRhs "pure" |>.get rfl]
   }
 
-def targetedRewrite (s : String) : Rewrite String :=
+def targetedRewrite (s : String) : Rewrite String String :=
   { rewrite with pattern := identMatcher s }
 
 end Graphiti.JoinAssocR

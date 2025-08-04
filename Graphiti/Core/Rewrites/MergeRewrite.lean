@@ -13,7 +13,7 @@ namespace Graphiti.MergeRewrite
 The matcher takes in a dot graph and should return the cluster of nodes that
 form the subgraph as a list of instance names.
 -/
-def matcher : Pattern String := fun g => do
+def matcher : Pattern String String := fun g => do
   let (.some list) ← g.modules.foldlM (λ nodes inst (pmap, typ) => do
       if nodes.isSome then return nodes
       unless typ = "Merge" do return none
@@ -23,7 +23,7 @@ def matcher : Pattern String := fun g => do
     ) none | throw .done
   return (list, [])
 
-@[drunfold] def mergeLhs : ExprHigh String := [graph|
+@[drunfold] def mergeLhs : ExprHigh String String := [graph|
     out1 [type = "io"];
     in1 [type = "io"];
     in2 [type = "io"];
@@ -63,7 +63,7 @@ ordering of instances.
 -/
 def mergeLhsLower := mergeLhsOrdered.fst.lower.get rfl
 
-@[drunfold] def mergeRhs : ExprHigh String := [graph|
+@[drunfold] def mergeRhs : ExprHigh String String := [graph|
     out1 [type = "io"];
     in1 [type = "io"];
     in2 [type = "io"];
@@ -82,13 +82,13 @@ def mergeLhsLower := mergeLhsOrdered.fst.lower.get rfl
 
 def mergeRhsLower := mergeRhs.lower.get rfl
 
-def rewrite : Rewrite String :=
+def rewrite : Rewrite String String :=
   { pattern := matcher,
     rewrite := fun _ => pure ⟨mergeLhsLower, mergeRhsLower⟩ }
 
 namespace TestRewriter
 
-def mergeHigh : ExprHigh String :=
+def mergeHigh : ExprHigh String String :=
   [graph|
     src0 [type="io"];
     snk0 [type="io"];

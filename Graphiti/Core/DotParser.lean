@@ -243,7 +243,7 @@ Parse a dot expression that comes from Dynamatic.  It returns the graph
 expression, as well as a list of additional attributes that should be bypassed
 to the dynamatic printer.
 -/
-def dotToExprHigh (d : Parser.DotGraph) : Except String (ExprHigh String × AssocList String (AssocList String String)) := do
+def dotToExprHigh (d : Parser.DotGraph) : Except String (ExprHigh String String × AssocList String (AssocList String String)) := do
   let (maps, assoc) ← d.nodes.foldlM (λ (a, assoc) (s, l) => do
       let add := addArgs s l
       let addOpt := addOptArgs s l
@@ -360,7 +360,7 @@ def dotToExprHigh (d : Parser.DotGraph) : Except String (ExprHigh String × Asso
 end Graphiti
 
 open Graphiti in
-def String.toExprHigh (s : String) : Except String (ExprHigh String × AssocList String (AssocList String String) × AssocList String String) := do
+def String.toExprHigh (s : String) : Except String (ExprHigh String String × AssocList String (AssocList String String) × AssocList String String) := do
   let l ← Parser.dotGraph.run s
   let (e, attr) ← dotToExprHigh l
   let hashed_names_e := {e with modules := e.modules.mapKey' λ x y => y.1.hashPortMapping}

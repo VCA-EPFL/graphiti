@@ -13,9 +13,9 @@ namespace Graphiti
 
 namespace Module
 
-variable {Ident : Type _}
+variable {Ident Typ : Type _}
 
-def liftGraph {S} (m : Module Ident S) (p : PortMapping Ident) (inst typ : Ident) : ExprHigh Ident :=
+def liftGraph {S} (m : Module Ident S) (p : PortMapping Ident) (inst : Ident) (typ : Typ) : ExprHigh Ident Typ :=
   { modules := [(inst, p, typ)].toAssocList
     connections := []
   }
@@ -26,26 +26,26 @@ namespace ExprHigh
 
 section Semantics
 
-variable {Ident}
+variable {Ident Typ}
 variable [DecidableEq Ident]
 
-variable (ε : Env Ident)
+variable (ε : Env Ident Typ)
 
-@[drunfold] def build_module' (e : ExprHigh Ident) : Option (Σ T, Module Ident T) :=
+@[drunfold] def build_module' (e : ExprHigh Ident Typ) : Option (Σ T, Module Ident T) :=
   e.lower.bind (·.build_module ε)
 
-@[drunfold] def build_moduleP (e : ExprHigh Ident)
+@[drunfold] def build_moduleP (e : ExprHigh Ident Typ)
     (h : (build_module' ε e).isSome = true := by rfl)
     : Σ T, Module Ident T :=
   e.build_module' ε |>.get h
 
-@[drunfold] def build_module (e : ExprHigh Ident) : Σ T, Module Ident T :=
+@[drunfold] def build_module (e : ExprHigh Ident Typ) : Σ T, Module Ident T :=
   e.build_module' ε |>.getD ⟨ Unit, Module.empty _ ⟩
 
-@[drunfold] abbrev build_module_expr (e : ExprHigh Ident)
+@[drunfold] abbrev build_module_expr (e : ExprHigh Ident Typ)
     : Module Ident (e.build_module ε).1 := (e.build_module ε).2
 
-@[drunfold] abbrev build_module_type (e : ExprHigh Ident)
+@[drunfold] abbrev build_module_type (e : ExprHigh Ident Typ)
     : Type _ := (e.build_module ε).1
 
 notation:25 "[Ge| " e ", " ε " ]" => build_module_expr ε e

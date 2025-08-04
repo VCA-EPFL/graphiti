@@ -11,7 +11,7 @@ namespace Graphiti.LoopRewrite2
 
 open StringModule
 
-def matcher (g : ExprHigh String) : RewriteResult (List String × List String) := do
+def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) := do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
        if s.isSome then return s
        unless typ = "init Bool false" do return none
@@ -40,7 +40,7 @@ variable (T : Type)
 variable (Tₛ : String)
 variable (f : T → T × Bool)
 
-def lhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def lhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i_in [type = "io"];
     o_out [type = "io"];
 
@@ -74,7 +74,7 @@ def lhsLower := (lhs_extract Tₛ).fst.lower.get rfl
 
 abbrev TagT := Nat
 
-def rhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def rhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i_in [type = "io"];
     o_out [type = "io"];
 
@@ -110,7 +110,7 @@ def rhsLower := (rhs Unit Tₛ (λ _ => default) |>.1).lower.get rfl
 
 def findRhs mod := (rhs Unit "" (λ _ => default)).1.modules.find? mod |>.map Prod.fst
 
-def rewrite : Rewrite String :=
+def rewrite : Rewrite String String :=
   { pattern := matcher,
     rewrite := λ | [T] => pure ⟨lhsLower T, rhsLower T⟩ | _ => failure
     name := .some "loop-rewrite"

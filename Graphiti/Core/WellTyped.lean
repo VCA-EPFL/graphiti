@@ -21,12 +21,13 @@ namespace ExprLow
 
 section BuildModule
 
-variable {Ident}
+variable {Ident Typ}
 variable [DecidableEq Ident]
+variable [DecidableEq Typ]
 
-variable (ε : Env Ident)
+variable (ε : Env Ident Typ)
 
-def build_module_interface : ExprLow Ident → Option (ModuleInterface Ident)
+def build_module_interface : ExprLow Ident Typ → Option (ModuleInterface Ident)
 | .base i e => ε e >>= λ mod => (mod.2.renamePorts i).toModuleInterface
 | .connect c e =>
   e.build_module_interface >>= λ mi =>
@@ -36,7 +37,7 @@ def build_module_interface : ExprLow Ident → Option (ModuleInterface Ident)
   e₂.build_module_interface >>= λ m₂ =>
   pure ⟨m₁.inputs ++ m₂.inputs, m₁.outputs ++ m₂.outputs⟩
 
-def well_typed : ExprLow Ident → Prop
+def well_typed : ExprLow Ident Typ → Prop
 | .base i e => True
 | .connect c e =>
   e.well_typed

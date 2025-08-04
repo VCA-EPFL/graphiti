@@ -19,7 +19,7 @@ Matches a region that needs to be converted to a pure on the left hand side of a
 Additionally, it checks that none of the nodes between the branch/mux pair includes another branch.  It does not return
 any types.  The assumption is that `out1` from the fork feeds the `in2` of the branch, and `out2` feeds the mux.
 -/
-def matchAllNodes : Pattern String := fun g => do
+def matchAllNodes : Pattern String String := fun g => do
   let (.some list) ← g.modules.foldlM (λ s branch_inst (pmap, branch_typ) => do
        if s.isSome then return s
 
@@ -58,13 +58,13 @@ def matchAllNodes : Pattern String := fun g => do
 /--
 Only return the first and last instances of the region.
 -/
-def matchPreAndPost : Pattern String := fun g => do
+def matchPreAndPost : Pattern String String := fun g => do
   let (l, _) ← matchAllNodes g
   let .some n := l.get? 3 | throw (.error s!"{decl_name%}: could not find n")
   let .some p := l.get? 4 | throw (.error s!"{decl_name%}: could not find p")
   return ([n, p], [])
 
-def matcherEmpty : Pattern String := fun g => do
+def matcherEmpty : Pattern String String := fun g => do
   let (.some list) ← g.modules.foldlM (λ s branch_inst (pmap, branch_typ) => do
        if s.isSome then return s
 
@@ -88,7 +88,7 @@ def matcherEmpty : Pattern String := fun g => do
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
-def lhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def lhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i1 [type = "io"];
     i2 [type = "io"];
     i3 [type = "io"];
@@ -117,7 +117,7 @@ theorem double_check_empty_snd : (lhs_extract S₁).snd = ExprHigh.mk ∅ ∅ :=
 
 def lhsLower := (lhs_extract S₁).fst.lower.get rfl
 
-def rhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def rhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i1 [type = "io"];
     i2 [type = "io"];
     i3 [type = "io"];
@@ -148,7 +148,7 @@ def rhsLower := (rhs_extract S₁).fst.lower.get rfl
 
 def findRhs mod := (rhs_extract "").1.modules.find? mod |>.map Prod.fst
 
-def rewrite : Rewrite String :=
+def rewrite : Rewrite String String :=
   { abstractions := [],
     pattern := matcherEmpty,
     rewrite := λ | [S₁] => .some ⟨lhsLower S₁, rhsLower S₁⟩ | _ => failure,
@@ -163,7 +163,7 @@ namespace Test
 #guard_msgs in
 #eval (matcherEmpty (lhs Unit "T").1 |>.run' default) == some (["branch", "mux", "fork"], ["T"])
 
-def rhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def rhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i1 [type = "io"];
     i2 [type = "io"];
     i3 [type = "io"];

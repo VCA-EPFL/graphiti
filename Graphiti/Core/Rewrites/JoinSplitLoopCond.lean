@@ -12,7 +12,7 @@ namespace Graphiti.JoinSplitLoopCond
 open StringModule
 
 -- Search for a fork Bool 2 that feeds an Init and a Branch
-def matcher (g : ExprHigh String) : RewriteResult (List String × List String) := do
+def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) := do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
       if s.isSome then return s
         unless typ = "init Bool false" do return none
@@ -34,7 +34,7 @@ def matcher (g : ExprHigh String) : RewriteResult (List String × List String) :
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
-def lhs (T T' : Type) (Tₛ T'ₛ : String) : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def lhs (T T' : Type) (Tₛ T'ₛ : String) : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     d_i [type = "io"];
     c_i [type = "io"];
     o_br_t [type = "io"];
@@ -55,7 +55,7 @@ def lhs (T T' : Type) (Tₛ T'ₛ : String) : ExprHigh String × IdentMap String
     init -> o_init [from = "out1"];
   ]
 
-def lhs' (T T' : Type) (Tₛ T'ₛ : String) : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def lhs' (T T' : Type) (Tₛ T'ₛ : String) : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     d_i [type = "io"];
     c_i [type = "io"];
     o_br_t [type = "io"];
@@ -86,7 +86,7 @@ theorem double_check_empty_snd T₁ T₂ : (lhs_extract T₁ T₂).snd = ExprHig
 
 def lhsLower T₁ T₂ := lhs_extract T₁ T₂ |>.fst.lower.get rfl
 
-def rhs (T T' : Type) (Tₛ Tₛ' : String) : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def rhs (T T' : Type) (Tₛ Tₛ' : String) : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     d_i [type = "io"];
     c_i [type = "io"];
     o_br_t [type = "io"];
@@ -121,7 +121,7 @@ def rhsLower T₁ T₂ := (rhs Unit Unit T₁ T₂).fst.lower.get rfl
 
 theorem rhs_type_independent a b c d T₁ T₂ : (rhs a b T₁ T₂).fst = (rhs c d T₁ T₂).fst := by rfl
 
-def rewrite : Rewrite String :=
+def rewrite : Rewrite String String :=
   { abstractions := [],
     pattern := matcher,
     rewrite := λ l => do

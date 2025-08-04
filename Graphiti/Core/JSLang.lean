@@ -96,7 +96,7 @@ def parseRewrites (s : String) : Except String (List JSLangRewrite) := do
       ) []
   | j => throw s!"top-level JSON object is not an array: {j}"
 
-def JSLangRewrite.mapToRewrite : JSLangRewrite → Rewrite String
+def JSLangRewrite.mapToRewrite : JSLangRewrite → Rewrite String String
 | .assocL s true
 | .assocR s false => JoinAssocL.targetedRewrite s
 | .assocR s true
@@ -127,7 +127,7 @@ def runCommandWithStdin (cmd : String) (args : Array String) (stdin : String) : 
   let stdout ← IO.ofExcept stdout.get
   pure { exitCode := exitCode, stdout := stdout, stderr := stderr }
 
-def rewriteWithEgg (eggCmd := "graphiti_oracle") (p : Pattern String) (rewrittenExprHigh : ExprHigh String)
+def rewriteWithEgg (eggCmd := "graphiti_oracle") (p : Pattern String String) (rewrittenExprHigh : ExprHigh String String)
     : IO (List JSLangRewrite) := do
   let .some succ := calcSucc rewrittenExprHigh.invert | throw (.userError s!"{decl_name%}: could not calculate succ")
   let .ok ([first, last], _) _ := p rewrittenExprHigh |>.run default

@@ -98,7 +98,7 @@ def reduceRewrites := [ReduceSplitJoin.rewrite, JoinQueueLeftRewrite.rewrite, Jo
 def reduceSink := [SplitSinkRight.rewrite, SplitSinkLeft.rewrite, PureSink.rewrite]
 def movePureJoin := [PureJoinLeft.rewrite, PureJoinRight.rewrite, PureSplitRight.rewrite, PureSplitLeft.rewrite]
 
-def normaliseLoop (e : ExprHigh String) : RewriteResult (ExprHigh String) :=
+def normaliseLoop (e : ExprHigh String String) : RewriteResult (ExprHigh String String) :=
   rewrite_fix forkRewrites e
   >>= rewrite_loop combineRewrites
   >>= (withUndo <| rewrite_loop loadRewrite ·)
@@ -113,13 +113,13 @@ in a few steps:
 3. Turn forks into pure.
 4. Move pures to the top and bottom again, we are left with split and join nodes.
 -/
-def pureGeneration (rw : ExprHigh String) (p : Pattern String) : RewriteResult (ExprHigh String) :=
+def pureGeneration (rw : ExprHigh String String) (p : Pattern String String) : RewriteResult (ExprHigh String String) :=
   rewrite_fix (PureRewrites.specialisedPureRewrites <| nonPureMatcher p) rw
   >>= (rewrite_fix <| [ForkPure.rewrite, ForkJoin.rewrite] ++ movePureJoin ++ reduceSink)
   >>= (rewrite_fix <| PureRewrites.specialisedPureRewrites <| nonPureForkMatcher p)
   >>= (rewrite_fix <| [PureSeqComp.rewrite] ++ movePureJoin ++ reduceSink)
 
-def pureGenerator' (n : Nat) (g : ExprHigh String) : List JSLangRewrite → Nat → RewriteResult (ExprHigh String)
+def pureGenerator' (n : Nat) (g : ExprHigh String String) : List JSLangRewrite → Nat → RewriteResult (ExprHigh String String)
 | _, 0 => throw <| .error "No fuel"
 | [], fuel+1 => pure g
 | [jsRw], fuel+1 =>
@@ -133,8 +133,8 @@ def pureGenerator' (n : Nat) (g : ExprHigh String) : List JSLangRewrite → Nat 
 
 def pureGenerator n g js := withUndo <| pureGenerator' n g js (js.length + 1)
 
-def eggPureGenerator (fuel : Nat) (parsed : CmdArgs) (p : Pattern String) (g : ExprHigh String) (st : RewriteState)
-  : IO (ExprHigh String × RewriteState) := do
+def eggPureGenerator (fuel : Nat) (parsed : CmdArgs) (p : Pattern String String) (g : ExprHigh String String) (st : RewriteState)
+  : IO (ExprHigh String String × RewriteState) := do
   match fuel with
   | 0 => throw <| .userError s!"{decl_name%}: no fuel"
   | fuel+1 =>
@@ -151,14 +151,14 @@ def eggPureGenerator (fuel : Nat) (parsed : CmdArgs) (p : Pattern String) (g : E
       IO.eprintln e
       IO.Process.exit 1
 
-def renameAssoc (g : ExprHigh String) (assoc : AssocList String (AssocList String String)) (r : RuntimeEntry) : AssocList String (AssocList String String) :=
+def renameAssoc (g : ExprHigh String String) (assoc : AssocList String (AssocList String String)) (r : RuntimeEntry) : AssocList String (AssocList String String) :=
   assoc.mapKey (λ x =>
     if x ∈ g.modules.toList.map Prod.fst then x else
     match r.renamed_input_nodes.find? x with
     | .some (.some x') => x'
     | _ => x)
 
-def renameAssocAll assoc (rlist : RuntimeTrace) (g : ExprHigh String) := rlist.foldl (renameAssoc g) assoc
+def renameAssocAll assoc (rlist : RuntimeTrace) (g : ExprHigh String String) := rlist.foldl (renameAssoc g) assoc
 
 def writeLogFile (parsed : CmdArgs) (st : RewriteState) := do
   match parsed.logFile with
@@ -183,8 +183,8 @@ def runRewriter' {α} (parsed : CmdArgs) (st : RewriteState) (r : RewriteResult 
     writeLogFile parsed st'
     IO.Process.exit 1
 
-def rewriteGraph (parsed : CmdArgs) (g : ExprHigh String) (st : RewriteState)
-    : IO (ExprHigh String × RewriteState × RewriteState) := do
+def rewriteGraph (parsed : CmdArgs) (g : ExprHigh String String) (st : RewriteState)
+    : IO (ExprHigh String String × RewriteState × RewriteState) := do
   let (rewrittenExprHigh, st) ← runRewriter parsed g st <| do
     let rewrittenExprHigh ← normaliseLoop g
     withUndo <| do
@@ -210,11 +210,11 @@ def rewriteGraph (parsed : CmdArgs) (g : ExprHigh String) (st : RewriteState)
   let (rewrittenExprHigh, st) ← runRewriter parsed rewrittenExprHigh st (LoopRewrite2.rewrite.run rewrittenExprHigh)
   return (rewrittenExprHigh, st, st)
 
-def rewriteGraphAbs (parsed : CmdArgs) (g : ExprHigh String) (st : RewriteState)
-    : IO (ExprHigh String × RewriteState × RewriteState) := do
+def rewriteGraphAbs (parsed : CmdArgs) (g : ExprHigh String String) (st : RewriteState)
+    : IO (ExprHigh String String × RewriteState × RewriteState) := do
   let (g, st) ← runRewriter parsed g st (normaliseLoop g)
 
-  let a : Abstraction String := ⟨λ g => LoopRewrite.boxLoopBody g >>= λ (a, _b) => pure (a, []), "M"⟩
+  let a : Abstraction String String := ⟨λ g => LoopRewrite.boxLoopBody g >>= λ (a, _b) => pure (a, []), "M"⟩
   let ((bigg, concr), st) ← runRewriter' parsed st <| a.run g
   let .some g := concr.expr.higherSS | throw <| .userError s!"{decl_name%}: failed to higher expr"
   -- IO.print <| bigg
@@ -227,12 +227,12 @@ def rewriteGraphAbs (parsed : CmdArgs) (g : ExprHigh String) (st : RewriteState)
   let .some subexpr@(.base pmap typ) := g.lower | throw <| .userError s!"{decl_name%}: failed to lower graph"
 
   -- The first concretisation replaces "M" by the "pure" block
-  let newConcr : Concretisation String := ⟨subexpr, concr.2⟩
+  let newConcr : Concretisation String String := ⟨subexpr, concr.2⟩
   let (g, st) ← runRewriter' parsed st <| newConcr.run bigg
 
   let (g, st) ← runRewriter parsed g st (LoopRewrite2.rewrite.run g)
 
-  let newConcr' : Concretisation String := ⟨concr.1, typ⟩
+  let newConcr' : Concretisation String String := ⟨concr.1, typ⟩
   let (g, st) ← runRewriter parsed g st <| newConcr'.run g
 
   return (g, st_final, st)

@@ -32,9 +32,9 @@ namespace Graphiti.Projects.Noc
     { inst := .internal (router_name n rid), name := NatModule.stringify_output dir }
 
   @[drunfold_defs]
-  def Noc.build_expr (n : Noc Data netsz) : ExprLow String :=
+  def Noc.build_expr (n : Noc Data netsz) : ExprLow String String :=
 
-    let mkrouter (rid : n.RouterID) : ExprLow String :=
+    let mkrouter (rid : n.RouterID) : ExprLow String String :=
       .base
       {
         input :=
@@ -58,10 +58,10 @@ namespace Graphiti.Projects.Noc
       }
       (router_type_name n rid)
 
-    let mkrouters (acc : ExprLow String) : ExprLow String :=
+    let mkrouters (acc : ExprLow String String) : ExprLow String String :=
       List.foldr (λ i acc => .product (mkrouter i) acc) acc (fin_range netsz)
 
-    let mkconns (acc : ExprLow String) : ExprLow String :=
+    let mkconns (acc : ExprLow String String) : ExprLow String String :=
       List.foldr
         (λ c acc =>
           let rid_out := c.1.1

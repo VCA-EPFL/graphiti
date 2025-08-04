@@ -11,10 +11,10 @@ namespace Graphiti.JoinRewrite
 
 open StringModule
 
-def matcher (g : ExprHigh String) : RewriteResult (List String × List String) := sorry
+def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) := sorry
 
 @[drunfold_defs]
-def lhs (T₁ T₂ T₃ : Type) (S₁ S₂ S₃ : String) : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def lhs (T₁ T₂ T₃ : Type) (S₁ S₂ S₃ : String) : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i_0 [type = "io"];
     i_1 [type = "io"];
     i_2 [type = "io"];
@@ -41,7 +41,7 @@ theorem double_check_empty_snd S₁ S₂ S₃ : (lhs_extract S₁ S₂ S₃).snd
 def lhsLower S₁ S₂ S₃ := (lhs_extract S₁ S₂ S₃).fst.lower_TR.get rfl
 
 @[drunfold_defs]
-def rhs (T₁ T₂ T₃ : Type) (S₁ S₂ S₃ : String) : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def rhs (T₁ T₂ T₃ : Type) (S₁ S₂ S₃ : String) : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i_0 [type = "io"];
     i_1 [type = "io"];
     i_2 [type = "io"];
@@ -71,7 +71,7 @@ theorem double_check_empty_snd_rhs S₁ S₂ S₃ : (rhs_extract S₁ S₂ S₃)
 def rhsLower S₁ S₂ S₃ := (rhs_extract S₁ S₂ S₃).fst.lower_TR.get rfl
 
 @[drunfold_defs]
-def rewrite : Rewrite String :=
+def rewrite : Rewrite String String :=
   { abstractions := [],
     pattern := matcher,
     rewrite := λ | [S₁, S₂, S₃] => pure ⟨lhsLower S₁ S₂ S₃, rhsLower S₁ S₂ S₃⟩ | _ => failure

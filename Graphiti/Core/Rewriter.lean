@@ -32,8 +32,8 @@ deriving Repr, Inhabited, DecidableEq
 
 structure RuntimeEntry where
   type : EntryType
-  input_graph : ExprHigh String
-  output_graph : ExprHigh String
+  input_graph : ExprHigh String String
+  output_graph : ExprHigh String String
   matched_subgraph : List String
   renamed_input_nodes : AssocList String (Option String)
   new_output_nodes : List String
@@ -75,34 +75,36 @@ abbrev RewriteResult := EStateM RewriteError RewriteState
 
 section Rewrite
 
-variable (Ident)
+variable (Ident Typ)
 variable [DecidableEq Ident]
+variable [DecidableEq Typ]
 
-@[simp] abbrev Pattern := ExprHigh Ident → RewriteResult (List Ident × List Ident)
+@[simp] abbrev Pattern := ExprHigh Ident Typ → RewriteResult (List Ident × List Ident)
 
 structure Abstraction where
-  pattern : Pattern Ident
+  pattern : Pattern Ident Typ
   typ : Ident
 
 structure Concretisation where
-  expr : ExprLow Ident
+  expr : ExprLow Ident Typ
   typ : Ident
 deriving Repr, Inhabited
 
 structure DefiniteRewrite where
-  input_expr : ExprLow Ident
-  output_expr : ExprLow Ident
+  input_expr : ExprLow Ident Typ
+  output_expr : ExprLow Ident Typ
 
 structure Rewrite where
-  pattern : Pattern Ident
-  rewrite : List Ident → Option (DefiniteRewrite Ident)
+  pattern : Pattern Ident Typ
+  rewrite : List Ident → Option (DefiniteRewrite Ident Typ)
   transformedNodes : List (Option (PortMapping String)) := []
   addedNodes : List (PortMapping String) := []
-  abstractions : List (Abstraction Ident) := []
+  abstractions : List (Abstraction Ident Typ) := []
   name : Option String := .none
 
-variable {Ident}
+variable {Ident Typ}
 variable [Inhabited Ident]
+variable [Inhabited Typ]
 
 def ofOption {ε α σ} (e : ε) : Option α → EStateM ε σ α
 | some o => pure o
@@ -205,8 +207,8 @@ then reconstructing the graph.
 In the process, all names are generated again so that they are guaranteed to be fresh.  This could be unnecessary,
 however, currently the low-level expression language does not remember any names.
 -/
-@[drunfold] def Rewrite.run' (g : ExprHigh String) (rewrite : Rewrite String) (norm : Bool := true)
-  : RewriteResult (ExprHigh String) := do
+@[drunfold] def Rewrite.run' (g : ExprHigh String String) (rewrite : Rewrite String String) (norm : Bool := true)
+  : RewriteResult (ExprHigh String String) := do
 
   let current_state ← EStateM.get
   let fresh_prefix := s!"rw_{current_state.fresh_prefix}_"
@@ -290,12 +292,12 @@ however, currently the low-level expression language does not remember any names
   updFreshPrefix
   return out
 
-def generateRenaming (l : List (PortMapping String)) (e : ExprLow String) : Option (PortMapping String) :=
+def generateRenaming (l : List (PortMapping String)) (e : ExprLow String String) : Option (PortMapping String) :=
   (l.zip e.getPortMaps)
   |>.mapM (Function.uncurry PortMapping.generateRenamingPortMapping)
   |>.map PortMapping.combinePortMapping
 
-def reverse_rewrite' (def_rewrite : DefiniteRewrite String) (rinfo : RuntimeEntry) : RewriteResult (Rewrite String) := do
+def reverse_rewrite' (def_rewrite : DefiniteRewrite String String) (rinfo : RuntimeEntry) : RewriteResult (Rewrite String String) := do
 
   -- First we get the list of PortMappings associated with the lhs in their original (unrenamed) form.
   let lhsNodes ← ofOption (.error "reverse_rewrite: nodes not found")
@@ -349,7 +351,7 @@ def reverse_rewrite' (def_rewrite : DefiniteRewrite String) (rinfo : RuntimeEntr
 /--
 Generate a reverse rewrite from a rewrite and the RuntimeEntry associated with the execution.
 -/
-def reverse_rewrite (rw : Rewrite String) (rinfo : RuntimeEntry) : RewriteResult (Rewrite String) := do
+def reverse_rewrite (rw : Rewrite String String) (rinfo : RuntimeEntry) : RewriteResult (Rewrite String String) := do
   let (_nodes, l) ← rw.pattern rinfo.input_graph
   let def_rewrite ← ofOption (.error "could not generate rewrite") <| rw.rewrite l
   reverse_rewrite' def_rewrite rinfo
@@ -361,9 +363,9 @@ referenced in the new graph.
 These two functions do not have to have any additional proofs, because the proofs that are already present in the
 framework should be enough.
 -/
-@[drunfold] def Abstraction.run (g : ExprHigh String)
-  (abstraction : Abstraction String) (norm : Bool := false)
-  : RewriteResult (ExprHigh String × Concretisation String) := do
+@[drunfold] def Abstraction.run (g : ExprHigh String String)
+  (abstraction : Abstraction String String) (norm : Bool := false)
+  : RewriteResult (ExprHigh String String × Concretisation String String) := do
   let current_state ← EStateM.get
   let fresh_prefix := s!"rw_{current_state.fresh_prefix}_"
 
@@ -409,8 +411,8 @@ Can be used to concretise the abstract node again.  Currently it assumes that it
 checked explicitly).  In addition to that, it currently assumes that the internal signals of the concretisation are
 still fresh in the graph.
 -/
-@[drunfold] def Concretisation.run (g : ExprHigh String)
-  (concretisation : Concretisation String) (norm : Bool := false) (debug := false) : RewriteResult (ExprHigh String) := do
+@[drunfold] def Concretisation.run (g : ExprHigh String String)
+  (concretisation : Concretisation String String) (norm : Bool := false) (debug := false) : RewriteResult (ExprHigh String String) := do
   let current_state ← EStateM.get
   let fresh_prefix := s!"rw_{current_state.fresh_prefix}_"
 
@@ -437,14 +439,14 @@ still fresh in the graph.
   updFreshPrefix
   return concr_g
 
-@[drunfold] def Rewrite.run (g : ExprHigh String) (rewrite : Rewrite String)
-  : RewriteResult (ExprHigh String) := do
+@[drunfold] def Rewrite.run (g : ExprHigh String String) (rewrite : Rewrite String String)
+  : RewriteResult (ExprHigh String String) := do
   let (g, c, _) ← rewrite.abstractions.foldlM (λ (g', c', n) a => do
       let (g'', c'') ← a.run (norm := true) g'
       return (g'', c''::c', n+1)
     ) (g, [], 0)
   let g ← rewrite.run' g
-  c.foldlM (λ (g, n) (c : Concretisation String) => do
+  c.foldlM (λ (g, n) (c : Concretisation String String) => do
     let g' ← c.run (norm := true) g
     return (g', n+1)) (g, 0) |>.map Prod.fst
 
@@ -453,8 +455,8 @@ def update_state {α} (f : AssocList String (Option String) → α → RewriteRe
   f st.renamed_input_nodes a
 
 def rewrite_loop' {α} (f : AssocList String (Option String) → α → RewriteResult α) (a : α)
-    (orig_n : Nat) (g : ExprHigh String)
-    : (rewrites : List (Rewrite String)) → Nat → RewriteResult (Option (ExprHigh String × α))
+    (orig_n : Nat) (g : ExprHigh String String)
+    : (rewrites : List (Rewrite String String)) → Nat → RewriteResult (Option (ExprHigh String String × α))
 | _, 0 | [], _ => return .none
 | r :: rs, fuel' + 1 =>
   try
@@ -470,12 +472,12 @@ Loops over the [rewrite] function, applying one rewrite exhaustively until movin
 timeout for each single rewrite as well, so that infinite loops in a single rewrite means the next one can still be
 started.
 -/
-def rewrite_loop (rewrites : List (Rewrite String)) (g : ExprHigh String) (depth : Nat := 10000)
-    : RewriteResult (ExprHigh String) := do
+def rewrite_loop (rewrites : List (Rewrite String String)) (g : ExprHigh String String) (depth : Nat := 10000)
+    : RewriteResult (ExprHigh String String) := do
   return (← rewrite_loop' (λ _ _ => pure Unit.unit) Unit.unit depth g rewrites depth).map (·.fst) |>.getD g
 
-def rewrite_fix (rewrites : List (Rewrite String)) (g : ExprHigh String) (max_depth : Nat := 10000) (depth : Nat := 10000)
-    : RewriteResult (ExprHigh String) := do
+def rewrite_fix (rewrites : List (Rewrite String String)) (g : ExprHigh String String) (max_depth : Nat := 10000) (depth : Nat := 10000)
+    : RewriteResult (ExprHigh String String) := do
   match depth with
   | 0 => throw <| .error s!"{decl_name%}: ran out of fuel"
   | depth+1 =>
@@ -483,10 +485,10 @@ def rewrite_fix (rewrites : List (Rewrite String)) (g : ExprHigh String) (max_de
     | .some (g', _) => rewrite_fix rewrites g' max_depth depth
     | .none => return g
 
-def rewrite_fix_rename {α} (g : ExprHigh String) (rewrites : List (Rewrite String))
+def rewrite_fix_rename {α} (g : ExprHigh String String) (rewrites : List (Rewrite String String))
       (upd : AssocList String (Option String) → α → RewriteResult α) (a : α)
       (max_depth : Nat := 10000) (depth : Nat := 10000)
-    : RewriteResult (ExprHigh String × α) := do
+    : RewriteResult (ExprHigh String String × α) := do
   match depth with
   | 0 => throw <| .error s!"{decl_name%}: ran out of fuel"
   | depth+1 =>
@@ -504,7 +506,7 @@ def withUndo {α} (rw : RewriteResult α) : RewriteResult α := do
 Follow an output to the next node.  A similar function could be written to
 follow the input to the previous node.
 -/
-def followOutput' (g : ExprHigh String) (inst : String) (output : InternalPort String) : RewriteResult (NextNode String) := do
+def followOutput' (g : ExprHigh String String) (inst : String) (output : InternalPort String) : RewriteResult (NextNode String) := do
   let (pmap, _) ← ofOption (.error "instance not in modules")
     <| g.modules.find? inst
   let localOutputName ← ofOption (.error "port not in instance portmap")
@@ -515,17 +517,17 @@ def followOutput' (g : ExprHigh String) (inst : String) (output : InternalPort S
     <| ExprHigh.findInputPort' localInputName g.modules
   ofOption (.error "instance not in modules") <| (g.modules.findEntry? inst).map (λ x => ⟨inst, iport, output.name, x.2.1, x.2.2, c⟩)
 
-def followOutput (g : ExprHigh String) (inst output : String) : Option (NextNode String) :=
+def followOutput (g : ExprHigh String String) (inst output : String) : Option (NextNode String) :=
   (followOutput' g inst ⟨.top, output⟩).run' default
 
-def followOutputFull (g : ExprHigh String) (inst : String) (output : InternalPort String) : Option (NextNode String) :=
+def followOutputFull (g : ExprHigh String String) (inst : String) (output : InternalPort String) : Option (NextNode String) :=
   (followOutput' g inst output).run' default
 
 /--
 Follow an output to the next node.  A similar function could be written to
 follow the input to the previous node.
 -/
-def followInput' (g : ExprHigh String) (inst input : String) : RewriteResult (NextNode String) := do
+def followInput' (g : ExprHigh String String) (inst input : String) : RewriteResult (NextNode String) := do
   let (pmap, _) ← ofOption (.error "instance not in modules")
     <| g.modules.find? inst
   let localInputName ← ofOption (.error "port not in instance portmap")
@@ -536,13 +538,13 @@ def followInput' (g : ExprHigh String) (inst input : String) : RewriteResult (Ne
     <| ExprHigh.findOutputPort' localOutputName g.modules
   ofOption (.error "instance not in modules") <| (g.modules.findEntry? inst).map (λ x => ⟨inst, iport, input, x.2.1, x.2.2, c⟩)
 
-def followInput (g : ExprHigh String) (inst input : String) : Option (NextNode String) :=
+def followInput (g : ExprHigh String String) (inst input : String) : Option (NextNode String) :=
   (followInput' g inst input).run' default
 
-def findType (g : ExprHigh String) (typ : String) : List String :=
+def findType (g : ExprHigh String String) (typ : String) : List String :=
   g.modules.foldl (λ l a b => if b.snd = typ then a :: l else l) []
 
-def calcSucc (g : ExprHigh String) : Option (Std.HashMap String (Array (NextNode String))) :=
+def calcSucc (g : ExprHigh String String) : Option (Std.HashMap String (Array (NextNode String))) :=
   g.modules.foldlM (λ succ k v => do
       let a ← v.fst.output.foldlM (λ succ' (k' v' : InternalPort String) => do
           if v'.inst.isTop then return succ'
@@ -561,7 +563,7 @@ def isNonPure' typ :=
   && !"mux".isPrefixOf typ
   && !"branch".isPrefixOf typ
 
-def isNonPure (g : ExprHigh String) (node : String) : Bool :=
+def isNonPure (g : ExprHigh String String) (node : String) : Bool :=
   match g.modules.find? node with
   | .none => false
   | .some inst => isNonPure' inst.2
@@ -574,27 +576,27 @@ def isNonPureFork' typ :=
   && !"mux".isPrefixOf typ
   && !"branch".isPrefixOf typ
 
-def isNonPureFork (g : ExprHigh String) (node : String) : Bool :=
+def isNonPureFork (g : ExprHigh String String) (node : String) : Bool :=
   match g.modules.find? node with
   | .none => false
   | .some inst => isNonPureFork' inst.2
 
-def nonPureMatcher (p : Pattern String) : Pattern String
+def nonPureMatcher (p : Pattern String String) : Pattern String String
 | g => p g |>.map λ body => (body.1.filter (isNonPure g), [])
 
-def nonPureForkMatcher (p : Pattern String) : Pattern String
+def nonPureForkMatcher (p : Pattern String String) : Pattern String String
 | g => p g |>.map λ body => (body.1.filter (isNonPureFork g), [])
 
-def toPattern {α Ident} (f : ExprHigh Ident → RewriteResult (List Ident × α)) : Pattern Ident
+def toPattern {α Ident Typ} (f : ExprHigh Ident Typ → RewriteResult (List Ident × α)) : Pattern Ident Typ
 | g => f g >>= λ x => pure (x.1, [])
 
-def Pattern.map {Ident} (f : List Ident → List Ident) (p : Pattern Ident) : Pattern Ident
+def Pattern.map {Ident Typ} (f : List Ident → List Ident) (p : Pattern Ident Typ) : Pattern Ident Typ
 | g => p g >>= λ x => pure (f x.1, [])
 
-def Pattern.nest {Ident} [DecidableEq Ident] (a b : Pattern Ident) : Pattern Ident
+def Pattern.nest {Ident Typ} [DecidableEq Ident] (a b : Pattern Ident Typ) : Pattern Ident Typ
 | g => a g >>= λ x => b {g with modules := g.modules.filter λ k v => k ∈ x.1}
 
-def allPattern (f : String → Bool) : Pattern String
+def allPattern (f : String → Bool) : Pattern String String
 | g => pure (g.modules.filter (λ _ (_, typ) => f typ) |>.toList |>.map Prod.fst, [])
 
 /--
@@ -603,7 +605,7 @@ a single leaf node which connects to all inputs and all outputs respectively.
 It's much easier to work on this successor structure than on the unstructured
 graph.
 -/
-def fullCalcSucc (g : ExprHigh String) (rootNode : String := "_root_") (leafNode : String := "_leaf_") : Option (Std.HashMap String (Array String)) := do
+def fullCalcSucc (g : ExprHigh String String) (rootNode : String := "_root_") (leafNode : String := "_leaf_") : Option (Std.HashMap String (Array String)) := do
   let succ ← calcSucc g
   let succ := succ.map λ _ b => b.map (·.inst)
   let succ := succ.insert rootNode g.inputNodes.toArray
@@ -666,7 +668,7 @@ in a flowgraph" by T. Lengauer and R. E. Tarjan.
 
 Don't ask me how the algorithm works, but it seems to output reasonable results.
 -/
-def findDom (fuel : Nat) (g : ExprHigh String) := do
+def findDom (fuel : Nat) (g : ExprHigh String String) := do
   let mut n := 0
   let mut dom : DomState := ⟨∅, ∅, ∅, ∅, ∅, ∅⟩
   let mut succ ← fullCalcSucc g
@@ -718,7 +720,7 @@ def findDom (fuel : Nat) (g : ExprHigh String) := do
 /--
 Find post dominators of a node by finding dominators on the inverted graph.
 -/
-def findPostDom (fuel : Nat) (g : ExprHigh String) :=
+def findPostDom (fuel : Nat) (g : ExprHigh String String) :=
   findDom fuel g.invert
 
 def findClosedRegion' (succ : Std.HashMap String (Array String)) (startN endN : String) : Option (List String) :=
@@ -744,7 +746,7 @@ def findClosedRegion' (succ : Std.HashMap String (Array String)) (startN endN : 
 Find all nodes in between two nodes by performing a DFS that checks that one has
 never reached an output node.
 -/
-def findClosedRegion (g : ExprHigh String) (startN endN : String) : Option (List String) := do
+def findClosedRegion (g : ExprHigh String String) (startN endN : String) : Option (List String) := do
   let l ← findClosedRegion' (← fullCalcSucc g) startN endN
   let l' ← findClosedRegion' (← fullCalcSucc g.invert) endN startN
   return l.union l'
@@ -753,13 +755,13 @@ def extractType (s : String) : String :=
   let parts := s.splitOn " "
   parts.tail.foldl (λ a b => a ++ " " ++ b) "" |>.drop 1
 
-def match_node (extract_type : String → RewriteResult (List String)) (nn : String) (g : ExprHigh String)
+def match_node (extract_type : String → RewriteResult (List String)) (nn : String) (g : ExprHigh String String)
     : RewriteResult (List String × List String) := do
   let (_map, typ) ← ofOption (.error s!"{decl_name%}: module '{nn}' not found") (g.modules.find? nn)
   let types ← extract_type typ
   return ([nn], types)
 
-def rewrites_to_map (l : List (Rewrite String)) : AssocList String (Rewrite String) :=
+def rewrites_to_map (l : List (Rewrite String String)) : AssocList String (Rewrite String String) :=
   l.flatMap (λ x => match x.name with | .some n => [(n, x)] | _ => []) |>.toAssocList
 
 end Graphiti

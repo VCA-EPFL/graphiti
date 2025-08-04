@@ -13,11 +13,11 @@ import Graphiti.Core.AssocList.Basic
 
 namespace Graphiti
 
-def Env Ident := Ident → Option (TModule1 Ident)
+def Env Ident Typ := Typ → Option (TModule1 Ident)
 
 namespace Env
 
-def subsetOf {Ident} (ε₁ ε₂ : Env Ident) : Prop :=
+def subsetOf {Ident Typ} (ε₁ ε₂ : Env Ident Typ) : Prop :=
   ∀ i v, ε₁ i = .some v → ε₂ i = .some v
 
 end Env

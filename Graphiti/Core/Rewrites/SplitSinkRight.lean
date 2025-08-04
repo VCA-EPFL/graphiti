@@ -14,7 +14,7 @@ open StringModule
 variable (T T' : Type)
 variable (S S' : String)
 
-def matcher (g : ExprHigh String) : RewriteResult (List String × List String) := do
+def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) := do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
        if s.isSome then return s
        unless "split".isPrefixOf typ do return none
@@ -32,7 +32,7 @@ def matcher (g : ExprHigh String) : RewriteResult (List String × List String) :
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
-def lhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def lhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i [type = "io"];
     o [type = "io"];
 
@@ -51,7 +51,7 @@ theorem double_check_empty_snd : (lhs_extract S S').snd = ExprHigh.mk ∅ ∅ :=
 
 def lhsLower := (lhs_extract S S').fst.lower.get rfl
 
-def rhs : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def rhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i [type = "io"];
     o [type = "io"];
 
@@ -67,7 +67,7 @@ def rhsLower := (rhs_extract S S').fst.lower.get rfl
 
 def findRhs mod := (rhs_extract "" "").1.modules.find? mod |>.map Prod.fst
 
-def rewrite : Rewrite String :=
+def rewrite : Rewrite String String :=
   { abstractions := [],
     pattern := matcher,
     rewrite := λ | [S, S'] => .some ⟨lhsLower S S', rhsLower S S'⟩ | _ => failure

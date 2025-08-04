@@ -9,9 +9,9 @@ import Graphiti.Core.ExprHighElaborator
 
 namespace Graphiti.MuxTaggedRewrite
 
-def matcher (g : ExprHigh String) : RewriteResult (List String × List String) := sorry
+def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) := sorry
 
-@[drunfold_defs] def lhs' : ExprHigh String := [graph|
+@[drunfold_defs] def lhs' : ExprHigh String String := [graph|
     i_t [type = "io"];
     i_f [type = "io"];
     i_c [type = "io"];
@@ -38,7 +38,7 @@ theorem double_check_empty_snd : lhs.snd = ExprHigh.mk ∅ ∅ := by rfl
 
 @[drunfold_defs] def lhsLower := lhs.fst.lower.get rfl
 
-@[drunfold_defs] def rhs : ExprHigh String := [graph|
+@[drunfold_defs] def rhs : ExprHigh String String := [graph|
     i_t [type = "io"];
     i_f [type = "io"];
     i_c [type = "io"];
@@ -73,12 +73,12 @@ theorem double_check_empty_snd : lhs.snd = ExprHigh.mk ∅ ∅ := by rfl
 
 @[drunfold_defs] def rhsLower := rhs.lower.get rfl
 
-@[drunfold_defs] def rewrite : Rewrite String :=
+@[drunfold_defs] def rewrite : Rewrite String String :=
   { pattern := matcher,
     rewrite := fun _ => some ⟨lhsLower, rhsLower⟩
   }
 
-@[drunfold_defs] def lhs_int : ExprHigh String := [graph|
+@[drunfold_defs] def lhs_int : ExprHigh String String := [graph|
     i_t [type = "io"];
     i_f [type = "io"];
     i_c [type = "io"];

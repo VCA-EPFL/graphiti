@@ -16,7 +16,7 @@ namespace Graphiti.BranchMuxToMerge
 -- a merge instead, where there is no direct connection.
 namespace INCORRECT
 
-def matchModLeft' : Pattern String := fun g => do
+def matchModLeft' : Pattern String String := fun g => do
   let dom ← ofOption (.error "could not calculate dominators") <| findDom 10000 g
   let muxes := g.modules.filter (λ k v => v.snd = "mux") |>.toList |>.map (·.fst)
   let branches := g.modules.filter (λ k v => v.snd = "branch") |>.toList |>.map (·.fst)
@@ -36,7 +36,7 @@ We can use dominators to make sure we match the same nodes as in the two
 previous functions.  This doesn't work in this case though because of the fork.
 If the mux were a merge domination would be the right algorithm.
 -/
-def matcher' : Pattern String := fun g => do
+def matcher' : Pattern String String := fun g => do
   let dom ← ofOption (.error "could not calculate dominators") <| findDom 10000 g
   let muxes := g.modules.filter (λ k v => v.snd = "mux") |>.toList |>.map (·.fst)
   let branches := g.modules.filter (λ k v => v.snd = "branch") |>.toList |>.map (·.fst)
@@ -54,7 +54,7 @@ end INCORRECT
 /--
 Match the left module so that it can be abstracted.
 -/
-def matchModLeft : Pattern String := fun g => do
+def matchModLeft : Pattern String String := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
       if s.isSome then return s
       unless typ = "TaggedFork" do return none
@@ -74,7 +74,7 @@ def matchModLeft : Pattern String := fun g => do
 /--
 Match the right module so that it can be abstracted.
 -/
-def matchModRight : Pattern String := fun g => do
+def matchModRight : Pattern String String := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
       if s.isSome then return s
       unless typ = "TaggedFork" do return none
@@ -95,7 +95,7 @@ def matchModRight : Pattern String := fun g => do
 Instead of using dominators we can also use the fork and the condition circuit
 to match the graph.
 -/
-def matcher : Pattern String := fun g => do
+def matcher : Pattern String String := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
       if s.isSome then return s
       unless typ = "TaggedFork" do return none
@@ -117,7 +117,7 @@ def matcher : Pattern String := fun g => do
     ) none | throw .done
   return (list, [])
 
-def lhs' : ExprHigh String := [graph|
+def lhs' : ExprHigh String String := [graph|
     i_branch [type = "io"];
     i_cond [type = "io"];
     o_out [type = "io"];
@@ -150,7 +150,7 @@ theorem double_check_empty_snd : lhs.snd = ExprHigh.mk ∅ ∅ := by rfl
 
 def lhsLower := lhs.fst.lower.get rfl
 
-def rhs : ExprHigh String := [graph|
+def rhs : ExprHigh String String := [graph|
     i_branch [type = "io"];
     i_cond [type = "io"];
     o_out [type = "io"];
@@ -179,7 +179,7 @@ This rewrite adds abstractions to the definition, which provide patterns to
 extract parts of the graph.  The `type` given to each extracted node has to
 match the `type` of the node in LHS and RHS graphs.
 -/
-def rewrite : Rewrite String :=
+def rewrite : Rewrite String String :=
   { abstractions := [⟨matchModLeft, "mod_left"⟩, ⟨matchModRight, "mod_right"⟩],
     pattern := matcher,
     rewrite := fun _ => pure ⟨lhsLower, rhsLower⟩
@@ -187,7 +187,7 @@ def rewrite : Rewrite String :=
 
 namespace TEST
 
-def lhs' : ExprHigh String := [graph|
+def lhs' : ExprHigh String String := [graph|
     i_branch [type = "io"];
     i_cond [type = "io"];
     o_out [type = "io"];

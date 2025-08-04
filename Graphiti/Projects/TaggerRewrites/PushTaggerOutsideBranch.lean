@@ -17,7 +17,7 @@ namespace Graphiti.BranchInorderMux2Merge
 Matcher used for abstraction of the left module. Currently we do not check that the Mux and Branch are paired
 so it could probably be unsafe (what would happen?).
 -/
-def matchModLeft : Pattern String := fun g => do
+def matchModLeft : Pattern String String := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
       if s.isSome then return s
       unless typ = "TaggerCntrlAligner" do return none
@@ -36,7 +36,7 @@ def matchModLeft : Pattern String := fun g => do
 /--
 Matcher used for abstraction of the right module
 -/
-def matchModRight : Pattern String := fun g => do
+def matchModRight : Pattern String String := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
       if s.isSome then return s
       unless typ = "TaggerCntrlAligner" do return none
@@ -52,7 +52,7 @@ def matchModRight : Pattern String := fun g => do
   return (list, [])
 
 
-def matcher : Pattern String := fun g => do
+def matcher : Pattern String String := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
       if s.isSome then return s
       unless typ = "Branch" do return none
@@ -74,7 +74,7 @@ def matcher : Pattern String := fun g => do
     ) none | throw .done
   return (list, [])
 
-def lhs' : ExprHigh String := [graph|
+def lhs' : ExprHigh String String := [graph|
     i_data [type = "io"];
     i_cond [type = "io"];
     o_out [type = "io"];
@@ -110,7 +110,7 @@ theorem double_check_empty_snd : lhs.snd = ExprHigh.mk ∅ ∅ := by rfl
 def lhsLower := lhs.fst.lower.get rfl
 
 
-def rhs : ExprHigh String := [graph|
+def rhs : ExprHigh String String := [graph|
     i_data [type = "io"];
     i_cond [type = "io"];
     o_out [type = "io"];
@@ -164,14 +164,14 @@ This rewrite adds abstractions to the definition, which provide patterns to
 extract parts of the graph.  The `type` given to each extracted node has to
 match the `type` of the node in LHS and RHS graphs.
 -/
-def rewrite : Rewrite String :=
+def rewrite : Rewrite String String :=
   { abstractions := [⟨matchModLeft, "mod_left"⟩, ⟨matchModRight, "mod_right"⟩],
     pattern := matcher,
     rewrite := fun _ => pure ⟨lhsLower, rhsLower⟩ }
 
 namespace TEST
 
-def lhs' : ExprHigh String :=
+def lhs' : ExprHigh String String :=
 [graph|
     i_data [type = "io"];
     i_cond [type = "io"];

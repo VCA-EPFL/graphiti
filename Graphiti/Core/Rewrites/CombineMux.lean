@@ -18,7 +18,7 @@ local instance : MonadExcept IO.Error RewriteResult where
 -- Return any 2 Muxes fed by the same fork if the fork has the init as a predecessor (directly or through a tree of forks)
 -- TODO: Currently, it assumes that the init is either the direct predecessor or is a predecessor of the predecessor. We should make it more general to accommodate any number of forks until the init
 
-def findUpperForkInput (g : ExprHigh String) (nn : NextNode String) : Nat → RewriteResult (NextNode String)
+def findUpperForkInput (g : ExprHigh String String) (nn : NextNode String) : Nat → RewriteResult (NextNode String)
 | 0 => MonadExceptOf.throw <| RewriteError.error s!"{decl_name%}: max depth reached"
 | n+1 => do
   let (.some nextFork) := followInput g nn.inst "in1" | MonadExceptOf.throw <| RewriteError.error s!"{decl_name%}: could not follow input"
@@ -27,7 +27,7 @@ def findUpperForkInput (g : ExprHigh String) (nn : NextNode String) : Nat → Re
   else
     return nextFork
 
-def matcher (g : ExprHigh String) : RewriteResult (List String × List String) := do
+def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) := do
   -- let .some l ← ofExcept <| unsafe unsafeIO do
   --   -- Create a temporary file which contains the dot graph to match on.
   --   let result ← IO.FS.withTempFile λ handle filePath => do
@@ -67,7 +67,7 @@ def matcher (g : ExprHigh String) : RewriteResult (List String × List String) :
   return list
 
 
-def lhs (T T' : Type) (Tₛ T'ₛ : String) : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def lhs (T T' : Type) (Tₛ T'ₛ : String) : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     b1_t_i [type = "io"];
     b1_f_i [type = "io"];
     b2_t_i [type = "io"];
@@ -105,7 +105,7 @@ theorem double_check_empty_snd T₁ T₂ : (lhs_extract T₁ T₂).snd = ExprHig
 
 def lhsLower T₁ T₂ := lhs_extract T₁ T₂ |>.fst.lower.get rfl
 
-def rhs (T T' : Type) (Tₛ Tₛ' : String) : ExprHigh String × IdentMap String (TModule1 String) := [graphEnv|
+def rhs (T T' : Type) (Tₛ Tₛ' : String) : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     b1_t_i [type = "io"];
     b1_f_i [type = "io"];
     b2_t_i [type = "io"];
@@ -140,7 +140,7 @@ def rhsLower T₁ T₂ := (rhs Unit Unit T₁ T₂).fst.lower.get rfl
 
 theorem rhs_type_independent a b c d T₁ T₂ : (rhs a b T₁ T₂).fst = (rhs c d T₁ T₂).fst := by rfl
 
-def rewrite : Rewrite String :=
+def rewrite : Rewrite String String :=
   { abstractions := [],
     pattern := matcher,
     rewrite := λ l => do
