@@ -21,14 +21,19 @@ namespace ExprLow
 
 section BuildModule
 
-variable {Ident Typ}
+universe i t
+variable {Ident : Type i}
+variable {Typ : Type i}
 variable [DecidableEq Ident]
 variable [DecidableEq Typ]
 
 variable (ε : Env Ident Typ)
 
 def build_module_interface : ExprLow Ident Typ → Option (ModuleInterface Ident)
-| .base i e => ε e >>= λ mod => (mod.2.renamePorts i).toModuleInterface
+| .base i e =>
+  match ε e with
+  | .some mod => (mod.2.renamePorts i).toModuleInterface
+  | .none => none
 | .connect c e =>
   e.build_module_interface >>= λ mi =>
   pure ⟨mi.inputs.eraseAll c.input, mi.outputs.eraseAll c.output⟩
@@ -50,5 +55,22 @@ def well_typed : ExprLow Ident Typ → Prop
 end BuildModule
 
 end ExprLow
+
+namespace ExprHigh
+
+section WellTyped
+
+variable {Ident Typ}
+variable [DecidableEq Ident]
+variable [DecidableEq Typ]
+
+variable (ε : Env Ident Typ)
+
+def well_typed (h : ExprHigh Ident Typ) : Prop :=
+  ∃ hl, h.lower_TR = some hl ∧ hl.well_typed ε
+
+end WellTyped
+
+end ExprHigh
 
 end Graphiti

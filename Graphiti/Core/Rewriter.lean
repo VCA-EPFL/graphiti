@@ -69,6 +69,7 @@ instance : Lean.ToJson RuntimeEntry where
 structure RewriteState where
   runtime_trace : RuntimeTrace
   fresh_prefix : Nat
+  fresh_type : Nat
 deriving Repr, Inhabited
 
 abbrev RewriteResult := EStateM RewriteError RewriteState
@@ -96,9 +97,10 @@ structure DefiniteRewrite where
 
 structure Rewrite where
   pattern : Pattern Ident Typ
-  rewrite : List Ident → Option (DefiniteRewrite Ident Typ)
+  rewrite : List Typ → RewriteResult (DefiniteRewrite Ident Typ)
   transformedNodes : List (Option (PortMapping String)) := []
   addedNodes : List (PortMapping String) := []
+  fresh_types : Nat := 0
   abstractions : List (Abstraction Ident Typ) := []
   name : Option String := .none
 
@@ -166,24 +168,24 @@ def portmappingToNameRename' (sub : List String) (p : PortMapping String) : Rewr
 
 def addRuntimeEntry (rinfo : RuntimeEntry) : RewriteResult Unit := do
   let l ← EStateM.get
-  EStateM.set <| ⟨l.1.concat rinfo, l.2⟩
+  EStateM.set <| ⟨l.1.concat rinfo, l.2, l.3⟩
 
 def addRuntimeMarker (s : String) : RewriteResult Unit := do
   let l ← EStateM.get
-  EStateM.set <| ⟨l.1.concat (RuntimeEntry.marker s), l.2⟩
+  EStateM.set <| ⟨l.1.concat (RuntimeEntry.marker s), l.2, l.3⟩
 
 def rmRuntimeEntry : RewriteResult Unit := do
   let l ← EStateM.get
-  EStateM.set <| ⟨l.1.dropLast, l.2⟩
+  EStateM.set <| ⟨l.1.dropLast, l.2, l.3⟩
 
 def updRuntimeEntry (f : RuntimeEntry → RuntimeEntry) : RewriteResult Unit := do
   let l ← EStateM.get
   let last ← ofOption (.error "last element in RewriteResult not available") <| l.1.getLast?
-  EStateM.set <| ⟨l.1.dropLast.concat (f last), l.2⟩
+  EStateM.set <| ⟨l.1.dropLast.concat (f last), l.2, l.3⟩
 
 def updFreshPrefix : RewriteResult Unit := do
   let l ← EStateM.get
-  EStateM.set ⟨l.1, l.2+1⟩
+  EStateM.set ⟨l.1, l.2+1, l.3⟩
 
 def EStateM.guard {ε σ} (e : ε) (b : Bool) : EStateM ε σ Unit :=
   if b then pure () else EStateM.throw e
@@ -215,7 +217,7 @@ however, currently the low-level expression language does not remember any names
 
   -- Pattern match on the graph and extract the first list of nodes that correspond to the first subgraph.
   let (sub, types) ← rewrite.pattern g
-  let def_rewrite ← ofOption (.error s!"types {repr types} are not correct for rewrite") <| rewrite.rewrite types
+  let def_rewrite ← rewrite.rewrite types
 
   -- Extract the actual subgraph from the input graph using the list of nodes `sub`.
   let (g₁, g₂) ← ofOption (.error "could not extract graph") <| g.extract sub
@@ -340,8 +342,8 @@ def reverse_rewrite' (def_rewrite : DefiniteRewrite String String) (rinfo : Runt
 
   addRuntimeEntry <| RuntimeEntry.mk EntryType.debug default default default default .nil (.some <| s!"{repr lhs_renamed}\n\n{repr rhs_renamed}\n\n{repr full_renaming}\n\n{repr rhs_renaming}\n\n{repr lhs_renaming}") s!"rev-{rinfo.name.getD "unknown"}"
 
-  return ({ pattern := λ _ => return (rhsNodes', []),
-            rewrite := λ _ => some ⟨rhs_renamed, lhs_renamed⟩,
+  return ({ pattern := λ _ => pure (rhsNodes', []),
+            rewrite := λ _ => pure ⟨rhs_renamed, lhs_renamed⟩,
             name := s!"rev-{rinfo.name.getD "unknown"}",
             -- TODO: These dictate ordering of nodes quite strictly.
             transformedNodes := rhsNodes_renamed.map some ++ rhsNodes_added.map (λ _ => none),
@@ -353,7 +355,7 @@ Generate a reverse rewrite from a rewrite and the RuntimeEntry associated with t
 -/
 def reverse_rewrite (rw : Rewrite String String) (rinfo : RuntimeEntry) : RewriteResult (Rewrite String String) := do
   let (_nodes, l) ← rw.pattern rinfo.input_graph
-  let def_rewrite ← ofOption (.error "could not generate rewrite") <| rw.rewrite l
+  let def_rewrite ← rw.rewrite l
   reverse_rewrite' def_rewrite rinfo
 
 /--

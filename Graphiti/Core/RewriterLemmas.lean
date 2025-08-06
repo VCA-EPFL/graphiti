@@ -7,6 +7,7 @@ Authors: Yann Herklotz
 import Graphiti.Core.ExprHighLemmas
 import Graphiti.Core.Rewriter
 import Graphiti.Core.Environment
+import Graphiti.Core.WellTyped
 
 open Batteries (AssocList)
 
@@ -29,7 +30,7 @@ structure VerifiedRewrite (ε_global ε_left ε_right : Env String String) (rw :
     [e| rw.output_expr, ε_right ] ⊑ ([e| rw.input_expr, ε_left ])
 
 def toRewrite {ε} (rw : CorrectRewrite ε) : Rewrite String String :=
-  {pattern := rw.pattern, rewrite := λ _ => some rw.rewrite}
+  {pattern := rw.pattern, rewrite := λ _ => pure rw.rewrite}
 
 theorem EStateM.bind_eq_ok {ε σ α β} {x : EStateM ε σ α} {f : α → EStateM ε σ β} {s v s'} :
   x.bind f s = .ok v s' →
@@ -272,20 +273,23 @@ info: 'Graphiti.Rewrite_run'_correct' depends on axioms: [propext, Classical.cho
 #guard_msgs in
 #print axioms Rewrite_run'_correct
 
--- theorem Rewrite_abstraction_correct {g g' : ExprHigh String} {s a c} :
---   Abstraction.run s g a = .ok (g', c) →
---   ([Ge| g', ε ]) ⊑ ([Ge| g, ε ]) := by sorry
+structure CorrectRewrite2
+    (ε : FinEnv String (String × Nat))
+    (h_wf : ∀ s, Env.well_formed ε.find? s)
+where
+  rewrite : Rewrite String (String × Nat)
+  ε_extension : FinEnv String (String × Nat)
+  ε_extension_conservative :
+  refinement : ∀ l rw st st',
+    (rewrite.rewrite l).run st = .ok rw st' →
+    (h_wt : rw.input_expr.well_typed ε.find?) →
+    [e| rw.output_expr, (ε ++ ε_extension).find? ] ⊑ [e| rw.input_expr, (ε ++ ε_extension).find? ]
 
--- theorem Rewrite_concretisation_correct {g g' : ExprHigh String} {s c} :
---   Concretisation.run s g c = .ok g' →
---   ([Ge| g', ε ]) ⊑ ([Ge| g, ε ]) := by sorry
-
--- theorem Rewrite_run_correct {g g' : ExprHigh String} {s rw} :
---   Rewrite.run s g rw = .ok g' →
---   ([Ge| g', ε ]) ⊑ ([Ge| g, ε ]) := by sorry
-
--- theorem rewrite_loop_correct {g g' : ExprHigh String} {s rws n} :
---   rewrite_loop s g rws n = .ok g' →
---   ([Ge| g', ε ]) ⊑ ([Ge| g, ε ]) := by sorry
+theorem Rewrite_run'_correct2 {b} {ε_global : Env String (String × Nat)} {g g' : ExprHigh String (String × Nat)} {e_g : ExprLow String (String × Nat)}
+        {_st _st'} :
+  g.lower = some e_g →
+  e_g.well_formed ε_global →
+  Rewrite.run' g (toRewrite rw) b _st = .ok g' _st' →
+  ([Ge| g', ε_global ]) ⊑ ([Ge| g, ε_global ]) := by
 
 end Graphiti
