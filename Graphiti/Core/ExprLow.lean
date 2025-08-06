@@ -32,6 +32,14 @@ inductive ExprLow (Ident Typ : Type _) : Type _ where
 | connect (c : Connection Ident) (e : ExprLow Ident Typ)
 deriving Repr, Inhabited, DecidableEq
 
+def ExprLow.map {Ident α β} (f : α → β) : ExprLow Ident α → ExprLow Ident β
+| .base map typ => .base map (f typ)
+| .product e₁ e₂ => .product (map f e₁) (map f e₂)
+| .connect c e₁ => .connect c (map f e₁)
+
+instance {Ident} : Functor (ExprLow Ident) where
+  map := ExprLow.map
+
 inductive NamedExprLow Ident Typ where
 | input : InternalPort Ident → Ident → NamedExprLow Ident Typ → NamedExprLow Ident Typ
 | output : InternalPort Ident → Ident → NamedExprLow Ident Typ → NamedExprLow Ident Typ

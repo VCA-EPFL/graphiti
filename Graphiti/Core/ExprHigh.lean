@@ -412,20 +412,20 @@ def parseInternalPort (s : String) : Option (InternalPort String) :=
   | [first, second] => some ⟨.internal first, second⟩
   | _ => none
 
-structure InstMaps where
+structure InstMaps (α) where
   instMap : Std.HashMap String (InstIdent String × Bool)
-  instTypeMap : Std.HashMap String (PortMapping String × String)
+  instTypeMap : Std.HashMap String (PortMapping String × α)
 
-def updateNodeMaps (maps : InstMaps) (inst typ : String) (cluster : Bool := false) : Except String InstMaps := do
+def updateNodeMaps {α} (maps : InstMaps α) (inst : String) (typ : α) (isIO : Bool) (cluster : Bool := false) : Except String (InstMaps α) := do
   let mut instMap := maps.instMap
   let mut instTypeMap := maps.instTypeMap
   let mut modInst : InstIdent String := .top
-  unless typ == "io" do modInst := .internal inst
+  unless isIO do modInst := .internal inst
   let (b, map') := instMap.containsThenInsertIfNew inst (modInst, cluster)
   if !b then
     instMap := map'
     -- IO "modules" are not added to the instTypeMap.
-    unless typ == "io" do instTypeMap := instTypeMap.insert inst (∅, typ)
+    unless isIO do instTypeMap := instTypeMap.insert inst (∅, typ)
   else
     throw s!"Multiple references to {inst} found"
   return ⟨instMap, instTypeMap⟩
@@ -443,9 +443,9 @@ def ConnError.toString : ConnError → String
 instance : ToString ConnError where
   toString c := c.toString
 
-def updateConnMaps (maps : InstMaps) (conns : List (Connection String))
+def updateConnMaps {α} [Inhabited α] (maps : InstMaps α) (conns : List (Connection String))
     (outInst inInst : String) (outP inP : Option String)
-    : Except ConnError (InstMaps × List (Connection String)) := do
+    : Except ConnError (InstMaps α × List (Connection String)) := do
   let mut out := outP
   let mut inp := inP
   let some aInst := maps.instMap[outInst]? | throw (.outInstError s!"Instance has not been declared: {outInst}")

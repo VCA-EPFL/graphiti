@@ -104,8 +104,8 @@ inductive type_correct_module : ExprLow Ident Typ → Prop where
     (e : ExprLow Ident Typ)
     : Type _ := (e.build_module ε).1
 
-notation:25 "[e| " e ", " ε " ]" => build_module_expr ε e
-notation:25 "[T| " e ", " ε " ]" => build_module_type ε e
+notation:max "[e| " e ", " ε " ]" => build_module_expr ε e
+notation:max "[T| " e ", " ε " ]" => build_module_type ε e
 
 def wf : ExprLow Ident Typ → Bool := ExprLow.all (λ typ => (ε typ).isSome)
 

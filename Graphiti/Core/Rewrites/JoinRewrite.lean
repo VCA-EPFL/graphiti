@@ -74,7 +74,8 @@ def rhsLower S₁ S₂ S₃ := (rhs_extract S₁ S₂ S₃).fst.lower_TR.get rfl
 def rewrite : Rewrite String String :=
   { abstractions := [],
     pattern := matcher,
-    rewrite := λ | [S₁, S₂, S₃] => pure ⟨lhsLower S₁ S₂ S₃, rhsLower S₁ S₂ S₃⟩ | _ => failure
+    rewrite := λ | [S₁, S₂, S₃] => pure ⟨lhsLower S₁ S₂ S₃, rhsLower S₁ S₂ S₃⟩
+                 | _ => throw (.error "number of parameters incorrect.")
     }
 
 end Graphiti.JoinRewrite

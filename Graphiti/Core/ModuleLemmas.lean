@@ -947,8 +947,8 @@ def refines'_φ (φ : I → S → Prop) :=
     φ init_i init_s →
      comp_refines' imod smod φ init_i init_s
 
-notation:35 x " ⊑_{" φ:35 "} " y:34 => refines_φ x y φ
-notation:35 x " ⊑'_{" φ:35 "} " y:34 => refines'_φ x y φ
+notation:40 x " ⊑_{" φ "} " y:40 => refines_φ x y φ
+notation:40 x " ⊑'_{" φ "} " y:40 => refines'_φ x y φ
 
 theorem refines_φ_reflexive : imod ⊑_{Eq} imod := by
   intro init_i init_s heq; subst_vars
@@ -1091,7 +1091,14 @@ def refines :=
   ∃ (mm : MatchInterface imod smod) (φ : I → S → Prop),
     (imod ⊑_{φ} smod) ∧ refines_initial imod smod (fun x y => φ x y)
 
-notation:35 x " ⊑ " y:34 => refines x y
+notation:40 x " ⊑ " y:40 => refines x y
+notation:40 x " ⊒ " y:40 => refines y x
+
+def equivalent :=
+    imod ⊑ smod
+  ∧ imod ⊒ smod
+
+notation:40 x " ≡ " y:40 => equivalent x y
 
 variable {imod smod}
 
