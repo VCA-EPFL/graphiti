@@ -1091,8 +1091,8 @@ def refines :=
   ∃ (mm : MatchInterface imod smod) (φ : I → S → Prop),
     (imod ⊑_{φ} smod) ∧ refines_initial imod smod (fun x y => φ x y)
 
-notation:40 x " ⊑ " y:40 => refines x y
 notation:40 x " ⊒ " y:40 => refines y x
+notation:40 x " ⊑ " y:40 => refines x y
 
 def equivalent :=
     imod ⊑ smod

@@ -80,10 +80,10 @@ variable (Ident Typ)
 variable [DecidableEq Ident]
 variable [DecidableEq Typ]
 
-@[simp] abbrev Pattern := ExprHigh Ident Typ → RewriteResult (List Ident × List Ident)
+@[simp] abbrev Pattern n := ExprHigh Ident Typ → RewriteResult (List Ident × Vector Typ n)
 
-structure Abstraction where
-  pattern : Pattern Ident Typ
+structure Abstraction (n) where
+  pattern : Pattern Ident Typ n
   typ : Ident
 
 structure Concretisation where
@@ -96,12 +96,13 @@ structure DefiniteRewrite where
   output_expr : ExprLow Ident Typ
 
 structure Rewrite where
-  pattern : Pattern Ident Typ
-  rewrite : List Typ → RewriteResult (DefiniteRewrite Ident Typ)
+  params : Nat
+  pattern : Pattern Ident Typ params
+  rewrite : Vector Typ params → DefiniteRewrite Ident Typ
   transformedNodes : List (Option (PortMapping String)) := []
   addedNodes : List (PortMapping String) := []
   fresh_types : Nat := 0
-  abstractions : List (Abstraction Ident Typ) := []
+  abstractions : List (Abstraction Ident Typ params) := []
   name : Option String := .none
 
 variable {Ident Typ}
@@ -209,15 +210,15 @@ then reconstructing the graph.
 In the process, all names are generated again so that they are guaranteed to be fresh.  This could be unnecessary,
 however, currently the low-level expression language does not remember any names.
 -/
-@[drunfold] def Rewrite.run' (g : ExprHigh String String) (rewrite : Rewrite String String) (norm : Bool := true)
-  : RewriteResult (ExprHigh String String) := do
+@[drunfold] def Rewrite.run' (g : ExprHigh String (String × Nat)) (rewrite : Rewrite String (String × Nat)) (norm : Bool := true)
+  : RewriteResult (ExprHigh String (String × Nat)) := do
 
   let current_state ← EStateM.get
   let fresh_prefix := s!"rw_{current_state.fresh_prefix}_"
 
   -- Pattern match on the graph and extract the first list of nodes that correspond to the first subgraph.
   let (sub, types) ← rewrite.pattern g
-  let def_rewrite ← rewrite.rewrite types
+  let def_rewrite := rewrite.rewrite types
 
   -- Extract the actual subgraph from the input graph using the list of nodes `sub`.
   let (g₁, g₂) ← ofOption (.error "could not extract graph") <| g.extract sub
@@ -232,7 +233,7 @@ however, currently the low-level expression language does not remember any names
   let sub' ← ofOption (.error "could not extract base information") <| sub.mapM (λ a => g.modules.find? a)
   let g_lower := canon <| ExprLow.comm_bases sub'.reverse g_lower
 
-  addRuntimeEntry <| RuntimeEntry.mk EntryType.rewrite g default sub default .nil .none rewrite.name
+  addRuntimeEntry <| RuntimeEntry.mk EntryType.rewrite (g.map (λ (x, y) => x)) default sub default .nil .none rewrite.name
   updRuntimeEntry λ rw => {rw with debug := (.some <| (toString <| repr e_sub) ++ "\n\n" ++ ((toString <| repr def_rewrite.input_expr)))}
 
   -- beq is an α-equivalence check that returns a mapping to rename one expression into the other.  This mapping is
@@ -274,7 +275,7 @@ however, currently the low-level expression language does not remember any names
   -- throw (.error s!"mods :: {repr sub'}rhs :: {repr g_lower}\n\ndep :: {repr (canon e_sub_input)}")
   EStateM.guard (.error s!"rewrite: subexpression not found in the graph: {repr g_lower}\n\n{repr (canon e_sub_input)}") b
 
-  let out ← rewritten >>= ExprLow.higher_correct PortMapping.hashPortMapping
+  let out ← rewritten |> ExprLow.higher_correct PortMapping.hashPortMapping
     |> ofOption (.error s!"could not lift expression to graph: {repr rewritten}")
 
   let renamedNodes := rewrite.transformedNodes.map (·.map (renamePortMapping · comb_mapping))
@@ -286,7 +287,7 @@ however, currently the low-level expression language does not remember any names
 
   -- Using comb_mapping to find the portMap does not work because with rewrites where there is a single module, the name
   -- won't even appear in the rewrite.
-  updRuntimeEntry <| λ _ => RuntimeEntry.mk EntryType.rewrite g out sub (sub.zip renamedNodes).toAssocList
+  updRuntimeEntry <| λ _ => RuntimeEntry.mk EntryType.rewrite (g.map λ x => x.1) (out.map λ x => x.1) sub (sub.zip renamedNodes).toAssocList
     addedNodes (.some (toString renamedNodes ++ "\n\n" ++ toString addedNodes)) rewrite.name
   -- updRuntimeEntry λ rw => {rw with debug := (.some (toString e_output_norm))}
   EStateM.guard (.error s!"found duplicate node") out.modules.keysList.Nodup
@@ -342,8 +343,9 @@ def reverse_rewrite' (def_rewrite : DefiniteRewrite String String) (rinfo : Runt
 
   addRuntimeEntry <| RuntimeEntry.mk EntryType.debug default default default default .nil (.some <| s!"{repr lhs_renamed}\n\n{repr rhs_renamed}\n\n{repr full_renaming}\n\n{repr rhs_renaming}\n\n{repr lhs_renaming}") s!"rev-{rinfo.name.getD "unknown"}"
 
-  return ({ pattern := λ _ => pure (rhsNodes', []),
-            rewrite := λ _ => pure ⟨rhs_renamed, lhs_renamed⟩,
+  return ({ params := 0
+            pattern := λ _ => pure (rhsNodes', default),
+            rewrite := λ _ => ⟨rhs_renamed, lhs_renamed⟩,
             name := s!"rev-{rinfo.name.getD "unknown"}",
             -- TODO: These dictate ordering of nodes quite strictly.
             transformedNodes := rhsNodes_renamed.map some ++ rhsNodes_added.map (λ _ => none),
@@ -355,58 +357,58 @@ Generate a reverse rewrite from a rewrite and the RuntimeEntry associated with t
 -/
 def reverse_rewrite (rw : Rewrite String String) (rinfo : RuntimeEntry) : RewriteResult (Rewrite String String) := do
   let (_nodes, l) ← rw.pattern rinfo.input_graph
-  let def_rewrite ← rw.rewrite l
+  let def_rewrite := rw.rewrite l
   reverse_rewrite' def_rewrite rinfo
 
-/--
-Abstract a subgraph into a separate node.  One can imagine that the node type is then a node in the environment which is
-referenced in the new graph.
+-- /--
+-- Abstract a subgraph into a separate node.  One can imagine that the node type is then a node in the environment which is
+-- referenced in the new graph.
 
-These two functions do not have to have any additional proofs, because the proofs that are already present in the
-framework should be enough.
--/
-@[drunfold] def Abstraction.run (g : ExprHigh String String)
-  (abstraction : Abstraction String String) (norm : Bool := false)
-  : RewriteResult (ExprHigh String String × Concretisation String String) := do
-  let current_state ← EStateM.get
-  let fresh_prefix := s!"rw_{current_state.fresh_prefix}_"
+-- These two functions do not have to have any additional proofs, because the proofs that are already present in the
+-- framework should be enough.
+-- -/
+-- @[drunfold] def Abstraction.run (g : ExprHigh String String)
+--   (abstraction : Abstraction String String) (norm : Bool := false)
+--   : RewriteResult (ExprHigh String String × Concretisation String String) := do
+--   let current_state ← EStateM.get
+--   let fresh_prefix := s!"rw_{current_state.fresh_prefix}_"
 
-  -- Extract a list of modules that match the pattern.
-  let (sub, _) ← abstraction.pattern g
-  let sub := sub.pwFilter (· ≠ ·)
-  -- Extract the subgraph that matches the pattern.
-  let (g₁, _g₂) ← ofOption (.error "could not extract graph") <| g.extract sub
-  -- Lower the subgraph g₁ to ExprLow
-  let g₁_l ← ofOption (.error "could not lower subgraph: graph is empty") <| g₁.lower
+--   -- Extract a list of modules that match the pattern.
+--   let (sub, _) ← abstraction.pattern g
+--   let sub := sub.pwFilter (· ≠ ·)
+--   -- Extract the subgraph that matches the pattern.
+--   let (g₁, _g₂) ← ofOption (.error "could not extract graph") <| g.extract sub
+--   -- Lower the subgraph g₁ to ExprLow
+--   let g₁_l ← ofOption (.error "could not lower subgraph: graph is empty") <| g₁.lower
 
-  -- g_lower is the fully lowered graph with the sub expression that is to be replaced rearranged so that it can be
-  -- pattern matched.
-  let canon := ExprLow.comm_connections' g₁.connections
-  let g_lower ← ofOption (.error "failed lowering of the graph: graph is empty") g.lower
-  let sub' ← ofOption (.error "could not extract base information") <| sub.mapM (λ a => g.modules.find? a)
-  let g_lower := canon <| ExprLow.comm_bases sub' g_lower
+--   -- g_lower is the fully lowered graph with the sub expression that is to be replaced rearranged so that it can be
+--   -- pattern matched.
+--   let canon := ExprLow.comm_connections' g₁.connections
+--   let g_lower ← ofOption (.error "failed lowering of the graph: graph is empty") g.lower
+--   let sub' ← ofOption (.error "could not extract base information") <| sub.mapM (λ a => g.modules.find? a)
+--   let g_lower := canon <| ExprLow.comm_bases sub' g_lower
 
-  -- Here we have to make sure that the context contains a renamed version of e_sub to show equivalence to the
-  -- abstracted version, because the abstracted version has `.top` IO ports.  These are needed because of the matcher
-  -- that comes in the second phase.
-  let g₁_lc := canon <| ExprLow.comm_bases sub' g₁_l
-  let portMapping := g₁_lc.build_interface.toIdentityPortMapping'
-  let (abstracted', b) := g_lower.force_abstract g₁_lc portMapping abstraction.typ
-  EStateM.guard (.error s!"abstraction: subexpression not found in the graph: {repr g₁_l}\n\n{repr g₁_lc}") b
+--   -- Here we have to make sure that the context contains a renamed version of e_sub to show equivalence to the
+--   -- abstracted version, because the abstracted version has `.top` IO ports.  These are needed because of the matcher
+--   -- that comes in the second phase.
+--   let g₁_lc := canon <| ExprLow.comm_bases sub' g₁_l
+--   let portMapping := g₁_lc.build_interface.toIdentityPortMapping'
+--   let (abstracted', b) := g_lower.force_abstract g₁_lc portMapping abstraction.typ
+--   EStateM.guard (.error s!"abstraction: subexpression not found in the graph: {repr g₁_l}\n\n{repr g₁_lc}") b
 
-  let g₁_lcr ← ofOption (.error "renaming failed: 4") <| g₁_lc.renamePorts portMapping.inverse
+--   let g₁_lcr ← ofOption (.error "renaming failed: 4") <| g₁_lc.renamePorts portMapping.inverse
 
-  let mut abstracted := abstracted'
-  let mut portMap : AssocList String (Option String) := .nil
+--   let mut abstracted := abstracted'
+--   let mut portMap : AssocList String (Option String) := .nil
 
-  if norm then
-    let norm := abstracted.normalisedNamesMap fresh_prefix
-    abstracted ← ofOption (.error "renaming failed: 3") <| abstracted.renamePorts norm
-    portMap ← portmappingToNameRename' sub norm
-  let highered ← abstracted |>.higherSS |> ofOption (.error "Could not normalise names 1")
+--   if norm then
+--     let norm := abstracted.normalisedNamesMap fresh_prefix
+--     abstracted ← ofOption (.error "renaming failed: 3") <| abstracted.renamePorts norm
+--     portMap ← portmappingToNameRename' sub norm
+--   let highered ← abstracted |>.higherSS |> ofOption (.error "Could not normalise names 1")
 
-  updFreshPrefix
-  return (highered, ⟨g₁_lcr, abstraction.typ⟩)
+--   updFreshPrefix
+--   return (highered, ⟨g₁_lcr, abstraction.typ⟩)
 
 /--
 Can be used to concretise the abstract node again.  Currently it assumes that it is unique in the graph (which could be
@@ -441,24 +443,24 @@ still fresh in the graph.
   updFreshPrefix
   return concr_g
 
-@[drunfold] def Rewrite.run (g : ExprHigh String String) (rewrite : Rewrite String String)
-  : RewriteResult (ExprHigh String String) := do
-  let (g, c, _) ← rewrite.abstractions.foldlM (λ (g', c', n) a => do
-      let (g'', c'') ← a.run (norm := true) g'
-      return (g'', c''::c', n+1)
-    ) (g, [], 0)
-  let g ← rewrite.run' g
-  c.foldlM (λ (g, n) (c : Concretisation String String) => do
-    let g' ← c.run (norm := true) g
-    return (g', n+1)) (g, 0) |>.map Prod.fst
+@[drunfold] def Rewrite.run (g : ExprHigh String (String × Nat)) (rewrite : Rewrite String (String × Nat))
+  : RewriteResult (ExprHigh String (String × Nat)) := do
+  -- let (g, c, _) ← rewrite.abstractions.foldlM (λ (g', c', n) a => do
+  --     let (g'', c'') ← a.run (norm := true) g'
+  --     return (g'', c''::c', n+1)
+  --   ) (g, [], 0)
+  rewrite.run' g
+  -- c.foldlM (λ (g, n) (c : Concretisation String String) => do
+  --   let g' ← c.run (norm := true) g
+  --   return (g', n+1)) (g, 0) |>.map Prod.fst
 
 def update_state {α} (f : AssocList String (Option String) → α → RewriteResult α) (a : α) : RewriteResult α := do
   let st ← get >>= λ a => ofOption (.error s!"{decl_name%}: could not get last element") a.1.getLast?
   f st.renamed_input_nodes a
 
 def rewrite_loop' {α} (f : AssocList String (Option String) → α → RewriteResult α) (a : α)
-    (orig_n : Nat) (g : ExprHigh String String)
-    : (rewrites : List (Rewrite String String)) → Nat → RewriteResult (Option (ExprHigh String String × α))
+    (orig_n : Nat) (g : ExprHigh String (String × Nat))
+    : (rewrites : List (Rewrite String (String × Nat))) → Nat → RewriteResult (Option (ExprHigh String (String × Nat) × α))
 | _, 0 | [], _ => return .none
 | r :: rs, fuel' + 1 =>
   try
@@ -474,12 +476,12 @@ Loops over the [rewrite] function, applying one rewrite exhaustively until movin
 timeout for each single rewrite as well, so that infinite loops in a single rewrite means the next one can still be
 started.
 -/
-def rewrite_loop (rewrites : List (Rewrite String String)) (g : ExprHigh String String) (depth : Nat := 10000)
-    : RewriteResult (ExprHigh String String) := do
+def rewrite_loop (rewrites : List (Rewrite String (String × Nat))) (g : ExprHigh String (String × Nat)) (depth : Nat := 10000)
+    : RewriteResult (ExprHigh String (String × Nat)) := do
   return (← rewrite_loop' (λ _ _ => pure Unit.unit) Unit.unit depth g rewrites depth).map (·.fst) |>.getD g
 
-def rewrite_fix (rewrites : List (Rewrite String String)) (g : ExprHigh String String) (max_depth : Nat := 10000) (depth : Nat := 10000)
-    : RewriteResult (ExprHigh String String) := do
+def rewrite_fix (rewrites : List (Rewrite String (String × Nat))) (g : ExprHigh String (String × Nat)) (max_depth : Nat := 10000) (depth : Nat := 10000)
+    : RewriteResult (ExprHigh String (String × Nat)) := do
   match depth with
   | 0 => throw <| .error s!"{decl_name%}: ran out of fuel"
   | depth+1 =>
@@ -487,10 +489,10 @@ def rewrite_fix (rewrites : List (Rewrite String String)) (g : ExprHigh String S
     | .some (g', _) => rewrite_fix rewrites g' max_depth depth
     | .none => return g
 
-def rewrite_fix_rename {α} (g : ExprHigh String String) (rewrites : List (Rewrite String String))
+def rewrite_fix_rename {α} (g : ExprHigh String (String × Nat)) (rewrites : List (Rewrite String (String × Nat)))
       (upd : AssocList String (Option String) → α → RewriteResult α) (a : α)
       (max_depth : Nat := 10000) (depth : Nat := 10000)
-    : RewriteResult (ExprHigh String String × α) := do
+    : RewriteResult (ExprHigh String (String × Nat) × α) := do
   match depth with
   | 0 => throw <| .error s!"{decl_name%}: ran out of fuel"
   | depth+1 =>
@@ -583,23 +585,23 @@ def isNonPureFork (g : ExprHigh String String) (node : String) : Bool :=
   | .none => false
   | .some inst => isNonPureFork' inst.2
 
-def nonPureMatcher (p : Pattern String String) : Pattern String String
-| g => p g |>.map λ body => (body.1.filter (isNonPure g), [])
+-- def nonPureMatcher {n} (p : Pattern String String n) : Pattern String String n
+-- | g => p g |>.map λ body => (body.1.filter (isNonPure g), #v[])
 
-def nonPureForkMatcher (p : Pattern String String) : Pattern String String
-| g => p g |>.map λ body => (body.1.filter (isNonPureFork g), [])
+-- def nonPureForkMatcher {n} (p : Pattern String String n) : Pattern String String n
+-- | g => p g |>.map λ body => (body.1.filter (isNonPureFork g), [])
 
-def toPattern {α Ident Typ} (f : ExprHigh Ident Typ → RewriteResult (List Ident × α)) : Pattern Ident Typ
-| g => f g >>= λ x => pure (x.1, [])
+-- def toPattern {α Ident Typ} (f : ExprHigh Ident Typ → RewriteResult (List Ident × α)) : Pattern Ident Typ
+-- | g => f g >>= λ x => pure (x.1, [])
 
-def Pattern.map {Ident Typ} (f : List Ident → List Ident) (p : Pattern Ident Typ) : Pattern Ident Typ
-| g => p g >>= λ x => pure (f x.1, [])
+-- def Pattern.map {Ident Typ} (f : List Ident → List Ident) (p : Pattern Ident Typ) : Pattern Ident Typ
+-- | g => p g >>= λ x => pure (f x.1, [])
 
-def Pattern.nest {Ident Typ} [DecidableEq Ident] (a b : Pattern Ident Typ) : Pattern Ident Typ
-| g => a g >>= λ x => b {g with modules := g.modules.filter λ k v => k ∈ x.1}
+-- def Pattern.nest {Ident Typ} [DecidableEq Ident] (a b : Pattern Ident Typ) : Pattern Ident Typ
+-- | g => a g >>= λ x => b {g with modules := g.modules.filter λ k v => k ∈ x.1}
 
-def allPattern (f : String → Bool) : Pattern String String
-| g => pure (g.modules.filter (λ _ (_, typ) => f typ) |>.toList |>.map Prod.fst, [])
+-- def allPattern (f : String → Bool) : Pattern String String
+-- | g => pure (g.modules.filter (λ _ (_, typ) => f typ) |>.toList |>.map Prod.fst, [])
 
 /--
 Calculate a successor hashmap for a graph which includes a single root node and

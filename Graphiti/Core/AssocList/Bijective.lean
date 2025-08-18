@@ -83,4 +83,21 @@ theorem bijectivePortRenaming_bijective {α} [DecidableEq α] {p : AssocList α 
     · intros; exfalso; apply h; simp [*]
     · split; exfalso; apply h; simp [*]; simpa
 
+theorem bijectivePortRenaming_involutive {α} [DecidableEq α] {p : AssocList α α} :
+  Function.Involutive p.bijectivePortRenaming := by
+  unfold Function.Involutive
+  intro i
+  dsimp [bijectivePortRenaming]
+  split <;> try rfl
+  cases h' : (p.filterId ++ p.inverse.filterId).find? i; dsimp; rw [h']; rfl
+  dsimp
+  rw [invertibleMap]; rfl; assumption; assumption
+
+theorem mapKey_involutive {α β} {f : α → α} (a : AssocList α β) :
+  Function.Involutive f →
+  (a.mapKey f).mapKey f = a := by
+  intro hinv; rw [mapKey_mapKey]; dsimp [Function.Involutive] at hinv
+  have : (fun k => f (f k)) = id := by ext i; rw [hinv]; rfl
+  rw [this, mapKey_id]
+
 end Batteries.AssocList

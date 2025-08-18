@@ -140,6 +140,9 @@ def lower_TR (e : ExprHigh Ident Typ) : Option (ExprLow Ident Typ) :=
   | x :: xs => some <| lower'_conn_TR e.connections <| lower'_prod_TR xs.toAssocList (uncurry .base x.snd)
   | _ => none
 
+def map {Typ'} (f : Typ → Typ') (e : ExprHigh Ident Typ) : ExprHigh Ident Typ' :=
+  {modules := e.modules.mapVal (λ _ v => (v.1, f v.2)), connections := e.connections}
+
 end ExprHigh
 
 class FreshIdent (Ident : Type _) where
