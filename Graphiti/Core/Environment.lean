@@ -23,10 +23,33 @@ namespace Env
 def subsetOf {Ident Typ} (ε₁ ε₂ : Env Ident Typ) : Prop :=
   ∀ i v, ε₁ i = .some v → ε₂ i = .some v
 
+theorem subsetOf_reflexive {Ident Typ} {ε : Env Ident Typ} :
+  subsetOf ε ε := by simp [subsetOf]
+
 def union {Ident Typ} (ε₁ ε₂ : Env Ident Typ) : Env Ident Typ := λ s =>
   match ε₁ s with
   | some x => pure x
   | none => ε₂ s
+
+def independent {Ident Typ} (ε₁ ε₂ : Env Ident Typ) : Prop :=
+  ∀ i v, ε₁ i = some v → ε₂ i = none
+
+theorem independent_symm {Ident Typ} {ε₁ ε₂ : Env Ident Typ} :
+  independent ε₁ ε₂ → independent ε₂ ε₁ := by
+  unfold independent
+  intro h i v h1
+  cases h:  ε₁ i <;> grind
+
+theorem subset_of_union {Ident Typ} {ε₁ ε₂ : Env Ident Typ} :
+  ε₁.subsetOf (ε₁.union ε₂) := by
+  intros; simp only [subsetOf, independent, union] at *
+  intros; simp only [*]; rfl
+
+theorem independent_subset_of_union {Ident Typ} {ε₁ ε₂ : Env Ident Typ} :
+  ε₁.independent ε₂ →
+  ε₂.subsetOf (ε₁.union ε₂) := by
+  intros; simp [subsetOf, independent, union] at *
+  grind
 
 def well_formed {α} (ε : Env String (String × α)) (s : String) : Prop :=
   match s with
@@ -72,6 +95,25 @@ theorem select_fresh_spec {Ident} {ε : FinEnv Ident (String × String)} {a : Li
 
 def max_type {Ident} (f : FinEnv Ident (String × Nat)) : Nat :=
   f.keysList.map Prod.snd |>.foldl Nat.max 0
+
+theorem union_eq {Ident Typ} [DecidableEq Typ] {ε₁ ε₂ : FinEnv Ident Typ} :
+  (ε₁ ++ ε₂).find? = Env.union ε₁.find? ε₂.find? := by
+  ext i v; dsimp [Env.union]
+  constructor
+  · intro hfinda; have := Batteries.AssocList.append_find?2 hfinda; grind
+  · grind [Batteries.AssocList.append_find_left, Batteries.AssocList.append_find_right]
+
+theorem subset_of_union {Ident Typ} [DecidableEq Typ] {ε₁ ε₂ : FinEnv Ident Typ} :
+  Env.subsetOf ε₁.find? (ε₁ ++ ε₂).find? := by
+  rw [union_eq]; exact Env.subset_of_union
+
+theorem independent_subset_of_union {Ident Typ} [DecidableEq Typ] {ε₁ ε₂ : FinEnv Ident Typ} :
+  Env.independent ε₁.find? ε₂.find? →
+  Env.subsetOf ε₂.find? (ε₁ ++ ε₂).find? := by
+  rw [union_eq]; exact Env.independent_subset_of_union
+
+@[simp]
+def toEnv {Ident Typ} [DecidableEq Typ] (ε : FinEnv Ident Typ) : Env Ident Typ := ε.find?
 
 end FinEnv
 

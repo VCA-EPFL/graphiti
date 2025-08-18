@@ -229,7 +229,7 @@ def force_concretise (e e_sub : ExprLow Ident Typ) (i_inst : PortMapping Ident) 
   .base i_inst i_typ |> (e.force_replace · e_sub)
 
 @[drunfold]
-def normalisedNamesMap' (pref : String) (count : Nat) : ExprLow String String → (PortMapping String × Nat)
+def normalisedNamesMap' (pref : String) (count : Nat) : ExprLow String Typ → (PortMapping String × Nat)
 | .base port typ' =>
   let p := port.inverse.mapPairs
     (λ | ⟨.top, n⟩, v => ⟨.top, n⟩
@@ -243,7 +243,7 @@ def normalisedNamesMap' (pref : String) (count : Nat) : ExprLow String String �
   (p₁.append p₂, count₂)
 
 @[drunfold]
-def normalisedNamesMap (pref : String) (e : ExprLow String String) : PortMapping String :=
+def normalisedNamesMap (pref : String) (e : ExprLow String Typ) : PortMapping String :=
   normalisedNamesMap' pref 0 e |>.fst
 
 def findBase (typ : Typ) : ExprLow Ident Typ → Option (PortMapping Ident)

@@ -48,8 +48,8 @@ variable (ε : Env Ident Typ)
 @[drunfold] abbrev build_module_type (e : ExprHigh Ident Typ)
     : Type _ := (e.build_module ε).1
 
-notation:25 "[Ge| " e ", " ε " ]" => build_module_expr ε e
-notation:25 "[GT| " e ", " ε " ]" => build_module_type ε e
+notation:max "[Ge| " e ", " ε " ]" => build_module_expr ε e
+notation:max "[GT| " e ", " ε " ]" => build_module_type ε e
 
 end Semantics
 

@@ -32,21 +32,22 @@ namespace Graphiti.JoinRewrite2
 
 open StringModule
 
-variable (ε : FinEnv String (String × Nat))
-
-variable (h_wf : ∀ s, Env.well_formed ε.find? s)
-
-variable (S1 S2 : Nat)
+class Environment (lhs : Vector Nat 2 → ExprLow String (String × Nat)) where
+  ε : FinEnv String (String × Nat)
+  h_wf : ∀ s, Env.well_formed ε.find? s
+  types : Vector Nat 2
+  h_wt : (lhs types).well_typed ε.find?
+  max_type : Nat
 
 @[drunfold_defs]
-def lhs : ExprHigh String (String × Nat) := [graph|
+def lhs (types : Vector Nat 2) : ExprHigh String (String × Nat) := [graph|
     i_0 [type = "io"];
     i_1 [type = "io"];
     i_2 [type = "io"];
     o_out [type = "io"];
 
-    join1 [type = "join", arg = $(S1)];
-    join2 [type = "join", arg = $(S2)];
+    join1 [type = "join", arg = $(types[0])];
+    join2 [type = "join", arg = $(types[1])];
 
     i_0 -> join1 [to = "in1"];
     i_1 -> join1 [to = "in2"];
@@ -57,12 +58,16 @@ def lhs : ExprHigh String (String × Nat) := [graph|
     join2 -> o_out [from = "out1"];
   ]
 
-variable (h_wt : (lhs S1 S2).well_typed ε.find?)
-
-variable (max_type : Nat)
+@[drunfold_defs]
+def lhs_extract types := (lhs types).extract ["join1", "join2"] |>.get rfl
 
 @[drunfold_defs]
-def rhs : ExprHigh String (String × Nat) := [graph|
+def lhsLower types := (lhs_extract types).fst.lower_TR.get rfl
+
+variable [e : Environment lhsLower]
+
+@[drunfold_defs]
+def rhs (max_type : Nat) : ExprHigh String (String × Nat) := [graph|
     i_0 [type = "io"];
     i_1 [type = "io"];
     i_2 [type = "io"];
@@ -82,15 +87,11 @@ def rhs : ExprHigh String (String × Nat) := [graph|
     pure -> o_out [from = "out1"];
   ]
 
-@[drunfold_defs]
-def lhs_extract := (lhs S1 S2).extract ["join1", "join2"] |>.get rfl
+example : True := by grind
 
-@[drunfold_defs]
-def lhsLower := (lhs_extract S1 S2).fst.lower_TR.get rfl
-
-include h_wf h_wt in
-theorem join_s1 : ∃ (T : Type _ × Type _), ε.find? ("join", S1) = some (⟨_, join T.1 T.2⟩) := by
-  specialize h_wf "join"
+theorem join_s1 : ∃ (T : Type _ × Type _), e.ε.find? ("join", e.types[0]) = some (⟨_, join T.1 T.2⟩) := by
+  have h_wf := e.h_wf "join"
+  have h_wt := e.h_wt
   dsimp [Env.well_formed] at h_wf
   simp only at h_wf
   dsimp -failIfUnchanged [drunfold_defs, ExprHigh.well_typed, toString, reduceAssocListfind?, reduceListPartition] at h_wt
@@ -98,8 +99,9 @@ theorem join_s1 : ∃ (T : Type _ × Type _), ε.find? ("join", S1) = some (⟨_
   dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR] at h_wt
   obtain ⟨hl1, hsome, hwt⟩ := h_wt; cases hsome
   dsimp [ExprLow.well_typed, ExprHigh.uncurry, ExprLow.build_module_interface] at hwt
-  obtain ⟨-, mi, T, hsome, hfind1, hfind2⟩ := hwt
-  rw [Option.bind_eq_some] at hsome
+  -- obtain ⟨-, mi, T, hsome, hfind1, hfind2⟩ := hwt
+  simp only [Option.bind_eq_some,Option.map_eq_some] at hwt
+
   obtain ⟨int, hsome1, hsome2⟩ := hsome
   split at hsome1 <;> try contradiction
   cases hsome1; clear hsome2
@@ -109,7 +111,7 @@ theorem join_s1 : ∃ (T : Type _ × Type _), ε.find? ("join", S1) = some (⟨_
   exists T; rw [heq, hmod]
 
 include h_wf h_wt in
-theorem join_s2 : ∃ (T : Type _ × Type _), ε.find? ("join", S2) = some (⟨_, join T.1 T.2⟩) := by
+theorem join_s2 : ∃ (T : Type _ × Type _), ε.find? ("join", types[1]) = some (⟨_, join T.1 T.2⟩) := by
   specialize h_wf "join"
   dsimp [Env.well_formed] at h_wf
   simp only at h_wf
@@ -136,11 +138,11 @@ noncomputable def T1 : Type _ × Type _ := Exists.choose (join_s1 ε h_wf S1 S2 
 noncomputable def T2 : Type _ × Type _ := Exists.choose (join_s2 ε h_wf S1 S2 h_wt)
 
 @[drenv]
-theorem join_s1_ex : ε.find? ("join", S1) = some (⟨_, join (T1 ε h_wf S1 S2 h_wt).1 (T1 ε h_wf S1 S2 h_wt).2⟩) := by
-  apply Exists.choose_spec (join_s1 ε h_wf S1 S2 h_wt)
+theorem join_s1_ex : ε.find? ("join", S1) = some (⟨_, join (T1 ε h_wf S1 S2 h_wt).1 (T1 ε h_wf S1 S2 h_wt).2⟩) :=
+  Exists.choose_spec (join_s1 ε h_wf S1 S2 h_wt)
 
-theorem join_s2_ex : ε.find? ("join", S2) = some (⟨_, join (T2 ε h_wf S1 S2 h_wt).1 (T2 ε h_wf S1 S2 h_wt).2⟩) := by
-  apply Exists.choose_spec (join_s2 ε h_wf S1 S2 h_wt)
+theorem join_s2_ex : ε.find? ("join", S2) = some (⟨_, join (T2 ε h_wf S1 S2 h_wt).1 (T2 ε h_wf S1 S2 h_wt).2⟩) :=
+  Exists.choose_spec (join_s2 ε h_wf S1 S2 h_wt)
 
 include h_wf h_wt in
 theorem types_unify : ((T1 ε h_wf S1 S2 h_wt).1 × (T1 ε h_wf S1 S2 h_wt).2) = (T2 ε h_wf S1 S2 h_wt).1 := by

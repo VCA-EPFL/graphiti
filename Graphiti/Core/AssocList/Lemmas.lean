@@ -142,6 +142,9 @@ theorem mapKey_toList {α β} {l : AssocList α β} {f : α → α} :
   l.mapKey f = (l.toList.map (λ | (a, b) => (f a, b))).toAssocList := by
   induction l <;> simp [*]
 
+theorem mapKey_id {α β} {l : AssocList α β} :
+  l.mapKey id = l := by induction l <;> simp [*]
+
 @[drcompute]
 theorem mapVal_map_toAssocList {T α β1 β2} {l : List T}
   {f : α → β1 → β2} {g : T → α} {h : T → β1}:
