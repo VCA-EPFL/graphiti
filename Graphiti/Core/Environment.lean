@@ -55,21 +55,21 @@ def well_formed {α} (ε : Env String (String × α)) (s : String) : Prop :=
   match s with
   | "branch" => ∀ a mod, ε (s, a) = some mod → ∃ T, mod = ⟨_, StringModule.branch T⟩
   | "cntrl_merge" => ∀ a mod, ε (s, a) = some mod → ∃ T, mod = ⟨_, StringModule.cntrl_merge T⟩
-  | "constant" => ∀ a mod, ε (s, a) = some mod → ∃ T, ∃ (t : T), mod = ⟨_, StringModule.constant t⟩
+  | "constant" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Sigma id), mod = ⟨_, StringModule.constant T.2⟩
   | "fork" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Type _ × Nat), mod = ⟨_, StringModule.fork T.1 T.2⟩
   | "init" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Sigma id), mod = ⟨_, StringModule.init T.1 T.2⟩
   | "join" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Type _ × Type _), mod = ⟨_, StringModule.join T.1 T.2⟩
   | "load" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Type _ × Type _), mod = ⟨_, StringModule.load T.1 T.2⟩
   | "merge" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Type _ × Nat), mod = ⟨_, StringModule.merge T.1 T.2⟩
   | "mux" => ∀ a mod, ε (s, a) = some mod → ∃ T, mod = ⟨_, StringModule.mux T⟩
-  | "operator1" => ∀ a mod, ε (s, a) = some mod → ∃ T1 T2 T2m s, mod = ⟨_, @StringModule.operator1 T1 T2 T2m s⟩
-  | "operator2" => ∀ a mod, ε (s, a) = some mod → ∃ T1 T2 T3 T3m s, mod = ⟨_, @StringModule.operator2 T1 T2 T3 T3m s⟩
-  | "operator3" => ∀ a mod, ε (s, a) = some mod → ∃ T1 T2 T3 T4 T4m s, mod = ⟨_, @StringModule.operator3 T1 T2 T3 T4 T4m s⟩
-  | "pure" => ∀ a mod, ε (s, a) = some mod → ∃ α β, ∃ (f : α → β), mod = ⟨_, StringModule.pure f⟩
+  | "operator1" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Type _ × (Sigma (λ x => Inhabited x)) × String), mod = ⟨_, @StringModule.operator1 T.1 T.2.1.1 T.2.1.2 T.2.2⟩
+  | "operator2" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Type _ × Type _ × (Sigma (λ x => Inhabited x)) × String), mod = ⟨_, @StringModule.operator2 T.1 T.2.1 T.2.2.1.1 T.2.2.1.2 T.2.2.2⟩
+  | "operator3" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Type _ × Type _ × Type _ × (Sigma (λ x => Inhabited x)) × String), mod = ⟨_, @StringModule.operator3 T.1 T.2.1 T.2.2.1 T.2.2.2.1.1 T.2.2.2.1.2 T.2.2.2.2⟩
+  | "pure" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Sigma (λ ((x, y) : Type _ × Type _) => x -> y)), mod = ⟨_, StringModule.pure T.2⟩
   | "queue" => ∀ a mod, ε (s, a) = some mod → ∃ T, mod = ⟨_, StringModule.queue T⟩
-  | "sink" => ∀ a mod, ε (s, a) = some mod → ∃ T n, mod = ⟨_, StringModule.sink T n⟩
-  | "split" => ∀ a mod, ε (s, a) = some mod → ∃ T T', mod = ⟨_, StringModule.split T T'⟩
-  | "tagger_untagger_val" => ∀ a mod, ε (s, a) = some mod → ∃ TagT mm T T', mod = ⟨_, @StringModule.tagger_untagger_val TagT mm T T'⟩
+  | "sink" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Type _ × Nat), mod = ⟨_, StringModule.sink T.1 T.2⟩
+  | "split" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Type _ × Type _), mod = ⟨_, StringModule.split T.1 T.2⟩
+  | "tagger_untagger_val" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Sigma (λ x => DecidableEq x) × Type _ × Type _), mod = ⟨_, @StringModule.tagger_untagger_val T.1.1 T.1.2 T.2.1 T.2.2⟩
   | _ => True
 
 end Env

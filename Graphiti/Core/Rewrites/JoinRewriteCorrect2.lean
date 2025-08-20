@@ -18,10 +18,10 @@ import Graphiti.Core.Reduce
 import Graphiti.Core.List
 import Graphiti.Core.ExprHighLemmas
 import Graphiti.Core.Tactic
-import Graphiti.Core.Rewrites.JoinRewrite
 import Mathlib.Tactic
 import Graphiti.Core.Environment
 import Graphiti.Core.WellTyped
+import Graphiti.Core.ExprLowLemmas
 
 open Batteries (AssocList)
 
@@ -86,8 +86,6 @@ def rhs (max_type : Nat) : ExprHigh String (String × Nat) := [graph|
 
     pure -> o_out [from = "out1"];
   ]
-
-example : True := by grind
 
 theorem join_s1 : ∃ (T : Type _ × Type _), e.ε.find? ("join", e.types[0]) = some (⟨_, join T.1 T.2⟩) := by
   have h_wf := e.h_wf "join"

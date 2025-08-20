@@ -130,8 +130,7 @@ where
   rewrite : Rewrite String (String × Nat)
   ε_extension : FinEnv String (String × Nat)
   ε_independent : Env.independent ε_extension.toEnv ε.toEnv
-  lhs_wf : ∀ l, (rewrite.rewrite l).input_expr.well_formed ε.toEnv
-  rhs_wf : ∀ l, (rewrite.rewrite l).output_expr.well_formed (ε ++ ε_extension).toEnv
+  rhs_wf : ∀ l, (rewrite.rewrite l).output_expr.well_formed ε_extension.toEnv
   rhs_wt : ∀ l, (rewrite.rewrite l).output_expr.well_typed ε_extension.toEnv
   refinement : ∀ l,
     (rewrite.rewrite l).input_expr.well_typed ε.toEnv →
@@ -192,7 +191,9 @@ theorem Rewrite_run'_correct2 {b} {ε_global : FinEnv String (String × Nat)} {h
   rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
   have rw_output_wf : ExprLow.well_formed (ε_global ++ rw.ε_extension).toEnv (rw.rewrite.rewrite pattern.2).output_expr = true := by
     apply ExprLow.refines_subset_well_formed
-    apply Env.subsetOf_reflexive
+    apply FinEnv.independent_subset_of_union
+    apply Env.independent_symm
+    apply rw.ε_independent
     apply rw.rhs_wf
   have rw_input_wf : ExprLow.well_formed ε_global.toEnv (rw.rewrite.rewrite pattern.2).input_expr = true := by
     apply ExprLow.refines_subset_well_formed
@@ -330,7 +331,9 @@ theorem Rewrite_run'_correct2_well_formed {b} {ε_global : FinEnv String (String
   rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
   have rw_output_wf : ExprLow.well_formed (ε_global ++ rw.ε_extension).toEnv (rw.rewrite.rewrite pattern.2).output_expr = true := by
     apply ExprLow.refines_subset_well_formed
-    apply Env.subsetOf_reflexive
+    apply FinEnv.independent_subset_of_union
+    apply Env.independent_symm
+    apply rw.ε_independent
     apply rw.rhs_wf
   have rw_input_wf : ExprLow.well_formed ε_global.toEnv (rw.rewrite.rewrite pattern.2).input_expr = true := by
     apply ExprLow.refines_subset_well_formed
@@ -409,7 +412,9 @@ theorem Rewrite_run'_correct2_well_typed {b} {ε_global : FinEnv String (String 
   rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
   have rw_output_wf : ExprLow.well_formed (ε_global ++ rw.ε_extension).toEnv (rw.rewrite.rewrite pattern.2).output_expr = true := by
     apply ExprLow.refines_subset_well_formed
-    apply Env.subsetOf_reflexive
+    apply FinEnv.independent_subset_of_union
+    apply Env.independent_symm
+    apply rw.ε_independent
     apply rw.rhs_wf
   have rw_input_wf : ExprLow.well_formed ε_global.toEnv (rw.rewrite.rewrite pattern.2).input_expr = true := by
     apply ExprLow.refines_subset_well_formed
@@ -496,6 +501,11 @@ theorem Rewrite_run'_correct2_well_typed {b} {ε_global : FinEnv String (String 
     apply wo_wf
     assumption
     apply ExprLow.renamePorts_well_typed2
+
+    apply ExprLow.refines_subset_well_formed
+    apply FinEnv.independent_subset_of_union
+    apply Env.independent_symm
+    apply rw.ε_independent
     apply rw.rhs_wf
     rotate_left
     assumption
