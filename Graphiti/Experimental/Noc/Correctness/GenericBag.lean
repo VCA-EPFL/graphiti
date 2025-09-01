@@ -217,13 +217,19 @@ namespace Graphiti.Projects.Noc
                     ((Hv.mp v).1, noc.routing_policy.mkhead idx (Hv.mp v).2 (Hv.mp v).1)
                     (by sorry)
                   have ⟨tmp3, tmp4⟩ := get_output_unique tmp tmp2
-                  -- We are basically done here
-                  sorry
+                  cases heq: (rf idx ((Hv.mp v).1, noc.routing_policy.mkhead idx (Hv.mp v).2 (Hv.mp v).1))
+                  rw [heq] at tmp3 tmp4
+                  dsimp at tmp3 tmp4
+                  rw [tmp3, tmp4]
+                  rfl
                -- We need to rewrite `this` inside the if, which is annoying to
                -- do
+              -- TODO:
+              -- rw [Vector.set_getElem_self] is not working for some reason
+              unfold routing_function_reconstruct
               sorry
             · simp
-              -- TODO
+              -- TODO, annoying
               sorry
     -- Output rule
     · intros ident mid_i v Hrule

@@ -168,7 +168,7 @@ namespace Graphiti.Projects.Noc
               ⟨conn_inp.1, conn_inp.2.1⟩
             ⟩
             (conns_inp.eraseIdx conn_inp_idx, conn :: conns)
-        | .none => (conns_inp, conns) -- Provably unreachable
+        | .none => (conns_inp, conns) -- Unreachable
       )
       (conns_inp, [])
       conns_out).2

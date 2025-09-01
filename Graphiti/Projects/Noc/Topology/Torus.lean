@@ -154,6 +154,7 @@ namespace Graphiti.Projects.Noc
 
   def DirectedTorus.relative_route_xy (d : DirectedTorus) : d.RelativeRoute Data :=
     λ cur flit =>
+      -- TODO: This is wrong we need to modify the flit…
       if 0 < flit.2.diff_x then (d.DirX_out, flit)
       else if 0 < flit.2.diff_y then (d.DirY_out, flit)
       else (d.to_topology.DirLocal_out, flit)

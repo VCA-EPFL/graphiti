@@ -38,7 +38,7 @@ namespace Graphiti.Projects.Noc
       .base
       {
         input :=
-          .cons (NatModule.stringify_output 0) (router_out n rid 0)
+          .cons (NatModule.stringify_output 0) (router_inp n rid 0)
           (List.mapFinIdx
             (n.topology.neigh_inp rid)
             (λ dir _ hdir => ⟨
