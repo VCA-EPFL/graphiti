@@ -6,7 +6,7 @@ help:
 
 .PHONY: setup
 setup:
-	lake exe cache --repo=leanprover-community/mathlib4-nightly-testing get
+	lake exe cache get
 
 .PHONY: build
 build:

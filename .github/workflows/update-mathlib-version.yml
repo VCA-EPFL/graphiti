@@ -1,7 +1,7 @@
 name: Update mathlib version
 on:
-  schedule:
-    - cron: '45 16 * * 5'
+  # schedule:
+  #   - cron: '45 16 * * 5'
   workflow_dispatch:
 
 permissions: write-all

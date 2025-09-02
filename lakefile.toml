@@ -19,8 +19,8 @@ weak.aesop.warn.applyIff = false
 
 [[require]]
 name = "mathlib"
-git = "https://github.com/leanprover-community/mathlib4-nightly-testing"
-rev = "nightly-testing-2025-08-01"
+git = "https://github.com/leanprover-community/mathlib4"
+rev = "v4.23.0-rc2"
 
 [[lean_lib]]
 name = "Graphiti"
