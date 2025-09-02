@@ -31,7 +31,7 @@ jobs:
       - name: Get mathlib cache
         continue-on-error: true
         run: |
-          (lake exe cache --repo=leanprover-community/mathlib4-nightly-testing get; true)
+          (make setup; true)
 
       - name: verify `lake build GraphitiCore` works
         run: |
