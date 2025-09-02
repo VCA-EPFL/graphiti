@@ -10,14 +10,14 @@ import Graphiti.Core.Component
 import Graphiti.Core.ExprLow
 import Graphiti.Projects.Noc.Lang
 
-namespace Graphiti.Projects.Noc.Router
+namespace Graphiti.Projects.Noc.Buffer
 
   variable (netsz : Netsz) (Flit : Type)
 
   namespace Unbounded
 
     @[drunfold_defs]
-    def queue : Router netsz Flit :=
+    def queue : Buffer netsz Flit :=
       {
         State       := List Flit
         init_state  := []
@@ -26,7 +26,7 @@ namespace Graphiti.Projects.Noc.Router
       }
 
     @[drunfold_defs]
-    def bag : Router netsz Flit :=
+    def bag : Buffer netsz Flit :=
       {
         State       := List Flit
         init_state  := []
@@ -43,7 +43,7 @@ namespace Graphiti.Projects.Noc.Router
     variable (len : Nat)
 
     @[drunfold_defs]
-    def queue : Router netsz Flit :=
+    def queue : Buffer netsz Flit :=
       {
         State       := List Flit
         init_state  := []
@@ -52,7 +52,7 @@ namespace Graphiti.Projects.Noc.Router
       }
 
     @[drunfold_defs]
-    def bag : Router netsz Flit :=
+    def bag : Buffer netsz Flit :=
       {
         State       := List Flit
         init_state  := []
@@ -64,4 +64,4 @@ namespace Graphiti.Projects.Noc.Router
 
   end Bounded
 
-end Graphiti.Projects.Noc.Router
+end Graphiti.Projects.Noc.Buffer

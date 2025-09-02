@@ -7,7 +7,7 @@ Authors: Yann Herklotz, Gurvan Debaussart
 import Graphiti.Projects.Noc.Lang
 import Graphiti.Projects.Noc.BuildModule
 import Graphiti.Projects.Noc.Spec
-import Graphiti.Projects.Noc.Router
+import Graphiti.Projects.Noc.Buffer
 import Graphiti.Projects.Noc.Lemmas
 
 open Batteries (AssocList)
@@ -58,7 +58,7 @@ namespace Graphiti.Projects.Noc
 
   @[simp, drcomponents]
   def noc' (noc : Noc Data netsz) :=
-    { noc with router := Router.Unbounded.bag netsz noc.routing_policy.Flit }
+    { noc with buffer := Buffer.Unbounded.bag netsz noc.routing_policy.Flit }
 
   class NocCorrect (noc : Noc Data netsz) where
     routing_policy  : routing_policy_correct (noc' noc)
@@ -170,7 +170,7 @@ namespace Graphiti.Projects.Noc
               apply Hrf1
               by_cases hsrceqidx: src = idx
               · subst src
-                simp only [Router.Unbounded.bag.eq_1, RouterID', List.remove.eq_1, Fin.getElem_fin,
+                simp only [Buffer.Unbounded.bag.eq_1, RouterID', List.remove.eq_1, Fin.getElem_fin,
                   Noc.Flit, RoutingPolicy.Flit, Flit', modT, Noc.State, noc', Noc.RouterID,
                   Topology.RouterID, BEq.rfl, typeOf, Bool.true_and, beq_eq_false_iff_ne,
                   ne_eq] at Hflit h
@@ -179,7 +179,7 @@ namespace Graphiti.Projects.Noc
                 | inl Hflit' => assumption
                 | inr Hflit' => cases Hflit' <;> contradiction
               · specialize Hrule2 src (by intro _; subst idx; apply hsrceqidx; rfl)
-                simp only [Router.Unbounded.bag.eq_1, RouterID', List.remove.eq_1, Fin.getElem_fin,
+                simp only [Buffer.Unbounded.bag.eq_1, RouterID', List.remove.eq_1, Fin.getElem_fin,
                   Noc.Flit, RoutingPolicy.Flit, Flit', modT, Noc.State, noc', Noc.RouterID,
                   Topology.RouterID] at Hflit ⊢
                 rwa [←Hrule2]
@@ -202,7 +202,7 @@ namespace Graphiti.Projects.Noc
             rw [vec_set_toList]
             rw [list_set_flatten (hidx := by simpa)]
             rw [←List.insertIdx_length_self]
-            apply list_Perm_insertIdx (hidx2 := by rfl)
+            apply list_Perm_insertIdx (hidx2 := by simpa)
             · apply List.Perm.trans _ Hrf2
               rw [←vec_set_toList, ←vec_set_map]
               have :
@@ -254,7 +254,8 @@ namespace Graphiti.Projects.Noc
           apply list_perm_in Hrf2
           simp only [
             routing_function_reconstruct, typeOf, eq_mp_eq_cast, List.mem_flatten,
-            Vector.mem_toList_iff, Vector.mem_mapFinIdx]
+            Vector.mem_toList_iff, Vector.mem_mapFinIdx
+          ]
           have HflitIn : List.Mem out_flit i[idx] :=
             List.mem_of_getElem Hrule3_3
           apply Exists.intro _
@@ -271,7 +272,7 @@ namespace Graphiti.Projects.Noc
             cases Hrf1
             · rename_i f1 f2 f3 f4
               simp only [
-                noc', RoutingPolicy.Flit, Flit', Router.Unbounded.bag.eq_1,
+                noc', RoutingPolicy.Flit, Flit', Buffer.Unbounded.bag.eq_1,
                 RouterID', List.remove.eq_1, Fin.getElem_fin, Topology.Dir_out,
                 Topology.out_len, typeOf, eq_mp_eq_cast
               ] at f3 Hrule1
@@ -322,7 +323,7 @@ namespace Graphiti.Projects.Noc
           by_cases Heq: idx = src
           · -- Yes, we are
             subst src
-            simp only [Router.Unbounded.bag.eq_1, RouterID', List.remove.eq_1,
+            simp only [Buffer.Unbounded.bag.eq_1, RouterID', List.remove.eq_1,
               Fin.getElem_fin, Noc.Flit, RoutingPolicy.Flit, Flit', modT,
               Noc.State, noc', Noc.RouterID, Topology.RouterID
             ] at Hflit ⊢
@@ -412,7 +413,7 @@ namespace Graphiti.Projects.Noc
             · -- We are not looking at the modified router, we don't need an extra step
               apply Hrf1
               specialize (H8 src (by intro h; apply Heq1; rw [h]))
-              simp only [noc', RoutingPolicy.Flit, Flit', Router.Unbounded.bag.eq_1, RouterID',
+              simp only [noc', RoutingPolicy.Flit, Flit', Buffer.Unbounded.bag.eq_1, RouterID',
                               List.remove.eq_1, Fin.getElem_fin, Noc.Flit, modT, Noc.State, Noc.RouterID,
                 Topology.RouterID] at ⊢ H5 Hflit
               rw [H8] at Hflit
@@ -430,7 +431,7 @@ namespace Graphiti.Projects.Noc
                 -- We don't need an extra step
                 apply Hrf1
                 subst src
-                simp only [noc', RoutingPolicy.Flit, Flit', Router.Unbounded.bag.eq_1, RouterID',
+                simp only [noc', RoutingPolicy.Flit, Flit', Buffer.Unbounded.bag.eq_1, RouterID',
                   List.remove.eq_1, Fin.getElem_fin, Noc.Flit, modT, Noc.State, Noc.RouterID,
                   Topology.RouterID] at Hflit
                 by_cases Heq3 : idx_inp = idx_out
@@ -456,7 +457,7 @@ namespace Graphiti.Projects.Noc
                   (flit := out_val)
                   (by
                     apply List.mem_of_getElem
-                    simp only [noc', RoutingPolicy.Flit, Flit', Router.Unbounded.bag.eq_1,
+                    simp only [noc', RoutingPolicy.Flit, Flit', Buffer.Unbounded.bag.eq_1,
                       RouterID', List.remove.eq_1, Fin.getElem_fin, Noc.Flit, modT, Noc.State,
                       Noc.RouterID, Topology.RouterID]
                     exact H5

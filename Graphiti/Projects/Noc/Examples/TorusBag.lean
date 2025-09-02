@@ -10,7 +10,7 @@ import Graphiti.Core.Component
 import Graphiti.Core.ExprHigh
 import Graphiti.Core.ExprLow
 import Graphiti.Projects.Noc.Lang
-import Graphiti.Projects.Noc.Router
+import Graphiti.Projects.Noc.Buffer
 import Graphiti.Projects.Noc.Topology.Torus
 import Graphiti.Projects.Noc.BuildExpr
 import Graphiti.Projects.Noc.BuildModule
@@ -31,7 +31,7 @@ namespace Graphiti.Projects.Noc.Examples
     {
       topology := topo
       routing_policy := dt.AbsoluteRoutingPolicy Data
-      router := Router.Unbounded.bag dt.netsz (dt.AbsoluteFlit Data)
+      buffer := Buffer.Unbounded.bag dt.netsz (dt.AbsoluteFlit Data)
       DataS := "Nat"
     }
 

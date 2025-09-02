@@ -9,24 +9,21 @@ import Graphiti.Core.Component
 import Graphiti.Projects.Noc.Utils
 import Graphiti.Projects.Noc.Lang
 
-set_option autoImplicit false
-set_option linter.all false
-
 namespace Graphiti.Projects.Noc
 
   variable {Data : Type} [BEq Data] [LawfulBEq Data] {netsz : Netsz}
 
   @[drcomponents]
   abbrev Noc.router_output_rel (n : Noc Data netsz) :=
-    λ (rid : n.RouterID) (dir : n.Dir_out rid) (old_s : n.router.State) (val : n.Flit) (new_s : n.router.State) =>
+    λ (rid : n.RouterID) (dir : n.Dir_out rid) (old_s : n.buffer.State) (val : n.Flit) (new_s : n.buffer.State) =>
       let val' := n.routing_policy.route rid val
       dir = val'.1 ∧
-      n.router.output_rel rid old_s val new_s
+      n.buffer.output_rel rid old_s val new_s
 
   @[drcomponents]
   abbrev Noc.input_rel (n : Noc Data netsz) : n.Rel_inp n.Flit :=
     λ rid dir old_s val new_s =>
-      n.router.input_rel rid old_s[rid] val new_s[rid]
+      n.buffer.input_rel rid old_s[rid] val new_s[rid]
       ∧ ∀ (rid' : n.RouterID), rid ≠ rid' → new_s[rid'] = old_s[rid']
 
   @[drcomponents]
@@ -68,7 +65,7 @@ namespace Graphiti.Projects.Noc
       inputs := RelIO.liftFinf netsz n.mk_router_input,
       outputs := RelIO.liftFinf netsz n.mk_router_output,
       internals := (n.topology.conns).map (n.mk_router_conn),
-      init_state := λ s => s = Vector.replicate netsz n.router.init_state,
+      init_state := λ s => s = Vector.replicate netsz n.buffer.init_state,
     }
 
 end Graphiti.Projects.Noc

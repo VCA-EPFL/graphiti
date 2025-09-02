@@ -208,39 +208,37 @@ namespace Graphiti.Projects.Noc
   abbrev RoutingPolicy.MkHead (rp : RoutingPolicy t Data) :=
     MkHead' t Data rp.FlitHeader
 
-  -- Router --------------------------------------------------------------------
-  -- Limitations:
-  --  Initial state in fixed
+  -- Buffer --------------------------------------------------------------------
 
-  -- TODO: RouterRel' could have a `Dir_inp rid` as a parameter so we know where
-  -- we got the message from
+  -- TODO: BufferRel' should have a `Dir_inp rid` as a parameter so we know
+  -- where we got the message from
   @[simp]
-  abbrev RouterRel' (netsz : Netsz) (Flit RouterState : Type) :=
-    (rid : RouterID' netsz) → (old_s : RouterState) → (val : Flit) → (old_s : RouterState) → Prop
+  abbrev BufferRel' (netsz : Netsz) (Flit BufferState : Type) :=
+    (rid : RouterID' netsz) → (old_s : BufferState) → (val : Flit) → (old_s : BufferState) → Prop
 
-  structure Router (netsz : Netsz) (Flit : Type) where
+  structure Buffer (netsz : Netsz) (Flit : Type) where
     State       : Type
     init_state  : State
-    input_rel   : RouterRel' netsz Flit State
-    output_rel  : RouterRel' netsz Flit State
+    input_rel   : BufferRel' netsz Flit State
+    output_rel  : BufferRel' netsz Flit State
 
   @[simp]
-  abbrev Router.Rel {netsz : Netsz} {Flit : Type} (r : Router netsz Flit) :=
-    RouterRel' netsz Flit r.State
+  abbrev Buffer.Rel {netsz : Netsz} {Flit : Type} (r : Buffer netsz Flit) :=
+    BufferRel' netsz Flit r.State
 
   -- Noc -----------------------------------------------------------------------
 
   structure Noc (Data : Type) [BEq Data] [LawfulBEq Data] (netsz : Netsz) where
     topology        : Topology netsz
     routing_policy  : RoutingPolicy topology Data
-    router          : Router netsz routing_policy.Flit
+    buffer          : Buffer netsz routing_policy.Flit
     DataS           : String
 
   variable {Data : Type} [BEq Data] [LawfulBEq Data] {netsz : Netsz}
 
   @[simp]
   abbrev Noc.State (n : Noc Data netsz) :=
-    Vector n.router.State netsz
+    Vector n.buffer.State netsz
 
   @[simp]
   abbrev Noc.RouterID (n : Noc Data netsz) :=
