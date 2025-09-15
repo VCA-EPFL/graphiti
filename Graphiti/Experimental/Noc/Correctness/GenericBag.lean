@@ -36,22 +36,43 @@ namespace Graphiti.Projects.Noc
     get_output noc src dst' src_flit dst_data' →
     dst = dst' ∧ dst_data = dst_data' := by
       intro h1
+      -- TODO: Maybe this proof could be made simpler
       induction h1 with
-      | step src dst src_flit mid_flit dst_data dir hdir h1_1 h1_2 HR => sorry
-      | done src src_flit dst_flit => sorry
+      | step src dst src_flit mid_flit dst_data dir hdir h1_1 h1_2 HR =>
+        intro h2
+        cases h2
+        · rename_i mid_flit dir hdir h1 h2
+          rw [h1_1] at h1
+          cases h1
+          apply HR h2
+        · rename_i h2
+          rw [h1_1] at h2
+          cases h2
+          contradiction
+      | done src src_flit dst_flit hroute =>
+        intro h2
+        cases h2
+        · rename_i mid_flit dir hdir h1 h2
+          rw [hroute] at h1
+          cases h1
+          contradiction
+        · rename_i h2
+          rw [hroute] at h2
+          cases h2
+          apply And.intro <;> rfl
 
   -- This correctness is partial. It requires that the data is exactly the same
   -- in the end.
   -- This is true because we want to show that the noc behave as a bag, but it
   -- would also be nice that it behaves like a bag + a pure function applied to
   -- it.
-  def routing_policy_correct (noc : Noc Data netsz) : Prop :=
+  def Noc.routing_policy_correct (noc : Noc Data netsz) : Prop :=
     ∀ (src dst : (noc.RouterID)) data,
       get_output noc src dst (data, noc.routing_policy.mkhead src dst data) data
 
   -- A weaker, more general version where we don't require that output will
   -- actually leave, but if they do, it has to be at the correct output router
-  def routing_policy_correct' (noc : Noc Data netsz) : Prop :=
+  def Noc.routing_policy_correct_weak (noc : Noc Data netsz) : Prop :=
     ∀ (src dst dst' : (noc.RouterID)) data data',
       get_output noc src dst' (data, noc.routing_policy.mkhead src dst data) data'
       → dst = dst' ∧ data = data'
@@ -61,7 +82,7 @@ namespace Graphiti.Projects.Noc
     { noc with buffer := Buffer.Unbounded.bag netsz noc.routing_policy.Flit }
 
   class NocCorrect (noc : Noc Data netsz) where
-    routing_policy  : routing_policy_correct (noc' noc)
+    routing_policy  : noc.routing_policy_correct
 
   variable (noc : Noc Data netsz)
   variable [NC : NocCorrect (noc' noc)]
@@ -97,13 +118,10 @@ namespace Graphiti.Projects.Noc
   def φ (I : (modT (noc' noc))) (S : (specT (noc' noc))) : Prop :=
     ∃ rf : routing_function noc,
       routing_function_correct noc rf I
-    -- We could use Setoids with ≈ but does not seem to work well
-    -- We would like to use Quotient but I don't know how to…
-    -- Quotient.mk (
     ∧ (routing_function_reconstruct _ rf I).Perm S
 
-  -- Initial correctness relies on the fact that routers of the noc are correct
-  -- (Since they are effectively bag routers)
+  -- Initial correctness relies on the fact that buffers of the noc are correct
+  -- (Since they are effectively bag buffers)
   omit NC [BEq noc.routing_policy.FlitHeader] [LawfulBEq noc.routing_policy.FlitHeader] in
   theorem refines_initial :
     Module.refines_initial (mod (noc' noc)) (spec (noc' noc)) (φ (noc' noc)) := by
@@ -125,7 +143,7 @@ namespace Graphiti.Projects.Noc
             exists_and_right, and_imp, imp_self, implies_true
           ]
 
-  theorem refines_φ : (mod (noc' noc)) ⊑_{φ (noc' noc)} (spec (noc' noc)) := by
+  theorem refines_φ : mod (noc' noc) ⊑_{φ (noc' noc)} spec (noc' noc) := by
     intro i s ⟨rf, Hrf1, Hrf2⟩
     constructor
     -- Input rule
@@ -211,7 +229,7 @@ namespace Graphiti.Projects.Noc
                   dsimp at Hrf1
                   have tmp := Hrf1 idx
                   have tmp2 := NC.routing_policy
-                  unfold routing_policy_correct at tmp2
+                  unfold Noc.routing_policy_correct at tmp2
                   specialize tmp2 idx (Hv.mp v).2 (Hv.mp v).1
                   specialize tmp
                     ((Hv.mp v).1, noc.routing_policy.mkhead idx (Hv.mp v).2 (Hv.mp v).1)
@@ -229,7 +247,21 @@ namespace Graphiti.Projects.Noc
               unfold routing_function_reconstruct
               sorry
             · simp
-              -- TODO, annoying
+              rw [←Vector.toList_map]
+              rw [←Vector.mapIdx_eq_map]
+              rw [Vector.mapIdx_eq_mapFinIdx]
+              rw [Vector.mapFinIdx_mapFinIdx]
+              -- FIXME: Why doesn't this work without a conv?
+              conv =>
+                right
+                pattern List.length _
+                rw [List.length_map]
+              conv =>
+                left
+                pattern List.length _
+                rw [List.length_map]
+              simp only [Vector.mapFinIdx_eq_mapIdx, Vector.mapIdx_eq_map]
+              -- TODO: Obviously true
               sorry
     -- Output rule
     · intros ident mid_i v Hrule
@@ -262,6 +294,7 @@ namespace Graphiti.Projects.Noc
           and_intros
           · exists idx.1, idx.2
           · specialize Hrf1 idx out_flit HflitIn
+            -- TODO: This should be made into a tactic as it is used a lot
             have ⟨rf_out, Hrf_out⟩ : ∃ x, x = rf idx out_flit := by
               exists rf idx (out_flit.1, out_flit.2)
             have ⟨rf_out1, Hrf_out1⟩ : ∃ x, x = rf_out.1 := by
@@ -344,14 +377,15 @@ namespace Graphiti.Projects.Noc
             (idx := idx)
             (l1 := (List.map (rf idx) i[↑idx]))
             (idx1 := Hrule3_1)
-            (hidx1 := by sorry)
-            (hidx := by sorry)
+            (hidx1 := by obtain ⟨_, _⟩ := Hrule3_1; simpa)
+            (hidx := by simpa)
           simp [drcomponents, drunfold_defs] at ⊢ Hidx'1
           rw [Hidx'1]
           apply list_Perm_eraseIdx
           · simp [drunfold_defs, drcomponents] at Hsidx Hidx'2 ⊢
             rw [Hrule3_3] at Hidx'2
             rw [Hsidx]
+            -- We want rw [mem_iff_getElem], need rw typeclass first
             obtain Hrule1' := Hrf1 idx out_flit (by sorry)
             have ⟨x, Hx⟩ : ∃ x, (rf idx out_flit) = x := by exists rf idx out_flit
             rw [Hx] at Hrule1'
@@ -413,9 +447,11 @@ namespace Graphiti.Projects.Noc
             · -- We are not looking at the modified router, we don't need an extra step
               apply Hrf1
               specialize (H8 src (by intro h; apply Heq1; rw [h]))
-              simp only [noc', RoutingPolicy.Flit, Flit', Buffer.Unbounded.bag.eq_1, RouterID',
-                              List.remove.eq_1, Fin.getElem_fin, Noc.Flit, modT, Noc.State, Noc.RouterID,
-                Topology.RouterID] at ⊢ H5 Hflit
+              simp only [
+                noc', RoutingPolicy.Flit, Flit', Buffer.Unbounded.bag.eq_1,
+                RouterID', List.remove.eq_1, Fin.getElem_fin, Noc.Flit, modT,
+                Noc.State, Noc.RouterID, Topology.RouterID
+              ] at ⊢ H5 Hflit
               rw [H8] at Hflit
               by_cases Heq3: idx_out = src
               · subst src
@@ -478,8 +514,7 @@ namespace Graphiti.Projects.Noc
                   dsimp at H1' H2'
                   rw [H1] at H1'
                   obtain ⟨rfl, rfl⟩ := H1'
-                  have := conns_getConnDir_out Hconn1
-                  rwa [this] at H2'
+                  rwa [conns_getConnDir_out Hconn1] at H2'
                 · rename_i dir' Hdir' flit' Hflit'
                   subst dir_out
                   simp [drcomponents, drunfold_defs] at Hdir Hflit'
@@ -504,10 +539,14 @@ namespace Graphiti.Projects.Noc
                 simp; intro h;
                 apply Heq; cases idx_out; cases idx_inp; simp only at h; simp only [h])
               ]
-              rw [vec_set_toList]
+              -- rw [vec_set_toList]
+              -- We have
+              -- v.mapFinIdx (λ i flit h => f).set i ((f i.1 v[i] i.2) ++ ...)
+              -- We want to get this last parenthesis back into the map, with
+              -- the insertion outside of it
               sorry
 
-  theorem correct : (mod (noc' noc)) ⊑ (spec (noc' noc)) := by
+  theorem correct : mod (noc' noc) ⊑ spec (noc' noc) := by
     exists inferInstance, φ (noc' noc); solve_by_elim [refines_φ, refines_initial]
 
 end Graphiti.Projects.Noc

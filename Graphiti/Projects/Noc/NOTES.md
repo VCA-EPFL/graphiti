@@ -1,25 +1,45 @@
 # Notes
 
-## Noc language
-
-- `UnboundedQueueInUnboundedBag` could be proven using `RouterIn`
+- We should move `Experimental/GenericBag` -> `CorrectNoc.lean` /
+  `CorrectNocProof.lean`, `Experimental/BuildExprCorrect` -> `CorrectBuildExpr.lean`
 
 ## Routing Policy
 
-- The `Route` function is currently necessarily deterministic, which we don't
-  want
+- We want to keep the routing policy deterministic, but we would like a router
+  state for dynamic routing
 
-## Routers
+- Router should probably also have the information about which output channels
+  are full or not?
 
-- `Router.init_state` should be a relation
+- Maybe it is not that important that `Data` can be modified by routers and we
+  are only interested in modifying headers
 
-- Non homogeneous routers: They are a huge pain and should be left for later
+- It is currently not really possible for a routing policy to drop packets / to
+  broadcast them to multiple outputs.
+  This should be fixable by making a routing policy return a `List` of output
+  where to put packets.
 
-## Interesting for later
+## Correctness
+
+We are currently only proving functional correctness, but it would be
+interesting to prove deadlock and livelock freedom.
 
 - Study how deadlock freedom is a liveness property in trace-based semantics:
-  + Study how to express liveness property refinement. A thing would be to have
-    a φ which is preserved with a ∀ instead of an ∃
+  + Study how to express liveness property refinement.
+    A thing would be to have a φ which is preserved with a ∀ instead of an ∃
+  + Trace prefix equivalence in deterministic modules should be enough for
+    liveness equivalence
+
+For the routing policy:
+- Prove that the strong correctness implies full equivalence
+
+- Prove that the weak correctness implies one way refinement
+
+- Prove that the strong correctness implies weak correctness
+
+An interesting thing is that we have a non-deterministic model even though every
+implementation is non-deterministic.
+This makes some sense, but can also make verification harder?
 
 ## Proof of BuildExpr correctness
 
@@ -47,36 +67,22 @@
   router string along the line of `RelativeRouter 5 5 Data` or maybe first
   argument is `Router Arbiter RouterID`
 
-- With insight, we could have sort of compiled to Constellation right?
-
 ## Compiling to hadrware
 
-- We have the problem of component names:
-  + We currently consider `Router` to be a bit of a magic type, which only take
-    one argument, the RouterID. We should probably instead consider a more
-    careful naming, where the router take as a parameter the routing policy
-    (Which itself might be dependent on Data type and other stuff?)
-    We currently have `Router 0`, but would maybe want:
-    `RouterBounded Data (ArbiterAbsolute Topology Data RouterID) RouterID`
-    Maybe we could change the Noc language and merge `RoutingPolicy` into `Router`,
-    but the problem is that at a language level they are different things, but
-    when instantiated they become related.
-    OR: In our build expr, we would instead want to have a RoutingPolicy (Wich
-    really should be renamed to arbiter), and also build using this arbiter,
-    which would make a lot more sense.
-    But this would require having extra `output / input` to Router, which
-    would be annoying, and would split the router significantly.
-    The solution where the arbiter is just part of the router from a noc level
-    might be easier for the purpose
+Our language is currently not compilable to hardware.
 
-## Current limitations
+Problems:
 
-- Necessarily uniform routers
-- Routers are necessarily deterministic
-- Routers only have one initial state
+- Our function are manipulating Lean4 values
 
-## Design choices
+- Buffer definition is defined with a transition relation
 
-- We have embedded the `FlitHeader` into the `Noc` definition to allow
-  refinement. We could consider relying on the user to embed it into `Data`, but
-  we wouldn't be able to compare multiple `Noc` implementation this way
+- Routing is a Lean4 function
+
+## References
+
+- Take a more in depth look at the P4 language
+
+- Ask Thomas for more reference on routing strictly with routing tables
+
+- Search for background on latency-insensitive NoC

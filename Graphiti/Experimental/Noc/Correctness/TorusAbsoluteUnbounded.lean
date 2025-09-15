@@ -8,7 +8,7 @@ import Graphiti.Projects.Noc.Lang
 import Graphiti.Projects.Noc.BuildModule
 import Graphiti.Projects.Noc.Topology.Torus
 import Graphiti.Projects.Noc.Spec
-import Graphiti.Projects.Noc.Router
+import Graphiti.Projects.Noc.Buffer
 
 open Batteries (AssocList)
 

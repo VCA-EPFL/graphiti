@@ -96,6 +96,7 @@ namespace Graphiti.Projects.Noc
   theorem fin_cast {sz sz' : Nat} (h : sz = sz' := by rfl) :
     Fin sz = Fin sz' := by subst h; rfl
 
+
   -- RelIO ---------------------------------------------------------------------
 
   @[simp] abbrev RelIO (S : Type) := Σ T : Type, S → T → S → Prop
@@ -163,10 +164,14 @@ namespace Graphiti.Projects.Noc
         · subst x; apply Exists.intro ⟨0, by simpa⟩; rfl
         · obtain ⟨i, Hi'⟩ := HR H; exists ⟨i + 1, by simpa⟩
 
-  variable {α} {n : Nat}
+  variable {α β} {n : Nat}
 
   theorem vec_in_if_idx {v : Vector α n} {x : α} (hin : x ∈ v) :
      ∃ i : Fin n, v[i] = x := by sorry
+
+  theorem Vector.mapIdx_eq_map {v : Vector α n} (f : α → β) :
+    v.mapIdx (λ _ => f) = v.map f := by
+      sorry
 
   theorem idx_in_vec {v : Vector α n} {x : α} (hidx : ∃ i : Fin n, v[i] = x) :
      x ∈ v := by sorry
@@ -185,16 +190,50 @@ namespace Graphiti.Projects.Noc
     (v.set idx elt).toList = v.toList.set idx elt := by
       sorry
 
+  theorem list_insertIdx_length {l1 l2 : List α} {idx : Nat} {hidx : idx <= l1.length}
+    {l1 : List α} {elt : α} :
+    (l1 ++ l2).insertIdx idx elt = (l1.insertIdx idx elt) ++ l2
+    := by
+      induction l1 generalizing idx hidx with
+      | nil =>
+        -- from the fact idx <= l1.length = [].length
+        have : idx = 0 := by sorry
+        subst idx
+        simp
+      | cons hd tl HR =>
+        simp
+        sorry
+
+  -- FIXME: Is this true?
+  -- Interesting lemmas:
+  -- List.insertIdx_length_self
+  -- Could be weakened by not specifying which index in the insertIdx
+  -- The index at which we insert might be false
+  -- We are inserting at (List.map List.length l[0:idx]).sum, right?
   theorem list_set_flatten {l : List (List α)} {l1 : List α} {elt : α}
     {idx : Nat} {hidx : idx < l.length}  :
     (l.set idx (l1 ++ [elt])).flatten
-    = (l.set idx l1).flatten.insertIdx (idx + List.length l1) elt := by
-    induction l with
-    | nil => contradiction
-    | cons hd tl HR => sorry
+    = (l.set idx l1).flatten.insertIdx ((List.take idx (l.map List.length)).sum + l1.length) elt := by
+      induction idx generalizing l l1 with
+      | zero =>
+        cases l with
+        | nil => contradiction
+        | cons hd tl =>
+          simp
+          rw [list_insertIdx_length
+            (l1 := l1) (l2 := tl.flatten) (idx := l1.length)
+            (hidx := by apply Nat.le_refl)
+          ]
+          simpa
+      | succ idx' HR =>
+        induction l with
+        | nil => contradiction
+        | cons hd tl HR2 =>
+          simp
+          sorry
 
-  theorem list_Perm_insertIdx {l1 l2 : List α} {hPerm : l1.Perm l2} {idx1 idx2
-  : Nat} {hidx1 : idx1 <= l1.length} {hidx2 : idx2 <= l2.length} {elt : α} :
+  theorem list_Perm_insertIdx {l1 l2 : List α} {hPerm : l1.Perm l2}
+    {idx1 idx2 : Nat} {hidx1 : idx1 <= l1.length} {hidx2 : idx2 <= l2.length} {elt : α} :
     (l1.insertIdx idx1 elt).Perm (l2.insertIdx idx2 elt) := by sorry
 
   theorem list_map_eraseIdx {α β} {l : List α} {idx : Fin l.length} {f : α → β} :

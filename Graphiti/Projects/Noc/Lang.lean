@@ -210,11 +210,13 @@ namespace Graphiti.Projects.Noc
 
   -- Buffer --------------------------------------------------------------------
 
-  -- TODO: BufferRel' should have a `Dir_inp rid` as a parameter so we know
+  -- TODO: BufferRel' should have a `Dir_inp rid` / `Dir_out rid` as a parameter so we know
   -- where we got the message from
+  -- This require parametrizing Buffer by the topology instead of just the netsz
+  -- but it should not be a real problem
   @[simp]
   abbrev BufferRel' (netsz : Netsz) (Flit BufferState : Type) :=
-    (rid : RouterID' netsz) → (old_s : BufferState) → (val : Flit) → (old_s : BufferState) → Prop
+    (rid : RouterID' netsz) → (old_s : BufferState) → (val : Flit) → (new_s : BufferState) → Prop
 
   structure Buffer (netsz : Netsz) (Flit : Type) where
     State       : Type
