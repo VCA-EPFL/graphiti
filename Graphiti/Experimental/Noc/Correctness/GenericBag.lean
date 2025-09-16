@@ -223,35 +223,55 @@ namespace Graphiti.Projects.Noc
             apply list_Perm_insertIdx (hidx2 := by simpa)
             · apply List.Perm.trans _ Hrf2
               rw [←vec_set_toList, ←vec_set_map]
+              simp only [drunfold_defs, Vector.set_getElem_self] at ⊢
+              -- TODO: Is there a tactic to do that? i want to apply List.Perm.refl
+              -- And have as a goal the proof
               have :
-                rf idx ((Hv.mp v).1, noc.routing_policy.mkhead idx (Hv.mp v).2 (Hv.mp v).1)
-                = Hv.mp v := by
-                  dsimp at Hrf1
-                  have tmp := Hrf1 idx
-                  have tmp2 := NC.routing_policy
-                  unfold Noc.routing_policy_correct at tmp2
-                  specialize tmp2 idx (Hv.mp v).2 (Hv.mp v).1
-                  specialize tmp
-                    ((Hv.mp v).1, noc.routing_policy.mkhead idx (Hv.mp v).2 (Hv.mp v).1)
-                    (by sorry)
-                  have ⟨tmp3, tmp4⟩ := get_output_unique tmp tmp2
-                  cases heq: (rf idx ((Hv.mp v).1, noc.routing_policy.mkhead idx (Hv.mp v).2 (Hv.mp v).1))
-                  rw [heq] at tmp3 tmp4
-                  dsimp at tmp3 tmp4
-                  rw [tmp3, tmp4]
-                  rfl
-               -- We need to rewrite `this` inside the if, which is annoying to
-               -- do
-              -- TODO:
-              -- rw [Vector.set_getElem_self] is not working for some reason
-              unfold routing_function_reconstruct
-              sorry
-            · simp
+                (i.mapFinIdx (λ i flits h => List.map (rf ⟨i, h⟩) flits))
+                =
+                  i.mapFinIdx (λ i flits h =>
+                    List.map
+                      (λ flit =>
+                        if (⟨i, h⟩ == idx &&
+                          flit == ((cast Hv v).fst, noc.routing_policy.mkhead idx (cast Hv v).snd (cast Hv v).fst)) = true
+                        then cast Hv v
+                        else rf ⟨i, h⟩ flit)
+                    flits) := by
+                      apply Vector.ext
+                      simp only [
+                        noc', RoutingPolicy.Flit, Flit', Noc.RouterID,
+                        Topology.RouterID, RouterID', Noc.Flit,
+                        Vector.getElem_mapFinIdx, typeOf, Bool.and_eq_true,
+                        beq_iff_eq, List.map_inj_left, right_eq_ite_iff, and_imp,
+                        Prod.forall, Prod.mk.injEq
+                      ]
+                      intro idx' hidx' data head hin tmp1 tmp2 tmp3
+                      subst data head
+                      rw [tmp1]
+                      have tmp2 := NC.routing_policy idx (Hv.mp v).2 (Hv.mp v).1
+                      have tmp := Hrf1 idx
+                        ((Hv.mp v).1, noc.routing_policy.mkhead idx (Hv.mp v).2 (Hv.mp v).1)
+                        (by obtain ⟨idx1, hidx1⟩ := idx; cases tmp1; simpa only)
+                      have ⟨tmp3, tmp4⟩ := get_output_unique tmp tmp2
+                      cases heq: rf idx ((Hv.mp v).1, noc.routing_policy.mkhead idx (Hv.mp v).2 (Hv.mp v).1)
+                      rw [heq] at tmp3 tmp4
+                      dsimp at tmp3 tmp4
+                      simp [drunfold_defs, drcomponents, noc'] at heq
+                      simp [heq]
+                      rw [tmp3, tmp4]
+              simp only [noc', RoutingPolicy.Flit, Flit',
+                Buffer.Unbounded.bag.eq_1, RouterID', List.remove.eq_1,
+                Fin.getElem_fin, Noc.RouterID, Topology.RouterID, Noc.Flit, typeOf, Bool.and_eq_true, beq_iff_eq,
+                routing_function_reconstruct
+              ] at ⊢ this
+              rw [this]
+            · simp [drcomponents, drunfold_defs]
               rw [←Vector.toList_map]
               rw [←Vector.mapIdx_eq_map]
               rw [Vector.mapIdx_eq_mapFinIdx]
               rw [Vector.mapFinIdx_mapFinIdx]
-              -- FIXME: Why doesn't this work without a conv?
+              -- FIXME: Why doesn't this work without a conv? Why cannot we do a
+              -- single conv?
               conv =>
                 right
                 pattern List.length _
@@ -385,8 +405,14 @@ namespace Graphiti.Projects.Noc
           · simp [drunfold_defs, drcomponents] at Hsidx Hidx'2 ⊢
             rw [Hrule3_3] at Hidx'2
             rw [Hsidx]
-            -- We want rw [mem_iff_getElem], need rw typeclass first
-            obtain Hrule1' := Hrf1 idx out_flit (by sorry)
+            obtain Hrule1' := Hrf1 idx out_flit (by
+              simp [drcomponents, noc', drunfold_defs] at out_flit i ⊢
+              have : out_flit ∈ i[idx] := by
+                rw [List.mem_iff_getElem]
+                exists Hrule3_1
+                simpa
+              assumption
+            )
             have ⟨x, Hx⟩ : ∃ x, (rf idx out_flit) = x := by exists rf idx out_flit
             rw [Hx] at Hrule1'
             obtain ⟨x1, x2⟩ := x; dsimp only at Hrule1'
@@ -488,16 +514,7 @@ namespace Graphiti.Projects.Noc
                 -- We first need to get back the old get_output that we would have
                 -- had, and then we apply a step to obtain the final one.
                 subst src flit
-                have Hstep := Hrf1
-                  (src := idx_out)
-                  (flit := out_val)
-                  (by
-                    apply List.mem_of_getElem
-                    simp only [noc', RoutingPolicy.Flit, Flit', Buffer.Unbounded.bag.eq_1,
-                      RouterID', List.remove.eq_1, Fin.getElem_fin, Noc.Flit, modT, Noc.State,
-                      Noc.RouterID, Topology.RouterID]
-                    exact H5
-                    exact H3.2)
+                have Hstep := Hrf1 (src := idx_out) (flit := out_val) (List.mem_of_getElem H5)
                 have Hdir : (noc' noc).topology.isConnDir_out dir_out := by
                   exact conns_isConn_out Hconn1
                 have ⟨tmp1, htmp1⟩ : ∃ tmp1, tmp1 = (rf idx_out out_val).1 := by
@@ -508,14 +525,16 @@ namespace Graphiti.Projects.Noc
                 -- We had a correctness before moving the flit around,
                 -- what was it?
                 cases Hstep
-                -- The correctness was telling us to move to another router
-                · subst tmp1 tmp2
+                · -- The correctness was telling us to move to another router
+                  subst tmp1 tmp2
                   rename_i mid_flit dir' hdir' H1' H2'
                   dsimp at H1' H2'
                   rw [H1] at H1'
                   obtain ⟨rfl, rfl⟩ := H1'
                   rwa [conns_getConnDir_out Hconn1] at H2'
-                · rename_i dir' Hdir' flit' Hflit'
+                · -- The correctness was telling us to exit, which is a
+                  -- contradiction since that was not what we did
+                  rename_i dir' Hdir' flit' Hflit'
                   subst dir_out
                   simp [drcomponents, drunfold_defs] at Hdir Hflit'
                   rw [Hflit'] at Hdir
@@ -532,8 +551,9 @@ namespace Graphiti.Projects.Noc
               rw [vec_set_map]
               rw [Vector.set_set]
               rw [vec_set_toList]
-              -- We will have to show that out_val and val have the same rf
-              -- (almost)
+              dsimp at Hrf2
+              -- We have to show that out_val = rf idx_inp out_val?
+              -- We should be able to get the eraseIdx H3 outside of the map
               sorry
             · rw [Vector.getElem_set_ne idx_out.2 idx_inp.2 (by
                 simp; intro h;
@@ -543,7 +563,8 @@ namespace Graphiti.Projects.Noc
               -- We have
               -- v.mapFinIdx (λ i flit h => f).set i ((f i.1 v[i] i.2) ++ ...)
               -- We want to get this last parenthesis back into the map, with
-              -- the insertion outside of it
+              -- the insertion outside of it, and same thing for the eraseIdx at
+              -- the begining. We can show that they cancel out each other
               sorry
 
   theorem correct : mod (noc' noc) ⊑ spec (noc' noc) := by
