@@ -1,8 +1,5 @@
 # Notes
 
-- We should move `Experimental/GenericBag` -> `CorrectNoc.lean` /
-  `CorrectNocProof.lean`, `Experimental/BuildExprCorrect` -> `CorrectBuildExpr.lean`
-
 ## Routing Policy
 
 - We want to keep the routing policy deterministic, but we would like a router

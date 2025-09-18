@@ -204,6 +204,49 @@ namespace Graphiti.Projects.Noc
         simp
         sorry
 
+  theorem list_set_sum {l : List Nat} {idx : Nat} {e : Nat} (hidx : idx < l.length := by simpa) :
+    (l.set idx e).sum = l.sum - l[idx] + e := by
+      induction idx generalizing l with
+      | zero =>
+        cases l with
+        | nil => contradiction
+        | cons hd tl => simp; apply Nat.add_comm
+      | succ idx' HR =>
+        cases l with
+        | nil =>
+          contradiction
+        | cons hd tl =>
+          simp at hidx ⊢
+          rw [@HR tl hidx]
+          sorry -- Obviously true
+
+  theorem list_take_sum {l : List Nat} {idx : Nat} (hidx : idx < l.length := by simpa) :
+    (l.take idx).sum + l[idx] = (l.take (idx + 1)).sum := by
+      induction idx generalizing l with
+      | zero =>
+        cases l with
+        | nil => contradiction
+        | cons hd tl =>
+          simp only [
+            List.take_zero, List.sum_nil, List.getElem_cons_zero,
+            Nat.zero_add, List.take_succ_cons, List.sum_cons, Nat.add_zero
+          ]
+      | succ idx' HR =>
+        induction l with
+        | nil => contradiction
+        | cons hd tl HR' =>
+          simp at hidx ⊢
+          rw [Nat.add_assoc, @HR tl hidx]
+
+  theorem list_take_sum_le {l : List Nat} {idx : Nat} :
+    (l.take idx).sum ≤ l.sum := by
+      induction idx generalizing l with
+      | zero => simp
+      | succ idx' HR =>
+        cases l with
+        | nil => simp
+        | cons hd tl => simp only [List.take_succ_cons, List.sum_cons, Nat.add_le_add_iff_left, HR]
+
   -- FIXME: Is this true?
   -- Interesting lemmas:
   -- List.insertIdx_length_self
