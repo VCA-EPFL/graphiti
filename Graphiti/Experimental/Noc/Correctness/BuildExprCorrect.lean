@@ -20,7 +20,7 @@ open Batteries (AssocList)
 
 set_option Elab.async false
 
-namespace Graphiti.Noc
+namespace Graphiti.Projects.Noc
 
   variable {Data : Type} [BEq Data] [LawfulBEq Data] {netsz : Netsz}
 
@@ -31,21 +31,21 @@ namespace Graphiti.Noc
     ∀ rid : n.RouterID, (n.spec_router rid) ⊑ (rmod rid).2
 
   @[drenv]
-  def Noc.env_rmod_in (n : Noc Data netsz) (ε : Env String) (rmod : n.RouterID → TModule String) : Prop :=
+  def Noc.env_rmod_in (n : Noc Data netsz) (ε : Env String String) (rmod : n.RouterID → TModule String) : Prop :=
     ∀ rid : n.RouterID, ε (router_type_name n rid) = .some (rmod rid)
 
   @[drenv]
-  def Noc.env_empty (n : Noc Data netsz) (ε : Env String) : Prop :=
+  def Noc.env_empty (n : Noc Data netsz) (ε : Env String String) : Prop :=
     ε "empty" = .some ⟨Unit, StringModule.empty⟩
 
-  class EnvCorrect (n : Noc Data netsz) (ε : Env String) where
+  class EnvCorrect (n : Noc Data netsz) (ε : Env String String) where
     rmod        : n.RouterID → TModule String
     rmod_ok     : n.env_rmod_ok rmod
     rmod_ok'    : n.env_rmod_ok' rmod
     rmod_in_ε   : n.env_rmod_in ε rmod
     empty_in_ε  : n.env_empty ε
 
-  variable (n : Noc Data netsz) (ε : Env String) [EC : EnvCorrect n ε]
+  variable (n : Noc Data netsz) (ε : Env String String) [EC : EnvCorrect n ε]
 
   abbrev mod := NatModule.stringify n.build_module
 
@@ -64,7 +64,7 @@ namespace Graphiti.Noc
       arg 2
       arg 1
       intro i acc
-      rw [←router_name, ←router_type_name]
+      rw [←router_type_name]
       rw [EC.rmod_in_ε i]
       dsimp
     rw [Module.dep_foldr_1 (f := λ i acc => acc)]
@@ -126,7 +126,7 @@ namespace Graphiti.Noc
         arg 2
         arg 1
         intro i acc
-        rw [←router_name, ←router_type_name]
+        rw [←router_type_name]
         rw [EC.rmod_in_ε i]
         dsimp [Module.product]
         dsimp [
@@ -161,7 +161,10 @@ namespace Graphiti.Noc
       (g_init_state := λ i acc =>
         λ x => (EC.rmod i).snd.init_state x.1 ∧ acc.2 x.2
       )
-    rw [←Module.dep_foldr, this]
+    rw [←Module.dep_foldr]
+    dsimp only
+    -- TODO: has been broken by modification of the compilation function
+    -- rw [this]
     clear this
     rw [Module.foldr_connect']
     dsimp
@@ -288,4 +291,4 @@ namespace Graphiti.Noc
 
   theorem correct : (expM n ε) ⊑ (mod n) := by sorry
 
-end Graphiti.Noc
+end Graphiti.Projects.Noc

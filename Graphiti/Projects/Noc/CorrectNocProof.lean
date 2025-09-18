@@ -9,6 +9,7 @@ import Graphiti.Projects.Noc.BuildModule
 import Graphiti.Projects.Noc.Spec
 import Graphiti.Projects.Noc.Buffer
 import Graphiti.Projects.Noc.Lemmas
+import Graphiti.Projects.Noc.CorrectNoc
 
 open Batteries (AssocList)
 
@@ -17,17 +18,6 @@ set_option Elab.async false
 namespace Graphiti.Projects.Noc
 
   variable {Data : Type} [BEq Data] [LawfulBEq Data] {netsz : Netsz}
-
-  inductive get_output (noc : Noc Data netsz) :
-    (src dst : noc.RouterID) → (src_flit : noc.Flit) → (dst_data : Data) → Prop
-  where
-  | step src dst src_flit mid_flit dst_data dir (hdir : noc.topology.isConnDir_out dir) :
-      noc.routing_policy.route src src_flit = (dir, mid_flit)
-      → get_output noc (noc.topology.getConnDir_out hdir) dst mid_flit dst_data
-      → get_output noc src dst src_flit dst_data
-  | done src src_flit dst_flit :
-      noc.routing_policy.route src src_flit = (noc.topology.DirLocal_out, dst_flit)
-      → get_output noc src src src_flit dst_flit.1
 
   -- get_output is deterministic, and thus the destination must be unique
   theorem get_output_unique {noc : Noc Data netsz}
@@ -61,28 +51,9 @@ namespace Graphiti.Projects.Noc
           cases h2
           apply And.intro <;> rfl
 
-  -- This correctness is partial. It requires that the data is exactly the same
-  -- in the end.
-  -- This is true because we want to show that the noc behave as a bag, but it
-  -- would also be nice that it behaves like a bag + a pure function applied to
-  -- it.
-  def Noc.routing_policy_correct (noc : Noc Data netsz) : Prop :=
-    ∀ (src dst : (noc.RouterID)) data,
-      get_output noc src dst (data, noc.routing_policy.mkhead src dst data) data
-
-  -- A weaker, more general version where we don't require that output will
-  -- actually leave, but if they do, it has to be at the correct output router
-  def Noc.routing_policy_correct_weak (noc : Noc Data netsz) : Prop :=
-    ∀ (src dst dst' : (noc.RouterID)) data data',
-      get_output noc src dst' (data, noc.routing_policy.mkhead src dst data) data'
-      → dst = dst' ∧ data = data'
-
   @[simp, drcomponents]
   def noc' (noc : Noc Data netsz) :=
     { noc with buffer := Buffer.Unbounded.bag netsz noc.routing_policy.Flit }
-
-  class NocCorrect (noc : Noc Data netsz) where
-    routing_policy  : noc.routing_policy_correct
 
   variable (noc : Noc Data netsz)
   variable [NC : NocCorrect (noc' noc)]
@@ -281,8 +252,24 @@ namespace Graphiti.Projects.Noc
                 pattern List.length _
                 rw [List.length_map]
               simp only [Vector.mapFinIdx_eq_mapIdx, Vector.mapIdx_eq_map]
-              -- TODO: Obviously true
-              sorry
+              rw [list_set_sum]
+              simp only [
+                Vector.length_toList, Fin.is_lt, Vector.getElem_toList, Vector.getElem_map,
+                Nat.add_le_add_iff_right
+              ]
+              apply Nat.le_sub_of_add_le
+              obtain ⟨idx, hidx⟩ := idx
+              dsimp at Hrule1 ⊢
+              have : i[idx].length = (Vector.map List.length i).toList[idx]'(by simpa):=
+                by
+                  simp only [
+                    noc', RoutingPolicy.Flit, Flit', Noc.State,
+                    Vector.getElem_toList, Vector.getElem_map
+                  ]
+                  rfl
+              simp only [drunfold_defs, noc', RoutingPolicy.Flit, Flit', drcomponents] at this ⊢
+              rw [this, list_take_sum]
+              apply list_take_sum_le
     -- Output rule
     · intros ident mid_i v Hrule
       case_transition Hcontains : (Module.outputs (mod noc)), ident,
