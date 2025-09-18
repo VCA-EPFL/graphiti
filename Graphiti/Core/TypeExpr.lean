@@ -18,6 +18,7 @@ inductive TypeExpr where
 | bool
 | tag
 | unit
+| string
 | pair (left right : TypeExpr)
 deriving Repr, DecidableEq, Inhabited
 
@@ -28,6 +29,7 @@ def toBlueSpec : TypeExpr → String
 | .tag => "Token"
 | .bool => "Bool"
 | .unit => "Void"
+| .string => "String"
 | .pair left right =>
   s!"Tuple2#({toBlueSpec left}, {toBlueSpec right})"
 
@@ -36,6 +38,7 @@ end TypeExpr
 inductive ValExpr where
 | nat (n : Nat)
 | bool (b : Bool)
+| string (s : String)
 | unit
 | pair (left right : ValExpr)
 deriving Repr, DecidableEq
@@ -45,6 +48,7 @@ namespace ValExpr
 def toBlueSpec : ValExpr → String
 | .nat n => s!"{n}"
 | .bool b => s!"{b}"
+| .string s => s!"{s}"
 | .unit => "?"
 | .pair left right =>
   s!"tuple2({left.toBlueSpec}, {right.toBlueSpec})"
@@ -73,18 +77,21 @@ noncomputable def TypeExpr.denote : TypeExpr → Type
 | tag => Unit
 | bool => Bool
 | unit => Unit
+| string => String
 | pair t1 t2 => t1.denote × t2.denote
 
 def ValExpr.type : ValExpr → TypeExpr
 | nat _ => .nat
 | bool _ => .bool
 | unit => .unit
+| string _ => .string
 | pair l r => .pair l.type r.type
 
 def ValExpr.denote : (t : ValExpr) → t.type.denote
 | nat n => n
 | bool b => b
 | unit => ()
+| string s => s
 | pair t1 t2 => (t1.denote, t2.denote)
 
 inductive FuncName where
@@ -110,6 +117,10 @@ namespace TypeExpr.Parser
 
 @[inline] def skipStringWs (s : String) := skipString s <* ws
 
+def parserId : Parser String := do
+  let chars ← many1 (satisfy (fun c => !c.isWhitespace))
+  return String.mk chars.toList
+
 partial def parseTypeExpr' : Nat → Parser TypeExpr
 | 0 => failure
 | n+1 =>
@@ -118,6 +129,7 @@ partial def parseTypeExpr' : Nat → Parser TypeExpr
           <|> skipStringWs "T" *> pure .nat
           <|> skipStringWs "Bool" *> pure .bool
           <|> skipStringWs "Unit" *> pure .unit
+          <|> skipStringWs "String" *> pure .unit
           <|> (do skipStringWs "("
                   let t ← parseTypeExpr' n
                   skipStringWs "×"
@@ -125,6 +137,7 @@ partial def parseTypeExpr' : Nat → Parser TypeExpr
                   skipStringWs ")"
                   return .pair t t'
               ))
+
 
 def parseValExpr' : Nat → Parser ValExpr
 | 0 => failure
@@ -139,7 +152,8 @@ def parseValExpr' : Nat → Parser ValExpr
                   let t' ← parseValExpr' n
                   skipStringWs ")"
                   return .pair t t'
-              ))
+              )
+          <|> .string <$> parserId <* ws)
 
 def parseTypeExpr (s : String): Option TypeExpr :=
   match parseTypeExpr' s.length |>.run s with
@@ -154,6 +168,7 @@ def toString' : TypeExpr → String
   | TypeExpr.tag => "TagT" -- Unclear how we want to display TagT at the end?
   | TypeExpr.bool => "Bool"
   | TypeExpr.unit => "Unit"
+  | TypeExpr.string => "String"
   | TypeExpr.pair left right =>
     let leftStr := toString' left
     let rightStr :=  toString' right
@@ -161,6 +176,7 @@ def toString' : TypeExpr → String
 
 def getSize: TypeExpr → Int
   | TypeExpr.nat => 32
+  | TypeExpr.string => 0
   | TypeExpr.tag => 0
   | TypeExpr.bool => 1
   | TypeExpr.unit => 0
@@ -172,10 +188,6 @@ def getSize: TypeExpr → Int
 instance : ToString TypeExpr where
   toString := toString'
 
-def parserId : Parser String := do
-  let chars ← many1 (satisfy (fun c => !c.isWhitespace))
-  return String.mk chars.toList
-
 def parseArgument (fuel : Nat) : Parser Argument :=
   .type_arg <$> parseTypeExpr' fuel
   <|> .val_arg <$> parseValExpr' fuel
@@ -183,7 +195,7 @@ def parseArgument (fuel : Nat) : Parser Argument :=
 def parserNode (fuel : Nat) : Parser (String × List Argument) := do
   ws
   let name ← parserId
-  let ts ← many1 (parseArgument fuel) <* ws
+  let ts ← many (parseArgument fuel) <* ws
   return (name, ts.toList)
 
 def parseNode (s : String): Option (String × List Argument) :=
@@ -193,10 +205,11 @@ def parseNode (s : String): Option (String × List Argument) :=
 
 def flatten_type (t : TypeExpr) : List TypeExpr :=
   match t with
-  | TypeExpr.nat => [t]
-  | TypeExpr.tag => [t]
-  | TypeExpr.bool => [t]
-  | TypeExpr.unit => [t]
+  | TypeExpr.nat
+  | TypeExpr.tag
+  | TypeExpr.bool
+  | TypeExpr.unit
+  | TypeExpr.string => [t]
   | TypeExpr.pair left right =>
     flatten_type left ++ flatten_type right
 
