@@ -15,10 +15,12 @@ namespace Graphiti.Projects.Noc
 
   variable {Data : Type} [ToString Data] [BEq Data] [LawfulBEq Data] {netsz : Netsz}
 
+  -- Internal name of router port
   @[drcomponents]
   def router_name (n : Noc Data netsz) (rid : n.RouterID) :=
     s!"Router_{rid}"
 
+  -- Name of router type in environment
   @[drcomponents]
   def router_type_name (n : Noc Data netsz) (rid : n.RouterID) :=
     s!"Router {n.DataS} {rid}"
@@ -38,7 +40,7 @@ namespace Graphiti.Projects.Noc
       .base
       {
         input :=
-          .cons (NatModule.stringify_output 0) (router_inp n rid 0)
+          .cons (NatModule.stringify_input 0) (router_inp n rid 0)
           (List.mapFinIdx
             (n.topology.neigh_inp rid)
             (λ dir _ hdir => ⟨

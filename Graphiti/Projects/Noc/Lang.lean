@@ -175,7 +175,9 @@ namespace Graphiti.Projects.Noc
 
   -- Routing Policy ------------------------------------------------------------
   -- Limitations:
-  --  Can only be deterministic
+  --  · Can only be deterministic
+  --  · Cannot drop packets
+  --  · Cannot broadcast them
 
   @[simp]
   abbrev Route' (t : Topology netsz) (Flit : Type) : Type :=
