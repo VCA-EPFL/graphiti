@@ -22,35 +22,38 @@ open Graphiti.Module
 -- namespace Module
 -- namespace NatModule
 
-#check NatModule.gfmodule
+-- #check NatModule.gfmodule
 
+-- if `f(x)` is in the module, then it can be output (through steps `t'`, leading to new state `s'` which is empty)
+lemma gcompf_flushability {T} {f g: T → T}:
+  ∀ (x: T) (s: State _ _), s.module = (NatModule.gcompf T f g) ∧ (f x) ∈ s.state.fst
+  → ∃ t' s', (@star _ _ (state_transition s.module) ⟨s.state,  s.module⟩ t' ⟨s', s.module⟩)
+  ∧ .output ⟨ T, g (f x) ⟩ ∈ t'
+  ∧ s' = (∅, ∅) := by
+    sorry
 
-lemma gcompf_flushability {t: List Trace} {T} (f g: T → T):
- ∀ (x: T) (s: State _ _), s.module = (NatModule.gcompf T f g) ∧ .input ⟨T, (f x)⟩ ∈ t → ∃ t' s', (@star _ _ (state_transition s.module) ⟨s.state,  s.module⟩ [t'] ⟨s', s.module⟩) ∧ s' = ∅ := by sorry
+-- if some input `x` was fed to g∘f module, but output `g(f(x))` is not out, then `x` is currently *in* the module, either in the first list (as `f(x)`) or in the second list (as `g(f(x))`)
+lemma gcompfp_lemma {t: List Trace} {T f g} : -- rename it to `gcompf_stuck_input` ?
+  ∀ x (s: State _ _), s.module = (NatModule.gcompf T f g)
+  ∧  @behaviour _ _ (state_transition s.module) t
+  ∧ .input ⟨ T, x ⟩ ∈ t ∧ .output ⟨ T, g (f x) ⟩ ∉ t
+  → (f x) ∈ s.state.fst ∨ g (f x) ∈ s.state.snd := by
+    -- try to get away from beh asap, so you don't have to start at init state which is empty since we can't induct over that
+    sorry
 
-lemma gcompfp_lemma {t: List Trace} {T f g} :
-∀ x (s: State _ _), s.module = (NatModule.gcompf T f g) ∧  @behaviour _ _ (state_transition s.module) t ∧  Trace.input ⟨T, x⟩ ∈ t ∧ .output ⟨ T, g (f x) ⟩ ∉ t
-→ (f x) ∈ s.state ∨  g (f x) ∈ s.state:= by sorry
-
-def gcompfP {T} (t: List Trace)(f g: T → T) : Prop :=
-  ∀ in1 , .input ⟨ T, in1 ⟩ ∈ t → .output ⟨ T, g (f (in1)) ⟩ ∈ t
+def gcompf_P {T} (t: List Trace)(f g: T → T) : Prop :=
+  ∀ in1, .input ⟨ T, in1 ⟩ ∈ t → .output ⟨ T, g (f (in1)) ⟩ ∈ t
 
 -- with module gcompf, if "in1" in trace α, then there exist a β where eventually "out1 = g∘f(in1)" in trace αβ
--- theorem gcompf_liveness {i1 e i2} (module : Graphiti.NatModule.gcompf) (h: @star _ _ (state_transition imp) i1 e i2) :
--- theorem gcompf_liveness {i1 t i2}(h: @star _ _ (state_transition imp) i1 t i2) :
--- theorem gcompf_liveness {i1 t i2} (module : NatModule.gfmodule) (h: @star _ _ (state_transition module) i1 t i2) : -- use behavior instead
-theorem gcompf_liveness {t : List Trace} {T f g} (h: @behaviour _ _ (state_transition (NatModule.gcompf T f g)) t) :
-  -- ∀ t in1, t = (valid List Trace) → in1 ∈ t → (∃ out1, out1 = g(f(in1)), out1 ∈ t')
-  -- ∀ in1, in1 ∈ t → out1 ∉ t → ∃ t', out1 ∈ t' -- with out1 = g(f(in1))
-  -- ∀ in1, in1 ∈ t → module.g(module.f(in1)) ∉ t → ∃ t', out1 ∈ t' -- with out1 = g(f(in1))
-  -- ∀ in1, in1 ∈ t → module.outputs ∉ t → ∃ t', out1 ∈ t' :=
-  ∃ t', gcompfP (t ++ t') (f) (g) ∧ @behaviour _ _ (state_transition (NatModule.gcompf T f g)) (t ++ t') :=
+theorem gcompf_liveness {t : List Trace} {T f g} (h_steps: @behaviour _ _ (state_transition (NatModule.gcompf T f g)) t) (h_in: ∀in1, .input ⟨ T, in1 ⟩ ∈ t) :
+  ∃ t', gcompf_P (t ++ t') (f) (g) ∧ @behaviour _ _ (state_transition (NatModule.gcompf T f g)) (t ++ t') :=
     -- check behavior and check that init works then that star works
     -- but ppty we're trying to prove is not inductive so it'll be problematic to prove
     -- try to transform the ppty into an "inductive one" -> either out is already in t, or it's in the module : then it's either in the left list and can be processed through internal rule then output, or it's in the right list and can be output
-    -- lemma to prove to prove this big thm
+    -- lemma to prove to prove this big thm:
     -- beh of t ∧ inp x ∈ t ∧ out g(f(x)) ∉ t → f(x) ∈ gf.s.1 ∨ g(f(x)) ∈ gf.s.2 --try to get away from beh asap, so you don't have to start at init state which is empty since we can't induct over that
     -- f(x) ∈ gf.s.1 → ∃ t' s', s -t'-*-> s' ∧ out g(f(x)) ∈ t ∧ s' = (∅, ∅)
+
     sorry
 
 
