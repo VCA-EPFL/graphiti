@@ -9,15 +9,15 @@ import Graphiti.Core.AssocList.Basic
 
 namespace Graphiti.NatModule
 
--- g ∘ f
-@[drunfold, drcomponents] def gcompf (T : Type)(f g : T -> T) : NatModule (List T) :=
+-- g ∘ f. state = (f(in), g(f(in)))
+@[drunfold, drcomponents] def gcompf (T : Type)(f g : T -> T) : NatModule ((List T) × (List T)) :=
   {
-    inputs := [(0, ⟨ T, λ s tt s' => s' = s.concat (f tt) ⟩)].toAssocList,
-    internals := [λ s s' => s' = (s.map g)], -- could apply infinitely g -- should have two list with f(x) and one with g(f(x))
-    outputs := [(0, ⟨ T, λ s tt s' => s = tt :: s' ⟩)].toAssocList,
-    init_state := λ s => s = [],
+    inputs := [(0, ⟨ T, λ s tt s' => s' = (s.fst.concat (f tt), s.snd) ⟩)].toAssocList,
+    internals := [λ s s' => s' = (∅, s.fst.map g)], 
+    outputs := [(0, ⟨ T, λ s tt s' => s = (s'.fst, tt :: s'.snd) ⟩)].toAssocList,
+    init_state := λ s => s = ([], []),
   }
 
-def gfmodule : NatModule (List Nat) := gcompf Nat (fun a => a + 1) (fun a => a + 1)
+-- def gfmodule : NatModule (List Nat) := gcompf Nat (fun a => a + 1) (fun a => a + 1)
 
 end Graphiti.NatModule
