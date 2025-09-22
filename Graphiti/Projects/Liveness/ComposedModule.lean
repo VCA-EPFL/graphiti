@@ -13,7 +13,7 @@ namespace Graphiti.NatModule
 @[drunfold, drcomponents] def gcompf (T : Type)(f g : T -> T) : NatModule ((List T) × (List T)) :=
   {
     inputs := [(0, ⟨ T, λ s tt s' => s' = (s.fst.concat (f tt), s.snd) ⟩)].toAssocList,
-    internals := [λ s s' => s' = (∅, s.fst.map g)], 
+    internals := [λ s s' => s' = (∅, s.snd ++ s.fst.map g)],
     outputs := [(0, ⟨ T, λ s tt s' => s = (s'.fst, tt :: s'.snd) ⟩)].toAssocList,
     init_state := λ s => s = ([], []),
   }
