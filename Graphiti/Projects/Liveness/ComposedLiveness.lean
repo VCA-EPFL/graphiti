@@ -24,6 +24,11 @@ open Graphiti.Module
 
 #check NatModule.gfmodule
 
+
+lemma gcompfp_lemma {t: List Trace} {T f g} :
+∀ x, @behaviour _ _ (state_transition (NatModule.gcompf T f g)) t ∧ .input ⟨T, x⟩ ∈ t ∧ .output ⟨ T, g (f x) ⟩ ∉ t
+→ (f x) ∈ NatModule.gcompf.inputs ∨ g (f x) ∈ Natmodule.gfmodule.outputs:= by sorry
+
 def gcompfP {T} (t: List Trace)(f g: T → T) : Prop :=
   ∀ in1 , .input ⟨ T, in1 ⟩ ∈ t → .output ⟨ T, g (f (in1)) ⟩ ∈ t
 
