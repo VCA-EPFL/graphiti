@@ -25,9 +25,12 @@ open Graphiti.Module
 #check NatModule.gfmodule
 
 
+lemma gcompf_flushability {t: List Trace} {T} (f g: T → T):
+ ∀ (x: T) (s: State _ _), s.module = (NatModule.gcompf T f g) ∧ .input ⟨T, (f x)⟩ ∈ t → ∃ t' s', (@star _ _ (state_transition s.module) ⟨s.state,  s.module⟩ [t'] ⟨s', s.module⟩) ∧ s' = ∅ := by sorry
+
 lemma gcompfp_lemma {t: List Trace} {T f g} :
-∀ x, @behaviour _ _ (state_transition (NatModule.gcompf T f g)) t ∧ .input ⟨T, x⟩ ∈ t ∧ .output ⟨ T, g (f x) ⟩ ∉ t
-→ (f x) ∈ NatModule.gcompf.inputs ∨ g (f x) ∈ Natmodule.gfmodule.outputs:= by sorry
+∀ x (s: State _ _), s.module = (NatModule.gcompf T f g) ∧  @behaviour _ _ (state_transition s.module) t ∧  Trace.input ⟨T, x⟩ ∈ t ∧ .output ⟨ T, g (f x) ⟩ ∉ t
+→ (f x) ∈ s.state ∨  g (f x) ∈ s.state:= by sorry
 
 def gcompfP {T} (t: List Trace)(f g: T → T) : Prop :=
   ∀ in1 , .input ⟨ T, in1 ⟩ ∈ t → .output ⟨ T, g (f (in1)) ⟩ ∈ t
