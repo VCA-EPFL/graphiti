@@ -48,6 +48,11 @@ def concat {α β} (a : α) (b : β) (m : AssocList α β) :=
 @[inline] def eraseAll {α β} [BEq α] (a : α) (l : AssocList α β) : AssocList α β :=
   eraseAllP_TR (fun k _ => k == a) l
 
+/-- `O(n)`. Map a function `f` over the values of the list. -/
+@[simp] def map {α β δ γ} (f : α → β → δ × γ) : AssocList α β → AssocList δ γ
+  | nil        => nil
+  | cons k v t => let (k', v') := f k v; cons k' v' (map f t)
+
 def keysList {α β} (map : AssocList α β) : List α :=
   map.toList.map (·.fst)
 
@@ -65,6 +70,11 @@ def filter {α β} (f : α → β → Bool) (l : AssocList α β) :=
 
 def mem {α β} [BEq α] (a : α) (b : β) (l : AssocList α β) : Prop :=
   l.find? a = some b
+
+def flatten {α β} (l : List (AssocList α β)): AssocList α β :=
+  match l with
+  | .nil        => .nil
+  | .cons hd tl => hd.append (flatten tl)
 
 def inverse {α β} : AssocList α β → AssocList β α
 | .nil => .nil
@@ -113,7 +123,7 @@ def bijectivePortRenaming_quick {α} [DecidableEq α] (p : AssocList α α) : α
   else id
 
 -- @[implemented_by bijectivePortRenaming]
-def bijectivePortRenaming {α} [DecidableEq α] (p : AssocList α α) (i: α) : α :=
+def bijectivePortRenaming {α} [DecidableEq α] (p : AssocList α α) (i : α) : α :=
   if p.invertible then
     let map := p.filterId.append p.inverse.filterId
     map.find? i |>.getD i

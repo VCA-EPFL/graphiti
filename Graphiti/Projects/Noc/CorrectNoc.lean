@@ -44,4 +44,6 @@ namespace Graphiti.Projects.Noc
       → dst = dst' ∧ data = data'
 
   class NocCorrect (noc : Noc Data netsz) where
-    routing_policy  : noc.routing_policy_correct
+    routing_policy : noc.routing_policy_correct
+
+end Graphiti.Projects.Noc

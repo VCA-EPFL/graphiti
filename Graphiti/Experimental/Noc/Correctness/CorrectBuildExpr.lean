@@ -1,7 +1,7 @@
 /-
 Copyright (c) 2025 VCA Lab, EPFL. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Yann Herklotz, Gurvan Debaussart
+Authors: Gurvan Debaussart
 -/
 
 import Graphiti.Core.Module
@@ -50,10 +50,11 @@ namespace Graphiti.Projects.Noc
   abbrev mod := NatModule.stringify n.build_module
 
   @[drunfold_defs]
-  def_module expT : Type := [T| n.build_expr, ε] reduction_by
+  def_module expT : Type := [GT| n.build_expr, ε] reduction_by
     dsimp [drunfold_defs, drcomponents]
-    dsimp [ExprLow.build_module_type]
-    dsimp [ExprLow.build_module]
+    dsimp [ExprHigh.build_module_type]
+    dsimp [ExprHigh.build_module]
+    dsimp [ExprHigh.build_module']
     rw [ExprLow.build_module_connect_foldr]
     dsimp [ExprLow.build_module]
     rw [ExprLow.build_module_product_foldr]
@@ -119,14 +120,13 @@ namespace Graphiti.Projects.Noc
     rw [ExprLow.build_module_product_foldr]
     dsimp [ExprLow.build_module, ExprLow.build_module']
     rw [EC.empty_in_ε]; dsimp
-    dsimp [drcomponents]
+    dsimp [StringModule.empty]
     rw [rw_opaque (by
       conv =>
         pattern List.foldr _ _
         arg 2
         arg 1
         intro i acc
-        rw [←router_type_name]
         rw [EC.rmod_in_ε i]
         dsimp [Module.product]
         dsimp [
@@ -140,6 +140,8 @@ namespace Graphiti.Projects.Noc
       Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts,
       Module.mapInputPorts, reduceAssocListfind?
     ]
+    -- TODO: has been broken by modification of the compilation function
+    -- We need to think about how port renaming is handled here
     have := Module.foldr_acc_plist_2
       (acc :=
         ⟨Unit, { inputs := .nil, outputs := .nil, init_state := λ x => True }⟩
@@ -163,8 +165,6 @@ namespace Graphiti.Projects.Noc
       )
     rw [←Module.dep_foldr]
     dsimp only
-    -- TODO: has been broken by modification of the compilation function
-    -- rw [this]
     clear this
     rw [Module.foldr_connect']
     dsimp

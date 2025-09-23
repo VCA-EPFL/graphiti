@@ -19,8 +19,7 @@ namespace Graphiti
 
   -- m with an ε-transition.
   -- In terms of trace semantics, the empty trace is valid for m1, but not
-  -- necessarily for m, meaning we shouldn't be able to prove trace_inclusion
-  -- between m1 and m, and so m1 ⋢ m, right?
+  -- necessarily for m
   @[drcomponents]
   def m1 : Module Ident S :=
     {
@@ -130,5 +129,28 @@ namespace Graphiti
 
   theorem φ2_initial' : Module.refines_initial m (m2 m) φ2' := by
     intro i h; exists (i, false); and_intros
+
+  theorem refines_ϕ2 : (m2 m) ⊑_{φ2} m := by
+    intro i s hphi
+    subst s
+    constructor
+    · intro ident mid_i v hrule
+      exists mid_i.1, mid_i.1
+      and_intros
+      · dsimp [drcomponents] at hrule
+        sorry
+      · constructor
+      · rfl
+    · intro ident mid_i v hrule
+      sorry
+    · intro rule mid_i hrule1 hrule2
+      exists mid_i.1
+      and_intros
+      · -- Two cases:
+        -- · The internal rule is the deadlocking one.
+        -- It does not modify m.1, we are ok.
+        -- · The interal rule is almost the same as an i.1 state
+        sorry
+      · rfl
 
 end Graphiti

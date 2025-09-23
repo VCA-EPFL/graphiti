@@ -15,6 +15,7 @@
   broadcast them to multiple outputs.
   This should be fixable by making a routing policy return a `List` of output
   where to put packets.
+  Problem is that broadcasting is a bit weird for correctness?
 
 ## Correctness
 
@@ -81,5 +82,8 @@ Problems:
 - Take a more in depth look at the P4 language
 
 - Ask Thomas for more reference on routing strictly with routing tables
+  + This is a bit how it is done in Constellation.
+    We don't need to define any header
 
-- Search for background on latency-insensitive NoC
+- Search for background on latency-insensitive NoC, because this is what we are
+  really modeling
