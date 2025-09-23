@@ -50,10 +50,8 @@ theorem step_internal (s1 s2 s3 : State) e2 :
   intros; rw [h]
   apply star.step <;> assumption
 
-theorem step_one (s1 s2 : State) e2 : s1 -[e2]-> s2 → s1 -[e2]*> s2 := by
-  have h : e2 = e2 ++ [] := by simp
-  intros; rw [h]
-  apply star.step <;> first | assumption | apply star.refl
+@[deprecated star.plus_one (since := "2025-09-23")]
+theorem step_one (s1 s2 : State) e2 : s1 -[e2]-> s2 → s1 -[e2]*> s2 := star.plus_one s1 s2 e2
 
 theorem star.trans_star (s s' s'' : State) e e' :
   s -[e]*> s' → s' -[e']*> s'' → s -[e ++ e']*> s''  := by
