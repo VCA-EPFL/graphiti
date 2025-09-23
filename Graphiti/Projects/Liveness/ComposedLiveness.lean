@@ -30,16 +30,52 @@ lemma gcompf_flushability {T} {f g: T → T}:
   → ∃ t' s', (@star _ _ (state_transition s.module) ⟨s.state,  s.module⟩ t' ⟨s', s.module⟩)
   ∧ .output ⟨ T, g (f x) ⟩ ∈ t'
   ∧ s' = (∅, ∅) := by
+    intros x s h
+    have ⟨ h1, h2 ⟩ := h
+    -- step internal, get s2 with internal state (∅, ∀x∈s -> g(f(x)))
+    have h_int: ∃ s2, step s [] ⟨s2, s.module⟩ := by rw [h1]; sorry -- use h2
+    -- step output
+    have h_out: ∃ s3 v', step s [.output v'] ⟨s3, s.module⟩ := by sorry
+    -- gotta prove that v' = g(f(x)) and that s3 = s'
     sorry
 
--- if some input `x` was fed to g∘f module, but output `g(f(x))` is not out, then `x` is currently *in* the module, either in the first list (as `f(x)`) or in the second list (as `g(f(x))`)
-lemma gcompfp_lemma {t: List Trace} {T f g} : -- rename it to `gcompf_stuck_input` ?
-  ∀ x (s: State _ _), s.module = (NatModule.gcompf T f g)
-  ∧  @behaviour _ _ (state_transition s.module) t
+
+lemma gcompfp_lemma2 {t t': List Trace} {T f g} : -- rename it to `gcompf_stuck_input` ?
+  ∀ x (s: State _ _) s', s.module = (NatModule.gcompf T f g)
+  -- ∧ @reachable _ _ (state_transition s.module) t' s
+  ∧ @star _ _ (state_transition s.module) s t s'
   ∧ .input ⟨ T, x ⟩ ∈ t ∧ .output ⟨ T, g (f x) ⟩ ∉ t
   → (f x) ∈ s.state.fst ∨ g (f x) ∈ s.state.snd := by
-    -- try to get away from beh asap, so you don't have to start at init state which is empty since we can't induct over that
     sorry
+
+
+-- if some input `x` was fed to g∘f module, but output `g(f(x))` is not out, then `x` is currently *in* the module, either in the first list (as `f(x)`) or in the second list (as `g(f(x))`)
+lemma gcompfp_lemma {t t0: List Trace} {T f g} : -- rename it to `gcompf_stuck_input` ?
+  ∀ x (s: State _ _) s', @star _ _ (state_transition s.module) s t s'
+  → s.module = (NatModule.gcompf T f g)
+  → @reachable _ _ (state_transition s.module) t0 s
+  → .input ⟨ T, x ⟩ ∈ (t0 ++ t) → .output ⟨ T, g (f x) ⟩ ∉ (t0 ++ t)
+  → (f x) ∈ s.state.fst ∨ g (f x) ∈ s.state.snd := by
+    -- try to get away from beh asap, so you don't have to start at init state which is empty since we can't induct over that
+    intros x s s' h
+    revert x t0
+    generalize heq: state_transition s.module = n at * -- will need to prove that module stays constant (exist lemma)
+    induction h
+    case refl => sorry
+    case step => sorry
+
+    -- obtain ⟨ h_mod, h_behv, h_in, h_out ⟩ := h
+    -- rcases h_behv with ⟨ s0, s', h_init, h_star ⟩
+    -- -- unfold StateTransition.init at h_init;
+    -- revert h_init h_in h_out h_mod x
+    -- induction h_star
+    -- case intro.intro.intro.refl s1 =>
+    --   exfalso
+    --   absurd h_in
+    --   exact List.not_mem_nil
+    -- case intro.intro.intro.step s1 s2 s3 t1 t2 step1 star2 ih =>
+
+
 
 def gcompf_P {T} (t: List Trace)(f g: T → T) : Prop :=
   ∀ in1, .input ⟨ T, in1 ⟩ ∈ t → .output ⟨ T, g (f (in1)) ⟩ ∈ t

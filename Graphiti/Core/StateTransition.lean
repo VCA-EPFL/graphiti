@@ -34,6 +34,9 @@ notation:45 s " -[ " t:45 " ]*> " s':44 => star s t s'
 def behaviour (l : List Event) : Prop :=
   ∃ s s', trans.init s ∧ star s l s'
 
+def reachable (l : List Event) (s' : State) : Prop :=
+  ∃ s, trans.init s ∧ star s l s'
+
 theorem star.plus_one (s s' : State) (e : List Event) :
     s -[e]-> s' → s -[e]*> s' := by
   intros Hstep
