@@ -1,7 +1,7 @@
 /-
 Copyright (c) 2025 VCA Lab, EPFL. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Yann Herklotz, Gurvan Debaussart
+Authors: Gurvan Debaussart
 -/
 
 -- A bunch of random stuff which doesn't quite fit with the rest

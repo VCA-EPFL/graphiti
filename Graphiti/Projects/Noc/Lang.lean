@@ -1,7 +1,7 @@
 /-
 Copyright (c) 2025 VCA Lab, EPFL. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Yann Herklotz, Gurvan Debaussart
+Authors: Gurvan Debaussart
 -/
 
 import Graphiti.Core.Module
@@ -87,13 +87,11 @@ namespace Graphiti.Projects.Noc
   -- An output direction corresponds to a connection to another router if it is
   -- not the local output
   def Topology.getConnDir_out (t : Topology netsz) {rid : t.RouterID} {dir : t.Dir_out rid} (Hdir : t.isConnDir_out dir) : t.RouterID :=
-    -- TODO: Clean this horrible proof
     let dir' : Fin (t.out_len rid) := ⟨dir.1 - 1, by
       obtain ⟨v, h⟩ := dir;
-      rw [←Nat.add_lt_add_iff_right (k := 1)]
-      induction v <;> simp
-      · simp at Hdir
-      · simp at h; exact h
+      cases v with
+      | zero => contradiction
+      | succ v' => simp only [Nat.add_lt_add_iff_right, Nat.add_one_sub_one] at h ⊢; exact h
     ⟩
     (t.neigh_out rid)[dir']
 
