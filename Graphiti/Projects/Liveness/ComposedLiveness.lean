@@ -28,33 +28,32 @@ open Graphiti.Module
 lemma gcompf_flushability {T} (f g: T → T):
   ∀ (x: T) (s: State _ _), s.module = (NatModule.gcompf T f g) ∧ (f x) ∈ s.state.fst
   → ∃ t' s', (@star _ _ (state_transition s.module) ⟨s.state,  s.module⟩ t' ⟨s', s.module⟩)
-  ∧ .output ⟨ T, g (f x) ⟩ ∈ t'
+  ∧ .output 0 ⟨ T, g (f x) ⟩ ∈ t'
   ∧ s' = (∅, ∅) := by
     intros x s h
     have ⟨ h1, h2 ⟩ := h
     -- step internal, get s2 with internal state (∅, ∀x∈s -> g(f(x)))
     have h_int: ∃ s2, step s [] ⟨s2, s.module⟩ := by rw [h1]; sorry -- use h2
     -- step output
-    have h_out: ∃ s3 v', step s [.output v'] ⟨s3, s.module⟩ := by sorry
+    have h_out: ∃ s3 v', step s [.output 0 v'] ⟨s3, s.module⟩ := by sorry
     -- gotta prove that v' = g(f(x)) and that s3 = s'
     sorry
 
 
-lemma gcompfp_lemma2 {t t': List Trace} {T f g} : -- rename it to `gcompf_stuck_input` ?
+lemma gcompfp_lemma2 {t t': Trace Nat} {T f g} : -- rename it to `gcompf_stuck_input` ?
   ∀ x (s: State _ _) s', s.module = (NatModule.gcompf T f g)
   -- ∧ @reachable _ _ (state_transition s.module) t' s
   ∧ @star _ _ (state_transition s.module) s t s'
-  ∧ .input ⟨ T, x ⟩ ∈ t ∧ .output ⟨ T, g (f x) ⟩ ∉ t
+  ∧ .input 0 ⟨ T, x ⟩ ∈ t ∧ .output 0 ⟨ T, g (f x) ⟩ ∉ t
   → (f x) ∈ s.state.fst ∨ g (f x) ∈ s.state.snd := by
     sorry
 
-
 -- if some input `x` was fed to g∘f module, but output `g(f(x))` is not out, then `x` is currently *in* the module, either in the first list (as `f(x)`) or in the second list (as `g(f(x))`)
-lemma gcompfp_lemma {t t0: List Trace} {T f g} : -- rename it to `gcompf_stuck_input` ?
+lemma gcompfp_lemma {t t0: Trace Nat} {T f g} : -- rename it to `gcompf_stuck_input` ?
   ∀ x (s: State _ _) s', @star _ _ (state_transition s.module) s t s'
   → s.module = (NatModule.gcompf T f g)
   → @reachable _ _ (state_transition s.module) t0 s
-  → .input ⟨ T, x ⟩ ∈ (t0 ++ t) → .output ⟨ T, g (f x) ⟩ ∉ (t0 ++ t)
+  → .input 0 ⟨ T, x ⟩ ∈ (t0 ++ t) → .output 0 ⟨ T, g (f x) ⟩ ∉ (t0 ++ t)
   → (f x) ∈ s.state.fst ∨ g (f x) ∈ s.state.snd := by
     -- try to get away from beh asap, so you don't have to start at init state which is empty since we can't induct over that
     intros x s s' h
@@ -77,15 +76,15 @@ lemma gcompfp_lemma {t t0: List Trace} {T f g} : -- rename it to `gcompf_stuck_i
 
 
 
-def gcompf_P {T} (t: List Trace)(f g: T → T) : Prop :=
-  ∀ in1, .input ⟨ T, in1 ⟩ ∈ t → .output ⟨ T, g (f (in1)) ⟩ ∈ t
+def gcompf_P {T} (t: Trace Nat)(f g: T → T) : Prop :=
+  ∀ in1, .input 0 ⟨ T, in1 ⟩ ∈ t → .output 0 ⟨ T, g (f (in1)) ⟩ ∈ t
 
 
 -- maibye try doing reachability + star on main theorem if stuck
 
 -- if 0 steps holds, if n steps have to check the reachabilty + */// lemmas: is input included, is output included
 -- with module gcompf, if "in1" in trace α, then there exist a β where eventually "out1 = g∘f(in1)" in trace αβ
-theorem gcompf_liveness {t : List Trace} {T f g} (h_steps: @behaviour _ _ (state_transition (NatModule.gcompf T f g)) t) (h_in: ∃ in1, .input ⟨ T, in1 ⟩ ∈ t) : --TODO: remove h_in
+theorem gcompf_liveness {t : Trace Nat} {T f g} (h_steps: @behaviour _ _ (state_transition (NatModule.gcompf T f g)) t) (h_in: ∃ in1, .input 0 ⟨ T, in1 ⟩ ∈ t) : --TODO: remove h_in
   ∃ t', gcompf_P (t ++ t') (f) (g) ∧ @behaviour _ _ (state_transition (NatModule.gcompf T f g)) (t ++ t') := by
     -- check behavior and check that init works then that star works
     -- but ppty we're trying to prove is not inductive so it'll be problematic to prove
@@ -110,7 +109,7 @@ theorem gcompf_liveness {t : List Trace} {T f g} (h_steps: @behaviour _ _ (state
   cases initProp
   rename_i init_mod modNat
   -- induce over *, show that P is inductive (P s and s →* s' then P s')
-  by_cases ¬ .output ⟨T, g (f x)⟩ ∈ t
+  by_cases ¬ .output 0 ⟨T, g (f x)⟩ ∈ t
   . rename_i notOutput
     -- have lemma1 := gcompfp_lemma t f g x s1
     -- simp [modNat, xInT, h_beh, notOutput] at lemma1

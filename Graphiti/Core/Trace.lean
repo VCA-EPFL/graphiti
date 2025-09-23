@@ -9,9 +9,11 @@ import Graphiti.Core.StateTransition
 
 namespace Graphiti
 
-inductive Trace where
-| input : (Σ (T : Type _), T) → Trace
-| output : (Σ (T : Type _), T) → Trace
+inductive IOEvent (Ident : Type _) : Type _ where
+| input : InternalPort Ident → (Σ (T : Type _), T) → IOEvent Ident
+| output : InternalPort Ident → (Σ (T : Type _), T) → IOEvent Ident
+
+@[simp] abbrev Trace Ident := List (IOEvent Ident)
 
 namespace Module
 
@@ -27,21 +29,21 @@ structure State where
 
 variable {Ident} {S}
 
-inductive step : State Ident S → List Trace → State Ident S → Prop where
+inductive step : State Ident S → Trace Ident → State Ident S → Prop where
 | input {st ident s' v v'} :
-    (st.module.inputs.getIO ident).snd st.state v s' →
-    v' = ⟨(st.module.inputs.getIO ident).fst, v⟩ →
-    step st [.input v'] ⟨s', st.module⟩
+  (st.module.inputs.getIO ident).snd st.state v s' →
+  v' = ⟨(st.module.inputs.getIO ident).fst, v⟩ →
+  step st [.input ident v'] ⟨s', st.module⟩
 | output {st ident s' v v'} :
-    (st.module.outputs.getIO ident).snd st.state v s' →
-    v' = ⟨(st.module.outputs.getIO ident).fst, v⟩ →
-    step st [.output v'] ⟨s', st.module⟩
+  (st.module.outputs.getIO ident).snd st.state v s' →
+  v' = ⟨(st.module.outputs.getIO ident).fst, v⟩ →
+  step st [.output ident v'] ⟨s', st.module⟩
 | internal {st r s'} :
   r ∈ st.module.internals →
   r st.state s' →
   step st [] ⟨s', st.module⟩
 
-def state_transition (m : Module Ident S) : StateTransition (State Ident S) Trace where
+def state_transition (m : Module Ident S) : StateTransition (State Ident S) (IOEvent Ident) where
   init := fun s => m.init_state s.state ∧ s.module = m
   step := step
 
@@ -95,7 +97,7 @@ theorem refines_implies_step_preservation {φ} :
     obtain ⟨s1, s2, h1, h2, h3⟩ := inp ident i' v step; clear inp
     exists ⟨s2, spec⟩
     and_intros
-    · rw [show [Trace.input ⟨(imp.inputs.getIO ident).fst, v⟩] = [Trace.input ⟨(imp.inputs.getIO ident).fst, v⟩] ++ [] by rfl]
+    · rw [show [IOEvent.input ident ⟨(imp.inputs.getIO ident).fst, v⟩] = [IOEvent.input ident ⟨(imp.inputs.getIO ident).fst, v⟩] ++ [] by rfl]
       apply @star.trans_star _ _ (state_transition spec)
       · apply @star.plus_one _ _ (state_transition spec)
         constructor
@@ -110,7 +112,7 @@ theorem refines_implies_step_preservation {φ} :
     obtain ⟨s1, s2, h1, h2, h3⟩ := out ident i' v step; clear out
     exists ⟨s2, spec⟩
     and_intros
-    · rw [show [Trace.output ⟨(imp.outputs.getIO ident).fst, v⟩] = [] ++ [Trace.output ⟨(imp.outputs.getIO ident).fst, v⟩] by rfl]
+    · rw [show [IOEvent.output ident ⟨(imp.outputs.getIO ident).fst, v⟩] = [] ++ [IOEvent.output ident ⟨(imp.outputs.getIO ident).fst, v⟩] by rfl]
       apply @star.trans_star _ _ (state_transition spec)
       · apply existSR_implies_empty_steps; assumption
       · apply @star.plus_one _ _ (state_transition spec)
