@@ -25,7 +25,7 @@ open Graphiti.Module
 -- #check NatModule.gfmodule
 
 -- if `f(x)` is in the module, then it can be output (through steps `t'`, leading to new state `s'` which is empty)
-lemma gcompf_flushability {T} {f g: T → T}:
+lemma gcompf_flushability {T} (f g: T → T):
   ∀ (x: T) (s: State _ _), s.module = (NatModule.gcompf T f g) ∧ (f x) ∈ s.state.fst
   → ∃ t' s', (@star _ _ (state_transition s.module) ⟨s.state,  s.module⟩ t' ⟨s', s.module⟩)
   ∧ .output ⟨ T, g (f x) ⟩ ∈ t'
@@ -80,17 +80,77 @@ lemma gcompfp_lemma {t t0: List Trace} {T f g} : -- rename it to `gcompf_stuck_i
 def gcompf_P {T} (t: List Trace)(f g: T → T) : Prop :=
   ∀ in1, .input ⟨ T, in1 ⟩ ∈ t → .output ⟨ T, g (f (in1)) ⟩ ∈ t
 
+
+-- maibye try doing reachability + star on main theorem if stuck
+
+-- if 0 steps holds, if n steps have to check the reachabilty + */// lemmas: is input included, is output included
 -- with module gcompf, if "in1" in trace α, then there exist a β where eventually "out1 = g∘f(in1)" in trace αβ
-theorem gcompf_liveness {t : List Trace} {T f g} (h_steps: @behaviour _ _ (state_transition (NatModule.gcompf T f g)) t) (h_in: ∀in1, .input ⟨ T, in1 ⟩ ∈ t) :
-  ∃ t', gcompf_P (t ++ t') (f) (g) ∧ @behaviour _ _ (state_transition (NatModule.gcompf T f g)) (t ++ t') :=
+theorem gcompf_liveness {t : List Trace} {T f g} (h_steps: @behaviour _ _ (state_transition (NatModule.gcompf T f g)) t) (h_in: ∃ in1, .input ⟨ T, in1 ⟩ ∈ t) : --TODO: remove h_in
+  ∃ t', gcompf_P (t ++ t') (f) (g) ∧ @behaviour _ _ (state_transition (NatModule.gcompf T f g)) (t ++ t') := by
     -- check behavior and check that init works then that star works
     -- but ppty we're trying to prove is not inductive so it'll be problematic to prove
     -- try to transform the ppty into an "inductive one" -> either out is already in t, or it's in the module : then it's either in the left list and can be processed through internal rule then output, or it's in the right list and can be output
     -- lemma to prove to prove this big thm:
     -- beh of t ∧ inp x ∈ t ∧ out g(f(x)) ∉ t → f(x) ∈ gf.s.1 ∨ g(f(x)) ∈ gf.s.2 --try to get away from beh asap, so you don't have to start at init state which is empty since we can't induct over that
     -- f(x) ∈ gf.s.1 → ∃ t' s', s -t'-*-> s' ∧ out g(f(x)) ∈ t ∧ s' = (∅, ∅)
-
+  -- OOOK I am used to do the bottom up but here makes more sense to have a top down approach to keep objectives in mind
+  have h_beh := h_steps
+  simp [behaviour] at h_steps --opening the internals of the inductive hypotesis
+  cases h_steps -- removng the existentials that bothers
+  rename_i s1 iH
+  -- Opening the two informations given from the behaviour
+  cases iH
+  rename_i initProp starProp
+  -- Removing the existential from the star prop
+  cases starProp
+  rename_i s2 trans
+  -- proving that an input has been inserted
+  cases h_in
+  rename_i x xInT
+  cases initProp
+  rename_i init_mod modNat
+  -- induce over *, show that P is inductive (P s and s →* s' then P s')
+  by_cases ¬ .output ⟨T, g (f x)⟩ ∈ t
+  . rename_i notOutput
+    -- have lemma1 := gcompfp_lemma t f g x s1
+    -- simp [modNat, xInT, h_beh, notOutput] at lemma1
+    -- have lemma2 := gcompf_flushability f g x
     sorry
+  . rename_i outputInT
+    simp at outputInT
+    exists []
+    simp [gcompf_P, behaviour]
+    constructor
+    . intro in1 tInT
+      sorry
+    . sorry
+
+
+
+
+
+
+
+  /-
+  constructor
+  . constructor
+    . sorry
+    . simp [behaviour]
+      simp [behaviour] at h_steps
+      cases h_steps
+      rename_i s iH
+      exists s
+      constructor
+      . apply And.left iH
+      . have rightSide := And.right iH
+        cases rightSide
+        rename_i x trans
+        constructor-/
+
+
+
+
+
 
 
 -- end NatModule
