@@ -40,110 +40,50 @@ def ε (Tag T : Type _) : IdentMap String (TModule String) :=
   ].toAssocList
 
 def lhsNames := (rewrite.rewrite []).get rfl |>.input_expr.build_module_names
-def lhs_intNames := lhsLower_int.build_module_names
 def rhsNames := (rewrite.rewrite []).get rfl |>.output_expr.build_module_names
 
 def lhsModuleType (Tag T : Type _) : Type := by
-  precomputeTac [T| (rewrite.rewrite []).get rfl |>.input_expr, ε Tag T ] by
-    -- ExprHigh reduction
+  precomputeTac [T| (rewrite.rewrite []).get rfl |>.input_expr, (ε Tag T).find? ] by
     dsimp [drunfold_defs, ExprHigh.extract, List.foldlM]
     simp (disch := simp) only [AssocList.find?_cons_eq, AssocList.find?_cons_neq]; dsimp
     simp
-    -- Lowering reduction -> creates ExprLow
-    dsimp [ExprHigh.lower, ExprHigh.lower', ExprHigh.uncurry]
-    -- Unfold build_module
+    dsimp [ExprHigh.lower, ExprHigh.lower', ExprHigh.uncurry, ExprHigh.generate_product]
     dsimp [ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module']
-    -- Reduce environment access
     simp [ε]
-
-def lhs_intModuleType (Tag T : Type _) : Type := by
-  precomputeTac [T| lhsLower_int, ε Tag T ] by
-    dsimp [drunfold_defs, ExprHigh.extract, List.foldlM]
-    simp (disch := simp) only [AssocList.find?_cons_eq, AssocList.find?_cons_neq]; dsimp
+    dsimp [List.filter, AssocList.concat, List.find?]
     simp
-    -- Lowering reduction -> creates ExprLow
-    dsimp [ExprHigh.lower, ExprHigh.lower', ExprHigh.uncurry]
-    -- Unfold build_module
-    dsimp [ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module']
-    simp [ε]
+    dsimp [ExprLow.build_module', NatModule.Named]
 
 attribute [drcomponents] toString
 
 def_module lhsModule (Tag T : Type _) : StringModule (lhsModuleType Tag T) :=
-  [e| (rewrite.rewrite []).get rfl |>.input_expr, ε Tag T ]
+  [e| (rewrite.rewrite []).get rfl |>.input_expr, (ε Tag T).find? ]
 reduction_by
-  dr_reduce_module
-  (dsimp -failIfUnchanged [drunfold_defs, ExprHigh.extract, List.foldlM]
-   rw [rw_opaque (by simp -failIfUnchanged (disch := simp) only [drcompute, ↓reduceIte]; rfl)]
-   dsimp -failIfUnchanged [ ExprHigh.lower, ExprHigh.lower', ExprHigh.uncurry
-         , ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module']
-   rw [rw_opaque (by simp -failIfUnchanged (disch := simp) only [ε, drcompute, ↓reduceIte]; rfl)]
-   dsimp -failIfUnchanged [drcomponents]
-   dsimp -failIfUnchanged [Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts, Module.mapInputPorts, AssocList.bijectivePortRenaming, AssocList.invertible, AssocList.keysList, AssocList.inverse, AssocList.filterId, AssocList.filter, List.inter]; simp (disch := simp) only [drcompute, ↓reduceIte]
-   dsimp -failIfUnchanged [Module.product, Module.liftL, Module.liftR]
-   dsimp -failIfUnchanged [Module.connect']
-   simp -failIfUnchanged (disch := simp) only [drcompute, ↓reduceIte]
-   conv =>
-     pattern (occs := *) Module.connect'' _ _
-     all_goals
-       rw [(Module.connect''_dep_rw (h := by simp -failIfUnchanged (disch := simp) only [AssocList.eraseAll_cons_neq,AssocList.eraseAll_cons_eq,AssocList.eraseAll_nil,PortMap.getIO,AssocList.find?_cons_eq,AssocList.find?_cons_neq]; dsimp -failIfUnchanged)
-                                (h' := by simp -failIfUnchanged (disch := simp) only [AssocList.eraseAll_cons_neq,AssocList.eraseAll_cons_eq,AssocList.eraseAll_nil,PortMap.getIO,AssocList.find?_cons_eq,AssocList.find?_cons_neq]; dsimp -failIfUnchanged))]
-   unfold Module.connect''
-   dsimp -failIfUnchanged)
+  dsimp [drunfold_defs, ExprHigh.extract, List.foldlM]
+  dsimp [Batteries.AssocList.find?]
+  simp [ExprHigh.lower, List.reverse, ExprHigh.lower', ExprHigh.generate_product, ExprHigh.uncurry]
 
-@[drunfold] def lhs_intModule (Tag T : Type _) : StringModule (lhs_intModuleType Tag T) := by
-  precomputeTac [e| lhsLower_int, ε Tag T ] by
-    dsimp [drunfold_defs, ExprHigh.extract, List.foldlM]
-    rw [rw_opaque (by simp (disch := simp) only [drcompute, ↓reduceIte]; rfl)]
-    dsimp [ ExprHigh.lower, ExprHigh.lower', ExprHigh.uncurry
-          , ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module']
-    rw [rw_opaque (by simp (disch := simp) only [ε, drcompute, ↓reduceIte]; rfl)]
-    dsimp [drcomponents]
-    dsimp [Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts, Module.mapInputPorts, AssocList.bijectivePortRenaming, AssocList.invertible, AssocList.keysList, AssocList.inverse, AssocList.filterId, AssocList.filter, List.inter]; simp (disch := simp) only [drcompute, ↓reduceIte]
-    dsimp [Module.product, Module.liftL, Module.liftR]
-    dsimp [Module.connect']
-    simp (disch := simp) only [drcompute, ↓reduceIte]
-    conv =>
-      pattern (occs := *) Module.connect'' _ _
-      all_goals
-        rw [(Module.connect''_dep_rw (h := by simp (disch := simp) only [AssocList.eraseAll_cons_neq,AssocList.eraseAll_cons_eq,AssocList.eraseAll_nil,PortMap.getIO,AssocList.find?_cons_eq,AssocList.find?_cons_neq]; dsimp)
-                                 (h' := by simp (disch := simp) only [AssocList.eraseAll_cons_neq,AssocList.eraseAll_cons_eq,AssocList.eraseAll_nil,PortMap.getIO,AssocList.find?_cons_eq,AssocList.find?_cons_neq]; dsimp))]
-    unfold Module.connect''
-    dsimp
+  dsimp [ExprLow.build_module_expr, ExprLow.build_module, ExprLow.build_module']
+  simp [ε]
+  simp [drcompute, ExprLow.build_module']
+  sorry
 
 def rhsModuleType (Tag T : Type _) : Type := by
-  precomputeTac [T| (rewrite.rewrite []).get rfl |>.output_expr, ε Tag T ] by
+  precomputeTac [T| (rewrite.rewrite []).get rfl |>.output_expr, (ε Tag T).find?] by
     dsimp [drunfold_defs, ExprHigh.extract, List.foldlM]
-    -- simp (disch := simp) only [AssocList.find?_cons_eq, AssocList.find?_cons_neq]; dsimp
-    -- simp
-    -- Lowering reduction -> creates ExprLow
+    simp
     dsimp [ExprHigh.lower, ExprHigh.lower', ExprHigh.uncurry]
-    -- Unfold build_module
     dsimp [ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module']
     simp [ε]
+    simp [List.find?, ExprHigh.generate_product, ExprHigh.uncurry]
+    dsimp [ExprLow.build_module', NatModule.Named]
 
 -- #reduce rhsNames
 -- #reduce rhsModuleType
 
 @[drunfold] def rhsModule (Tag T : Type _) : StringModule (rhsModuleType Tag T) := by
-  precomputeTac [e| (rewrite.rewrite []).get rfl |>.output_expr, ε Tag T ] by
-    dsimp [drunfold_defs, ExprHigh.extract, List.foldlM]
-    rw [rw_opaque (by simp -failIfUnchanged (disch := simp) only [drcompute, ↓reduceIte]; rfl)]
-    dsimp [ ExprHigh.lower, ExprHigh.lower', ExprHigh.uncurry
-          , ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module']
-    rw [rw_opaque (by simp (disch := simp) only [ε, drcompute, ↓reduceIte]; rfl)]
-    dsimp [drcomponents]
-    dsimp [Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts, Module.mapInputPorts, AssocList.bijectivePortRenaming, AssocList.invertible, AssocList.keysList, AssocList.inverse, AssocList.filterId, AssocList.filter, List.inter]; simp (disch := simp) only [drcompute, ↓reduceIte]
-    dsimp [Module.product, Module.liftL, Module.liftR]
-    dsimp [Module.connect']
-    simp (disch := simp) only [drcompute, ↓reduceIte]
-    conv =>
-      pattern (occs := *) Module.connect'' _ _
-      all_goals
-        rw [(Module.connect''_dep_rw (h := by simp (disch := simp) only [AssocList.eraseAll_cons_neq,AssocList.eraseAll_cons_eq,AssocList.eraseAll_nil,PortMap.getIO,AssocList.find?_cons_eq,AssocList.find?_cons_neq]; dsimp)
-                                 (h' := by simp (disch := simp) only [AssocList.eraseAll_cons_neq,AssocList.eraseAll_cons_eq,AssocList.eraseAll_nil,PortMap.getIO,AssocList.find?_cons_eq,AssocList.find?_cons_neq]; dsimp))]
-    unfold Module.connect''
-    dsimp
+  precomputeTac [e| (rewrite.rewrite []).get rfl |>.output_expr, (ε Tag T).find?] by
+    sorry
 
 attribute [dmod] Batteries.AssocList.find? BEq.beq
 
