@@ -1,12 +1,13 @@
 /-
 Copyright (c) 2025 VCA Lab, EPFL. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Maï-Linh Cordonnier
+Authors: Maï-Linh Cordonnier, Lorenzo Padrini
 -/
 
 import Graphiti.Core.ModuleLemmas
 import Graphiti.Core.StateTransition
 import Graphiti.Projects.Liveness.ComposedModule
+import Graphiti.Projects.Liveness.StateTransitionLiveness
 import Graphiti.Core.Trace
 
 
@@ -63,94 +64,39 @@ lemma gcompfp_lemma {t t0: Trace Nat} {T f g} : -- rename it to `gcompf_stuck_in
     case refl => sorry
     case step => sorry
 
-    -- obtain ⟨ h_mod, h_behv, h_in, h_out ⟩ := h
-    -- rcases h_behv with ⟨ s0, s', h_init, h_star ⟩
-    -- -- unfold StateTransition.init at h_init;
-    -- revert h_init h_in h_out h_mod x
-    -- induction h_star
-    -- case intro.intro.intro.refl s1 =>
-    --   exfalso
-    --   absurd h_in
-    --   exact List.not_mem_nil
-    -- case intro.intro.intro.step s1 s2 s3 t1 t2 step1 star2 ih =>
+
 
 
 
 def gcompf_P {T} (t: Trace Nat)(f g: T → T) : Prop :=
   ∀ in1, .input 0 ⟨ T, in1 ⟩ ∈ t → .output 0 ⟨ T, g (f (in1)) ⟩ ∈ t
 
+--theorem gcompf_inp {T f g} : ∀ t t0 x, .input 0 ⟨T, x ⟩ ∉ t0 ∧ gcompf_P (t ++ t0) f g ∧ ∃ s s0, @star _ _ (state_transition s.module) s t0 s0
+--:= by sorry
 
--- maibye try doing reachability + star on main theorem if stuck
+theorem gcompf_reachness {T f g} : ∀ s t, @reachable _ _ (state_transition (NatModule.gcompf T f g)) t s
+  → ∃ t' s', @star _ _ (state_transition s.module) s t s'
+  → ∀ x, ∃ t0, .input 0 ⟨ T, x ⟩ ∉ t0
+  → ∃ s'', gcompf_P (t ++ t' ++ t0) f g ∧ @star _ _ (state_transition s.module) s t0 s''
+  → ∀ e, @star _ _ (state_transition s.module) s' [e] s''
+  → ∃ sn tn,gcompf_P (t ++ t' ++ [e] ++ tn) f g ∧ @star _ _ (state_transition s.module) s'' tn sn ∧ ∀ x, .input 0 ⟨T, x ⟩ ∉ tn:= by sorry
 
 -- if 0 steps holds, if n steps have to check the reachabilty + */// lemmas: is input included, is output included
 -- with module gcompf, if "in1" in trace α, then there exist a β where eventually "out1 = g∘f(in1)" in trace αβ
-theorem gcompf_liveness {t : Trace Nat} {T f g} (h_steps: @behaviour _ _ (state_transition (NatModule.gcompf T f g)) t) (h_in: ∃ in1, .input 0 ⟨ T, in1 ⟩ ∈ t) : --TODO: remove h_in
-  ∃ t', gcompf_P (t ++ t') (f) (g) ∧ @behaviour _ _ (state_transition (NatModule.gcompf T f g)) (t ++ t') := by
-    -- check behavior and check that init works then that star works
-    -- but ppty we're trying to prove is not inductive so it'll be problematic to prove
-    -- try to transform the ppty into an "inductive one" -> either out is already in t, or it's in the module : then it's either in the left list and can be processed through internal rule then output, or it's in the right list and can be output
-    -- lemma to prove to prove this big thm:
-    -- beh of t ∧ inp x ∈ t ∧ out g(f(x)) ∉ t → f(x) ∈ gf.s.1 ∨ g(f(x)) ∈ gf.s.2 --try to get away from beh asap, so you don't have to start at init state which is empty since we can't induct over that
-    -- f(x) ∈ gf.s.1 → ∃ t' s', s -t'-*-> s' ∧ out g(f(x)) ∈ t ∧ s' = (∅, ∅)
-  -- OOOK I am used to do the bottom up but here makes more sense to have a top down approach to keep objectives in mind
-  have h_beh := h_steps
-  simp [behaviour] at h_steps --opening the internals of the inductive hypotesis
-  cases h_steps -- removng the existentials that bothers
-  rename_i s1 iH
-  -- Opening the two informations given from the behaviour
-  cases iH
-  rename_i initProp starProp
-  -- Removing the existential from the star prop
-  cases starProp
-  rename_i s2 trans
-  -- proving that an input has been inserted
-  cases h_in
-  rename_i x xInT
-  cases initProp
-  rename_i init_mod modNat
-  -- induce over *, show that P is inductive (P s and s →* s' then P s')
-  by_cases ¬ .output 0 ⟨T, g (f x)⟩ ∈ t
-  . rename_i notOutput
-    -- have lemma1 := gcompfp_lemma t f g x s1
-    -- simp [modNat, xInT, h_beh, notOutput] at lemma1
-    -- have lemma2 := gcompf_flushability f g x
-    sorry
-  . rename_i outputInT
-    simp at outputInT
-    exists []
-    simp [gcompf_P, behaviour]
-    constructor
-    . intro in1 tInT
-      sorry
-    . sorry
-
-
-
-
-
-
-
-  /-
-  constructor
-  . constructor
-    . sorry
-    . simp [behaviour]
-      simp [behaviour] at h_steps
-      cases h_steps
-      rename_i s iH
-      exists s
+theorem gcompf_liveness {t : Trace Nat} {T f g} (h_steps: @behaviour _ _ (state_transition (NatModule.gcompf T f g)) t)  :
+  ∃ t', gcompf_P (t ++ t') (f) (g) ∧ @behaviour _ _ (state_transition (NatModule.gcompf T f g)) (t ++ t') ∧ ∀ x, .input 0 ⟨T, x⟩ ∉ t' := by
+    cases h_steps
+    rename_i s1 behUnfolded
+    cases behUnfolded
+    rename_i s2 behUnfolded
+    have starRevConv := (@star_eq_star_rev _ _ (state_transition (NatModule.gcompf T f g)) s1 s2 t).mp behUnfolded.right
+    induction starRevConv
+    . exists []
+      simp [behaviour, gcompf_P] at *
+      exists s1
       constructor
-      . apply And.left iH
-      . have rightSide := And.right iH
-        cases rightSide
-        rename_i x trans
-        constructor-/
-
-
-
-
-
-
-
--- end NatModule
--- end Module
+      . exact behUnfolded.left
+      . exists s1
+        exact behUnfolded.right
+    . rename_i s3 s4 s5 l1 l2 stepP starP
+      sorry
