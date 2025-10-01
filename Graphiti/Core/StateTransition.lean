@@ -38,7 +38,7 @@ def reachable (l : List Event) (s' : State) : Prop :=
   ∃ s, trans.init s ∧ star s l s'
 
 def future (s : State) (t : List Event) : Prop :=
-  ∃ s', s -[ t ]-> s'
+  ∃ s', s -[ t ]*> s'
 
 def liveness_refine {S I Event} (ST_S : StateTransition S Event) (ST_I : StateTransition I Event) : Prop :=
   ∀ (l : List Event) (i : I) (s : S),
