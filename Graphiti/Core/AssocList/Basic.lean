@@ -48,11 +48,16 @@ def concat {α β} (a : α) (b : β) (m : AssocList α β) :=
 @[inline] def eraseAll {α β} [BEq α] (a : α) (l : AssocList α β) : AssocList α β :=
   eraseAllP_TR (fun k _ => k == a) l
 
-def keysList {α β} (map : AssocList α β) : List α :=
-  map.toList.map (·.fst)
+/-- `O(n)`. Map a function `f` over the values of the list. -/
+@[simp] def map {α β δ γ} (f : α → β → δ × γ) : AssocList α β → AssocList δ γ
+  | nil        => nil
+  | cons k v t => let (k', v') := f k v; cons k' v' (map f t)
 
-def valsList {α β} (map : AssocList α β) : List β :=
-  map.toList.map (·.snd)
+def keysList {α β} (l : AssocList α β) : List α :=
+  l.toList.map (·.fst)
+
+def valsList {α β} (l : AssocList α β) : List β :=
+  l.toList.map (·.snd)
 
 def disjoint_keys {α β γ} [DecidableEq α] (a : AssocList α β) (b : AssocList α γ) : Bool :=
   a.keysList.inter b.keysList = []
@@ -63,8 +68,13 @@ def disjoint_vals {α β γ} [DecidableEq γ] (a : AssocList α γ) (b : AssocLi
 def filter {α β} (f : α → β → Bool) (l : AssocList α β) :=
   l.foldl (λ c a b => if f a b then c.concat a b else c) (∅ : AssocList α β)
 
-def mem {α β} [BEq α] (a : α) (b : β) (l : AssocList α β) : Prop :=
-  l.find? a = some b
+def mem {α β} [BEq α] (k : α) (v : β) (l : AssocList α β) : Prop :=
+  l.find? k = some v
+
+def flatten {α β} (l : List (AssocList α β)): AssocList α β :=
+  match l with
+  | .nil        => .nil
+  | .cons hd tl => hd.append (flatten tl)
 
 def inverse {α β} : AssocList α β → AssocList β α
 | .nil => .nil
@@ -76,8 +86,8 @@ def beq_left_ooo {α β} [DecidableEq α] [DecidableEq β] (a b : AssocList α �
 def beq_ooo {α β} [DecidableEq α] [DecidableEq β] (a b : AssocList α β) : Bool :=
   beq_left_ooo a b ∧ beq_left_ooo b a
 
-def filterId {α} [DecidableEq α] (p : AssocList α α) : AssocList α α :=
-  p.filter (λ a b => a ≠ b)
+def filterId {α} [DecidableEq α] (l : AssocList α α) : AssocList α α :=
+  l.filter (λ a b => a ≠ b)
 
 def subsetOf {α β} [DecidableEq α] (a b : AssocList α β) : Prop :=
   ∀ i v, a.find? i = .some v → b.find? i = .some v
@@ -86,7 +96,7 @@ def EqExt {α β} [DecidableEq α] (a b : AssocList α β) : Prop :=
   -- a.subsetOf b ∧ b.subsetOf a
   ∀ i, a.find? i = b.find? i
 
-theorem EqExt.refl {α β} [DecidableEq α] (a : AssocList α β) : a.EqExt a := by simp [EqExt]
+theorem EqExt.refl {α β} [DecidableEq α] (l : AssocList α β) : l.EqExt l := by simp [EqExt]
 theorem EqExt.symm {α β} [DecidableEq α] {b a : AssocList α β} : a.EqExt b → b.EqExt a := by simp +contextual [EqExt]
 theorem EqExt.trans {α β} [DecidableEq α] {a b c : AssocList α β} : a.EqExt b → b.EqExt c → a.EqExt c := by
   simp +contextual [EqExt]
@@ -94,28 +104,28 @@ theorem EqExt.trans {α β} [DecidableEq α] {a b c : AssocList α β} : a.EqExt
 instance AssocListExtSetoid {α β} [DecidableEq α] : Setoid (AssocList α β) :=
   ⟨EqExt, ⟨EqExt.refl, EqExt.symm, EqExt.trans⟩⟩
 
-def wf {α β} (a : AssocList α β) : Prop := a.keysList.Nodup
+def wf {α β} (l : AssocList α β) : Prop := l.keysList.Nodup
 
-def invertible_efficient {α} [DecidableEq α] (p : AssocList α α) : Bool := true
+def invertible_efficient {α} [DecidableEq α] (l : AssocList α α) : Bool := true
 
 -- @[implemented_by invertible_efficient]
-def invertible {α} [DecidableEq α] (p : AssocList α α) : Bool :=
-  p.filterId.keysList.inter p.inverse.filterId.keysList = ∅ ∧ p.keysList.Nodup ∧ p.inverse.keysList.Nodup
+def invertible {α} [DecidableEq α] (l : AssocList α α) : Bool :=
+  l.filterId.keysList.inter l.inverse.filterId.keysList = ∅ ∧ l.keysList.Nodup ∧ l.inverse.keysList.Nodup
 
 /--
 Just like bijectivePortRenaming, but pushes the function generation into the definition.  This doesn't seem to make a
 big difference.
 -/
-def bijectivePortRenaming_quick {α} [DecidableEq α] (p : AssocList α α) : α → α :=
-  if p.invertible then
-    let map := p.filterId.append p.inverse.filterId
+def bijectivePortRenaming_quick {α} [DecidableEq α] (l : AssocList α α) : α → α :=
+  if l.invertible then
+    let map := l.filterId.append l.inverse.filterId
     fun i => map.find? i |>.getD i
   else id
 
 -- @[implemented_by bijectivePortRenaming]
-def bijectivePortRenaming {α} [DecidableEq α] (p : AssocList α α) (i: α) : α :=
-  if p.invertible then
-    let map := p.filterId.append p.inverse.filterId
+def bijectivePortRenaming {α} [DecidableEq α] (l : AssocList α α) (i : α) : α :=
+  if l.invertible then
+    let map := l.filterId.append l.inverse.filterId
     map.find? i |>.getD i
   else i
 
@@ -123,8 +133,8 @@ def bijectivePortRenaming {α} [DecidableEq α] (p : AssocList α α) (i: α) : 
   | nil        => nil
   | cons k v t => cons (f k v) v (mapKey' f t)
 
-def squash {α β} [DecidableEq α] (a : AssocList α β) : AssocList α β → AssocList α β
-| nil => a
-| cons k v t => if a.contains k then squash a t else cons k v (squash a t)
+def squash {α β} [DecidableEq α] (l : AssocList α β) : AssocList α β → AssocList α β
+| nil => l
+| cons k v t => if l.contains k then squash l t else cons k v (squash l t)
 
 end Batteries.AssocList

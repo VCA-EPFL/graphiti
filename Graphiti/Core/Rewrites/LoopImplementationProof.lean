@@ -102,7 +102,9 @@ theorem state_relation_empty :
   · constructor
   · intro _ hin; cases hin
   · constructor
-  · intro _ _ _ _ hfind; simp at hfind
+  · intro _ _ _ _ hfind
+    rw [show default = Batteries.AssocList.nil by rfl] at hfind
+    simp [-AssocList.find?_eq] at hfind
   · intro _ hin; cases hin
   · intro _ _ hin; cases hin
   · intro _ hin; cases hin

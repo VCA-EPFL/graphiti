@@ -47,12 +47,12 @@ namespace Graphiti.Projects.Noc.Examples
   -- It does not require a MkHead (The head is exactly the destination)
   -- Which mean the implementation of a Router should be quite easy?
 
-  def tmp := n.build_expr |> ExprLow.higher_correct PortMapping.hashPortMapping
+  def tmp := n.build_expr
 
-  #eval! tmp |> Option.get!
-  #eval! tmp |> Option.get! |> toString |> IO.print
+  #eval! tmp
+  #eval! tmp |> toString |> IO.print
 
-  def tmp' := n.build_expr |> ExprLow.higher
+  def tmp' := n.build_expr
 
   #eval! tmp' |> toString |> IO.print
 

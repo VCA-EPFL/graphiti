@@ -1,7 +1,7 @@
 /-
 Copyright (c) 2025 VCA Lab, EPFL. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Yann Herklotz, Gurvan Debaussart
+Authors: Gurvan Debaussart
 -/
 
 import Graphiti.Projects.Noc.Lang
@@ -44,4 +44,6 @@ namespace Graphiti.Projects.Noc
       → dst = dst' ∧ data = data'
 
   class NocCorrect (noc : Noc Data netsz) where
-    routing_policy  : noc.routing_policy_correct
+    routing_policy : noc.routing_policy_correct
+
+end Graphiti.Projects.Noc
