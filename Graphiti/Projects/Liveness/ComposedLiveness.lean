@@ -26,6 +26,7 @@ open Graphiti.Module
 -- #check NatModule.gfmodule
 
 -- if `f(x)` is in the module, then it can be output (through steps `t'`, leading to new state `s'` which is empty)
+/-
 lemma gcompf_flushability {T} (f g: T → T):
   ∀ (x: T) (s: State _ _), s.module = (NatModule.gcompf T f g) ∧ (f x) ∈ s.state.fst
   → ∃ t' s', (@star _ _ (state_transition s.module) ⟨s.state,  s.module⟩ t' ⟨s', s.module⟩)
@@ -176,3 +177,124 @@ theorem gcompf_liveness {t : Trace Nat} {T f g} (h_steps: @behaviour _ _ (state_
         exists l2
         simp at *
         assumption
+-/
+
+
+
+/-
+New approach: using behaviours is too limiting, I decided to do a secondary proof exclusively on star and prove behaviour
+depending on it. For the moment it works well
+
+-/
+def gcompf_P {T} (t: Trace Nat)(f g: T → T) : Prop :=
+  ∀ in1, .input 0 ⟨ T, in1 ⟩ ∈ t → .output 0 ⟨ T, g (f (in1)) ⟩ ∈ t
+
+
+theorem gcompf_reachness_3 {T f g} : ∀ t s', @reachable _ _ (state_transition (NatModule.gcompf T f g)) t s'
+→ ∀ s'' t0, ( ∀ x, .input 0 ⟨ T, x ⟩ ∉ t0) ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) s' t0 s''
+→ gcompf_P (t ++ t0) f g
+→ ∀ s''', @star _ _ (state_transition (NatModule.gcompf T f g)) s' [] s'''
+→ ∃ sn tn, gcompf_P (t ++ tn) f g ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) s''' tn sn ∧ ∀ x, .input 0 ⟨T, x ⟩ ∉ tn:= by sorry
+
+
+theorem gcompf_reachness_2 {T f g} : ∀ t s', @reachable _ _ (state_transition (NatModule.gcompf T f g)) t s'
+→ ∀ s'' t0, ( ∀ x, .input 0 ⟨ T, x ⟩ ∉ t0) ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) s' t0 s''
+→ gcompf_P (t ++ t0) f g
+→ ∀ e s''', @star _ _ (state_transition (NatModule.gcompf T f g)) s' [e] s'''
+→ ∃ sn tn, gcompf_P (t ++ [e] ++ tn) f g ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) s''' tn sn ∧ ∀ x, .input 0 ⟨T, x ⟩ ∉ tn:= by sorry
+
+theorem gcompf_liveness_simp {t : Trace Nat} {T f g} (s1 s2: State _ _) (h: @StateTransition.init _ _ (state_transition (NatModule.gcompf T f g)) s1 ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) s1 t s2):
+  ∃ t' s3, gcompf_P (t ++ t') f g ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) s2 t' s3 ∧ (∀ x, .input 0 ⟨T, x⟩ ∉ t'):= by
+    have starConv := (@star_eq_star_rev _ _ (state_transition (NatModule.gcompf T f g)) s1 s2 t).mp h.right
+    induction starConv
+    . exists []
+      simp [gcompf_P]
+      exists s1
+      exact h.right
+    . rename_i s3 s4 l1 l2 step star iH
+      have starConv := (@star_eq_star_rev _ _ (state_transition (NatModule.gcompf T f g)) s1 s3 l1).mpr star
+      clear star
+      have iHRes := iH (And.intro h.left starConv)
+      clear iH
+      cases iHRes
+      rename_i tr iH
+      cases iH
+      rename_i s5 iH
+      have keepStep := step
+      cases step
+      . rename_i IntN LTPair s3Fst TT s3Snd TTEq
+        have finalRes :=@ gcompf_reachness_2 T f g l1 s3
+        simp [reachable] at finalRes
+        generalize pq: IOEvent.input IntN TT = io at *
+        have finalResT := finalRes s1 h.left starConv s5 tr iH.right.right iH.right.left iH.left io
+        clear finalRes
+        have stepToStar := @star.plus_one _ _ (state_transition (NatModule.gcompf T f g)) s3 ({ state := LTPair, module := s3.module }) ([io]) keepStep
+        have finalRes := finalResT { state := LTPair, module := s3.module } stepToStar
+        cases finalRes
+        rename_i s4 finalRes
+        cases finalRes
+        rename_i tn final
+        exists tn
+        exists s4
+        simp at *
+        exact final
+      . rename_i IntN LTPair s3Fst TT s3Snd TTEq
+        have finalRes :=@ gcompf_reachness_2 T f g l1 s3
+        simp [reachable] at finalRes
+        generalize pq: IOEvent.output IntN TT = io at *
+        have finalResT := finalRes s1 h.left starConv s5 tr iH.right.right iH.right.left iH.left io
+        clear finalRes
+        have stepToStar := @star.plus_one _ _ (state_transition (NatModule.gcompf T f g)) s3 ({ state := LTPair, module := s3.module }) ([io]) keepStep
+        have finalRes := finalResT { state := LTPair, module := s3.module } stepToStar
+        cases finalRes
+        rename_i s4 finalRes
+        cases finalRes
+        rename_i tn final
+        exists tn
+        exists s4
+        simp at *
+        exact final
+      . rename_i RelTT LtLt RelTTInt RelTTState
+        have finalRes :=@ gcompf_reachness_3 T f g l1 s3
+        simp [reachable] at finalRes
+        have finalResT := finalRes s1 h.left starConv s5 tr iH.right.right iH.right.left iH.left
+        clear finalRes
+        have stepToStar := @star.plus_one _ _ (state_transition (NatModule.gcompf T f g)) s3 ({ state := LtLt, module := s3.module }) [] keepStep
+        have finalRes := finalResT { state := LtLt, module := s3.module } stepToStar
+        cases finalRes
+        rename_i s4 finalRes
+        cases finalRes
+        rename_i tn final
+        exists tn
+        exists s4
+        simp at *
+        exact final
+
+
+
+
+theorem gcompf_liveness2 {t : Trace Nat} {T f g} (h_steps: @behaviour _ _ (state_transition (NatModule.gcompf T f g)) t)  :
+  ∃ t', gcompf_P (t ++ t') (f) (g) ∧ @behaviour _ _ (state_transition (NatModule.gcompf T f g)) (t ++ t') ∧ ∀ x, .input 0 ⟨T, x⟩ ∉ t' := by
+    simp [behaviour] at h_steps
+    cases h_steps
+    rename_i s1 beh
+    cases beh
+    rename_i p1 beh
+    cases beh
+    rename_i s2 star
+    have mainProof := gcompf_liveness_simp s1 s2 (And.intro p1 star)
+    cases mainProof
+    rename_i t' mainProof
+    cases mainProof
+    rename_i s3 mainProof
+    exists t'
+    constructor
+    . exact mainProof.left
+    . constructor
+      . simp [behaviour]
+        have starComb := @star.trans_star _ _ (state_transition (NatModule.gcompf T f g)) s1 s2 s3 t t' mainProof.right.left
+        exists s1
+        constructor
+        . exact p1
+        . exists s3
+      . exact mainProof.right.right

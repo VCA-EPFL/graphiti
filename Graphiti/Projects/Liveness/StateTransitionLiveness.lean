@@ -12,8 +12,6 @@ namespace Graphiti
 
 section Behaviour
 
-variable {State Event : Type _}
-variable [trans: StateTransition State Event]
 
 variable {State Event : Type _}
 variable [trans: StateTransition State Event]
