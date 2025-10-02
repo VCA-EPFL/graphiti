@@ -18,6 +18,10 @@ variable [trans: StateTransition State Event]
 variable {State Event : Type _}
 variable [trans: StateTransition State Event]
 
+
+def behaviour_tight (l1 l2 : List Event) : Prop :=
+  ∃ s s' s'', trans.init s ∧ star s l1 s' ∧ star s' l2 s''
+
 inductive star_rev : State → List Event → State → Prop where
   | refl : ∀ s1, star_rev s1 [] s1
   | step : ∀ s1 s2 s3 e1 e2, trans.step s2 e2 s3 → star_rev s1 e1 s2 → star_rev s1 (e1 ++ e2) s3

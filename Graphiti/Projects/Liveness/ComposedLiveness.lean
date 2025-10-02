@@ -74,12 +74,12 @@ def gcompf_P {T} (t: Trace Nat)(f g: T → T) : Prop :=
 --theorem gcompf_inp {T f g} : ∀ t t0 x, .input 0 ⟨T, x ⟩ ∉ t0 ∧ gcompf_P (t ++ t0) f g ∧ ∃ s s0, @star _ _ (state_transition s.module) s t0 s0
 --:= by sorry
 
-theorem gcompf_reachness {T f g} : ∀ s t, @reachable _ _ (state_transition (NatModule.gcompf T f g)) t s
-  → ∃ t' s', @star _ _ (state_transition s.module) s t s'
-  → ∀ x, ∃ t0, .input 0 ⟨ T, x ⟩ ∉ t0
-  → ∃ s'', gcompf_P (t ++ t' ++ t0) f g ∧ @star _ _ (state_transition s.module) s t0 s''
-  → ∀ e, @star _ _ (state_transition s.module) s' [e] s''
-  → ∃ sn tn,gcompf_P (t ++ t' ++ [e] ++ tn) f g ∧ @star _ _ (state_transition s.module) s'' tn sn ∧ ∀ x, .input 0 ⟨T, x ⟩ ∉ tn:= by sorry
+theorem gcompf_reachness {T f g} : ∀ t s s', @star _ _ (state_transition (NatModule.gcompf T f g)) s t s'
+  → ∀ t0, (∀ x, .input 0 ⟨ T, x ⟩ ∉ t0)
+  → gcompf_P (t ++ t0) f g
+  → ∀ e s'', @star _ _ (state_transition (NatModule.gcompf T f g)) s' [e] s''
+  → ∃ sn tn,gcompf_P (t ++ [e] ++ tn) f g ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) s'' tn sn ∧ ∀ x, .input 0 ⟨T, x ⟩ ∉ tn:= by sorry
+
 
 -- if 0 steps holds, if n steps have to check the reachabilty + */// lemmas: is input included, is output included
 -- with module gcompf, if "in1" in trace α, then there exist a β where eventually "out1 = g∘f(in1)" in trace αβ
@@ -87,16 +87,92 @@ theorem gcompf_liveness {t : Trace Nat} {T f g} (h_steps: @behaviour _ _ (state_
   ∃ t', gcompf_P (t ++ t') (f) (g) ∧ @behaviour _ _ (state_transition (NatModule.gcompf T f g)) (t ++ t') ∧ ∀ x, .input 0 ⟨T, x⟩ ∉ t' := by
     cases h_steps
     rename_i s1 behUnfolded
+    have helpNext := (s1.module.state_transition = (state_transition (NatModule.gcompf T f g)))
     cases behUnfolded
     rename_i s2 behUnfolded
     have starRevConv := (@star_eq_star_rev _ _ (state_transition (NatModule.gcompf T f g)) s1 s2 t).mp behUnfolded.right
     induction starRevConv
     . exists []
-      simp [behaviour, gcompf_P] at *
+      simp [gcompf_P]
       exists s1
-      constructor
-      . exact behUnfolded.left
-      . exists s1
-        exact behUnfolded.right
-    . rename_i s3 s4 s5 l1 l2 stepP starP
-      sorry
+      exists s1
+    . rename_i s3 s4 l1 l2 stepP starP iH
+      have starConv := (@star_eq_star_rev _ _ (state_transition (NatModule.gcompf T f g)) s1 s3 l1).mpr starP
+      have iHEval := iH (And.intro behUnfolded.left starConv)
+      cases iHEval
+      clear iH
+      rename_i l2 iH
+      have stepPP := stepP
+      cases stepP
+      . rename_i ip LxL firstInputV firstInputTpe secondInputV firstInputEq
+        have behConv := iH.right.left
+        simp [behaviour_tight] at behConv
+        cases behConv
+        rename_i s4 behConv
+        cases behConv
+        rename_i s5 behConv
+        cases behConv
+        rename_i stateInits5 cc
+        have lemmaUse :=  @gcompf_reachness T f g
+        simp [reachable] at lemmaUse
+        have stepToStar := @star.plus_one _ _ (state_transition (NatModule.gcompf T f g)) s3 ({ state := LxL, module := s3.module }) ([IOEvent.input ip firstInputTpe]) stepPP
+        have lemmaUse1 := lemmaUse l1 s1 s3 starConv l2 iH.right.right iH.left (IOEvent.input ip firstInputTpe) ({ state := LxL, module := s3.module }) stepToStar
+        cases lemmaUse1
+        rename_i s6 lemma1
+        cases lemma1
+        rename_i l3 indLemma
+        exists l3
+        constructor
+        . simp at *
+          exact indLemma.left
+        . constructor
+          . simp [behaviour]
+            exists s1
+            constructor
+            . exact behUnfolded.left
+            . clear lemmaUse
+              exists s6
+              have firstSteps := @star.trans_star _ _ (state_transition (NatModule.gcompf T f g)) s1 s3 ({ state := LxL, module := s3.module }) l1 [IOEvent.input ip firstInputTpe] starConv
+              have firstSteps1 := firstSteps stepToStar
+              have secondSteps := @star.trans_star _ _ (state_transition (NatModule.gcompf T f g)) s1 { state := LxL, module := s3.module } s6 (l1 ++ [IOEvent.input ip firstInputTpe]) l3 firstSteps1 indLemma.right.left
+              simp at *
+              assumption
+          . exact indLemma.right.right
+      . rename_i ip LxL firstInputV firstInputTpe secondInputV firstInputEq
+        have behConv := iH.right.left
+        simp [behaviour_tight] at behConv
+        cases behConv
+        rename_i s4 behConv
+        cases behConv
+        rename_i s5 behConv
+        cases behConv
+        rename_i stateInits5 cc
+        have lemmaUse :=  @gcompf_reachness T f g
+        simp [reachable] at lemmaUse
+        have stepToStar := @star.plus_one _ _ (state_transition (NatModule.gcompf T f g)) s3 ({ state := LxL, module := s3.module }) ([IOEvent.output ip firstInputTpe]) stepPP
+        have lemmaUse1 := lemmaUse l1 s1 s3 starConv l2 iH.right.right iH.left (IOEvent.output ip firstInputTpe) ({ state := LxL, module := s3.module }) stepToStar
+        cases lemmaUse1
+        rename_i s6 lemma1
+        cases lemma1
+        rename_i l3 indLemma
+        exists l3
+        constructor
+        . simp at *
+          exact indLemma.left
+        . constructor
+          . simp [behaviour]
+            exists s1
+            constructor
+            . exact behUnfolded.left
+            . clear lemmaUse
+              exists s6
+              have firstSteps := @star.trans_star _ _ (state_transition (NatModule.gcompf T f g)) s1 s3 ({ state := LxL, module := s3.module }) l1 [IOEvent.output ip firstInputTpe] starConv
+              have firstSteps1 := firstSteps stepToStar
+              have secondSteps := @star.trans_star _ _ (state_transition (NatModule.gcompf T f g)) s1 { state := LxL, module := s3.module } s6 (l1 ++ [IOEvent.output ip firstInputTpe]) l3 firstSteps1 indLemma.right.left
+              simp at *
+              assumption
+          . exact indLemma.right.right
+      . rename_i RLL LL RLLInS3 RLLS
+        exists l2
+        simp at *
+        assumption
