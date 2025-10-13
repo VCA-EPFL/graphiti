@@ -20,6 +20,7 @@ import Graphiti.Core.Trace
 
 open Graphiti
 open Graphiti.Module
+open List
 -- namespace Module
 -- namespace NatModule
 
@@ -189,11 +190,29 @@ depending on it. For the moment it works well
 def gcompf_P {T} (t: Trace Nat)(f g: T → T) : Prop :=
   ∀ in1, .input 0 ⟨ T, in1 ⟩ ∈ t → .output 0 ⟨ T, g (f (in1)) ⟩ ∈ t
 
+/-
+if t1 respects P and t2 respects P then t1++t2 respects P
+-/
+theorem gcompf_P_concat {T}(f g: T → T):
+  ∀ t0 t1, gcompf_P t0 f g ∧ gcompf_P t1 f g → gcompf_P (t0++t1) f g := by
+    intros t0 t1 h
+    unfold gcompf_P at *
+    have ⟨ h1, h2 ⟩ := h
+    intros in1 h_in_concat
+    -- List.mem_append : a ∈ L₁ ++ L₂ ↔ a ∈ L₁ ∨ a ∈ L₂
+    rcases (mem_append.mp h_in_concat) with h_in_t0 | h_in_t1
+    case inl =>
+      have h_out_t0 : IOEvent.output 0 ⟨T, g (f in1)⟩ ∈ t0 := h1 in1 h_in_t0
+      exact mem_append_left t1 h_out_t0
+    case inr =>
+      have h_out_t1 : IOEvent.output 0 ⟨T, g (f in1)⟩ ∈ t1 := h2 in1 h_in_t1
+      exact mem_append_right t0 h_out_t1
+
 
 theorem gcompf_lemm_in {T f g}: ∀ t0 t s s0 e, (∀ x, .input 0 ⟨T, x⟩ ∉ t0)
 → gcompf_P (t ++ t0) f g
 → @star _ _ (state_transition (NatModule.gcompf T f g)) s t0 s0
-→ gcompf_P (t ++ [.input 0 ⟨T, e⟩  ] ++ t0 ++ [.output 0 ⟨ T, g (f e) ⟩ ]) f g
+→ gcompf_P (t ++ [.input 0 ⟨T, e⟩  ] ++ t0 ++ [.output 0 ⟨ T, g (f e) ⟩ ]) f g -- why is t0 in between the in and out
 := by sorry
 
 
