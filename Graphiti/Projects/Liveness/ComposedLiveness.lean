@@ -69,59 +69,9 @@ theorem gcompf_lemm_out {T f g}: ∀ t0 t s s0 e, (∀ x, .input 0 ⟨T, x⟩ �
 
 
 
-theorem gcompf_P_trans {T} (f g: T → T) (l1 l2 l3: List (IOEvent ℕ)): ((gcompf_P (l1 ++ (l3 ++ l2)) f g) ∧ ∀ (x : T), ¬IOEvent.input 0 ⟨T, x⟩ ∈ l3 ++ l2) → gcompf_P (l1 ++ l3) f g := by
-  intro iH
-  rcases iH with ⟨gcompf, empty⟩
-  simp [gcompf_P] at *
-  intro in1
-  intro imp
-  sorry
 
 
-theorem input_not_in_conc_implies_inpup_not_in_list {T} (l1 l2: List (IOEvent ℕ)) : (∀ (x : T), ¬IOEvent.input 0 ⟨T, x⟩ ∈ l1 ++ l2) → (∀ (x : T), ¬IOEvent.input 0 ⟨T, x⟩ ∈ l1) ∧ (∀ (x : T), ¬IOEvent.input 0 ⟨T, x⟩ ∈ l2) := by
-  intro iH
-  simp at iH
-  constructor
-  . intro x
-    have iHEval := iH x
-    exact iHEval.left
-  . intro x
-    have iHEval := iH x
-    exact iHEval.right
 
-theorem gcompf_reachness_empty {T f g} : ∀ t s', @reachable _ _ (state_transition (NatModule.gcompf T f g)) t s'
-→ ∀ s'' t0, ( ∀ x, .input 0 ⟨ T, x ⟩ ∉ t0) ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) s' t0 s''
-→ gcompf_P (t ++ t0) f g
-→ ∀ s''', @step _ _ _ s' [] s'''
-→ ∃ sn tn, gcompf_P (t ++ tn) f g ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) s''' tn sn ∧ ∀ x, .input 0 ⟨T, x ⟩ ∉ tn:= by
-  intro l1 s1 reachP s2 l2 emptyAndStar gcP s3 emptStep
-  rcases emptyAndStar with ⟨empty, star⟩
-  rcases emptStep
-  rename_i arrow state2 arrowIsInternal arrowTrans
-  simp [] at *
-  have starConv := (@star_eq_star_rev _ _ (state_transition (NatModule.gcompf T f g)) s1 s2 l2).mp star
-  induction starConv
-  . exists  { state := state2, module := s1.module }
-    exists []
-    constructor
-    exact gcP
-    simp at *
-    clear empty
-    have cc := @Graphiti.star.refl _ _ (state_transition (NatModule.gcompf T f g)) { state := state2, module := s1.module }
-    exact cc
-  . rename_i s3 s4 l3 l4 step starConv iH
-    have star2 := (@star_eq_star_rev _ _ (state_transition (NatModule.gcompf T f g)) s1 s3 l3).mpr starConv
-    have imp := iH (@gcompf_P_trans T f g l1 l4 l3 (And.intro gcP empty))
-    clear iH
-    have iH := imp (@input_not_in_conc_implies_inpup_not_in_list  T l3 l4 empty).left star2
-    rcases iH
-    rename_i s5 iH
-    rcases iH
-    rename_i l5 iH
-    clear imp
-    rcases iH with ⟨iH1, iH2⟩
-    exists s5
-    exists l5
 
 
 theorem gcompf_reachness_input { T f g} (s1 s2 s3 : List T × List T) (t t0: List (IOEvent ℕ)) (io: T): @reachable _ _ (state_transition (NatModule.gcompf T f g)) t  ⟨ s1, (NatModule.gcompf T f g)⟩
@@ -140,6 +90,14 @@ theorem gcompf_reachness_output { T f g} (s1 s2 s3 : List T × List T) (t t0: Li
 → @step _ _ _ ⟨ s1, (NatModule.gcompf T f g)⟩ [IOEvent.output 0 ⟨ T, io⟩]  ⟨s3, (NatModule.gcompf T f g) ⟩
 → ∃ sn tn, gcompf_P (t ++ [IOEvent.output 0 ⟨T, io ⟩] ++ tn) f g ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) ⟨ s3, (NatModule.gcompf T f g) ⟩  tn sn ∧ ∀ x, .input 0 ⟨T, x ⟩ ∉ tn:= by
   sorry
+
+theorem gcompf_reachness_empty {T f g} (t t0: List (IOEvent ℕ )) (s1 s2 s3: (List T × List T)): @reachable _ _ (state_transition (NatModule.gcompf T f g)) t ⟨ s1, (NatModule.gcompf T f g ) ⟩
+→ ( ∀ x, .input 0 ⟨ T, x ⟩ ∉ t0) ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) ⟨ s1, (NatModule.gcompf T f g ) ⟩  t0 ⟨ s2, (NatModule.gcompf T f g ) ⟩
+→ gcompf_P (t ++ t0) f g
+→ @step _ _ _ ⟨ s1, (NatModule.gcompf T f g ) ⟩  [] ⟨ s3, (NatModule.gcompf T f g ) ⟩
+→ ∃ sn tn, gcompf_P (t ++ tn) f g ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) ⟨ s3, (NatModule.gcompf T f g ) ⟩  tn sn ∧ ∀ x, .input 0 ⟨T, x ⟩ ∉ tn:= by
+  sorry
+
 
 
 
@@ -239,12 +197,18 @@ theorem gcompf_liveness_simp {t : Trace Nat} {T f g}
         simp at *
         exact final
       . rename_i RelTT LtLt RelTTInt RelTTState
-        have finalRes :=@ gcompf_reachness_empty T f g l1 s3
+        have finalRes :=@ gcompf_reachness_empty T f g
         simp [reachable] at finalRes
-        have finalResT := finalRes s1 h.left starConv s5 tr iH.right.right iH.right.left iH.left
-        clear finalRes
-        have finalRes := finalResT { state := LtLt, module := s3.module } keepStep
-        cases finalRes
+        cases s3
+        rename_i s3 mod3
+        cases s5
+        rename_i s5 mod5
+        have s5_mod_eq := steps_preserve_mod (NatModule.gcompf T f g) iH.right.left
+        subst s5_mod_eq
+        subst keep
+        simp at keepStep
+        have finalResT := finalRes l1 tr s3.1 s3.2 s5.1 s5.2 LtLt.1 LtLt.2 s1 h.left starConv iH.right.right iH.right.left iH.left keepStep
+        cases finalResT
         rename_i s4 finalRes
         cases finalRes
         rename_i tn final
