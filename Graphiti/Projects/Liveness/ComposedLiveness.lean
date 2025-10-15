@@ -212,11 +212,28 @@ theorem gcompf_P_concat {T}(f g: T → T):
 theorem gcompf_lemm_in {T f g}: ∀ t0 t s s0 e, (∀ x, .input 0 ⟨T, x⟩ ∉ t0)
 → gcompf_P (t ++ t0) f g
 → @star _ _ (state_transition (NatModule.gcompf T f g)) s t0 s0
-→ gcompf_P (t ++ [.input 0 ⟨T, e⟩  ] ++ t0 ++ [.output 0 ⟨ T, g (f e) ⟩ ]) f g -- why is t0 in between the in and out
-:= by sorry
+→ gcompf_P (t ++ [.input 0 ⟨T, e⟩ ] ++ t0 ++ [.output 0 ⟨ T, g (f e) ⟩ ]) f g -- why is t0 in between the in and out? is it useful ?
+  := by
+    intros t1 t0 s0 s1 e h_noInpInT1 h_concatP h_star
+    -- gcompf_P_concat
+    simp [gcompf_P, h_noInpInT1] at *
+    intro x h_x
+    cases h_x
+    case inl h =>
+      have h1 := h_concatP x h
+      cases h1
+      case inl h2 =>
+        exact Or.inl h2
+      case inr h2 =>
+        refine or_assoc.mp ?_
+        exact Or.intro_left (g (f x) = g (f e)) (h_concatP x h)
+    case inr h =>
+      rw [h]
+      right
+      right
+      rfl
 
-
-
+-- the module is deterministic
 theorem gcompf_lemm_out {T f g}: ∀ t0 t s s0 e, (∀ x, .input 0 ⟨T, x⟩ ∉ t0)
 → gcompf_P (t ++ t0) f g
 → @star _ _ (state_transition (NatModule.gcompf T f g)) s t0 s0
@@ -247,10 +264,23 @@ theorem gcompf_reachness_elem {T f g} : ∀ t s', @reachable _ _ (state_transiti
 
 
 
+theorem gcompf_reachness_input {T f g} : ∀ t s', @reachable _ _ (state_transition (NatModule.gcompf T f g)) t s'
+→ ∀ s'' t0, ( ∀ x, .input 0 ⟨ T, x ⟩ ∉ t0) ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) s' t0 s''
+→ gcompf_P (t ++ t0) f g
+→ ∀ x s''', @step _ _ _ s' [.input 0 ⟨ T, x ⟩] s'''
+→ ∃ sn tn, gcompf_P (t ++ [.input 0 ⟨ T, x ⟩] ++ tn) f g ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) s''' tn sn ∧ ∀ x, .input 0 ⟨T, x ⟩ ∉ tn:= by
+
+  sorry
+
+theorem gcompf_reachness_output {T f g} : ∀ t s', @reachable _ _ (state_transition (NatModule.gcompf T f g)) t s'
+→ ∀ s'' t0, ( ∀ x, .input 0 ⟨ T, x ⟩ ∉ t0) ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) s' t0 s''
+→ gcompf_P (t ++ t0) f g
+→ ∀ x s''', @step _ _ _ s' [.output 0 ⟨ T, x ⟩] s'''
+→ ∃ sn tn, gcompf_P (t ++ [.output 0 ⟨ T, x ⟩] ++ tn) f g ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) s''' tn sn ∧ ∀ x, .input 0 ⟨T, x ⟩ ∉ tn:= by sorry
 
 
 
-
+-- diff with liveness: steps for given s1 s2 & ∃s3, s2-[t']*>s3 instead of behavior (t++t')
 theorem gcompf_liveness_simp {t : Trace Nat} {T f g} (s1 s2: State _ _) (h: @StateTransition.init _ _ (state_transition (NatModule.gcompf T f g)) s1 ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) s1 t s2):
   ∃ t' s3, gcompf_P (t ++ t') f g ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) s2 t' s3 ∧ (∀ x, .input 0 ⟨T, x⟩ ∉ t'):= by
     have starConv := (@star_eq_star_rev _ _ (state_transition (NatModule.gcompf T f g)) s1 s2 t).mp h.right
