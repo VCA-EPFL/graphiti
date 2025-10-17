@@ -22,12 +22,15 @@ open Graphiti.Module
 open List
 
 /-
-New approach: using behaviours is too limiting, I decided to do a secondary proof exclusively on star and prove behaviour
-depending on it. For the moment it works well
+The property that our circuit has to follow
 -/
 
 def gcompf_P {T} (t: Trace Nat)(f g: T → T) : Prop :=
   ∀ in1, .input 0 ⟨ T, in1 ⟩ ∈ t → .output 0 ⟨ T, g (f (in1)) ⟩ ∈ t
+
+/-
+INPUTS: theorems and lemmas managing the input case of the proof
+-/
 
 /-
 if t1 respects P and t2 respects P then t1++t2 respects P
@@ -48,7 +51,7 @@ theorem gcompf_P_concat {T}(f g: T → T):
       exact mem_append_right t0 h_out_t1
 
 
-theorem gcompf_lemm_in {T f g}: ∀ t0 t s s0 e, (∀ x, .input 0 ⟨T, x⟩ ∉ t0)
+theorem gcompf_in_P_is_trans {T f g}: ∀ t0 t s s0 e, (∀ x, .input 0 ⟨T, x⟩ ∉ t0)
 → gcompf_P (t ++ t0) f g
 → @star _ _ (state_transition (NatModule.gcompf T f g)) s t0 s0
 → gcompf_P (t ++ [.input 0 ⟨T, e⟩ ] ++ t0 ++ [.output 0 ⟨ T, g (f e) ⟩ ]) f g -- why is t0 in between the in and out? is it useful ?
@@ -72,8 +75,45 @@ theorem gcompf_lemm_in {T f g}: ∀ t0 t s s0 e, (∀ x, .input 0 ⟨T, x⟩ ∉
       right
       rfl
 
+theorem gcompf_input_star_maps {T f g} (s1 s2 s3: State ℕ (List T × List T)) (t: List (IOEvent ℕ)) (io: T) (h_mod: s1.module = (NatModule.gcompf T f g) ∧ s2.module = (NatModule.gcompf T f g) ∧ s3.module = (NatModule.gcompf T f g)): @star _ _ (state_transition (NatModule.gcompf T f g)) s1 t s2
+→ @step _ _ _ s1 [IOEvent.input 0 ⟨T, io⟩] s3
+→ ∃ s4, @star _ _ (state_transition (NatModule.gcompf T f g)) s3 (t ++ [IOEvent.output 0 ⟨T, g (f io)⟩]) s4 :=
+by sorry
+
+
+theorem gcompf_input_transitive { T f g} (s1 s2 s3 : List T × List T) (t t0: List (IOEvent ℕ)) (io: T): @reachable _ _ (state_transition (NatModule.gcompf T f g)) t  ⟨ s1, (NatModule.gcompf T f g)⟩
+→ ( ∀ x, .input 0 ⟨T, x⟩ ∉ t0) ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) ⟨ s1, (NatModule.gcompf T f g)⟩ t0 ⟨s2, (NatModule.gcompf T f g )⟩
+→ gcompf_P (t ++ t0) f g
+→ @step _ _ _ ⟨ s1, (NatModule.gcompf T f g)⟩ [IOEvent.input 0 ⟨ T, io⟩]  ⟨s3, (NatModule.gcompf T f g) ⟩
+→ ∃ sn tn, gcompf_P (t ++ [IOEvent.input 0 ⟨T, io ⟩] ++ tn) f g ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) ⟨ s3, (NatModule.gcompf T f g) ⟩  tn sn ∧ ∀ x, .input 0 ⟨T, x ⟩ ∉ tn:= by
+    intro s1_reachable ⟨no_input_in_t0, s1_star_s2_with_t0⟩ P_for_t_t0 s1_stars_s3_with_em
+    have gcomp_still_valid := @gcompf_in_P_is_trans T f g t0 t ⟨s1, (NatModule.gcompf T f g)⟩ ⟨s2, (NatModule.gcompf T f g)⟩ io no_input_in_t0 P_for_t_t0 s1_star_s2_with_t0
+    have new_star_T := @gcompf_input_star_maps T f g ⟨s1, (NatModule.gcompf T f g)⟩ ⟨s2, (NatModule.gcompf T f g)⟩ ⟨s3, (NatModule.gcompf T f g)⟩ t0 io
+    simp at new_star_T
+    have new_star := new_star_T s1_star_s2_with_t0 s1_stars_s3_with_em
+    clear new_star_T
+    match new_star with
+    | ⟨s4, s1_stars_s4⟩  =>
+      exists s4, (t0 ++ [IOEvent.output 0 ⟨T, g (f io)⟩])
+      refine ⟨?_, ?_, ?_⟩
+      . simp at *
+        apply gcomp_still_valid
+      . apply s1_stars_s4
+      . simp
+        apply no_input_in_t0
+
+
+
+
+
+
+
+/-
+OUTPUTS: theorems and lemmas managing the output case of the proof
+-/
+
 -- the module is deterministic
-theorem gcompf_lemm_out {T f g}: ∀ t0 t s s0 e, (∀ x, .input 0 ⟨T, x⟩ ∉ t0)
+theorem gcompf_out_P_is_trans {T f g}: ∀ t0 t s s0 e, (∀ x, .input 0 ⟨T, x⟩ ∉ t0)
 → gcompf_P (t ++ t0) f g
 → @star _ _ (state_transition (NatModule.gcompf T f g)) s t0 s0
 → ∃ t0', gcompf_P (t ++ [.output 0 ⟨ T, e ⟩] ++ t0') f g
@@ -82,12 +122,9 @@ theorem gcompf_lemm_out {T f g}: ∀ t0 t s s0 e, (∀ x, .input 0 ⟨T, x⟩ �
   sorry
 
 
-theorem gcompf_reachness_input { T f g} (s1 s2 s3 : List T × List T) (t t0: List (IOEvent ℕ)) (io: T): @reachable _ _ (state_transition (NatModule.gcompf T f g)) t  ⟨ s1, (NatModule.gcompf T f g)⟩
-→ ( ∀ x, .input 0 ⟨T, x⟩ ∉ t0) ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) ⟨ s1, (NatModule.gcompf T f g)⟩ t0 ⟨s2, (NatModule.gcompf T f g )⟩
-→ gcompf_P (t ++ t0) f g
-→ @step _ _ _ ⟨ s1, (NatModule.gcompf T f g)⟩ [IOEvent.input 0 ⟨ T, io⟩]  ⟨s3, (NatModule.gcompf T f g) ⟩
-→ ∃ sn tn, gcompf_P (t ++ [IOEvent.input 0 ⟨T, io ⟩] ++ tn) f g ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) ⟨ s3, (NatModule.gcompf T f g) ⟩  tn sn ∧ ∀ x, .input 0 ⟨T, x ⟩ ∉ tn:= by
-  sorry
+
+
+
 
 
 theorem gcompf_reachness_output { T f g} (s1 s2 s3 : List T × List T) (t t0: List (IOEvent ℕ)) (io: T): @reachable _ _ (state_transition (NatModule.gcompf T f g)) t  ⟨ s1, (NatModule.gcompf T f g)⟩
@@ -97,13 +134,25 @@ theorem gcompf_reachness_output { T f g} (s1 s2 s3 : List T × List T) (t t0: Li
 → ∃ sn tn, gcompf_P (t ++ [IOEvent.output 0 ⟨T, io ⟩] ++ tn) f g ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) ⟨ s3, (NatModule.gcompf T f g) ⟩  tn sn ∧ ∀ x, .input 0 ⟨T, x ⟩ ∉ tn:= by
   sorry
 
+
+/-
+EMPTY: theorems to prove the  empty case
+-/
 theorem gcompf_reachness_empty {T f g} (t t0: List (IOEvent ℕ )) (s1 s2 s3: (List T × List T)): @reachable _ _ (state_transition (NatModule.gcompf T f g)) t ⟨ s1, (NatModule.gcompf T f g ) ⟩
 → ( ∀ x, .input 0 ⟨ T, x ⟩ ∉ t0) ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) ⟨ s1, (NatModule.gcompf T f g ) ⟩  t0 ⟨ s2, (NatModule.gcompf T f g ) ⟩
 → gcompf_P (t ++ t0) f g
 → @step _ _ _ ⟨ s1, (NatModule.gcompf T f g ) ⟩  [] ⟨ s3, (NatModule.gcompf T f g ) ⟩
 → ∃ sn tn, gcompf_P (t ++ tn) f g ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) ⟨ s3, (NatModule.gcompf T f g ) ⟩  tn sn ∧ ∀ x, .input 0 ⟨T, x ⟩ ∉ tn:= by
+  intro s1_reachable ⟨no_input_in_t0, s1_star_s2_with_t0⟩ P_for_t_t0 s1_stars_s3_with_em
   sorry
 
+
+
+
+
+/--
+MAIN PROOF: here lies the main proof of the liveness of a circuit
+-/
 
 -- diff with liveness: steps for given s1 s2 & ∃s3, s2-[t']*>s3 instead of behavior (t++t')
 theorem gcompf_liveness_simp {t : Trace Nat} {T f g}
@@ -152,7 +201,7 @@ theorem gcompf_liveness_simp {t : Trace Nat} {T f g}
         cases s3
         rename_i s3 mod3
         subst keep
-        have finalResT := @gcompf_reachness_input T f g
+        have finalResT := @gcompf_input_transitive T f g
         simp [reachable] at finalResT
         cases s5
         rename_i s5 mod5
