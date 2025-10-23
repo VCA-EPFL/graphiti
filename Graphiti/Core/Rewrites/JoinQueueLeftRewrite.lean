@@ -22,8 +22,8 @@ def matcher (g : ExprHigh String String) : RewriteResult (List String × List St
        let (.some join) := followOutput g inst "out1" | return none
        unless "join".isPrefixOf join.typ ∧ join.inputPort = "in1" do return none
 
-       let (.some t1) := join.typ.splitOn |>.get? 1 | return none
-       let (.some t2) := join.typ.splitOn |>.get? 2 | return none
+       let (.some t1) := join.typ.splitOn[1]? | return none
+       let (.some t2) := join.typ.splitOn[2]? | return none
 
        return some ([inst, join.inst], [t1, t2])
     ) none | MonadExceptOf.throw RewriteError.done

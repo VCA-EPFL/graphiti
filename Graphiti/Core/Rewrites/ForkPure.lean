@@ -23,9 +23,9 @@ def matcher (g : ExprHigh String String) : RewriteResult (List String × List St
        let (.some p) := followOutput g inst "out1" | return none
        unless "fork".isPrefixOf p.typ do return none
 
-       let (.some t1) := p.typ.splitOn |>.get? 1 | return none
-       let (.some jt1) := typ.splitOn |>.get? 1 | return none
-       let (.some jt2) := typ.splitOn |>.get? 2 | return none
+       let (.some t1) := p.typ.splitOn[1]? | return none
+       let (.some jt1) := typ.splitOn[1]? | return none
+       let (.some jt2) := typ.splitOn[2]? | return none
 
        unless t1 = jt2 do throw (.error s!"{inst} :: {p.inst}")
 

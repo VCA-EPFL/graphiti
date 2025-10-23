@@ -25,10 +25,10 @@ def identMatcher (s : String) (g : ExprHigh String String) : RewriteResult (List
     throw (.error s!"{decl_name%}: type of '{next2.inst}' is '{next2.typ}' instead of 'split'")
   unless next2.inputPort = "out2" do throw (.error s!"{decl_name%}: output port of split is incorrect")
 
-  let (.some t1) := n.2.splitOn |>.get? 1 | throw (.error s!"{decl_name%}: type incorrect1")
-  let (.some t2) := n.2.splitOn |>.get? 2 | throw (.error s!"{decl_name%}: type incorrect2")
-  let (.some t1') := next1.typ.splitOn |>.get? 1 | throw (.error s!"{decl_name%}: type incorrect1")
-  let (.some t2') := next1.typ.splitOn |>.get? 2 | throw (.error s!"{decl_name%}: type incorrect2")
+  let (.some t1) := n.2.splitOn[1]? | throw (.error s!"{decl_name%}: type incorrect1")
+  let (.some t2) := n.2.splitOn[2]? | throw (.error s!"{decl_name%}: type incorrect2")
+  let (.some t1') := next1.typ.splitOn[1]? | throw (.error s!"{decl_name%}: type incorrect1")
+  let (.some t2') := next1.typ.splitOn[2]? | throw (.error s!"{decl_name%}: type incorrect2")
 
   unless t1 = t1' ∧ t2 = t2' do
     throw (.error s!"{decl_name%}: types '{t1} ≠ {t1'}' or '{t2} ≠ {t2'}' do not match")

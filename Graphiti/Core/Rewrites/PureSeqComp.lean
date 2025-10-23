@@ -23,10 +23,10 @@ def matcher (g : ExprHigh String String) : RewriteResult (List String × List St
        let (.some join) := followOutput g inst "out1" | return none
        unless "pure".isPrefixOf join.typ do return none
 
-       let (.some t1) := typ.splitOn |>.get? 1 | return none
-       let (.some t2) := typ.splitOn |>.get? 2 | return none
-       let (.some t2') := join.typ.splitOn |>.get? 1 | return none
-       let (.some t3) := join.typ.splitOn |>.get? 2 | return none
+       let (.some t1) := typ.splitOn[1]? | return none
+       let (.some t2) := typ.splitOn[2]? | return none
+       let (.some t2') := join.typ.splitOn[1]? | return none
+       let (.some t3) := join.typ.splitOn[2]? | return none
 
        unless t2 = t2' do return none
 

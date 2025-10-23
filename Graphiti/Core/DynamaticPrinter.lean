@@ -165,7 +165,7 @@ def formatOptions : List (String × String) → String
 
 def extractStandardType (s : String) : String :=
   let parts := s.splitOn " "
-  parts.get! 0
+  parts[0]!
 
 def capitalizeFirstChar (s : String) : String :=
   match s.get? 0 with

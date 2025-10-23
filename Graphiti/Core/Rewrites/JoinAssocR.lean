@@ -19,9 +19,9 @@ def identMatcher (s : String) (g : ExprHigh String String) : RewriteResult (List
   let next ← ofOption (.error s!"{decl_name%}: could not find next node") <| followInput g s "in1"
   unless "join".isPrefixOf next.typ do throw (.error s!"type of '{next.inst}' is '{next.typ}' instead of 'join'")
 
-  let (.some t1) := next.typ.splitOn |>.get? 1 | throw (.error s!"{decl_name%}: type incorrect1")
-  let (.some t2) := next.typ.splitOn |>.get? 2 | throw (.error s!"{decl_name%}: type incorrect2")
-  let (.some t3) := n.2.splitOn |>.get? 2 | throw (.error s!"{decl_name%}: type incorrect3")
+  let (.some t1) := next.typ.splitOn[1]? | throw (.error s!"{decl_name%}: type incorrect1")
+  let (.some t2) := next.typ.splitOn[2]? | throw (.error s!"{decl_name%}: type incorrect2")
+  let (.some t3) := n.2.splitOn[2]? | throw (.error s!"{decl_name%}: type incorrect3")
 
   return ([s, next.inst], [t1, t2, t3])
 

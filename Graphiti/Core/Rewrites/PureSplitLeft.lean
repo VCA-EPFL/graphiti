@@ -23,9 +23,9 @@ def matcher (g : ExprHigh String String) : RewriteResult (List String × List St
        let (.some p) := followOutput g inst "out1" | return none
        unless "pure".isPrefixOf p.typ do return none
 
-       let (.some t2) := p.typ.splitOn |>.get? 1 | return none
-       let (.some t3) := p.typ.splitOn |>.get? 2 | return none
-       let (.some t1) := typ.splitOn |>.get? 2 | return none
+       let (.some t2) := p.typ.splitOn[1]? | return none
+       let (.some t3) := p.typ.splitOn[2]? | return none
+       let (.some t1) := typ.splitOn[2]? | return none
 
        return some ([inst, p.inst], [t1, t2, t3])
     ) none | MonadExceptOf.throw RewriteError.done

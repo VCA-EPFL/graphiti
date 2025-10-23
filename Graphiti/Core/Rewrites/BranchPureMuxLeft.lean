@@ -60,8 +60,8 @@ Only return the first and last instances of the region.
 -/
 def matchPreAndPost : Pattern String String := fun g => do
   let (l, _) ← matchAllNodes g
-  let .some n := l.get? 3 | throw (.error s!"{decl_name%}: could not find n")
-  let .some p := l.get? 4 | throw (.error s!"{decl_name%}: could not find p")
+  let .some n := l[3]? | throw (.error s!"{decl_name%}: could not find n")
+  let .some p := l[4]? | throw (.error s!"{decl_name%}: could not find p")
   return ([n, p], [])
 
 def matcherEmpty : Pattern String String := fun g => do
@@ -82,7 +82,7 @@ def matcherEmpty : Pattern String String := fun g => do
        let (.some mux') := followOutput g fork.inst "out2" | return none
        unless mux'.inst = mux.inst && mux'.incomingPort == "in1" do return none
 
-       let (.some t1) := branch_typ.splitOn |>.get? 1 | return none
+       let (.some t1) := branch_typ.splitOn[1]? | return none
 
        return some ([branch_inst, mux.inst, fork.inst], [t1])
     ) none | MonadExceptOf.throw RewriteError.done

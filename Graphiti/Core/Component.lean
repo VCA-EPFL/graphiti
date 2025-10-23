@@ -125,10 +125,10 @@ def fork2 T (name := "fork2") : NatModule (Named name (List T × List T)) :=
   }
 
 def push_n {T} (n : Nat) (l : List (List T)) (t : T) : Option (List (List T)) :=
-  List.range n |>.foldlM (λ m i => l.get? i >>= λ l' => m.set i (l'.concat t)) (List.replicate n [])
+  List.range n |>.foldlM (λ m i => l[i]? >>= λ l' => m.set i (l'.concat t)) (List.replicate n [])
 
 def cons_n {T} (n : Nat) (l : List (List T)) (t : T) : Option (List (List T)) :=
-  l.get? n >>= λ l' => l.set n (t :: l')
+  l[n]? >>= λ l' => l.set n (t :: l')
 
 @[drunfold, drcomponents] def fork T (n : Nat) : NatModule (List (List T)) :=
   {

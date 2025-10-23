@@ -27,8 +27,8 @@ def matcher (g : ExprHigh String String) : RewriteResult (List String × List St
       unless join_nn.inst = join_nn'.inst do return none
       unless join_nn.inputPort = "in1" && join_nn'.inputPort = "in2" do return none
       unless extractType join_nn.typ = extractType typ do return none
-      let .some typ1 := join_nn.typ.splitOn " " |>.get? 1 | throw (.error "Could not extract type 1 from 'join'")
-      let .some typ2 := join_nn.typ.splitOn " " |>.get? 2 | throw (.error "Could not extract type 2 from 'join'")
+      let .some typ1 := (join_nn.typ.splitOn " ")[1]? | throw (.error "Could not extract type 1 from 'join'")
+      let .some typ2 := (join_nn.typ.splitOn " ")[2]? | throw (.error "Could not extract type 2 from 'join'")
 
       return some ([join_nn.inst, inst], [typ1, typ2])
     ) none | throw .done
@@ -77,8 +77,8 @@ def rewrite : Rewrite String String :=
   { abstractions := [],
     pattern := matcher,
     rewrite := λ l => do
-      let T₁ ← l.get? 0
-      let T₂ ← l.get? 1
+      let T₁ ← l[0]?
+      let T₂ ← l[1]?
       return ⟨lhsLower T₁ T₂, rhsLower T₁ T₂⟩
     name := .some "reduce-split-join"
   }

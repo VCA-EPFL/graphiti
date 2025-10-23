@@ -44,8 +44,8 @@ def matcher : Pattern String String := fun g => do
        let (.some mux'') := followOutput g fork.inst "out2" | return none
        unless mux''.inst = mux.inst && mux''.incomingPort == "in1" do return none
 
-       let (.some t1) := branch_typ.splitOn |>.get? 1 | return none
-       let (.some t2) := mux.typ.splitOn |>.get? 1 | return none
+       let (.some t1) := branch_typ.splitOn[1]? | return none
+       let (.some t2) := mux.typ.splitOn[1]? | return none
 
        return some ([branch_inst, mux.inst, fork.inst, pure1.inst, pure2.inst], [t1, t2])
     ) none | MonadExceptOf.throw RewriteError.done

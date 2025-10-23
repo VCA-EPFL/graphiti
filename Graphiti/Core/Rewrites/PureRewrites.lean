@@ -66,7 +66,7 @@ def rewrite : Rewrite String String :=
   { abstractions := [],
     pattern := matcher,
     rewrite := λ l => do
-      let n' ← l.get? 0
+      let n' ← l[0]?
       -- SOMEDAY: Replace this by a proper Nat parser
       let exp ← Lean.Json.Parser.num.run n' |>.toOption
       let parsed ← exp.mantissa.toNat'

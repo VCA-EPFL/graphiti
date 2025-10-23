@@ -17,8 +17,8 @@ def identMatcher (s : String) (g : ExprHigh String String) : RewriteResult (List
   let n ← ofOption (.error s!"{decl_name%}: could not find '{s}'") <| g.modules.find? s
   unless "join".isPrefixOf n.2 do throw (.error s!"{decl_name%}: type of '{s}' is '{n.2}' instead of 'join'")
 
-  let (.some t1) := n.2.splitOn |>.get? 1 | throw (.error s!"{decl_name%}: type incorrect1")
-  let (.some t2) := n.2.splitOn |>.get? 2 | throw (.error s!"{decl_name%}: type incorrect2")
+  let (.some t1) := n.2.splitOn[1]? | throw (.error s!"{decl_name%}: type incorrect1")
+  let (.some t2) := n.2.splitOn[2]? | throw (.error s!"{decl_name%}: type incorrect2")
 
   return ([s], [t1, t2])
 

@@ -104,7 +104,7 @@ def rewrite : Rewrite String String :=
   { abstractions := [],
     pattern := matcher,
     rewrite := λ l => do
-      let T₁ ← l.get? 0
+      let T₁ ← l[0]?
       return ⟨ lhsLower T₁, rhsLower T₁ ⟩
     name := .some "join-split-loop-cond-alt"
   }

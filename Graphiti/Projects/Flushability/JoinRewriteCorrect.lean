@@ -143,7 +143,7 @@ by
   exfalso
   apply hr ⟨⟨_, _⟩, ⟨_, _⟩⟩
   dsimp
-  iterate 6 (apply Exists.intro _)
+  iterate 5 (apply Exists.intro _)
   and_intros <;> rfl
 
 private theorem partially_flushed_is_pf:
@@ -268,7 +268,8 @@ by
     unfold ψ at *; simp at *
     subst_vars
     obtain ⟨ _, ⟨_, _⟩ ⟩ := Hψ
-    simp; and_intros <;> assumption
+    simp; and_intros <;> simp_all
+    grind [ψ]
 
 private theorem ψ_holds_over_internals_impl:
   ∀ i i' s, ψ i s → existSR (rhsModule T₁ T₂ T₃).internals i i' → ψ i' s :=
@@ -280,19 +281,14 @@ by
     apply Himpl; clear Himpl
     unfold rhsModule at Hrule; simp at Hrule
     cases Hrule <;> subst_vars
-    . obtain ⟨_, _, _, _, _, _, _, ⟨⟨⟨_, _⟩, _⟩, _⟩, ⟨_, _⟩, _⟩ := c
-      let ⟨⟨_, _⟩, ⟨_, _⟩⟩ := init
+    . let ⟨⟨_, _⟩, ⟨_, _⟩⟩ := init
       let ⟨⟨_, _⟩, ⟨_, _⟩⟩ := mid
       unfold ψ at *; simp at *
       rename_i synth1 synth2;
       obtain ⟨_, _⟩ := synth1
-      obtain ⟨_, _⟩ := synth2
       obtain ⟨_, _, _⟩ := Hψ
-      and_intros <;> subst_vars <;> try simp
-      . assumption
-      . rename_i synth1 _ _ _ _ _ _
-        rwa [<- synth1]
-      . assumption
+      and_intros <;> subst_vars <;> try simp <;> grind
+      grind
     . obtain ⟨_, _, _, _, _, _, _, _, ⟨⟨⟨_, _⟩, _⟩, ⟨⟨_, _⟩, _⟩⟩⟩ := c
       let ⟨⟨_, _⟩, ⟨_, _⟩⟩ := init
       let ⟨⟨_, _⟩, ⟨_, _⟩⟩ := mid
@@ -890,7 +886,6 @@ by
   repeat
     cases ‹_ ∧ _›
   subst_vars
-  rw [List.nil_append]
   constructor
 
 theorem f₃: ∀ ident s₁ s₂ v,

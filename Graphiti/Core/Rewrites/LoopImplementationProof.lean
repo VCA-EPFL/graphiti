@@ -370,8 +370,8 @@ theorem state_relation_preserve:
         cases h1
         rename_i H _ _; cases H; rename_i H; cases H; rename_i H
         rename_i x_merge _ _ w _
-        have H1 := @List.mem_of_get? _ (x_merge) w newC
-        simp only [List.get?_eq_getElem?, Fin.is_lt, getElem?_pos, Option.some.injEq] at H1; have H := Eq.symm H
+        have H1 := @List.mem_of_getElem? _ (x_merge) w newC
+        simp only [Fin.is_lt, getElem?_pos, Option.some.injEq] at H1; have H := Eq.symm H
         specialize H1 H
         obtain ⟨⟨ newCT, newCD⟩, newCN, newCDI⟩ := newC
         specialize h12  (newCT, newCDI)
@@ -430,8 +430,8 @@ theorem state_relation_preserve:
           rename_i x_merge x_module x_branchD x_branchB x_tagT x_tagM x_tagD x_splitD x_splitB _ _ _
           rename_i H _ _; cases H; rename_i H; cases H; rename_i H
           rename_i w _
-          have H1 := @List.mem_of_get? _ (x_merge) w newC
-          simp only [List.get?_eq_getElem?, Fin.is_lt, getElem?_pos, Option.some.injEq] at H1; have H := Eq.symm H
+          have H1 := @List.mem_of_getElem? _ (x_merge) w newC
+          simp only [Fin.is_lt, getElem?_pos, Option.some.injEq] at H1; have H := Eq.symm H
           specialize H1 H
           obtain ⟨⟨ newCT, newCD⟩, newCN, newCDI⟩ := newC
           specialize h12  (newCT, newCDI)

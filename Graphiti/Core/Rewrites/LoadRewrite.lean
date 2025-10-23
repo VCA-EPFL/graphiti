@@ -26,7 +26,7 @@ def matcher (g : ExprHigh String String) : RewriteResult (List String × List St
        let (.some load) := followOutput g mc.inst "out1" | return none
        unless load.inst = inst do return none
 
-       let (.some op) := mc.typ.splitOn |>.get? 3 | return none
+       let (.some op) := mc.typ.splitOn[3]? | return none
 
        return some ([inst, mc.inst], [op])
     ) none | MonadExceptOf.throw RewriteError.done

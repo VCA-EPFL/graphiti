@@ -115,8 +115,8 @@ def rewrite : Rewrite String String :=
   { abstractions := [],
     pattern := matcher,
     rewrite := λ l => do
-      let T₁ ← l.get? 0
-      let T₂ ← l.get? 1
+      let T₁ ← l[0]?
+      let T₂ ← l[1]?
       return ⟨ lhsLower T₁ T₂, rhsLower T₁ T₂ ⟩
     name := .some "combine-branch"
   }

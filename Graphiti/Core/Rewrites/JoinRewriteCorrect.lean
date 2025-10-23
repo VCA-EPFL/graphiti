@@ -204,7 +204,8 @@ theorem something:
     unfold ψ at *; simp at *
     subst_vars
     obtain ⟨ _, ⟨_, _⟩ ⟩ := Hψ
-    simp; and_intros <;> assumption
+    simp; and_intros <;> simp_all only [List.nil_eq, List.append_eq_nil_iff, List.map_eq_nil_iff, List.map_nil, List.nil_append]
+    grind [ψ]
 
 theorem something'':
   ∀ i i' s, ψ i s → existSR (rhsModule T₁ T₂ T₃).internals i i' → ψ i' s := by
@@ -215,20 +216,14 @@ theorem something'':
     apply Himpl; clear Himpl
     unfold rhsModule at Hrule; simp at Hrule
     cases Hrule <;> subst_vars
-    . obtain ⟨_, _, _, _, _, _, _, ⟨⟨⟨_, _⟩, _⟩, _⟩, ⟨_, _⟩, _⟩ := c
-      let ⟨⟨_, _⟩, ⟨_, _⟩⟩ := init
+    . let ⟨⟨_, _⟩, ⟨_, _⟩⟩ := init
       let ⟨⟨_, _⟩, ⟨_, _⟩⟩ := mid
       unfold ψ at *; simp at *
       rename_i synth1 synth2;
       obtain ⟨_, _⟩ := synth1
-      obtain ⟨_, _⟩ := synth2
       obtain ⟨_, _, _⟩ := Hψ
-      and_intros <;> subst_vars <;> try simp
-      . assumption
-      . rename_i synth1 _ _ _ _ _ _
-        rw [<- synth1]; subst_vars
-        assumption
-      . assumption
+      and_intros <;> subst_vars <;> try simp <;> grind
+      grind
     . obtain ⟨_, _, _, _, _, _, _, _, ⟨⟨⟨_, _⟩, _⟩, ⟨⟨_, _⟩, _⟩⟩⟩ := c
       let ⟨⟨_, _⟩, ⟨_, _⟩⟩ := init
       let ⟨⟨_, _⟩, ⟨_, _⟩⟩ := mid
@@ -289,7 +284,7 @@ example {T1 T2 T3} : ∀ s : lhsModuleType T1 T2 T3, (∀ r ∈ (lhsModule T1 T2
   cases s2 <;> cases s3 <;> try constructor
   exfalso
   apply hr ⟨⟨_, _⟩, ⟨_, _⟩⟩
-  iterate 6 (apply Exists.intro _)
+  iterate 5 (apply Exists.intro _)
   and_intros <;> dsimp
 
 -- lhsModule is spec is trivial, because you just do the same steps as lhsModule'

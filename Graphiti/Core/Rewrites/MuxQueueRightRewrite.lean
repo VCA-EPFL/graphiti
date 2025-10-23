@@ -22,7 +22,7 @@ def matcher (g : ExprHigh String String) : RewriteResult (List String × List St
        let (.some mux) := followOutput g inst "out1" | return none
        unless "mux".isPrefixOf mux.typ ∧ mux.inputPort = "in3" do return none
 
-       let (.some t1) := typ.splitOn |>.get? 1 | return none
+       let (.some t1) := typ.splitOn[1]? | return none
 
        return some ([inst, mux.inst], [t1])
     ) none | MonadExceptOf.throw RewriteError.done
