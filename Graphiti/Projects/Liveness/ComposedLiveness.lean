@@ -50,6 +50,30 @@ theorem gcompf_P_concat {T}(f g: T → T):
       have h_out_t1 : IOEvent.output 0 ⟨T, g (f in1)⟩ ∈ t1 := h2 in1 h_in_t1
       exact mem_append_right t0 h_out_t1
 
+/-
+If (s_init -[t]*> s_1) (= reachable s_1) and (gcompf_P t) holds, then s_1 = ([], [])
+since all inputs in t get closed in t, and t starts from init.
+s_init = ([], []), then all inputs in t go in s_init.first, and since P t, we know outputs g(f(inputs)) ∈ t.
+for outputs to go in trace, need to flush first list into second with internal rule then use output rule, necessarily
+all inputs have to find their outputs in t so none can get stuck inside
+-/
+theorem reachable_P_implies_empty_state (T : Type) (f g : T → T) (t : Trace ℕ) (s1 : List T × List T) :
+@reachable _ _ (state_transition (NatModule.gcompf T f g)) t ⟨ s1, (NatModule.gcompf T f g) ⟩
+∧ gcompf_P t f g
+→ s1 = ([], []) := by
+  intros h
+  have ⟨ h_reachable, h_p ⟩ := h
+  cases h_reachable
+  case intro s0 h_reachable =>
+    have ⟨ h_init, h_star ⟩ := h_reachable
+    dsimp [Module.state_transition] at h_init
+    have s0_init_state_empty := h_init.left
+    dsimp [NatModule.gcompf] at s0_init_state_empty
+
+    sorry
+
+
+
 
 theorem gcompf_in_P_is_trans {T f g}: ∀ t0 t s s0 e, (∀ x, .input 0 ⟨T, x⟩ ∉ t0)
 → gcompf_P (t ++ t0) f g
@@ -143,10 +167,32 @@ theorem gcompf_reachness_empty {T f g} (t t0: List (IOEvent ℕ )) (s1 s2 s3: (L
 → gcompf_P (t ++ t0) f g
 → @step _ _ _ ⟨ s1, (NatModule.gcompf T f g ) ⟩  [] ⟨ s3, (NatModule.gcompf T f g ) ⟩
 → ∃ sn tn, gcompf_P (t ++ tn) f g ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) ⟨ s3, (NatModule.gcompf T f g ) ⟩  tn sn ∧ ∀ x, .input 0 ⟨T, x ⟩ ∉ tn:= by
-  intro s1_reachable ⟨no_input_in_t0, s1_star_s2_with_t0⟩ P_for_t_t0 s1_stars_s3_with_em
-  sorry
-
-
+  intro s1_reachable ⟨no_input_in_t0, s1_star_s2_with_t0⟩ P_for_t_t0 s1_step_s3
+  exists { state := s2, module := NatModule.gcompf T f g }
+  exists t0
+  apply And.intro
+  case left => exact P_for_t_t0
+  case right =>
+    apply And.intro
+    case left =>
+      cases s1_star_s2: s1_star_s2_with_t0
+      case refl =>
+        simp at P_for_t_t0
+        have h_s1_empty : s1 = ([], []) := reachable_P_implies_empty_state T f g t s1 (And.intro s1_reachable (P_for_t_t0))
+        have s3_reachable : @reachable _ _ (state_transition (NatModule.gcompf T f g)) t ⟨ s3, (NatModule.gcompf T f g ) ⟩ :=
+          -- S1 reachable and s1_step_s3 so s3 reachable
+          sorry
+        have h_s3_empty : s3 = ([], []) := reachable_P_implies_empty_state T f g t s3 (And.intro s3_reachable (P_for_t_t0))
+        have h_s1_s3 : s1 = s3 := calc
+          s1 = ([], []) := h_s1_empty
+          _ = s3        := by rw [h_s3_empty]
+        rw [← h_s1_s3]
+        exact s1_star_s2_with_t0
+      case step s4 t1 t2 s1_step_s4_with_t1 s4_star_s2_with_t2 =>
+        
+        sorry
+    case right =>
+      trivial
 
 
 
