@@ -75,10 +75,62 @@ theorem gcompf_in_P_is_trans {T f g}: ∀ t0 t s s0 e, (∀ x, .input 0 ⟨T, x�
       right
       rfl
 
-theorem gcompf_input_star_maps {T f g} (s1 s2 s3: State ℕ (List T × List T)) (t: List (IOEvent ℕ)) (io: T) (h_mod: s1.module = (NatModule.gcompf T f g) ∧ s2.module = (NatModule.gcompf T f g) ∧ s3.module = (NatModule.gcompf T f g)): @star _ _ (state_transition (NatModule.gcompf T f g)) s1 t s2
+theorem gcompf_empty_spec {T f g} (st1: List T × List T) (io: T):
+@step _ _ _ ⟨(st1.fst ++ [f io], st1.snd), NatModule.gcompf T f g ⟩ []
+  { state := (∅, st1.snd ++ (st1.fst.map g) ++ [g (f io)]), module := NatModule.gcompf T f g } := by
+  rcases st1 with ⟨a,b ⟩
+  simp at *
+  constructor <;> try rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
+  . simp at *
+    constructor
+  . simp [NatModule.gcompf] at *
+
+
+
+theorem gcompf_output_spec {T f g} (st1: List T × List T) (io: T):
+@step _ _ _ ⟨(st1.fst, (g (f io)) :: st1.snd), NatModule.gcompf T f g ⟩ [IOEvent.output 0 ⟨T, g (f io)⟩]
+  { state := (st1.fst, st1.snd), module := NatModule.gcompf T f g } := by
+  rcases st1 with ⟨a,b ⟩
+  simp at *
+  constructor <;> try rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
+  . simp at *
+    constructor
+  . simp [NatModule.gcompf] at *
+
+
+
+
+
+
+
+
+
+theorem gcompf_input_star_maps {T f g} (s1 s2 s3: State ℕ (List T × List T)) (t: List (IOEvent ℕ)) (io: T) (h_mod: s1.module = (NatModule.gcompf T f g) ∧ s2.module = (NatModule.gcompf T f g) ∧ s3.module = (NatModule.gcompf T f g)):
+@star _ _ (state_transition (NatModule.gcompf T f g)) s1 t s2
 → @step _ _ _ s1 [IOEvent.input 0 ⟨T, io⟩] s3
 → ∃ s4, @star _ _ (state_transition (NatModule.gcompf T f g)) s3 (t ++ [IOEvent.output 0 ⟨T, g (f io)⟩]) s4 :=
-by sorry
+by
+  intro s1_stars_s2 s1_steps_s3
+  induction t using List.concat_induction  with
+  | empty =>
+    cases s1
+    cases s3
+    cases s2
+    rename_i st1 mod1 st3 mod3 st2 mod2
+    simp at *
+    cases s1_steps_s3; simp at *; rename_i st1fst st1snd TandIo; rcases TandIo with ⟨Teq,ioeq⟩
+    rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
+    rcases h_mod with ⟨mod1_eq,s2_mod ⟩
+    subst_vars
+    simp at *
+    exists { state := (st1.fst, st1.snd), module := NatModule.gcompf T f g }
+    have emptStep := @gcompf_empty_spec T f g st1 io
+    have outStep := @gcompf_output_spec T f g st1 io
+    exact @star.step _ _ (state_transition (NatModule.gcompf T f g)) _ _ _ _ _ emptStep (@star.plus_one _ _ (state_transition (NatModule.gcompf T f g)) _ _ _ outStep)
+  | step =>
+    sorry
+
+
 
 
 theorem gcompf_input_transitive { T f g} (s1 s2 s3 : List T × List T) (t t0: List (IOEvent ℕ)) (io: T): @reachable _ _ (state_transition (NatModule.gcompf T f g)) t  ⟨ s1, (NatModule.gcompf T f g)⟩
