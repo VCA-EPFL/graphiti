@@ -146,26 +146,14 @@ theorem types : False := by
   repeat
     rename (Option.bind _ _ = .some _) => hrewrite
     replace hrewrite := Option.bind_eq_some'.mp hrewrite
-    let ⟨_, hrewrite', _⟩ := hrewrite
-    clear hrewrite; have hrewrite := hrewrite'; clear hrewrite'
-  rename (Option.map _ _ = .some _) => hrewrite
-  replace hrewrite := Option.map_eq_some'.mp hrewrite
-  let ⟨_, hrewrite', _⟩ := hrewrite
-  clear hrewrite; have hrewrite := hrewrite'; clear hrewrite'
-  rename (Option.bind _ _ = .some _) => hrewrite
-  replace hrewrite := Option.bind_eq_some'.mp hrewrite
-  let ⟨_, hrewrite', _⟩ := hrewrite
-  clear hrewrite; have hrewrite := hrewrite'; clear hrewrite'
-  rename (Option.map _ _ = .some _) => hrewrite
-  replace hrewrite := Option.map_eq_some'.mp hrewrite
-  let ⟨_, hrewrite', _⟩ := hrewrite
-  clear hrewrite; have hrewrite := hrewrite'; clear hrewrite'
+    obtain ⟨_, hrewrite', _⟩ := hrewrite
+  repeat
+    rename (Option.map _ _ = .some _) => hrewrite
+    replace hrewrite := Option.map_eq_some'.mp hrewrite
+    obtain ⟨_, hrewrite', _⟩ := hrewrite
 
-     -- , Exists.choose_spec available.2.1
-     -- , Exists.choose_spec available.2.2.1
-     -- , Exists.choose_spec available.2.2.2.1
-     -- , Exists.choose_spec available.2.2.2.2.1
-     -- , Exists.choose_spec available.2.2.2.2.2.1] at h_wt'
+  -- repeat
+  --   cases ‹some _ = some _›
 
   sorry
 
