@@ -43,6 +43,7 @@ def matcher (g : ExprHigh String String) : RewriteResult (List String × List St
 def identRenaming (s : String) (g : ExprHigh String String) : RewriteResult (AssocList String (Option String)) :=
   pure .nil
 
+@[drunfold_defs]
 def lhs (T₁ T₂ : Type) (S₁ S₂ : String) : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i_0 [type = "io"];
     o_out [type = "io"];
@@ -58,12 +59,15 @@ def lhs (T₁ T₂ : Type) (S₁ S₂ : String) : ExprHigh String String × Iden
     join -> o_out [from = "out1"];
   ]
 
+@[drunfold_defs]
 def lhs_extract S₁ S₂ := (lhs Unit Unit S₁ S₂).fst.extract ["join", "split"] |>.get rfl
 
 theorem double_check_empty_snd S₁ S₂ : (lhs_extract S₁ S₂).snd = ExprHigh.mk ∅ ∅ := by rfl
 
-def lhsLower S₁ S₂ := (lhs_extract S₁ S₂).fst.lower.get rfl
+@[drunfold_defs]
+def lhsLower S₁ S₂ := (lhs_extract S₁ S₂).fst.lower_TR.get rfl
 
+@[drunfold_defs]
 def rhs (T₁ T₂ : Type) (S₁ S₂ : String) : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i_0 [type = "io"];
     o_out [type = "io"];
@@ -75,10 +79,12 @@ def rhs (T₁ T₂ : Type) (S₁ S₂ : String) : ExprHigh String String × Iden
     pure -> o_out [from = "out1"];
   ]
 
-def rhsLower S₁ S₂ := (rhs Unit Unit S₁ S₂).fst.lower.get rfl
+@[drunfold_defs]
+def rhsLower S₁ S₂ := (rhs Unit Unit S₁ S₂).fst.lower_TR.get rfl
 
 def findRhs mod := (rhs Unit Unit "" "").1.modules.find? mod |>.map Prod.fst
 
+@[drunfold_defs]
 def rewrite : Rewrite String String :=
   { abstractions := [],
     pattern := matcher,
