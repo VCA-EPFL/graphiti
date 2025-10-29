@@ -161,14 +161,6 @@ inductive φ : rhsModuleType T₁ T₂ T₃ → lhsModuleType T₁ T₂ T₃ →
 theorem refines {T: Type _} [DecidableEq T]: rhsModule T₁ T₂ T₃ ⊑_{φ} lhsModule T₁ T₂ T₃ := by
   unfold Module.refines_φ
   intro init_i init_s Hφ
-  induction Hφ with
-  | inputs ident r l r' l' v hφ ir il ih =>
-    skip
-
-/--
-info: 'Graphiti.JoinRewrite.refines' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-#print axioms refines
+  sorry
 
 end Graphiti.JoinRewrite
