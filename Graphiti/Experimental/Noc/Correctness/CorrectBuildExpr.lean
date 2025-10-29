@@ -15,6 +15,7 @@ import Graphiti.Projects.Noc.Lang
 import Graphiti.Projects.Noc.Spec
 import Graphiti.Projects.Noc.Tactic
 import Graphiti.Projects.Noc.BuildExpr
+import Graphiti.Experimental.Noc.Correctness.ExprHighSem
 
 open Batteries (AssocList)
 
@@ -49,143 +50,57 @@ namespace Graphiti.Projects.Noc
 
   abbrev mod := NatModule.stringify n.build_module
 
-  @[drunfold_defs]
-  def_module expT : Type := [GT| n.build_expr, ε] reduction_by
-    dsimp [drunfold_defs, drcomponents]
-    dsimp [ExprHigh.build_module_type]
-    dsimp [ExprHigh.build_module]
-    dsimp [ExprHigh.build_module']
-    rw [ExprLow.build_module_connect_foldr]
-    dsimp [ExprLow.build_module]
-    rw [ExprLow.build_module_product_foldr]
-    dsimp [ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module']
-    rw [EC.empty_in_ε]
-    conv =>
-      pattern List.foldr _ _
-      arg 2
-      arg 1
-      intro i acc
-      rw [←router_type_name]
-      rw [EC.rmod_in_ε i]
-      dsimp
-    rw [Module.dep_foldr_1 (f := λ i acc => acc)]
-    rw [Module.dep_foldr_1 (f := λ i acc => (EC.rmod i).1 × acc)]
-    simp only [drenv, drcompute, List.foldr_fixed]
-    rw [←DPList', ←DPList]
+  -- Utils lemmas (TODO: Move elsewhere) ---------------------------------------
 
-  theorem nil_renaming {α β} [DecidableEq α] (l : AssocList α β) :
-  (AssocList.mapKey (@AssocList.nil α α).bijectivePortRenaming l) = l := by
-    induction l with
-    | nil => rfl
-    | cons x v tl HR => simpa [HR, AssocList.bijectivePortRenaming, drcompute]
+  theorem valsList_foldr {α β γ} (f : γ → α) (g : γ → β) (acc : AssocList α β) (l : List γ) :
+    AssocList.valsList (List.foldr (λ i acc => AssocList.cons (f i) (g i) acc) acc l) =
+    List.foldr (λ i acc => .cons (g i) acc) (AssocList.valsList acc) l := by sorry
 
-  -- theorem magic {T₁ T₁' T₂} {h : T₁ = T₁'} {t : T₁} {f : T₁' → T₂}
-  --   : f (h.mp t) = (f t) := by sorry
+  theorem mapM_map {m} [Monad m] {α β γ} (f : α → m β) (g : β → m γ) l :
+    l.mapM (λ i => bind (f i) g) = (List.map f l).mapM (λ i => bind i g) := sorry
 
-  -- f : (α → β) → α → β
-  -- theorem magic {α α' β} {h : α = α'} {f : (α → β) → α → α}
-  -- (h : α = α') : f p (h.mp v) = h.mpr (f (λ i => h.mp i) v)
+  theorem mapM_option_id {α} (l : List (Option α)) :
+    -- TODO. Require that all element of l is some
+    l.mapM (λ (i : Option α) => i) = .some (l.map (λ i => Option.get i (by sorry))) := by
+      induction l with
+      | nil => rfl
+      | cons hd tl HR => sorry
 
-  theorem tmp_magic {α β T₁} [DecidableEq α] (l : AssocList α β) (l : T₁)
-    (p : α → β → Bool) (h : T₁ = AssocList α β) :
-    AssocList.eraseAllP p (h.mp l) = sorry := by sorry
-
-  theorem eraseAll_depfoldr {α β δ} [DecidableEq α] (l : List δ) (p : α → Bool) (f : δ → Type → Type) (g : δ → AssocList α β) h acc :
-      AssocList.eraseAllP (λ k _ => p k)
-        (
-          List.foldr
-          (λ i acc => (⟨f i acc.1, (g i) ++ (acc.2.mapVal h)⟩: Σ T, AssocList α β))
-          acc
-          l
-        ).snd
-      =
-        (List.foldr
-          (λ i acc => ⟨f i acc.1, AssocList.eraseAllP (λ k _ => p k) (g i) ++ (acc.2.mapVal h)⟩)
-          (⟨acc.1, AssocList.eraseAllP (λ k _ => p k) acc.2⟩: Σ T, AssocList α β)
-          l).snd
-      := by
-    induction l generalizing acc with
-    | nil => rfl
-    | cons hd tl HR =>
-      dsimp; rw [←HR, AssocList.eraseAllP_concat, AssocList.eraseAllP_map_comm]
+  ------------------------------------------------------------------------------
 
   set_option pp.proofs true in
   @[drunfold_defs]
-  def_module expM : Module String (expT n ε) := [e| n.build_expr, ε] reduction_by
-    dsimp [drunfold_defs, reduceAssocListfind?, reduceListPartition]
-    dsimp [ExprLow.build_module_expr, ExprLow.build_module_type]
-    dsimp [ExprLow.build_module]
-    rw [ExprLow.build_module_connect_foldr]
-    dsimp [ExprLow.build_module]
-    rw [ExprLow.build_module_product_foldr]
-    dsimp [ExprLow.build_module, ExprLow.build_module']
-    rw [EC.empty_in_ε]; dsimp
-    dsimp [StringModule.empty]
-    rw [rw_opaque (by
-      conv =>
-        pattern List.foldr _ _
-        arg 2
-        arg 1
-        intro i acc
-        rw [EC.rmod_in_ε i]
-        dsimp [Module.product]
-        dsimp [
-          Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts,
-          Module.mapInputPorts, reduceAssocListfind?
-        ]
-        -- rw [nil_renaming]
-        -- rw [nil_renaming]
-    )]
-    dsimp [
-      Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts,
-      Module.mapInputPorts, reduceAssocListfind?
-    ]
-    -- TODO: has been broken by modification of the compilation function
-    -- We need to think about how port renaming is handled here
-    have := Module.foldr_acc_plist_2
-      (acc :=
-        ⟨Unit, { inputs := .nil, outputs := .nil, init_state := λ x => True }⟩
-      )
-      (l := fin_range netsz)
-      (f := λ i acc1 => (EC.rmod i).1 × acc1)
-      (g_inputs := λ i acc =>
-        AssocList.mapVal (λ x => Module.liftL) ((EC.rmod i).2.inputs)
-          ++ AssocList.mapVal (λ x => Module.liftR) acc.2
-      )
-      (g_outputs := λ i acc =>
-        (AssocList.mapVal (λ x => Module.liftL) ((EC.rmod i).2.outputs))
-          ++ (AssocList.mapVal (λ x => Module.liftR) acc.2)
-      )
-      (g_internals := λ i acc =>
-            List.map Module.liftL' (EC.rmod i).2.internals
-         ++ List.map Module.liftR' acc.2
-      )
-      (g_init_state := λ i acc =>
-        λ x => (EC.rmod i).snd.init_state x.1 ∧ acc.2 x.2
-      )
-    rw [←Module.dep_foldr]
-    dsimp only
-    clear this
-    rw [Module.foldr_connect']
-    dsimp
-    simp only [drcompute]
-    -- Casts in i/o forbid us from anything, we must make them at top-level
-    -- rw [eraseAll_depfoldr]
+  def_module expT : Type 1 := n.build_expr.build_module_high_type ε reduction_by
+    dsimp [drunfold_defs, drcomponents]
+    rw [valsList_foldr]
+    simp only [List.foldr_cons_eq_append, List.map_append, List.map_map, List.append_nil]
+    simp only [AssocList.valsList, AssocList.toList, List.map_nil, List.append_nil]
+    conv =>
+      pattern List.map _ _
+      arg 1
+      intro x
+      dsimp
+      rw [←router_type_name]
+      rw [EC.rmod_in_ε x]
+      dsimp
+    simp only [Option.bind_fun_some]
+    conv =>
+      pattern List.mapM _ _
+      rw [mapM_option_id]
+    simp only [List.map_map, List.getElem_map, Function.comp_apply, Option.get_some, Option.getD_some]
+    conv =>
+      pattern List.map _ _
+      arg 1
+      intro i
+      simp only [Function.comp_apply, Option.get_some]
+    skip
 
-    -- For the init_state:
-    -- We want to remove the dependent type part.
-    -- This is specific to the combination of a dep_foldl to produce a PListL,
-    -- but should work
-
-    -- For inputs, outputs:
-    -- We want to lower the eraseAll.
-    -- It is a bit annoying to do, since erasing after a fold is rarely the same
-    -- thing as erasing inside of it.
-    -- Even here, there is a subtelty that we cannot make it disapear easily
-    -- because otherwise we might not get the correct amount of lift…
-    --
-    -- What would be really nice would be to be able to transform the
-    -- Module.foldl_io into a map-flatten or something...
+  @[drunfold_defs]
+  def_module expM : Module String (expT n ε) := n.build_expr.build_module_high_expr ε reduction_by
+    dsimp [drunfold_defs, drcomponents]
+    -- rw [valsList_foldr]
+    -- simp only [AssocList.valsList, AssocList.toList, List.map_nil, List.append_nil]
+    skip
 
   instance : MatchInterface (expM n ε) (mod n) := by
     apply MatchInterface_simpler

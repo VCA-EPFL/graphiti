@@ -25,10 +25,12 @@ namespace Graphiti.ExprHigh
 
   section Definitions
 
-    abbrev build_module_high_type (ms : List (PortMapping Ident × TModule Ident)) : Type _ :=
+    @[drunfold_defs]
+    abbrev build_module_high_type' (ms : List (PortMapping Ident × TModule Ident)) : Type _ :=
       HVector (·.2.1) ms
 
-    def lift_module (ms : List (PortMapping Ident × TModule Ident)) (i : Nat) (hi : i < ms.length) : Module Ident (build_module_high_type ms) :=
+    @[drunfold_defs]
+    def lift_module (ms : List (PortMapping Ident × TModule Ident)) (i : Nat) (hi : i < ms.length) : Module Ident (build_module_high_type' ms) :=
       let idx : Fin ms.length := ⟨i, hi⟩
       let m := ms[i].2.2
       let pm := ms[i].1
@@ -39,6 +41,7 @@ namespace Graphiti.ExprHigh
         init_state := λ s => m.init_state (s.get idx)
       }
 
+    @[drunfold_defs]
     def merge_modules {S} (ms : List (Module Ident S)) : Module Ident S :=
       {
         inputs := ms.map (·.inputs) |> AssocList.flatten
@@ -47,18 +50,37 @@ namespace Graphiti.ExprHigh
         init_state := ms.map (·.init_state) |>.foldl (λ acc p => λ s => p s ∧ acc s) (λ s => True)
       }
 
+    @[drunfold_defs]
     def apply_connections {S} (cs : List (Connection Ident)) (m : Module Ident S) : Module Ident S :=
       cs.foldl (λ m c => m.connect' c.output c.input) m
 
-    def build_module_high' (ms : List (PortMapping Ident × TModule Ident)) (e : ExprHigh Ident Typ) : Module Ident (build_module_high_type ms) :=
+    @[drunfold_defs]
+    def build_module_high'' (ms : List (PortMapping Ident × TModule Ident)) (e : ExprHigh Ident Typ) : Module Ident (build_module_high_type' ms) :=
       ms.mapFinIdx (λ i _ hi => lift_module ms i hi)
       |> merge_modules
       |> apply_connections e.connections
 
-    def build_module_high (e : ExprHigh Ident Typ) : Option (TModule Ident) :=
-      match e.modules.valsList.mapM (λ (i, t) => do let m ← ε t; .some (i, m)) with
-      | .some ms  => .some ⟨build_module_high_type ms, build_module_high' ms e⟩
+    @[drunfold_defs]
+    def collapse {α} (l : List (Option α)) : Option (List α) :=
+      l.mapM (λ i => i.bind (λ i' => i'))
+
+    @[drunfold_defs]
+    def build_module_high' (e : ExprHigh Ident Typ) : Option (TModule Ident) :=
+      match (e.modules.valsList.map (λ (i, t) => do let m ← ε t; (i, m))) |> collapse with
+      | .some ms  => .some ⟨build_module_high_type' ms, build_module_high'' ms e⟩
       | .none     => .none
+
+    @[drunfold_defs]
+    def build_module_high (e : ExprHigh Ident Typ) : TModule Ident :=
+      build_module_high' ε e |>.getD ⟨ PUnit, Module.empty _ ⟩
+
+    @[drunfold_defs]
+    def build_module_high_type (e : ExprHigh Ident Typ) : Type _ :=
+      build_module_high ε e |>.fst
+
+    @[drunfold_defs]
+    def build_module_high_expr (e : ExprHigh Ident Typ) : Module Ident (build_module_high_type ε e) :=
+      build_module_high ε e |>.snd
 
   end Definitions
 
@@ -73,7 +95,7 @@ namespace Graphiti.ExprHigh
     --     sorry
 
     -- TODO: What is needed here?
-    -- Should we proove that this semantics is equal to the lowering semantics ?
+    -- Should we prove that this semantics is equal to the lowering semantics ?
     -- If yes, should we do this by refinement? This would be a bit sad since
     -- our refinement relation is somewhat weak, and these semantics should be
     -- much more matching

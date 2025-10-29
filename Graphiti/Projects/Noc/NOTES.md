@@ -44,6 +44,12 @@ This makes some sense, but can also make verification harder?
 - Tried using Vector for `fin_range` to keep the length information in the type
   to avoid cast, did not work
 
+- Using `HVector` seems a bit weird in reductions, it seems like we could always
+  remove the function and simply use a List of Type by taking the function and
+  mapping it to the list, which can be easier to reduce?
+  Currently, the easiest solution might be to map and then use an identity
+  function if we want to reduce?
+
 ## Implementation
 
 - We want an implementation of an ordered router and show that it is correct, so

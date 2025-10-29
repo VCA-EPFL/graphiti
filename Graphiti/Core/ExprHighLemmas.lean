@@ -31,7 +31,7 @@ variable [DecidableEq Ident]
 
 variable (ε : Env Ident Typ)
 
-@[drunfold] def build_module' (e : ExprHigh Ident Typ) : Option (Σ T, Module Ident T) :=
+@[drunfold] def build_module' (e : ExprHigh Ident Typ) : Option (TModule Ident) :=
   e.lower.bind (·.build_module ε)
 
 @[drunfold] def build_moduleP (e : ExprHigh Ident Typ)
