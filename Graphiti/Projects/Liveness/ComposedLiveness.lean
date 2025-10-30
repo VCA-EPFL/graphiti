@@ -28,9 +28,6 @@ The property that our circuit has to follow
 def gcompf_P {T} (t: Trace Nat)(f g: T → T) : Prop :=
   ∀ in1, .input 0 ⟨ T, in1 ⟩ ∈ t → .output 0 ⟨ T, g (f (in1)) ⟩ ∈ t
 
-/-
-INPUTS: theorems and lemmas managing the input case of the proof
--/
 
 /-
 if t1 respects P and t2 respects P then t1++t2 respects P
@@ -56,6 +53,8 @@ since all inputs in t get closed in t, and t starts from init.
 s_init = ([], []), then all inputs in t go in s_init.first, and since P t, we know outputs g(f(inputs)) ∈ t.
 for outputs to go in trace, need to flush first list into second with internal rule then use output rule, necessarily
 all inputs have to find their outputs in t so none can get stuck inside
+
+actually not always true since P is too lax : valid t = (in 1, in 1, out 1)
 -/
 theorem reachable_P_implies_empty_state (T : Type) (f g : T → T) (t : Trace ℕ) (s1 : List T × List T) :
 @reachable _ _ (state_transition (NatModule.gcompf T f g)) t ⟨ s1, (NatModule.gcompf T f g) ⟩
@@ -73,7 +72,9 @@ theorem reachable_P_implies_empty_state (T : Type) (f g : T → T) (t : Trace �
     sorry
 
 
-
+/-
+INPUTS: theorems and lemmas managing the input case of the proof
+-/
 
 theorem gcompf_in_P_is_trans {T f g}: ∀ t0 t s s0 e, (∀ x, .input 0 ⟨T, x⟩ ∉ t0)
 → gcompf_P (t ++ t0) f g
@@ -212,6 +213,18 @@ theorem gcompf_output_transitive { T f g} (s1 s2 s3 : List T × List T) (t t0: L
 /-
 EMPTY: theorems to prove the  empty case
 -/
+
+theorem gcompf_reachness_empty_2 {T f g} (t t0: List (IOEvent ℕ )) (s1 s2 s3: (List T × List T)):
+@reachable _ _ (state_transition (NatModule.gcompf T f g)) t ⟨ s1, (NatModule.gcompf T f g ) ⟩
+→ @reachable _ _ (state_transition (NatModule.gcompf T f g)) t ⟨ s2, (NatModule.gcompf T f g ) ⟩
+→ (∀ x, .input 0 ⟨ T, x ⟩ ∉ t0) ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) ⟨ s1, (NatModule.gcompf T f g ) ⟩  t0 ⟨ (∅, ∅), (NatModule.gcompf T f g ) ⟩
+→ gcompf_P (t ++ t0) f g
+→ @step _ _ _ ⟨ s1, (NatModule.gcompf T f g ) ⟩  [] ⟨ s3, (NatModule.gcompf T f g ) ⟩
+→ ∃ tn, gcompf_P (t ++ tn) f g ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) ⟨ s3, (NatModule.gcompf T f g ) ⟩  tn ⟨ (∅, ∅), (NatModule.gcompf T f g ) ⟩ ∧ ∀ x, .input 0 ⟨T, x ⟩ ∉ tn:= by
+  intros reachable_s1 reachable_s2 h_t0 h_P s1_step_s3
+  sorry
+
+
 theorem gcompf_reachness_empty {T f g} (t t0: List (IOEvent ℕ )) (s1 s3: (List T × List T)): @reachable _ _ (state_transition (NatModule.gcompf T f g)) t ⟨ s1, (NatModule.gcompf T f g ) ⟩
 → ( ∀ x, .input 0 ⟨ T, x ⟩ ∉ t0) ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) ⟨ s1, (NatModule.gcompf T f g ) ⟩  t0 ⟨ (∅, ∅), (NatModule.gcompf T f g ) ⟩
 → gcompf_P (t ++ t0) f g
@@ -244,7 +257,7 @@ theorem gcompf_reachness_empty {T f g} (t t0: List (IOEvent ℕ )) (s1 s3: (List
 
         sorry
     case right =>
-      trivial
+      assumption
       -/
 
 
