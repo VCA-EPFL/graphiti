@@ -25,12 +25,12 @@ structure NamedExprHigh (Ident Typ : Type _) where
   inPorts     : IdentMap Ident (InternalPort Ident)
   outPorts    : IdentMap Ident (InternalPort Ident)
 
-structure NextNode (Ident) where
+structure NextNode (Ident Typ : Type _) where
   inst : Ident
   incomingPort : Ident
   outgoingPort : Ident
   portMap : PortMapping Ident
-  typ : Ident
+  typ : Typ
   connection : Connection Ident
 deriving Repr, Inhabited
 
@@ -48,28 +48,28 @@ variable {Typ : Type t}
 variable [DecidableEq Ident]
 variable [DecidableEq Typ]
 
-def findInputPort (p : InternalPort Ident) (i : IdentMap Ident (PortMapping Ident × Ident)) : Option Ident :=
+def findInputPort (p : InternalPort Ident) (i : IdentMap Ident (PortMapping Ident × Typ)) : Option Ident :=
   i.foldl (λ a k v =>
       match a with | some a' => a | none => do
         let _ ← if (v.fst.input.filter (λ k' v' => p = v')).length > 0 then pure PUnit.unit else failure
         return k
     ) none
 
-def findInputPort' (p : InternalPort Ident) (i : IdentMap Ident (PortMapping Ident × Ident)) : Option (Ident × Ident) :=
+def findInputPort' (p : InternalPort Ident) (i : IdentMap Ident (PortMapping Ident × Typ)) : Option (Ident × Ident) :=
   i.foldl (λ a k v =>
       match a with | some a' => a | none => do
         let l ← v.fst.input.findEntryP? (λ k' v' => p = v')
         return (k, l.fst.name)
     ) none
 
-def findOutputPort (p : InternalPort Ident) (i : IdentMap Ident (PortMapping Ident × Ident)) : Option Ident :=
+def findOutputPort (p : InternalPort Ident) (i : IdentMap Ident (PortMapping Ident × Typ)) : Option Ident :=
   i.foldl (λ a k v =>
       match a with | some a' => a | none => do
         let _ ← if (v.fst.output.filter (λ k' v' => p = v')).length > 0 then pure PUnit.unit else failure
         return k
     ) none
 
-def findOutputPort' (p : InternalPort Ident) (i : IdentMap Ident (PortMapping Ident × Ident)) : Option (Ident × Ident) :=
+def findOutputPort' (p : InternalPort Ident) (i : IdentMap Ident (PortMapping Ident × Typ)) : Option (Ident × Ident) :=
   i.foldl (λ a k v =>
       match a with | some a' => a | none => do
         let l ← v.fst.output.findEntryP? (λ k' v' => p = v')

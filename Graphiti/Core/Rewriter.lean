@@ -80,7 +80,7 @@ variable (Ident Typ)
 variable [DecidableEq Ident]
 variable [DecidableEq Typ]
 
-@[simp] abbrev Pattern n := ExprHigh Ident Typ → RewriteResult (List Ident × Vector Typ n)
+@[simp] abbrev Pattern n := ExprHigh Ident Typ → RewriteResult (List Ident × Vector Nat n)
 
 structure Abstraction (n) where
   pattern : Pattern Ident Typ n
@@ -98,7 +98,7 @@ structure DefiniteRewrite where
 structure Rewrite where
   params : Nat
   pattern : Pattern Ident Typ params
-  rewrite : Vector Typ params → DefiniteRewrite Ident Typ
+  rewrite : Vector Nat params → DefiniteRewrite Ident Typ
   transformedNodes : List (Option (PortMapping String)) := []
   addedNodes : List (PortMapping String) := []
   fresh_types : Nat := 0
@@ -506,11 +506,15 @@ def withUndo {α} (rw : RewriteResult α) : RewriteResult α := do
   | .error .done st => set st *> addRuntimeMarker "rev-start" *> throw .done
   | .error e st => set st *> addRuntimeMarker "rev-start" *> throw e
 
+section
+
+variable {Ident Typ} [DecidableEq Ident]
+
 /--
 Follow an output to the next node.  A similar function could be written to
 follow the input to the previous node.
 -/
-def followOutput' (g : ExprHigh String String) (inst : String) (output : InternalPort String) : RewriteResult (NextNode String) := do
+def followOutput' (g : ExprHigh Ident Typ) (inst : Ident) (output : InternalPort Ident) : RewriteResult (NextNode Ident Typ) := do
   let (pmap, _) ← ofOption (.error "instance not in modules")
     <| g.modules.find? inst
   let localOutputName ← ofOption (.error "port not in instance portmap")
@@ -521,17 +525,17 @@ def followOutput' (g : ExprHigh String String) (inst : String) (output : Interna
     <| ExprHigh.findInputPort' localInputName g.modules
   ofOption (.error "instance not in modules") <| (g.modules.findEntry? inst).map (λ x => ⟨inst, iport, output.name, x.2.1, x.2.2, c⟩)
 
-def followOutput (g : ExprHigh String String) (inst output : String) : Option (NextNode String) :=
+def followOutput (g : ExprHigh Ident Typ) (inst output : Ident) : Option (NextNode Ident Typ) :=
   (followOutput' g inst ⟨.top, output⟩).run' default
 
-def followOutputFull (g : ExprHigh String String) (inst : String) (output : InternalPort String) : Option (NextNode String) :=
+def followOutputFull (g : ExprHigh Ident Typ) (inst : Ident) (output : InternalPort Ident) : Option (NextNode Ident Typ) :=
   (followOutput' g inst output).run' default
 
 /--
 Follow an output to the next node.  A similar function could be written to
 follow the input to the previous node.
 -/
-def followInput' (g : ExprHigh String String) (inst input : String) : RewriteResult (NextNode String) := do
+def followInput' (g : ExprHigh Ident Typ) (inst input : Ident) : RewriteResult (NextNode Ident Typ) := do
   let (pmap, _) ← ofOption (.error "instance not in modules")
     <| g.modules.find? inst
   let localInputName ← ofOption (.error "port not in instance portmap")
@@ -542,13 +546,13 @@ def followInput' (g : ExprHigh String String) (inst input : String) : RewriteRes
     <| ExprHigh.findOutputPort' localOutputName g.modules
   ofOption (.error "instance not in modules") <| (g.modules.findEntry? inst).map (λ x => ⟨inst, iport, input, x.2.1, x.2.2, c⟩)
 
-def followInput (g : ExprHigh String String) (inst input : String) : Option (NextNode String) :=
+def followInput (g : ExprHigh Ident Typ) (inst input : Ident) : Option (NextNode Ident Typ) :=
   (followInput' g inst input).run' default
 
-def findType (g : ExprHigh String String) (typ : String) : List String :=
+def findType [DecidableEq Typ] (g : ExprHigh Ident Typ) (typ : Typ) : List Ident :=
   g.modules.foldl (λ l a b => if b.snd = typ then a :: l else l) []
 
-def calcSucc (g : ExprHigh String String) : Option (Std.HashMap String (Array (NextNode String))) :=
+def calcSucc (g : ExprHigh String Typ) : Option (Std.HashMap String (Array (NextNode String Typ))) :=
   g.modules.foldlM (λ succ k v => do
       let a ← v.fst.output.foldlM (λ succ' (k' v' : InternalPort String) => do
           if v'.inst.isTop then return succ'
@@ -557,6 +561,8 @@ def calcSucc (g : ExprHigh String String) : Option (Std.HashMap String (Array (N
         ) ∅
       return succ.insert k a
     ) ∅
+
+end
 
 def isNonPure' typ :=
   !"split".isPrefixOf typ

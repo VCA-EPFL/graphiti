@@ -187,7 +187,7 @@ theorem Rewrite_run'_correct2 {b} {ε_global : FinEnv String (String × Nat)} {h
   repeat clear ‹addRewriteInfo _ _ = _›
   repeat clear ‹updRewriteInfo _ _ = _›
   rename ExprHigh String (String × Nat) × ExprHigh String (String × Nat) => extractedGraphs
-  rename List String × Vector (String × Nat) rw.rewrite.params => pattern
+  rename List String × Vector Nat rw.rewrite.params => pattern
   rename ExprHigh String (String × Nat) => outGraph
   rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
   have rw_output_wf : ExprLow.well_formed (ε_global ++ rw.ε_extension).toEnv (rw.rewrite.rewrite pattern.2).output_expr = true := by
@@ -335,7 +335,7 @@ theorem Rewrite_run'_correct2_well_formed {b} {ε_global : FinEnv String (String
   repeat clear ‹addRewriteInfo _ _ = _›
   repeat clear ‹updRewriteInfo _ _ = _›
   rename ExprHigh String (String × Nat) × ExprHigh String (String × Nat) => extractedGraphs
-  rename List String × Vector (String × Nat) rw.rewrite.params => pattern
+  rename List String × Vector Nat rw.rewrite.params => pattern
   rename ExprHigh String (String × Nat) => outGraph
   rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
   have rw_output_wf : ExprLow.well_formed (ε_global ++ rw.ε_extension).toEnv (rw.rewrite.rewrite pattern.2).output_expr = true := by
@@ -429,7 +429,7 @@ theorem Rewrite_run'_correct2_well_typed {b} {ε_global : FinEnv String (String 
   repeat clear ‹addRewriteInfo _ _ = _›
   repeat clear ‹updRewriteInfo _ _ = _›
   rename ExprHigh String (String × Nat) × ExprHigh String (String × Nat) => extractedGraphs
-  rename List String × Vector (String × Nat) rw.rewrite.params => pattern
+  rename List String × Vector Nat rw.rewrite.params => pattern
   rename ExprHigh String (String × Nat) => outGraph
   rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
   have rw_output_wf : ExprLow.well_formed (ε_global ++ rw.ε_extension).toEnv (rw.rewrite.rewrite pattern.2).output_expr = true := by
