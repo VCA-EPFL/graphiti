@@ -13,19 +13,21 @@ import Graphiti.Core.ModuleReduction
 namespace Graphiti.LoopRewrite
 
 open Batteries (AssocList)
+open StringModule
 
 open Lean hiding AssocList
 open Meta Elab
 
 section Proof
 
-class Environment (lhs : Vector Nat 8 → ExprLow String (String × Nat)) where
+class Environment {n} (lhs : Vector Nat n → ExprLow String (String × Nat)) where
   ε : FinEnv String (String × Nat)
   h_wf : ∀ s, Env.well_formed ε.find? s
-  types : Vector Nat 8
+  types : Vector Nat n
   h_wt : (lhs types).well_typed ε.find?
   h_lhs_wf : (lhs types).well_formed ε.find?
   max_type : Nat
+  max_is_max : ∀ s a, ε.find? s = some a → s.2 <= max_type
 
 @[drunfold_defs]
 def lhs (types : Vector Nat 8) : ExprHigh String (String × Nat) := [graph|
@@ -33,11 +35,11 @@ def lhs (types : Vector Nat 8) : ExprHigh String (String × Nat) := [graph|
     o_out [type = "io"];
 
     mux [type = "mux", arg = $(types[0])];
-    condition_fork [type = "fork", arg = $(types[1])];
+    condition_fork [type = "fork2", arg = $(types[1])];
     branch [type = "branch", arg = $(types[2])];
     tag_split [type = "split", arg = $(types[3])];
     mod [type = "pure", arg = $(types[4])];
-    loop_init [type = "init", arg = $(types[5])];
+    loop_init [type = "initBool", arg = $(types[5])];
     queue [type = "queue", arg = $(types[6])];
     queue_out [type = "queue", arg = $(types[7])];
 
@@ -73,10 +75,10 @@ def rhs (max_type : Nat) : ExprHigh String (String × Nat) := [graph|
     o_out [type = "io"];
 
     tagger [type = "tagger_untagger_val", arg = $(max_type+1)];
-    merge [type = "merge", arg = $(max_type+2)];
+    merge [type = "merge2", arg = $(max_type+2)];
     branch [type = "branch", arg = $(max_type+3)];
     tag_split [type = "split", arg = $(max_type+4)];
-    mod [type = "tagger_untagger_val", arg = $(max_type+5)];
+    mod [type = "pure", arg = $(max_type+5)];
 
     i_in -> tagger [to="in2"];
     tagger -> o_out [from="out2"];
@@ -93,13 +95,13 @@ def rhs (max_type : Nat) : ExprHigh String (String × Nat) := [graph|
 include e in
 theorem available : (∃ a, Batteries.AssocList.find? ("queue", (Environment.types lhsLower)[7]) (Environment.ε lhsLower) = some a) ∧
       (∃ a, Batteries.AssocList.find? ("queue", (Environment.types lhsLower)[6]) (Environment.ε lhsLower) = some a) ∧
-        (∃ a, Batteries.AssocList.find? ("init", (Environment.types lhsLower)[5]) (Environment.ε lhsLower) = some a) ∧
+        (∃ a, Batteries.AssocList.find? ("initBool", (Environment.types lhsLower)[5]) (Environment.ε lhsLower) = some a) ∧
           (∃ a, Batteries.AssocList.find? ("pure", (Environment.types lhsLower)[4]) (Environment.ε lhsLower) = some a) ∧
             (∃ a, Batteries.AssocList.find? ("split", (Environment.types lhsLower)[3]) (Environment.ε lhsLower) = some a) ∧
               (∃ a,
                   Batteries.AssocList.find? ("branch", (Environment.types lhsLower)[2]) (Environment.ε lhsLower) = some a) ∧
                 (∃ a,
-                    Batteries.AssocList.find? ("fork", (Environment.types lhsLower)[1]) (Environment.ε lhsLower) = some a) ∧
+                    Batteries.AssocList.find? ("fork2", (Environment.types lhsLower)[1]) (Environment.ε lhsLower) = some a) ∧
                   ∃ a, Batteries.AssocList.find? ("mux", (Environment.types lhsLower)[0]) (Environment.ε lhsLower) = some a := by
   have h_wt' := e.h_wt
   have h_wf' := ExprLow.well_formed_implies_wf e.h_lhs_wf
@@ -113,65 +115,43 @@ theorem available : (∃ a, Batteries.AssocList.find? ("queue", (Environment.typ
 
 noncomputable def queue := Exists.choose available.1
 
+-- By the well formedness of the environment
 include e in
 theorem available2 : (∃ T, Batteries.AssocList.find? ("queue", (Environment.types lhsLower)[7]) (Environment.ε lhsLower) = some ⟨_, StringModule.queue T⟩) ∧
       (∃ T, Batteries.AssocList.find? ("queue", (Environment.types lhsLower)[6]) (Environment.ε lhsLower) = some ⟨_, StringModule.queue T⟩) ∧
-        (∃ a, Batteries.AssocList.find? ("init", (Environment.types lhsLower)[5]) (Environment.ε lhsLower) = some a) ∧
-          (∃ a, Batteries.AssocList.find? ("pure", (Environment.types lhsLower)[4]) (Environment.ε lhsLower) = some a) ∧
-            (∃ a, Batteries.AssocList.find? ("split", (Environment.types lhsLower)[3]) (Environment.ε lhsLower) = some a) ∧
-              (∃ a,
-                  Batteries.AssocList.find? ("branch", (Environment.types lhsLower)[2]) (Environment.ε lhsLower) = some a) ∧
-                (∃ a,
-                    Batteries.AssocList.find? ("fork", (Environment.types lhsLower)[1]) (Environment.ε lhsLower) = some a) ∧
-                  ∃ a, Batteries.AssocList.find? ("mux", (Environment.types lhsLower)[0]) (Environment.ε lhsLower) = some a := by
+        (Batteries.AssocList.find? ("initBool", (Environment.types lhsLower)[5]) (Environment.ε lhsLower) = some ⟨_, init Bool false⟩) ∧
+          (∃ (T : Σ R, Σ S, R → S), Batteries.AssocList.find? ("pure", (Environment.types lhsLower)[4]) (Environment.ε lhsLower) = some ⟨_, pure T.2.2 ⟩) ∧
+            (∃ (A : _ × _), Batteries.AssocList.find? ("split", (Environment.types lhsLower)[3]) (Environment.ε lhsLower) = some ⟨_, split A.1 A.2⟩) ∧
+              (∃ A,
+                  Batteries.AssocList.find? ("branch", (Environment.types lhsLower)[2]) (Environment.ε lhsLower) = some ⟨_, branch A⟩) ∧
+                (∃ A,
+                    Batteries.AssocList.find? ("fork2", (Environment.types lhsLower)[1]) (Environment.ε lhsLower) = some ⟨_, fork A 2⟩) ∧
+                  ∃ A, Batteries.AssocList.find? ("mux", (Environment.types lhsLower)[0]) (Environment.ε lhsLower) = some ⟨_, mux A⟩ := by
   sorry
 
-set_option pp.proofs true in
+#check available2.2.2.2.1
+
+-- By the well typedness of the lhs
 include e in
-theorem types : False := by
-  have h_wt' := e.h_wt
-  dsimp -failIfUnchanged [drunfold_defs, ExprLow.well_typed, toString, reduceAssocListfind?, reduceListPartition] at h_wt'
-  dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR] at h_wt'
-  dsimp -failIfUnchanged [ExprHigh.uncurry, reduceExprHighLower, ExprLow.well_typed, ExprLow.all, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR] at h_wt'
-  repeat with_reducible cases ‹_ ∧ _›
-  rename_i ha hb hc hd he hf hg hh hi hj hk hl hm hn ho hp hq hr
-  clear hb hc hd he hf hg hh hi hj hk hl hm hn ho hp hq hr
-  dsimp [ExprLow.build_module_interface] at ha
-
-  -- dsimp [ExprLow.build_module_interface] at h_wt'
-  -- rw [Exists.choose_spec (@available2 e).1] at ha
-  obtain ⟨mi, T, ha⟩ := ha
-  -- rw [Exists.choose_spec (@available2 e).2.1] at ha
-  obtain ⟨ha, hb, hc⟩ := ha
-  repeat
-    rename (Option.bind _ _ = .some _) => hrewrite
-    replace hrewrite := Option.bind_eq_some'.mp hrewrite
-    obtain ⟨_, hrewrite', _⟩ := hrewrite
-  repeat
-    rename (Option.map _ _ = .some _) => hrewrite
-    replace hrewrite := Option.map_eq_some'.mp hrewrite
-    obtain ⟨_, hrewrite', _⟩ := hrewrite
-
-  -- repeat
-  --   cases ‹some _ = some _›
-
-  sorry
+theorem available3 : available2.2.1.choose = available2.1.choose
+  ∧ available2.2.2.2.1.choose.1 = available2.1.choose
+  ∧ available2.2.2.2.1.choose.2.1 = (available2.1.choose × Bool)
+  ∧ available2.2.2.2.2.1.choose.1 = available2.1.choose
+  ∧ available2.2.2.2.2.1.choose.2 = Bool
+  ∧ available2.2.2.2.2.2.1.choose = available2.1.choose
+  ∧ available2.2.2.2.2.2.2.1.choose = Bool
+  ∧ available2.2.2.2.2.2.2.2.choose = available2.1.choose
+  := by sorry
 
 abbrev TagT := Nat
 
-def ε_rhs : FinEnv String (String × Nat) :=
-  ([ (("tagger_untagger_val", e.ε.max_type+1), ⟨_, StringModule.tagger_untagger_val TagT T T⟩)
-   , (("join", ε.max_type+3), ⟨_, join (T1 ε h_wf S1 S2 h_wt).2 (T2 ε h_wf S1 S2 h_wt).2⟩)
-   , (("join", ε.max_type+2), ⟨_, join (T1 ε h_wf S1 S2 h_wt).1 ((T1 ε h_wf S1 S2 h_wt).2 × (T2 ε h_wf S1 S2 h_wt).2)⟩)
+noncomputable def ε_rhs : FinEnv String (String × Nat) :=
+  ([ (("tagger_untagger_val", e.max_type+1), ⟨_, StringModule.tagger_untagger_val TagT available2.1.choose available2.1.choose⟩)
+   , (("merge2", e.max_type+2), ⟨_, merge (TagT × available2.1.choose) 2⟩)
+   , (("branch", e.max_type+3), ⟨_, branch (TagT × available2.1.choose)⟩)
+   , (("split", e.max_type+4), ⟨_, split (TagT × available2.1.choose) Bool⟩)
+   , (("pure", e.max_type+5), ⟨_, StringModule.pure (liftF (γ := TagT) (available3.2.2.1 ▸ available2.2.2.2.1.choose.2.2))⟩)
    ].toAssocList)
-
-@[drunfold_defs] def rewriteLhsRhs := rewrite.rewrite [DataS] |>.get rfl
-
-def environmentLhs : IdentMap String (TModule1 String) := lhs Data DataS f |>.snd
-
-def environmentRhs : IdentMap String (TModule1 String) := rhs Data DataS f |>.snd
-
-open Graphiti.StringModule
 
 @[drenv] theorem find?_bag_data : (Batteries.AssocList.find? ("bag " ++ DataS) (environmentLhs DataS f)) = .some ⟨_, bag Data⟩ := by
   unfold environmentLhs lhs

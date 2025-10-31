@@ -16,21 +16,21 @@ variable (f : T → T')
 variable [Inhabited T']
 variable (S S' : String)
 
-def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) := do
+def matcher (g : ExprHigh String (String × Nat)) : RewriteResult (List String × Vector Nat 2) := do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
        if s.isSome then return s
-       unless "pure".isPrefixOf typ do return none
+       unless "pure" == typ.1 do return none
 
        let (.some sink) := followOutput g inst "out1" | return none
        unless "sink".isPrefixOf sink.typ do return none
 
-       let (.some t1) := typ.splitOn[1]? | return none
+       let t1 := typ.2
        let (.some t2) := sink.typ.splitOn[1]? | return none
        let (.some t3) := typ.splitOn[2]? | return none
 
        unless t2 = t3 do return none
 
-       return some ([inst, sink.inst], [t1, t2])
+       return some ([inst, sink.inst], #v[typ.2, sink.typ.2])
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 

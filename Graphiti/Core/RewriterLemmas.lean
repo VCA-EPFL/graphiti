@@ -132,6 +132,7 @@ where
   ε_independent : Env.independent ε_extension.toEnv ε.toEnv
   rhs_wf : ∀ l, (rewrite.rewrite l).output_expr.well_formed ε_extension.toEnv
   rhs_wt : ∀ l, (rewrite.rewrite l).output_expr.well_typed ε_extension.toEnv
+  lhs_wf : ∀ l, (rewrite.rewrite l).input_expr.locally_wf
   refinement : ∀ l,
     (rewrite.rewrite l).input_expr.well_typed ε.toEnv →
     [e| (rewrite.rewrite l).output_expr, (ε ++ ε_extension).toEnv ] ⊑ [e| (rewrite.rewrite l).input_expr, ε.toEnv ]
@@ -195,13 +196,21 @@ theorem Rewrite_run'_correct2 {b} {ε_global : FinEnv String (String × Nat)} {h
     apply Env.independent_symm
     apply rw.ε_independent
     apply rw.rhs_wf
+  have wi_wf : ExprLow.well_formed ε_global.toEnv wi = true := by
+    apply ExprLow.refines_comm_connections'_well_formed2
+    · apply ExprLow.replacement_well_formed2; rotate_left 1
+      · assumption
+      · apply ExprLow.refines_comm_connections'_well_formed
+        apply ExprLow.refines_comm_bases_well_formed
+        assumption
   have rw_input_wf : ExprLow.well_formed ε_global.toEnv (rw.rewrite.rewrite pattern.2).input_expr = true := by
-    apply ExprLow.refines_subset_well_formed
-    apply Env.subsetOf_reflexive
-    apply rw.lhs_wf
+    apply ExprLow.mapPorts2_well_formed2; rotate_left 2
+    . apply rw.lhs_wf
+    · apply wi_wf
+    · assumption
+    · apply AssocList.bijectivePortRenaming_bijective
+    · apply AssocList.bijectivePortRenaming_bijective
   have wo_wf : ExprLow.well_formed (ε_global ++ rw.ε_extension).toEnv wo = true := by
-    solve_by_elim [ExprLow.refines_renamePorts_well_formed]
-  have wo_wf : ExprLow.well_formed ε_global.toEnv wi = true := by
     solve_by_elim [ExprLow.refines_renamePorts_well_formed]
   have lowered_wf : ExprLow.well_formed (ε_global ++ rw.ε_extension).toEnv lowered = true := by
     solve_by_elim [ExprLow.refines_renamePorts_well_formed]
@@ -335,13 +344,21 @@ theorem Rewrite_run'_correct2_well_formed {b} {ε_global : FinEnv String (String
     apply Env.independent_symm
     apply rw.ε_independent
     apply rw.rhs_wf
+  have wi_wf : ExprLow.well_formed ε_global.toEnv wi = true := by
+    apply ExprLow.refines_comm_connections'_well_formed2
+    · apply ExprLow.replacement_well_formed2; rotate_left 1
+      · assumption
+      · apply ExprLow.refines_comm_connections'_well_formed
+        apply ExprLow.refines_comm_bases_well_formed
+        assumption
   have rw_input_wf : ExprLow.well_formed ε_global.toEnv (rw.rewrite.rewrite pattern.2).input_expr = true := by
-    apply ExprLow.refines_subset_well_formed
-    apply Env.subsetOf_reflexive
-    apply rw.lhs_wf
+    apply ExprLow.mapPorts2_well_formed2; rotate_left 2
+    . apply rw.lhs_wf
+    · apply wi_wf
+    · assumption
+    · apply AssocList.bijectivePortRenaming_bijective
+    · apply AssocList.bijectivePortRenaming_bijective
   have wo_wf : ExprLow.well_formed (ε_global ++ rw.ε_extension).toEnv wo = true := by
-    solve_by_elim [ExprLow.refines_renamePorts_well_formed]
-  have wo_wf : ExprLow.well_formed ε_global.toEnv wi = true := by
     solve_by_elim [ExprLow.refines_renamePorts_well_formed]
   have lowered_wf : ExprLow.well_formed (ε_global ++ rw.ε_extension).toEnv lowered = true := by
     solve_by_elim [ExprLow.refines_renamePorts_well_formed]
@@ -357,7 +374,12 @@ theorem Rewrite_run'_correct2_well_formed {b} {ε_global : FinEnv String (String
     assumption
     assumption
 
-theorem Rewrite_run'_correct2_well_typed {b} {ε_global : FinEnv String (String × Nat)} {h_wf : ∀ s, Env.well_formed ε_global.toEnv s} {g g' : ExprHigh String (String × Nat)} {e_g : ExprLow String (String × Nat)} {_st _st'} {n} {rw : VerifiedRewrite ε_global h_wf n}:
+theorem Rewrite_run'_correct2_well_typed {b} {ε_global : FinEnv String (String × Nat)}
+    {h_wf : ∀ s, Env.well_formed ε_global.toEnv s}
+    {g g' : ExprHigh String (String × Nat)}
+    {e_g : ExprLow String (String × Nat)}
+    {_st _st'} {n}
+    {rw : VerifiedRewrite ε_global h_wf n}:
   g.lower = some e_g →
   e_g.well_formed ε_global.toEnv →
   e_g.well_typed ε_global.toEnv →
@@ -416,13 +438,21 @@ theorem Rewrite_run'_correct2_well_typed {b} {ε_global : FinEnv String (String 
     apply Env.independent_symm
     apply rw.ε_independent
     apply rw.rhs_wf
-  have rw_input_wf : ExprLow.well_formed ε_global.toEnv (rw.rewrite.rewrite pattern.2).input_expr = true := by
-    apply ExprLow.refines_subset_well_formed
-    apply Env.subsetOf_reflexive
-    apply rw.lhs_wf
-  have wo_wf : ExprLow.well_formed (ε_global ++ rw.ε_extension).toEnv wo = true := by
-    solve_by_elim [ExprLow.refines_renamePorts_well_formed]
   have wi_wf : ExprLow.well_formed ε_global.toEnv wi = true := by
+    apply ExprLow.refines_comm_connections'_well_formed2
+    · apply ExprLow.replacement_well_formed2; rotate_left 1
+      · assumption
+      · apply ExprLow.refines_comm_connections'_well_formed
+        apply ExprLow.refines_comm_bases_well_formed
+        assumption
+  have rw_input_wf : ExprLow.well_formed ε_global.toEnv (rw.rewrite.rewrite pattern.2).input_expr = true := by
+    apply ExprLow.mapPorts2_well_formed2; rotate_left 2
+    . apply rw.lhs_wf
+    · apply wi_wf
+    · assumption
+    · apply AssocList.bijectivePortRenaming_bijective
+    · apply AssocList.bijectivePortRenaming_bijective
+  have wo_wf : ExprLow.well_formed (ε_global ++ rw.ε_extension).toEnv wo = true := by
     solve_by_elim [ExprLow.refines_renamePorts_well_formed]
   have lowered_wf : ExprLow.well_formed (ε_global ++ rw.ε_extension).toEnv lowered = true := by
     solve_by_elim [ExprLow.refines_renamePorts_well_formed]

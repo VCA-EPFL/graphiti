@@ -14,13 +14,13 @@ open StringModule
 def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) := sorry
 
 @[drunfold_defs]
-def lhs (T₁ T₂ T₃ : Type) (S₁ S₂ S₃ : String) : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+def lhs (T₁ T₂ T₃ : Type) (S₁ S₂ S₃ : String) : ExprHigh String (String × Nat) × IdentMap String (TModule1 String) := [graphEnv|
     i_0 [type = "io"];
     i_1 [type = "io"];
     i_2 [type = "io"];
     o_out [type = "io"];
 
-    join1 [typeImp = $(⟨_, join T₁ T₂⟩), type = $("join " ++ S₁ ++  " " ++ S₂)];
+    join1 [typeImp = $(⟨_, join T₁ T₂⟩), type = $("join" ++ S₁ ++  " " ++ S₂)];
     join2 [typeImp = $(⟨_, join (T₁ × T₂) T₃⟩), type = $("join (" ++ S₁ ++ " × " ++ S₂ ++ ") " ++ S₃)];
 
     i_0 -> join1 [to = "in1"];

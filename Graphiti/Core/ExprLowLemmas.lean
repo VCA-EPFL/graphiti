@@ -661,6 +661,42 @@ theorem mapPorts2_well_formed {e e' : ExprLow Ident Typ} {f g} (h : Function.Bij
     grind [well_formed_connect]
 
 omit [DecidableEq Typ] in
+theorem mapPorts2_well_formed2 {e e' : ExprLow Ident Typ} {f g} (h : Function.Bijective f) (h' : Function.Bijective g) :
+  e.locally_wf →
+  e'.well_formed ε →
+  e.mapPorts2 f g = .some e' →
+  e.well_formed ε := by
+  induction e generalizing e' with
+  | base inst typ =>
+    intro hloc hwf hmap
+    dsimp [mapPorts2, mapInputPorts] at hmap
+    rw [Option.bind_eq_some] at hmap
+    obtain ⟨e'', hval, hmap⟩ := hmap
+    rw [Option.bind_eq_some] at hval
+    obtain ⟨e''', hval', hmap'⟩ := hval
+    cases hmap'
+    dsimp [mapOutputPorts] at hmap; rw [Option.bind_eq_some] at hmap
+    obtain ⟨e'''', hval'', hmap⟩ := hmap
+    cases hmap
+    dsimp [well_formed]
+    dsimp [well_formed] at hwf
+    split at hwf <;> try contradiction
+    dsimp [locally_wf, all'] at hloc
+    simp only [Bool.decide_and, Bool.decide_eq_true, Bool.and_eq_true, decide_eq_true_eq] at hloc hwf ⊢
+    obtain ⟨ha, hb, hc, hd⟩ := hwf;
+    and_intros <;> grind [mapVal_keysList]
+  | product e₁ e₂ =>
+    intro hloc hwf hmap
+    obtain ⟨e₁', e₂', hmap1, hmap2, hprod⟩ := mapPorts2_unfold_product hmap
+    dsimp [locally_wf, all'] at *
+    grind [well_formed_product]
+  | connect c e =>
+    intro hloc hwf hmap
+    obtain ⟨e', hconn, hconn'⟩ := mapPorts2_unfold_connect hmap
+    dsimp [locally_wf, all'] at *
+    grind [well_formed_connect]
+
+omit [DecidableEq Typ] in
 theorem refines_mapPorts2_1 {e e' f g} :
   Function.Bijective f → Function.Bijective g → e.wf_mapping ε →
   e.locally_wf →
@@ -1116,6 +1152,32 @@ theorem wf_comm_connection'_ {e e' : ExprLow Ident Typ} {conn}:
     split at hcomm <;> cases hcomm <;> simp only [well_formed_product, well_formed_connect] at *
       <;> (cases hwf; and_intros <;> solve_by_elim)
 
+theorem wf_comm_connection'_2 {e e' : ExprLow Ident Typ} {conn}:
+  e.comm_connection'_ conn = .some e' →
+  e'.well_formed ε →
+  e.well_formed ε := by
+  induction e generalizing conn e' with
+  | base inst typ => grind [comm_connection'_]
+  | connect c e ih =>
+    dsimp [comm_connection'_]
+    intro hcomm hwf
+    repeat' split at hcomm <;> try grind
+    · cases hcomm; assumption
+    · cases hcomm; simp only [well_formed_product, well_formed_connect] at *; assumption
+    · simp only [Option.map_eq_some_iff] at hcomm; obtain ⟨v, hcomm, conn⟩ := hcomm
+      subst e'; simp only [well_formed_product, well_formed_connect]
+      solve_by_elim
+  | product e₁ e₂ ihe₁ ihe₂ =>
+    dsimp [comm_connection'_]
+    intro hcomm hwf
+    split at hcomm <;> cases hcomm <;> simp only [well_formed_product, well_formed_connect] at *
+      <;> (cases hwf; and_intros <;> solve_by_elim)
+
+theorem wf_comm_connection'_2' {e e' : ExprLow Ident Typ} {conn}:
+  e'.well_formed ε →
+  e.comm_connection'_ conn = .some e' →
+  e.well_formed ε := by grind [wf_comm_connection'_2]
+
 theorem refines_product_connect {e₁ e₂ c} :
   well_formed ε e₁ → well_formed ε e₂ →
   ¬findOutput c.output e₁ →
@@ -1321,6 +1383,44 @@ theorem check_eq_wf {iexpr iexpr' : ExprLow Ident Typ} :
     dsimp [ExprLow.check_eq] at ih
     dsimp [ExprLow.wf, ExprLow.all] at *
     simp only [Bool.decide_and, Bool.decide_eq_true, Bool.and_eq_true] at ih
+    cases ih; and_intros <;> solve_by_elim
+
+theorem check_eq_well_formed {iexpr iexpr' : ExprLow Ident Typ} :
+  iexpr.check_eq iexpr' →
+  iexpr.well_formed ε → iexpr'.well_formed ε := by
+  induction iexpr generalizing iexpr' with
+  | base typ inst =>
+    intro ih wf
+    cases iexpr' <;> try grind [ExprLow.check_eq]
+    simp only [check_eq, Bool.decide_and, Bool.and_eq_true, decide_eq_true_eq] at ih
+    dsimp [ExprLow.well_formed, ExprLow.all] at *
+    split at wf <;> try contradiction
+    cases ih; subst_vars; rename_i htmp; rw [htmp]; simp at *
+    repeat with_reducible cases ‹_ ∧ _›
+    and_intros
+    · apply List.Perm.trans <;> try assumption
+      apply List.Perm.map
+      solve_by_elim [AssocList.EqExt_Perm]
+    · apply List.Perm.trans <;> try assumption
+      apply List.Perm.map
+      solve_by_elim [AssocList.EqExt_Perm]
+    · apply AssocList.EqExt_invertible
+      apply AssocList.EqExt.symm
+      all_goals assumption
+    · apply AssocList.EqExt_invertible
+      apply AssocList.EqExt.symm
+      all_goals assumption
+  | product e₁ e₂ he₁ he₂ =>
+    intro ih wf
+    cases iexpr' <;> try grind [ExprLow.check_eq]
+    dsimp [ExprLow.check_eq] at ih
+    simp [well_formed_product] at *;
+    cases ih; cases wf; and_intros <;> solve_by_elim
+  | connect c e he =>
+    intro ih wf
+    cases iexpr' <;> try grind [ExprLow.check_eq]
+    dsimp [ExprLow.check_eq] at ih
+    simp [well_formed_connect] at *;
     cases ih; and_intros <;> solve_by_elim
 
 theorem check_eq_refines {iexpr iexpr'} :
@@ -2088,6 +2188,28 @@ theorem refines_fix_point_opt1 {iexpr f n} :
     [e| fix_point_opt f iexpr n , ε ] ⊑ ([e| iexpr, ε ]) := by
   intros; solve_by_elim [refines_fix_point_opt, Module.refines_reflexive]
 
+omit [DecidableEq Typ] [DecidableEq Ident] in
+theorem refines_fix_point_wfc {iexpr f n} :
+    (∀ e e', wfc e → f e = .some e' → wfc e') →
+    wfc iexpr →
+    wfc (fix_point_opt f iexpr n) := by
+  intro hfw wf
+  induction n generalizing iexpr with
+  | zero => assumption
+  | succ n ih =>
+    dsimp [fix_point_opt]; split <;> grind
+
+omit [DecidableEq Typ] [DecidableEq Ident] in
+theorem refines_fix_point_wfc2 {iexpr f n} :
+    (∀ e e', wfc e' → f e = .some e' → wfc e) →
+    wfc (fix_point_opt f iexpr n) →
+    wfc iexpr := by
+  intro hfw wf
+  induction n generalizing iexpr with
+  | zero => assumption
+  | succ n ih =>
+    dsimp [fix_point_opt] at *; split at wf <;> grind
+
 omit [DecidableEq Typ] in
 theorem refines_fix_point_opt2 {iexpr f n} :
     (∀ e e', wfc e → f e = .some e' → ([e| e, ε ] ⊑ ([e| e', ε ])) ∧ wfc e') →
@@ -2188,6 +2310,21 @@ theorem refines_comm_connections'_well_formed {iexpr l} :
     apply wf_fix_point_opt (wfc := λ x => well_formed ε x = true); intros
     all_goals solve_by_elim [refines_comm_connection'_, wf_comm_connection'_]
   · assumption
+
+omit [DecidableEq Typ] in
+theorem refines_comm_connections'_well_formed2' {iexpr l n} :
+  (List.foldr (λ conn e => fix_point_opt (comm_connection'_ conn) e n) iexpr l).well_formed ε → iexpr.well_formed ε := by
+  intro hwf
+  induction l generalizing iexpr with
+  | nil => assumption
+  | cons a b ih =>
+    apply ih; dsimp [List.foldr] at hwf
+    apply refines_fix_point_wfc2 (wfc := λ x => well_formed ε x = true) (by solve_by_elim [wf_comm_connection'_2'])
+    apply hwf
+
+omit [DecidableEq Typ] in
+theorem refines_comm_connections'_well_formed2 {iexpr l} :
+  (comm_connections' l iexpr).well_formed ε → iexpr.well_formed ε := refines_comm_connections'_well_formed2'
 
 omit [DecidableEq Typ] in
 theorem refines_comm_connections2' {iexpr l} :
@@ -2634,6 +2771,32 @@ theorem replacement_well_typed [DecidableEq Typ] {ε : Env Ident Typ} {iexpr e_n
       solve_by_elim [eq_check_well_typed]
     · simp only [Bool.or_eq_true] at hrep
       cases hrep <;> grind [well_typed]
+
+theorem replacement_well_formed2 [DecidableEq Typ] {ε : Env Ident Typ} {iexpr e_new e_pat : ExprLow Ident Typ} :
+  iexpr.well_formed ε →
+  (iexpr.force_replace e_pat e_new).2 →
+  e_pat.well_formed ε := by
+  induction iexpr generalizing e_pat with
+  | base inst typ =>
+    intro hwt hrep
+    dsimp [force_replace] at hrep; split at hrep <;> try contradiction
+    cases e_pat <;> try contradiction
+    solve_by_elim [check_eq_well_formed]
+  | connect c e ih =>
+    intro hwt hrep
+    dsimp [force_replace] at hrep; split at hrep
+    · cases e_pat <;> try contradiction
+      rename_i c' e' h'
+      solve_by_elim [check_eq_well_formed]
+    · apply ih; simp only [well_formed_connect] at *; assumption; assumption
+  | product e1 e2 he1 he2 =>
+    intro hwt hrep
+    dsimp [force_replace] at hrep; split at hrep
+    · cases e_pat <;> try contradiction
+      rename_i c' e' h'
+      solve_by_elim [check_eq_well_formed]
+    · simp only [Bool.or_eq_true] at hrep
+      cases hrep <;> grind [well_formed]
 
 theorem well_formed_fix_point_opt {wfc : ExprLow Ident Typ → Prop} {wfc' : ExprLow Ident Typ → Bool} {ε} {e' f n} :
     (∀ e e', wfc' e → f e = .some e' → ([e| e', ε ] ⊑ ([e| e, ε ])) ∧ wfc' e') →

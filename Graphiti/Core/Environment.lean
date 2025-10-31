@@ -57,10 +57,13 @@ def well_formed {α} (ε : Env String (String × α)) (s : String) : Prop :=
   | "cntrl_merge" => ∀ a mod, ε (s, a) = some mod → ∃ T, mod = ⟨_, StringModule.cntrl_merge T⟩
   | "constant" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Sigma id), mod = ⟨_, StringModule.constant T.2⟩
   | "fork" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Type _ × Nat), mod = ⟨_, StringModule.fork T.1 T.2⟩
+  | "fork2" => ∀ a mod, ε (s, a) = some mod → ∃ T, mod = ⟨_, StringModule.fork T 2⟩
   | "init" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Sigma id), mod = ⟨_, StringModule.init T.1 T.2⟩
+  | "initBool" => ∀ a mod, ε (s, a) = some mod → mod = ⟨_, StringModule.init Bool false⟩
   | "join" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Type _ × Type _), mod = ⟨_, StringModule.join T.1 T.2⟩
   | "load" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Type _ × Type _), mod = ⟨_, StringModule.load T.1 T.2⟩
   | "merge" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Type _ × Nat), mod = ⟨_, StringModule.merge T.1 T.2⟩
+  | "merge2" => ∀ a mod, ε (s, a) = some mod → ∃ T, mod = ⟨_, StringModule.merge T 2⟩
   | "mux" => ∀ a mod, ε (s, a) = some mod → ∃ T, mod = ⟨_, StringModule.mux T⟩
   | "operator1" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Type _ × (Sigma (λ x => Inhabited x)) × String), mod = ⟨_, @StringModule.operator1 T.1 T.2.1.1 T.2.1.2 T.2.2⟩
   | "operator2" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Type _ × Type _ × (Sigma (λ x => Inhabited x)) × String), mod = ⟨_, @StringModule.operator2 T.1 T.2.1 T.2.2.1.1 T.2.2.1.2 T.2.2.2⟩
