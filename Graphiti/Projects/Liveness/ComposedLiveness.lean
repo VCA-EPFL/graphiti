@@ -56,6 +56,7 @@ all inputs have to find their outputs in t so none can get stuck inside
 
 actually not always true since P is too lax : valid t = (in 1, in 1, out 1)
 -/
+/-
 theorem reachable_P_implies_empty_state (T : Type) (f g : T → T) (t : Trace ℕ) (s1 : List T × List T) :
 @reachable _ _ (state_transition (NatModule.gcompf T f g)) t ⟨ s1, (NatModule.gcompf T f g) ⟩
 ∧ gcompf_P t f g
@@ -70,7 +71,7 @@ theorem reachable_P_implies_empty_state (T : Type) (f g : T → T) (t : Trace �
     dsimp [NatModule.gcompf] at s0_init_state_empty
 
     sorry
-
+-/
 
 /-
 INPUTS: theorems and lemmas managing the input case of the proof
@@ -214,16 +215,69 @@ theorem gcompf_output_transitive { T f g} (s1 s2 s3 : List T × List T) (t t0: L
 EMPTY: theorems to prove the  empty case
 -/
 
+lemma gcompf_reachable_states {T} (f g: T → T) (t: List (IOEvent ℕ )) (s1 s2: (List T × List T)):
+@reachable _ _ (state_transition (NatModule.gcompf T f g)) t ⟨ s1, (NatModule.gcompf T f g ) ⟩
+→ @reachable _ _ (state_transition (NatModule.gcompf T f g)) t ⟨ s2, (NatModule.gcompf T f g ) ⟩
+→ s1.snd ++ s1.fst.map g = s2.snd ++ s2.fst.map g := by
+  sorry
+
 theorem gcompf_reachness_empty_2 {T f g} (t t0: List (IOEvent ℕ )) (s1 s2 s3: (List T × List T)):
 @reachable _ _ (state_transition (NatModule.gcompf T f g)) t ⟨ s1, (NatModule.gcompf T f g ) ⟩
 → @reachable _ _ (state_transition (NatModule.gcompf T f g)) t ⟨ s2, (NatModule.gcompf T f g ) ⟩
 → (∀ x, .input 0 ⟨ T, x ⟩ ∉ t0) ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) ⟨ s1, (NatModule.gcompf T f g ) ⟩  t0 ⟨ (∅, ∅), (NatModule.gcompf T f g ) ⟩
 → gcompf_P (t ++ t0) f g
-→ @step _ _ _ ⟨ s1, (NatModule.gcompf T f g ) ⟩  [] ⟨ s3, (NatModule.gcompf T f g ) ⟩
+→ @step _ _ _ ⟨ s2, (NatModule.gcompf T f g ) ⟩ [] ⟨ s3, (NatModule.gcompf T f g ) ⟩
 → ∃ tn, gcompf_P (t ++ tn) f g ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) ⟨ s3, (NatModule.gcompf T f g ) ⟩  tn ⟨ (∅, ∅), (NatModule.gcompf T f g ) ⟩ ∧ ∀ x, .input 0 ⟨T, x ⟩ ∉ tn:= by
-  intros reachable_s1 reachable_s2 h_t0 h_P s1_step_s3
-  sorry
+  intros reachable_s1 reachable_s2 h_t0 h_P s2_step_s3
+  let M := (NatModule.gcompf T f g )
+  obtain ⟨ h_t0_input, h_t0_s1star ⟩ := h_t0
+  have reachable_s3 : @reachable _ _ (state_transition (NatModule.gcompf T f g)) t ⟨ s3, M ⟩ := by
+    rcases reachable_s2 with ⟨s0, h_init, h_star_to_empty⟩
+    apply Exists.intro s0
+    apply And.intro
+    case left => assumption
+    case right =>
+      rw [@star_eq_star_rev _ _ M.state_transition]
+      rw [← List.append_nil t]
+      apply @star_rev.step _ _ M.state_transition
+      . assumption
+      . let star_rev_iff_star := @star_eq_star_rev _ _ M.state_transition s0 { state := s2, module := M } t
+        apply star_rev_iff_star.mp
+        assumption
+  cases h_t0: h_t0_s1star
+  case refl =>
+    have s2_empty : s2 = (∅, ∅) := by
+      have h := gcompf_reachable_states f g t (∅, ∅) s2 reachable_s1 reachable_s2
+      simp at h
+      exact Prod.ext_iff.mpr (id (And.symm h))
+    have empty_step_s3: step { state := (∅, ∅), module := NatModule.gcompf T f g } [] { state := s3, module := NatModule.gcompf T f g } := by
+      rw [s2_empty] at s2_step_s3
+      assumption
+    exists []
+    simp at *
+    apply And.intro
+    case left => assumption
+    case right =>
+      have s3_empty : s3 = (∅, ∅) := by
+        have h := gcompf_reachable_states f g t (∅, ∅) s3 reachable_s1 reachable_s3
+        simp at h
+        exact Prod.ext_iff.mpr (id (And.symm h))
+      rw [s3_empty]
+      dsimp
+      exact h_t0_s1star
+  case step s4 t1 t2 s1_step_s4 ih =>
+    exists (t1++t2)
+    apply And.intro
+    case left =>
+      assumption
+    case right =>
+      apply And.intro
+      case right =>
+        assumption
+      case left =>
+        have s1_equiv_s2 := gcompf_reachable_states f g t s1 s2 reachable_s1 reachable_s2
 
+        sorry
 
 theorem gcompf_reachness_empty {T f g} (t t0: List (IOEvent ℕ )) (s1 s3: (List T × List T)): @reachable _ _ (state_transition (NatModule.gcompf T f g)) t ⟨ s1, (NatModule.gcompf T f g ) ⟩
 → ( ∀ x, .input 0 ⟨ T, x ⟩ ∉ t0) ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) ⟨ s1, (NatModule.gcompf T f g ) ⟩  t0 ⟨ (∅, ∅), (NatModule.gcompf T f g ) ⟩
@@ -273,6 +327,7 @@ theorem init_imp_empty {T f g} (s1: State _ _): @StateTransition.init _ _ (state
   rcases s1 with ⟨st1, mod1 ⟩
   simp at *
   exact And.intro initS s1Mod
+
 -- diff with liveness: steps for given s1 s2 & ∃s3, s2-[t']*>s3 instead of behavior (t++t')
 theorem gcompf_liveness_simp {t : Trace Nat} {T f g}
 (h_in: (∀ G x n, IOEvent.input n ⟨G, x⟩  ∈ t → (n = 0) ∧ G = T))
