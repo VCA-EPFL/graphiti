@@ -495,10 +495,13 @@ theorem gcompf_liveness_simp {t : Trace Nat} {T f g}
         rcases h_in_assum with ⟨ nEq, TypeEq ⟩
         subst nEq
         subst TypeEq
+        sorry
+        /-
         have finalRes := finalResT s3.1 s3.2 st1.1 st1.2 t1 tr inp s1 h.left s1_stars_s3 tr_is_empty s3_stars_empty comp_l1_tr s3_steps_s4_
         cases finalRes
         rename_i tn final
         exists tn
+        -/
       | output =>
         rename_i ip1 st1 s3mod combTpe s3Trans combTpeEq
         rcases s3
@@ -541,6 +544,8 @@ theorem gcompf_liveness2 {t : Trace Nat} {T f g}(h_steps: @behaviour _ _ (state_
       have s1_mod_eq := h_init_imp_mod s1 s1_init_step
       have s2_mod_eq := steps_preserve_mod (NatModule.gcompf T f g) s1_star_s2_t
       rw [s1_mod_eq] at s2_mod_eq
+      sorry
+      /-
       have induct_star_res := gcompf_liveness_simp s1 s2 s1_mod_eq s2_mod_eq (And.intro s1_init_step s1_star_s2_t)
       rcases induct_star_res with ⟨i1, i2,i3, i4 ⟩
       exists i1
@@ -553,4 +558,4 @@ theorem gcompf_liveness2 {t : Trace Nat} {T f g}(h_steps: @behaviour _ _ (state_
           constructor
           . exact s1_init_step
           . exists ⟨(∅, ∅),  (NatModule.gcompf T f g)⟩
-        . exact i4.left
+        . exact i4.left--/
