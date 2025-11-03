@@ -21,6 +21,9 @@ open Graphiti
 open Graphiti.Module
 open List
 
+
+
+
 /-
 The property that our circuit has to follow
 -/
@@ -28,6 +31,50 @@ The property that our circuit has to follow
 def gcompf_P {T} (t: Trace Nat)(f g: T → T) : Prop :=
   ∀ in1, .input 0 ⟨ T, in1 ⟩ ∈ t → .output 0 ⟨ T, g (f (in1)) ⟩ ∈ t
 
+/-
+SPECIFICATIONS: show order between states
+-/
+
+theorem gcompf_empty_spec {T f g} (st1: List T × List T) :
+@step _ _ _ ⟨(st1.fst, st1.snd), NatModule.gcompf T f g ⟩ []
+  { state := (∅, st1.snd ++ (st1.fst.map g)), module := NatModule.gcompf T f g } := by
+  rcases st1 with ⟨a,b ⟩
+  simp at *
+  constructor <;> try rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
+  . simp at *
+    constructor
+  . simp [NatModule.gcompf] at *
+
+
+
+theorem gcompf_output_spec {T f g} (st1: List T × List T) (io: T):
+@step _ _ _ ⟨(st1.fst, (io) :: st1.snd), NatModule.gcompf T f g ⟩ [IOEvent.output 0 ⟨T, io⟩]
+  { state := (st1.fst, st1.snd), module := NatModule.gcompf T f g } := by
+  rcases st1 with ⟨a,b ⟩
+  simp at *
+  constructor <;> try rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
+  . simp at *
+    constructor
+  . simp [NatModule.gcompf] at *
+
+
+
+theorem gcompf_input_spec {T f g} (st1: List T × List T) (io: T):
+@step _ _ _ ⟨(st1.fst, st1.snd), NatModule.gcompf T f g ⟩ [IOEvent.input 0 ⟨T, io⟩]
+  { state := (st1.fst ++ [f io], st1.snd), module := NatModule.gcompf T f g } := by
+  rcases st1 with ⟨a,b ⟩
+  simp at *
+  constructor <;> try rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
+  . simp at *
+    constructor
+  . simp [NatModule.gcompf] at *
+
+
+
+
+/-
+INPUTS: theorems and lemmas managing the input case of the proof
+-/
 
 /-
 if t1 respects P and t2 respects P then t1++t2 respects P
@@ -101,40 +148,149 @@ theorem gcompf_in_P_is_trans {T f g}: ∀ t0 t s s0 e, (∀ x, .input 0 ⟨T, x�
       right
       rfl
 
-theorem gcompf_empty_spec {T f g} (st1: List T × List T) (io: T):
-@step _ _ _ ⟨(st1.fst ++ [f io], st1.snd), NatModule.gcompf T f g ⟩ []
-  { state := (∅, st1.snd ++ (st1.fst.map g) ++ [g (f io)]), module := NatModule.gcompf T f g } := by
-  rcases st1 with ⟨a,b ⟩
-  simp at *
-  constructor <;> try rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
-  . simp at *
-    constructor
-  . simp [NatModule.gcompf] at *
 
-
-
-theorem gcompf_output_spec {T f g} (st1: List T × List T) (io: T):
-@step _ _ _ ⟨(st1.fst, (g (f io)) :: st1.snd), NatModule.gcompf T f g ⟩ [IOEvent.output 0 ⟨T, g (f io)⟩]
-  { state := (st1.fst, st1.snd), module := NatModule.gcompf T f g } := by
-  rcases st1 with ⟨a,b ⟩
-  simp at *
-  constructor <;> try rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
-  . simp at *
-    constructor
-  . simp [NatModule.gcompf] at *
-
---theorem gcompf_steps_inp {T f g} (s1 s2 )
-
-
-
-
-
-
-
-theorem gcompf_input_star_maps {T f g} (s1 s2 s3: State ℕ (List T × List T)) (t: List (IOEvent ℕ)) (io: T) (h_mod: s1.module = (NatModule.gcompf T f g) ∧ s2.module = (NatModule.gcompf T f g) ∧ s3.module = (NatModule.gcompf T f g)):
+theorem gcompf_steps_holds_ {T f g} (s1 s2: State ℕ (List T × List T)) (t: List (IOEvent ℕ)) (io: T)
+(h_input: (∀ G x n, IOEvent.input n ⟨G, x⟩  ∈ t → (n = 0) ∧ G = T))
+(h_output: (∀ G x n, IOEvent.output n ⟨G, x⟩  ∈ t → (n = 0) ∧ G = T))
+(h_noinp: ∀ x, IOEvent.input 0 ⟨T, x⟩ ∉ t):
 @star _ _ (state_transition (NatModule.gcompf T f g)) s1 t s2
+→ (s1.module = (NatModule.gcompf T f g)  ∧ s2.module =  (NatModule.gcompf T f g))
+→ @star _ _ (state_transition (NatModule.gcompf T f g)) ⟨ (s1.state.fst ++ [f io], s1.state.snd), (NatModule.gcompf T f g) ⟩ t ⟨ (∅, s2.state.snd ++ (s2.state.fst.map g) ++ [g (f io)]), (NatModule.gcompf T f g) ⟩
+∨ @star _ _ (state_transition (NatModule.gcompf T f g)) ⟨ (s1.state.fst ++ [f io], s1.state.snd), (NatModule.gcompf T f g) ⟩ t ⟨ (s2.state.fst ++ [f io], s2.state.snd), (NatModule.gcompf T f g) ⟩ := by
+  intro st1_stars_st2 s1s2ModEq
+  rcases s1s2ModEq with ⟨ s1modeq, s2modeq ⟩
+  revert io
+  have st1_stars_st2_conv := (@star_eq_star_rev _ _ (state_transition (NatModule.gcompf T f g)) s1 s2  t).mp st1_stars_st2
+  induction st1_stars_st2_conv with
+  | refl  =>
+    intro io
+    have empt_spec := @gcompf_empty_spec T f g (s1.state.fst ++ [f io], s1.state.snd)
+    left; simp at *
+    exact  @star.plus_one _ _ (state_transition (NatModule.gcompf T f g)) _ _ _ empt_spec
+  | step s3 s4 t1 t2 s3_steps_s4 s4_stars_s5_conv iH =>
+    have s4_stars_s5 := (@star_eq_star_rev _ _ (state_transition (NatModule.gcompf T f g)) s1 s3  t1).mpr s4_stars_s5_conv
+    have s4modEq := steps_preserve_mod (NatModule.gcompf T f g) s4_stars_s5
+    rcases s1 with ⟨ st1, mod1 ⟩
+    rcases s2 with ⟨ st2, mod2 ⟩
+    rcases s3 with ⟨ st3, mod3 ⟩
+    rcases s4 with ⟨ st4, mod4 ⟩
+    subst_vars
+    simp at *
+    --have keepStep := s3_steps_s4
+    cases s3_steps_s4 with
+    | input st3fst TpeEq =>
+      exfalso
+      rename_i n st3Fst Tpe
+      rcases Tpe with ⟨ G, el ⟩
+      have h_in_eval := h_input G el n
+      simp at h_in_eval
+      rcases h_in_eval with ⟨ n_is_zero, G_is_T ⟩
+      subst_vars
+      have h_contr := h_noinp el
+      simp at *
+    | output st3fst TpeEq =>
+      have h_in_new : (∀ (G : Type) (x : G) (n : InternalPort ℕ), IOEvent.input n ⟨G, x⟩ ∈ t1 → n = 0 ∧ G = T) := by {
+        intro G x n exp
+        have h_in_up := h_input G x n (Or.inl exp)
+        assumption
+
+      }
+      have h_out_new : (∀ (G : Type) (x : G) (n : InternalPort ℕ), IOEvent.output n ⟨G, x⟩ ∈ t1 → n = 0 ∧ G = T) := by {
+        intro G x n exp
+        have h_out_up := h_output G x n (Or.inl exp)
+        assumption
+      }
+      intro io
+      rename_i n st3Fst Tpe
+      rcases Tpe with ⟨ G, el ⟩
+      have h_out_eval := h_output G el n
+      simp at *
+      rcases h_out_eval with ⟨ n_is_zero, G_is_T ⟩
+      subst_vars
+      simp at *
+      rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
+      rcases TpeEq with ⟨ left, right ⟩
+      rcases st3 with ⟨st3fst_, st3snd ⟩
+      simp at *
+      rcases st3fst with  ⟨ eq1, eq2 ⟩
+      subst_vars
+      have iH_ := iH h_in_new h_out_new h_noinp s4_stars_s5 io
+      clear iH h_in_new h_out_new
+      cases iH_ with
+      | inl st3_stars_st5 =>
+        left
+        cases st3snd with
+        | nil => simp at eq2
+        | cons head tail =>
+          rcases eq2 with ⟨ eq1, eq2 ⟩
+          subst_vars
+          have fst_step := @star.plus_one _ _ (state_transition (NatModule.gcompf G f g)) _ _ _  (@gcompf_output_spec G f g ([],  st4.snd ++ (map g st4.fst ++ [g (f io)])) head); simp at fst_step st3_stars_st5
+          have fin := @star.trans_star _ _ (state_transition (NatModule.gcompf G f g)) { state := (st1.fst ++ [f io], st1.snd), module := NatModule.gcompf G f g }  _ _ _ _   st3_stars_st5 fst_step
+          exact fin
+      | inr st3_stars_st5 =>
+        right
+        cases st3snd with
+        | nil => simp at eq2
+        | cons head tail =>
+          rcases eq2 with ⟨ eq1, eq2 ⟩
+          subst_vars
+          have fst_step := @star.plus_one _ _ (state_transition (NatModule.gcompf G f g)) _ _ _  (@gcompf_output_spec G f g (st4.fst ++ [f io],  st4.snd) head); simp at fst_step st3_stars_st5
+          have fin := @star.trans_star _ _ (state_transition (NatModule.gcompf G f g)) { state := (st1.fst ++ [f io], st1.snd), module := NatModule.gcompf G f g }  _ _ _ _   st3_stars_st5 fst_step
+          exact fin
+    | internal st3fst TpeEq =>
+      intro io
+      rename_i n
+      simp at *
+      rcases st3 with ⟨ s31, s32 ⟩
+      simp [NatModule.gcompf] at TpeEq st3fst
+      subst_vars; simp at *
+      have iH_ := iH h_input h_output h_noinp s4_stars_s5 io
+      clear iH
+      cases iH_ with
+      | inl st3_stars_st5 =>
+        left
+        assumption
+      | inr st3_stars_st5 =>
+        left
+        have fst_step := @star.plus_one _ _ (state_transition (NatModule.gcompf T f g)) _ _ _  (@gcompf_empty_spec T f g (s31 ++ [f io],  s32)); simp at fst_step st3_stars_st5
+        have fin := @star.trans_star _ _ (state_transition (NatModule.gcompf T f g)) { state := (st1.fst ++ [f io], st1.snd), module := NatModule.gcompf T f g }  _ _ _ _   st3_stars_st5 fst_step; simp at fin
+        assumption
+
+
+
+
+
+
+
+
+
+
+theorem gcompf_steps_holds {T f g} (s1 s2: State ℕ (List T × List T))(t: List (IOEvent ℕ)) (io: T)
+(h_input: (∀ G x n, IOEvent.input n ⟨G, x⟩  ∈ t → (n = 0) ∧ G = T))
+(h_output: (∀ G x n, IOEvent.output n ⟨G, x⟩  ∈ t → (n = 0) ∧ G = T))
+(h_noinp: ∀ x, IOEvent.input 0 ⟨T, x⟩ ∉ t):
+@star _ _ (state_transition (NatModule.gcompf T f g)) s1 t s2
+→ (s1.module = (NatModule.gcompf T f g)  ∧ s2.module =  (NatModule.gcompf T f g))
+→ @star _ _ (state_transition (NatModule.gcompf T f g)) ⟨ (s1.state.fst ++ [f io], s1.state.snd), (NatModule.gcompf T f g) ⟩ t ⟨ (∅, s2.state.snd ++ (s2.state.fst.map g) ++ [g (f io)]), (NatModule.gcompf T f g) ⟩ := by
+  intro st1_stars_st2 st1st2Mod
+  have lemm_ := @gcompf_steps_holds_ T f g s1 s2 t io h_input h_output h_noinp st1_stars_st2 st1st2Mod
+  cases lemm_ <;> try assumption
+  rename_i iH
+  have moreStep := @gcompf_empty_spec T f g (s2.state.fst ++ [f io], s2.state.snd)
+  have moreStar := @star.plus_one _ _ (state_transition (NatModule.gcompf T f g)) _ _ _ moreStep
+  have final_star := @star.trans_star _ _ (state_transition (NatModule.gcompf T f g)) _ _ _ _ _ iH moreStar
+  simp at *
+  exact final_star
+
+
+
+theorem gcompf_input_star_maps {T f g} (s1 s2 s3: State ℕ (List T × List T)) (t: List (IOEvent ℕ)) (io: T) (h_mod: s1.module = (NatModule.gcompf T f g) ∧ s2.module = (NatModule.gcompf T f g) ∧ s3.module = (NatModule.gcompf T f g))
+(h_input: (∀ G x n, IOEvent.input n ⟨G, x⟩  ∈ t → (n = 0) ∧ G = T))
+(h_output: (∀ G x n, IOEvent.output n ⟨G, x⟩  ∈ t → (n = 0) ∧ G = T))
+(h_noinp: ∀ x, IOEvent.input 0 ⟨T, x⟩ ∉ t):
+@star _ _ (state_transition (NatModule.gcompf T f g)) s1 t ⟨(∅, ∅), (NatModule.gcompf T f g)⟩
 → @step _ _ _ s1 [IOEvent.input 0 ⟨T, io⟩] s3
-→ ∃ s4, @star _ _ (state_transition (NatModule.gcompf T f g)) s3 (t ++ [IOEvent.output 0 ⟨T, g (f io)⟩]) s4 :=
+→ @star _ _ (state_transition (NatModule.gcompf T f g)) s3 (t ++ [IOEvent.output 0 ⟨T, g (f io)⟩]) ⟨(∅, ∅), (NatModule.gcompf T f g)⟩  :=
 by
   intro s1_stars_s2 s1_steps_s3
   cases s1
@@ -147,36 +303,43 @@ by
   rcases h_mod with ⟨mod1_eq,s2_mod ⟩
   subst_vars
   simp at *
+  have next_v := @gcompf_steps_holds T f g ⟨ st1, (NatModule.gcompf T f g) ⟩ ⟨ (∅, ∅),  (NatModule.gcompf T f g)  ⟩  t io h_input h_output h_noinp s1_stars_s2
+  simp at *
+  have final_s := @gcompf_output_spec T f g ([], []) (g (f io))
+  simp at *
+  have repl := @star.trans_star _ _ (state_transition (NatModule.gcompf T f g)) _ _ _ _ _ next_v (@star.plus_one _ _ (state_transition (NatModule.gcompf T f g)) _ _ _ final_s)
+  assumption
 
-  sorry
 
 
 
 
 
-theorem gcompf_input_transitive { T f g} (s1 s3 : List T × List T) (t t0: List (IOEvent ℕ)) (io: T): @reachable _ _ (state_transition (NatModule.gcompf T f g)) t  ⟨ s1, (NatModule.gcompf T f g)⟩
+theorem gcompf_input_transitive { T f g} (s1 s3 : List T × List T) (t t0: List (IOEvent ℕ)) (io: T)
+(h_input: (∀ G x n, IOEvent.input n ⟨G, x⟩  ∈ t0 → (n = 0) ∧ G = T))
+(h_output: (∀ G x n, IOEvent.output n ⟨G, x⟩  ∈ t0 → (n = 0) ∧ G = T))
+(h_noinp: ∀ x, IOEvent.input 0 ⟨T, x⟩ ∉ t0):
+@reachable _ _ (state_transition (NatModule.gcompf T f g)) t  ⟨ s1, (NatModule.gcompf T f g)⟩
 → ( ∀ x, .input 0 ⟨T, x⟩ ∉ t0) ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) ⟨ s1, (NatModule.gcompf T f g)⟩ t0 ⟨(∅, ∅), (NatModule.gcompf T f g )⟩
 → gcompf_P (t ++ t0) f g
 → @step _ _ _ ⟨ s1, (NatModule.gcompf T f g)⟩ [IOEvent.input 0 ⟨ T, io⟩]  ⟨s3, (NatModule.gcompf T f g) ⟩
 → ∃ tn, gcompf_P (t ++ [IOEvent.input 0 ⟨T, io ⟩] ++ tn) f g ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) ⟨ s3, (NatModule.gcompf T f g) ⟩  tn ⟨(∅, ∅), (NatModule.gcompf T f g )⟩ ∧ ∀ x, .input 0 ⟨T, x ⟩ ∉ tn:= by
-    sorry
-    /-
     intro s1_reachable ⟨no_input_in_t0, s1_star_s2_with_t0⟩ P_for_t_t0 s1_stars_s3_with_em
-    have gcomp_still_valid := @gcompf_in_P_is_trans T f g t0 t ⟨s1, (NatModule.gcompf T f g)⟩ ⟨s2, (NatModule.gcompf T f g)⟩ io no_input_in_t0 P_for_t_t0 s1_star_s2_with_t0
-    have new_star_T := @gcompf_input_star_maps T f g ⟨s1, (NatModule.gcompf T f g)⟩ ⟨s2, (NatModule.gcompf T f g)⟩ ⟨s3, (NatModule.gcompf T f g)⟩ t0 io
+    have gcomp_still_valid := @gcompf_in_P_is_trans T f g t0 t ⟨s1, (NatModule.gcompf T f g)⟩ ⟨(∅, ∅), (NatModule.gcompf T f g)⟩ io no_input_in_t0 P_for_t_t0 s1_star_s2_with_t0
+    have new_star_T := @gcompf_input_star_maps T f g ⟨s1, (NatModule.gcompf T f g)⟩ ⟨(∅, ∅), (NatModule.gcompf T f g)⟩ ⟨s3, (NatModule.gcompf T f g)⟩ t0 io
     simp at new_star_T
-    have new_star := new_star_T s1_star_s2_with_t0 s1_stars_s3_with_em
+    have new_star := new_star_T h_input h_output no_input_in_t0
     clear new_star_T
     match new_star with
-    | ⟨s4, s1_stars_s4⟩  =>
-      exists s4, (t0 ++ [IOEvent.output 0 ⟨T, g (f io)⟩])
+    | rhs  =>
+      exists (t0 ++ [IOEvent.output 0 ⟨T, g (f io)⟩])
       refine ⟨?_, ?_, ?_⟩
       . simp at *
         apply gcomp_still_valid
-      . apply s1_stars_s4
+      . simp at *
+        exact rhs s1_star_s2_with_t0 s1_stars_s3_with_em
       . simp
         apply no_input_in_t0
-        -/
 
 
 
@@ -316,6 +479,11 @@ theorem gcompf_reachness_empty {T f g} (t t0: List (IOEvent ℕ )) (s1 s3: (List
 
 
 
+/-- Still have to define the assumptions of the lemma -/
+theorem temp_lemma {T} (t : Trace Nat):
+
+((∀ G x n, IOEvent.input n ⟨G, x⟩  ∈ t → (n = 0) ∧ G = T) ∧ (∀ G x n, IOEvent.output n ⟨G, x⟩  ∈ t → (n = 0) ∧ G = T)) := by sorry
+
 /--
 MAIN PROOF: here lies the main proof of the liveness of a circuit
 -/
@@ -367,6 +535,7 @@ theorem gcompf_liveness_simp {t : Trace Nat} {T f g}
       have iHRes := iH h_in_new h_out_new new_substs h.left s1_stars_s3
       clear iH new_substs h_in_new h_out_new
       rcases iHRes with ⟨tr, comp_l1_tr, s3_stars_empty, tr_is_empty⟩
+      have finalResT := @gcompf_input_transitive T f g
       have s3_steps_s4_ := s3_steps_s4
       cases s3_steps_s4 with
       | input =>
@@ -374,7 +543,6 @@ theorem gcompf_liveness_simp {t : Trace Nat} {T f g}
         rcases s3
         rename_i s3 mod3
         subst h_s2
-        have finalResT := @gcompf_input_transitive T f g
         simp [reachable] at finalResT
         rcases combTpe with ⟨TT, inp ⟩
         have h_in_assum := h_in TT inp ip1
@@ -420,8 +588,6 @@ theorem gcompf_liveness_simp {t : Trace Nat} {T f g}
 
 
 theorem gcompf_liveness2 {t : Trace Nat} {T f g}(h_steps: @behaviour _ _ (state_transition (NatModule.gcompf T f g)) t)
-(h_input: (∀ G x n, IOEvent.input n ⟨G, x⟩  ∈ t → (n = 0) ∧ G = T))
-(h_output: (∀ G x n, IOEvent.output n ⟨G, x⟩  ∈ t → (n = 0) ∧ G = T))
 (h_init_imp_mod: ∀s, @StateTransition.init _ _ (state_transition (NatModule.gcompf T f g)) s  → s.module = (NatModule.gcompf T f g)):
   ∃ t', gcompf_P (t ++ t') (f) (g) ∧ @behaviour _ _ (state_transition (NatModule.gcompf T f g)) (t ++ t') ∧ ∀ x, .input 0 ⟨T, x⟩ ∉ t' := by
     simp [behaviour] at h_steps
@@ -430,7 +596,7 @@ theorem gcompf_liveness2 {t : Trace Nat} {T f g}(h_steps: @behaviour _ _ (state_
       have s1_mod_eq := h_init_imp_mod s1 s1_init_step
       have s2_mod_eq := steps_preserve_mod (NatModule.gcompf T f g) s1_star_s2_t
       rw [s1_mod_eq] at s2_mod_eq
-      have induct_star_res := gcompf_liveness_simp h_input h_output s1 s2 s1_mod_eq s2_mod_eq (And.intro s1_init_step s1_star_s2_t)
+      have induct_star_res := gcompf_liveness_simp s1 s2 s1_mod_eq s2_mod_eq (And.intro s1_init_step s1_star_s2_t)
       rcases induct_star_res with ⟨i1, i2,i3, i4 ⟩
       exists i1
       constructor
@@ -442,4 +608,4 @@ theorem gcompf_liveness2 {t : Trace Nat} {T f g}(h_steps: @behaviour _ _ (state_
           constructor
           . exact s1_init_step
           . exists ⟨(∅, ∅),  (NatModule.gcompf T f g)⟩
-        . exact i4
+        . exact i4.left
