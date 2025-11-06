@@ -16,11 +16,15 @@ open StringModule
 
 section Proof
 
-variable {Data : Type}
-variable (DataS : String)
-variable (f : Data → Data × Bool)
+variable [e : Environment lhsLower]
 
-variable [Inhabited Data]
+seal T
+seal f
+
+section Iterate
+
+variable {Data : Type}
+variable (f : Data → Data × Bool)
 
 attribute [drunfold] AssocList.eraseAll
 
@@ -37,22 +41,26 @@ inductive iterate_full (i: Data) : Option Nat → Option Data → Prop where
 | terminate {n i'} : iterate f i n i' → iterate_full i (some n) (some i')
 | diverge : (∀ m, (apply f m i).snd = true) → iterate_full i none none
 
+omit e in
 theorem exists_minimal_m {i} {m} :
   (apply f m i).2 = false →
   ∃ m', (apply f m' i).2 = false ∧ (∀ n, n < m' → (apply f n i).snd = true) := by
   induction m using Nat.strong_induction_on; grind
 
+omit e in
 theorem iterate_deterministic {i n i' n2 i'2} :
   iterate f i n i' →
   iterate f i n2 i'2 →
   n = n2 ∧ i' = i'2 := by grind [iterate]
 
+omit e in
 theorem iterate_full_deterministic {i n i' n2 i'2} :
   iterate_full f i n i' →
   iterate_full f i n2 i'2 →
   n = n2 ∧ i' = i'2 := by
   intro ha hb; cases ha <;> cases hb <;> grind [iterate_deterministic, iterate]
 
+omit e in
 theorem iterate_full_complete {i} :
   ∃ n d, iterate_full f i n d := by
   cases Classical.em (∀ m, (apply f m i).snd = true)
@@ -67,8 +75,39 @@ inductive lt_current : Nat → Option Nat → Prop :=
 | some {n final} : n < final → lt_current n (some final)
 | none {n} : lt_current n none
 
-inductive state_relation : rhsGhostType Data -> Prop where
-| intros : ∀ (s :  rhsGhostType Data) x_merge x_module x_branchD x_branchB x_tagT x_tagM x_tagD x_splitD x_splitB x_split_branchT x_split_branchF x_moduleT x_moduleF,
+omit e in
+theorem apply_plus_one (i: Data) (n : Nat) : (f (apply f n i).1).1 = (apply f (1 + n) i).1 := by
+  rw [show 1 + n = n + 1 by omega]; rfl
+
+omit e in
+theorem apply_plus_one_condiction (i: Data) (n : Nat) : (f (apply f n i).1).2 = (apply f (n + 1) i).2 := rfl
+
+omit e in
+theorem apply_true (i : Data) (i' : Option Data) (n : Option Nat) (k : Nat) :
+  lt_current k n ->
+  (apply f (k + 1) i).2 = true ->
+  iterate_full f i n i' ->
+  lt_current (k + 1) n := by
+  intro hl1 happly hiter
+  cases hiter
+  · unfold iterate at *; cases hl1; constructor; grind
+  · constructor
+
+omit e in
+theorem apply_false (i : Data) (i' : Option Data) (n : Option Nat) (k : Nat) :
+  lt_current k n →
+  (apply f (k + 1) i).2 = false →
+  iterate_full f i n i' →
+  some (k + 1) = n := by
+  intro hl1 happly hiter
+  cases hiter
+  · unfold iterate at *; cases hl1; grind
+  · grind
+
+end Iterate
+
+inductive state_relation : rhsGhostType -> Prop where
+| intros : ∀ (s :  rhsGhostType) x_merge x_module x_branchD x_branchB x_tagT x_tagM x_tagD x_splitD x_splitB x_split_branchT x_split_branchF x_moduleT x_moduleF,
   ⟨ x_module, ⟨x_branchD, x_branchB⟩, x_merge, ⟨x_tagT, x_tagM, x_tagD ⟩, ⟨x_splitD, x_splitB⟩⟩ = s ->
   ( ∀ elem, elem ∈ x_tagD ->  elem.1 = elem.2.2 ∧ elem.2.1 = 0) ->
   (∀ elem n i', elem ∈ x_merge -> iterate_full f elem.2.2 n i' -> elem.2.1 ≥ 0 ∧ lt_current elem.2.1 n ∧ elem.1.2 = (apply f elem.2.1 elem.2.2).1) ->
@@ -90,10 +129,11 @@ inductive state_relation : rhsGhostType Data -> Prop where
   -- ( ∀ tag i, (i) ∈ x_tagD -> ∃ d n, iterate f i n d) ->
   state_relation s
 
-def default_lhs : lhsType Data := default
+def default_lhs : lhsType := by unfold lhsType; apply default
+def default_rhs : rhsGhostType := by unfold rhsGhostType; apply default
 
 theorem state_relation_empty :
-  state_relation f default := by
+  state_relation default_rhs := by
   constructor <;> try trivial
   · intro elem hin; cases hin
   · intro elem n i' hin; cases hin
@@ -113,8 +153,10 @@ theorem state_relation_empty :
 # Proof state_relation_prserve in rhsGhost
 -/
 
+omit e in
 theorem alpa {α : Type} {a : α} {l : List α} : a :: l = [a] ++ l := by simp only [List.singleton_append]
 
+omit e in
 theorem perm_comm {α : Type} {l1 l2 l3 : List α} : (l1).Perm (l2 ++ l3) -> (l1).Perm (l3 ++ l2) := by
   intros
   apply List.Perm.trans; assumption
@@ -123,35 +165,12 @@ theorem perm_comm {α : Type} {l1 l2 l3 : List α} : (l1).Perm (l2 ++ l3) -> (l1
 attribute [aesop unsafe 50% forward] List.Nodup.cons List.perm_append_singleton
 attribute [aesop norm] List.perm_comm
 
-theorem apply_plus_one (i: Data) (n : Nat) : (f (apply f n i).1).1 = (apply f (1 + n) i).1 := by
-  rw [show 1 + n = n + 1 by omega]; rfl
-
-theorem apply_plus_one_condiction (i: Data) (n : Nat) : (f (apply f n i).1).2 = (apply f (n + 1) i).2 := rfl
-
-theorem apply_true (i : Data) (i' : Option Data) (n : Option Nat) (k : Nat) :
-  lt_current k n ->
-  (apply f (k + 1) i).2 = true ->
-  iterate_full f i n i' ->
-  lt_current (k + 1) n := by
-  intro hl1 happly hiter
-  cases hiter
-  · unfold iterate at *; cases hl1; constructor; grind
-  · constructor
-
-theorem apply_false (i : Data) (i' : Option Data) (n : Option Nat) (k : Nat) :
-  lt_current k n →
-  (apply f (k + 1) i).2 = false →
-  iterate_full f i n i' →
-  some (k + 1) = n := by
-  intro hl1 happly hiter
-  cases hiter
-  · unfold iterate at *; cases hl1; grind
-  · grind
-
+omit e in
 theorem erase_map {α β γ : Type} {l : List ((α × β) × γ)} {k : Nat} :
   List.map (Prod.fst ∘ Prod.fst) (List.eraseIdx l k) = (List.map (Prod.fst ∘ Prod.fst) l).eraseIdx k := by
   simp [List.eraseIdx_map]
 
+omit e in
 theorem erase_perm {α β γ : Type} {l : List ((α × β) × γ)} (k : Fin (List.length l)):
   ((List.map (Prod.fst ∘ Prod.fst) l).eraseIdx k ++ [(l[k].1.1)]).Perm (List.map (Prod.fst ∘ Prod.fst) l) := by
   rw [←erase_map]
@@ -162,39 +181,44 @@ theorem erase_perm {α β γ : Type} {l : List ((α × β) × γ)} (k : Fin (Lis
   apply List.perm_append_singleton
   apply List.getElem_cons_eraseIdx_perm
 
+omit e in
 theorem map_fst {α β γ η  : Type} {i : α} {l : List ((α × β) × γ × η)}:  i ∈ (l.map Prod.fst).map Prod.fst -> ∃ i', (i, i') ∈ l.map (fun x => (x.1.1, x.2.2)) := by aesop
 
+omit e in
 theorem getIO_cons_neq {α} {a b x} {xs}:
   a ≠ b ->
   PortMap.getIO (.cons a x xs) b = @PortMap.getIO String _ α xs b := by
   unfold PortMap.getIO; intro heq
   rw [Batteries.AssocList.find?_cons_neq]; assumption
 
+omit e in
 theorem getIO_nil {α} {b}:
   @PortMap.getIO String _ α .nil b = ⟨ Unit, λ _ _ _ => False ⟩ := by aesop
 
+omit e in
 theorem getIO_cons_eq {α} {a x} {xs}:
   @PortMap.getIO String _ α (.cons a x xs) a = x := by
   unfold PortMap.getIO; rw [Batteries.AssocList.find?_cons_eq]; rfl
 
+omit e in
 theorem find?_cons_eq {α β} [DecidableEq α] {a x} {xs : Batteries.AssocList α β}:
   Batteries.AssocList.find? a (xs.cons a x) = x := by simp
 
+omit e in
 theorem find?_cons_neq {α β} [DecidableEq α] {a x} y {xs : Batteries.AssocList α β}:
   ¬(a = y) -> Batteries.AssocList.find? a (xs.cons y x) = Batteries.AssocList.find? a xs := by simp; grind
 
 theorem state_relation_preserve_input:
-  ∀ (s s' : rhsGhostType Data) rule,
-    rule ∈ ( rhsGhostEvaled f).internals ->
+  ∀ (s s' : rhsGhostType) rule,
+    rule ∈ ( rhsGhostEvaled).internals ->
     rule s s' ->
-    state_relation f s ->
+    state_relation s ->
     (List.map Prod.snd s.2.2.2.1.1 ++ List.map Prod.fst s.2.2.2.1.2.2) = (List.map Prod.snd s'.2.2.2.1.1 ++ List.map Prod.fst s'.2.2.2.1.2.2) := by
   intro s s' rule hrulein hrule hstate
   dsimp [rhsGhostEvaled] at hrulein
   fin_cases hrulein <;> try grind
-  dsimp [Module.liftR, Module.liftL] at *
-  grind
 
+omit e in
 theorem in_eraseAll_noDup {α β γ δ} {l : List ((α × β) × γ × δ)} (Ta : α) [DecidableEq α](a : AssocList α (β × γ × δ)):
   (List.map Prod.fst ( List.map Prod.fst (l ++ (List.map (fun x => ((x.1, x.2.1), x.2.2.1, x.2.2.2)) a.toList)))).Nodup ->
   (List.map Prod.fst ( List.map Prod.fst (l ++ List.map (fun x => ((x.1, x.2.1), x.2.2.1, x.2.2.2)) (AssocList.eraseAll Ta a).toList))).Nodup := by
@@ -202,23 +226,26 @@ theorem in_eraseAll_noDup {α β γ δ} {l : List ((α × β) × γ × δ)} (Ta 
   rw [Batteries.AssocList.eraseAllP_TR_eraseAll]
   apply Batteries.AssocList.in_eraseAll_noDup
 
+omit e in
 theorem notinfirst {A B} {x : List (A × B)} {a} :
   a ∉ List.map Prod.fst x → ∀ y, (a, y) ∉ x := by
   grind
 
+omit e in
 theorem elem_in_third {α} {e : α} {a b c d : List _} :
   e ∈ a ++ (b ++ (c ++ d)) → e ∉ c → e ∈ a ++ (b ++ d) := by grind
 
+omit e in
 theorem elem_in_erase_first {α} {e : α} {a b : List _} {n} :
   e ∈ (List.eraseIdx a n) ++ b → e ∈ a ++ b := by grind [List.mem_of_mem_eraseIdx]
 
 set_option maxHeartbeats 0 in
 theorem state_relation_preserve:
-  ∀ (s s' : rhsGhostType Data) rule,
-    rule ∈ (rhsGhostEvaled f).internals ->
+  ∀ (s s' : rhsGhostType) rule,
+    rule ∈ (rhsGhostEvaled).internals ->
     rule s s' ->
-    state_relation f s ->
-    state_relation f s' := by
+    state_relation s ->
+    state_relation s' := by
   intro s s' rule h1 h2 h3
   let ⟨ x_module, ⟨x_branchD, x_branchB⟩, x_merge, ⟨x_tagT, x_tagM, x_tagD ⟩, ⟨x_splitD, x_splitB⟩⟩ := s
   let ⟨ x_module', ⟨x_branchD', x_branchB'⟩, x_merge', ⟨x_tagT', x_tagM', x_tagD' ⟩, ⟨x_splitD', x_splitB'⟩⟩ := s'
@@ -232,7 +259,7 @@ theorem state_relation_preserve:
     subst_vars
     cases h3
     rename_i h h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 H13 H14 H15 Hnew Hnewnew
-    simp at h
+    repeat rw [Prod.mk.injEq] at h
     repeat with_reducible cases ‹_ ∧ _›
     subst_vars
     constructor <;> (try rfl) <;> (try assumption)
@@ -341,7 +368,7 @@ theorem state_relation_preserve:
     subst_vars
     cases h3
     rename_i h h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 H13 H14 H15 Hnew Hnew'
-    simp at h
+    repeat rw [Prod.mk.injEq] at h
     repeat with_reducible cases ‹_ ∧ _›
     subst_vars
     constructor <;> (try rfl) <;> (try assumption)
@@ -413,10 +440,10 @@ theorem state_relation_preserve:
       intro h1
       cases h1 <;> rename_i h
       . rename_i x_merge x_module x_branchD x_branchB x_tagT x_tagM x_tagD x_splitD x_splitB _
-        have H1 := @List.mem_filter_of_mem (((TagT × Data) × ℕ × Data) × Bool) (fun x => x.2 == false) _ _ h
+        have H1 := @List.mem_filter_of_mem (((TagT × T) × ℕ × T) × Bool) (fun x => x.2 == false) _ _ h
         simp only [beq_self_eq_true] at H1
         simp only [forall_const] at H1
-        have H := @List.mem_map_of_mem (((TagT × Data) × ℕ × Data) × Bool) ((TagT × Data) × ℕ × Data) (List.filter (fun x => x.2 == false) ((x_branchD ++ x_splitD).zip (x_branchB ++ x_splitB))) ((elem, false)) Prod.fst H1
+        have H := @List.mem_map_of_mem (((TagT × T) × ℕ × T) × Bool) ((TagT × T) × ℕ × T) (List.filter (fun x => x.2 == false) ((x_branchD ++ x_splitD).zip (x_branchB ++ x_splitB))) ((elem, false)) Prod.fst H1
         simp only [] at H
         have H := List.mem_append_left (List.map Prod.fst (List.filter (fun x => x.2 == false) x_module)) H
         specialize h10 H; assumption
@@ -546,12 +573,13 @@ theorem state_relation_preserve:
     simp only [List.concat_eq_append] at *
     obtain ⟨cons, newC, h⟩ := h2
     obtain ⟨ x_module', ⟨x_branchD', x_branchB'⟩, x_merge', ⟨x_tagT', x_tagM', x_tagD' ⟩, ⟨x_splitD', x_splitB'⟩⟩ := cons
-    dsimp at h
+    repeat rw [Prod.mk.injEq] at *
+    repeat with_reducible cases ‹_ ∧ _›
     simp_all only [Prod.mk.injEq]; repeat with_reducible cases ‹_ ∧ _›
     subst_vars
     cases h3
     rename_i h h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 H13 H14 H15 Hnew Hnew2
-    simp only [Prod.mk.injEq] at h
+    repeat rw [Prod.mk.injEq] at h
     repeat with_reducible cases ‹_ ∧ _›
     subst_vars
     constructor <;> (try rfl) <;> (try assumption)
@@ -618,7 +646,7 @@ theorem state_relation_preserve:
     subst_vars
     cases h3
     rename_i h h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 H13 H14 H15 Hnew Hnew2
-    simp at h
+    repeat rw [Prod.mk.injEq] at h
     repeat with_reducible cases ‹_ ∧ _›
     subst_vars
     constructor <;> (try rfl) <;> (try assumption)
@@ -667,7 +695,7 @@ theorem state_relation_preserve:
       subst_vars
       cases h3
       rename_i h h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 H13 H14 H15 Hnew Hnew2
-      simp only [Prod.mk.injEq] at h
+      repeat rw [Prod.mk.injEq] at h
       repeat with_reducible cases ‹_ ∧ _›
       subst_vars
       constructor <;> (try rfl) <;> (try assumption)
@@ -701,7 +729,7 @@ theorem state_relation_preserve:
     subst_vars
     cases h3
     rename_i h h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 H13 H14 H15 Hnew Hnew2
-    simp only [Prod.mk.injEq] at h
+    repeat rw [Prod.mk.injEq] at h
     repeat with_reducible cases ‹_ ∧ _›
     subst_vars
     constructor <;> (try rfl) <;> (try assumption)
@@ -768,7 +796,7 @@ theorem state_relation_preserve:
     subst_vars
     cases h3
     rename_i h h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 H13 H14 H15 Hnew Hnew2
-    simp only [Prod.mk.injEq] at h
+    repeat rw [Prod.mk.injEq] at h
     repeat with_reducible cases ‹_ ∧ _›
     subst_vars
     constructor <;> (try rfl) <;> (try assumption)
@@ -815,9 +843,7 @@ theorem state_relation_preserve:
       specialize h12 elem
       rename_i left right
       -- aesop
-      unfold Graphiti.LoopRewrite.iterate at H14
-      unfold Graphiti.LoopRewrite.iterate at Hnew
-      unfold Graphiti.LoopRewrite.iterate at Hnew2
+      unfold Graphiti.LoopRewrite.iterate at *
       simp only [Batteries.AssocList.toList] at h1
       grind
     . grind
@@ -846,15 +872,16 @@ theorem state_relation_preserve:
                     List.filter_cons_of_pos, Bool.not_eq_eq_eq_not, Bool.not_true, forall_eq_or_imp] at *
           grind
 
+#print axioms state_relation_preserve
+
 /-
 # Proof refinment rhsGhost ⊑ lhs
 -/
 
-omit [Inhabited Data] in
 @[simp]
 theorem input_rule_isData {input_rule} :
-  ((lhsEvaled f).inputs.find? ↑"i_in") = .some input_rule ->
-  Data = input_rule.fst := by
+  (lhsEvaled.inputs.find? ↑"i_in") = .some input_rule ->
+  T = input_rule.fst := by
   unfold lhsEvaled
   simp; intro h1
   subst_vars; rfl
@@ -862,20 +889,22 @@ theorem input_rule_isData {input_rule} :
 def init_node_state (s : List Bool × Bool) : Prop :=
   (s.2 = false -> s.1 = []) ∧ (s.2 = true -> s.1 = [false])
 
+omit e in
 theorem false_is_init_node_state :
   init_node_state ([false], true) := by simp [init_node_state]
 
+omit e in
 theorem empty_is_init_node_state :
   init_node_state ([], false) := by simp [init_node_state]
 
-inductive lhs_is_empty  : lhsType Data -> Prop where
-| intro : ∀ (s : lhsType Data) muxF init_s,
+inductive lhs_is_empty  : lhsType -> Prop where
+| intro : ∀ (s : lhsType) muxF init_s,
   ([], [], init_s, [], ([], []), ([], []), ([], []), [], muxF, []) = s ->
   init_node_state init_s ->
   lhs_is_empty s
 
 theorem flush_lhs_continue {v muxF} :
-  existSR (lhsEvaled f).internals
+  existSR lhsEvaled.internals
     ([], [], ([], true), [(v, true)], ([], []), ([], []), ([], []), [], muxF, [])
     ([], [], ([true], true), [], ([], []), ([], []), ([], []), [v], muxF, []) := by
   apply existSR_transitive
@@ -965,7 +994,7 @@ theorem flush_lhs_continue {v muxF} :
   apply existSR.done
 
 theorem flush_lhs_exit {v muxF} :
-  existSR (lhsEvaled f).internals
+  existSR lhsEvaled.internals
     ([], [], ([], true), [(v, false)], ([], []), ([], []), ([], []), [], muxF, [])
     ([v], [], ([false], true), [], ([], []), ([], []), ([], []), [], muxF, []) := by
   apply existSR_transitive
@@ -1045,7 +1074,7 @@ theorem flush_lhs_exit {v muxF} :
 theorem flush_lhs_loop {m i v n muxF} :
   iterate f i n v →
   m + 1 < n →
-  existSR (lhsEvaled f).internals
+  existSR lhsEvaled.internals
     ([], [], ([true], true), [], ([], []), ([], []), ([], []), [(apply f m i).1], muxF, [])
     ([], [], ([true], true), [], ([], []), ([], []), ([], []), [(apply f (m + 1) i).1], muxF, []) := by
   intro it hm
@@ -1076,7 +1105,7 @@ theorem flush_lhs_loop {m i v n muxF} :
 theorem flush_lhs_init1 {i muxF init_s} :
   init_node_state init_s ->
   (f i).2 = true →
-  existSR (lhsEvaled f).internals
+  existSR lhsEvaled.internals
     ([], [], init_s, [], ([], []), ([], []), ([], []), [], i :: muxF, [])
     ([], [], ([true], true), [], ([], []), ([], []), ([], []), [(f i).1], muxF, []) := by
   intro it hm
@@ -1135,7 +1164,7 @@ theorem flush_lhs_init1 {i muxF init_s} :
 theorem flush_lhs_init2 {i muxF init_s} :
   init_node_state init_s ->
   (f i).2 = false →
-  existSR (lhsEvaled f).internals
+  existSR lhsEvaled.internals
     ([], [], init_s, [], ([], []), ([], []), ([], []), [], i :: muxF, [])
     ([(f i).1], [], ([false], true), [], ([], []), ([], []), ([], []), [], muxF, []) := by
   intro it hm
@@ -1193,7 +1222,7 @@ theorem flush_lhs_init2 {i muxF init_s} :
 
 theorem flush_lhs_end {m i v muxF} :
   iterate f i (m + 1) v →
-  existSR (lhsEvaled f).internals
+  existSR lhsEvaled.internals
     ([], [], ([true], true), [], ([], []), ([], []), ([], []), [(apply f m i).1], muxF, [])
     ([v], [], ([false], true), [], ([], []), ([], []), ([], []), [], muxF, []) := by
   intro it
@@ -1225,7 +1254,7 @@ theorem flush_lhs_end {m i v muxF} :
 theorem flush_lhs_loop_compl {m n i v muxF} :
   iterate f i n v →
   m < n →
-  existSR (lhsEvaled f).internals
+  existSR lhsEvaled.internals
     ([], [], ([true], true), [], ([], []), ([], []), ([], []), [i], muxF, [])
     ([], [], ([true], true), [], ([], []), ([], []), ([], []), [(apply f m i).1], muxF, []) := by
   induction m with
@@ -1285,7 +1314,7 @@ theorem iterate_apply {m n i v} :
 theorem flush_lhs {i v n muxF init_s} :
   iterate f i n v →
   init_node_state init_s ->
-  existSR (lhsEvaled f).internals
+  existSR lhsEvaled.internals
     ([], [], init_s, [], ([], []), ([], []), ([], []), [], i :: muxF, [])
     ([v], [], ([false], true), [], ([], []), ([], []), ([], []), [], muxF, []) := by
   intro hi hn
@@ -1311,24 +1340,25 @@ theorem flush_lhs {i v n muxF init_s} :
           · rw [apply_twice]; rw [show n - 1 + 1 = n by omega]
             solve_by_elim [flush_lhs_end]
   · simp only [Bool.not_eq_true] at hb
-    obtain ⟨_, _⟩ := iterate_f_false f hi hb; subst_vars
+    obtain ⟨_, _⟩ := iterate_f_false hi hb; subst_vars
     solve_by_elim [flush_lhs_init2]
 
-inductive φ : rhsGhostType Data -> lhsType Data -> Prop where
-| intro : ∀ (i :rhsGhostType Data) i_merge i_module i_branchD i_branchB i_tagT i_tagM i_tagD i_splitD i_splitB s_queue_out  s_queue
-            (s : lhsType Data) s_initL s_initB s_module s_splitD s_splitB s_branchD s_branchB s_forkR s_forkL s_muxT s_muxF s_muxC,
+inductive φ : rhsGhostType -> lhsType -> Prop where
+| intro : ∀ (i :rhsGhostType) i_merge i_module i_branchD i_branchB i_tagT i_tagM i_tagD i_splitD i_splitB s_queue_out  s_queue
+            (s : lhsType) s_initL s_initB s_module s_splitD s_splitB s_branchD s_branchB s_forkR s_forkL s_muxT s_muxF s_muxC,
   ⟨i_module, ⟨i_branchD, i_branchB⟩, i_merge, ⟨i_tagT, i_tagM, i_tagD ⟩, ⟨i_splitD, i_splitB⟩⟩ = i ->
   ⟨s_queue_out, s_queue, ⟨s_initL, s_initB⟩, s_module, ⟨s_splitD, s_splitB⟩, ⟨s_branchD, s_branchB⟩, ⟨s_forkR, s_forkL⟩, s_muxT, s_muxF, s_muxC ⟩ = s ->
   ((i_tagT.map Prod.snd) ++ (i_tagD.map Prod.fst)) = s_muxF ->
-  state_relation f i ->
+  state_relation i ->
   lhs_is_empty s ->
   φ i s
 
-theorem φ_empty : φ f default default_lhs := by
+theorem φ_empty : φ default_rhs default_lhs := by
   constructor <;> try trivial
   · apply state_relation_empty
   · constructor <;> try trivial
 
+omit e in
 theorem nodup_in_first {α} {a b c d e : List α} {l} :
   (a ++ (b ++ (c ++ (d ++ e)))).Nodup →
   l ∈ e →
@@ -1336,9 +1366,9 @@ theorem nodup_in_first {α} {a b c d e : List α} {l} :
   simp; intros; grind
 
 theorem state_relation_output_preserved {x_splitD x_splitB x_module x_branchD x_branchB x_tagT x_tagM x_tagD x_merge tag val iters init} :
-  state_relation f (x_module, (x_branchD, x_branchB), x_merge, ((tag, init) :: x_tagT, x_tagM, x_tagD), (x_splitD, x_splitB)) →
+  state_relation (x_module, (x_branchD, x_branchB), x_merge, ((tag, init) :: x_tagT, x_tagM, x_tagD), (x_splitD, x_splitB)) →
   x_tagM.find? tag = .some (val, iters, init) →
-  state_relation f (x_module, (x_branchD, x_branchB), x_merge, (x_tagT, x_tagM.eraseAll tag, x_tagD), (x_splitD, x_splitB)) := by
+  state_relation (x_module, (x_branchD, x_branchB), x_merge, (x_tagT, x_tagM.eraseAll tag, x_tagD), (x_splitD, x_splitB)) := by
   intro hstate_relation hfind
   cases hstate_relation
   cases ‹(_, _) = (_, _)›
@@ -1391,13 +1421,13 @@ theorem state_relation_output_preserved {x_splitD x_splitB x_module x_branchD x_
     clear h5 h6 h7 h9 h10 h11 h12 h13 h16 h1 h2; grind
   · intros; apply h7; simp only [List.mem_cons]; right; assumption
 
-instance : MatchInterface (rhsGhostEvaled f) (lhsEvaled f) := by
+instance : MatchInterface rhsGhostEvaled lhsEvaled := by
   unfold rhsGhostEvaled lhsEvaled
   solve_match_interface
 
 set_option maxHeartbeats 0 in
 theorem refine:
-    rhsGhostEvaled f ⊑_{φ f} (lhsEvaled f) := by
+    rhsGhostEvaled ⊑_{φ} lhsEvaled := by
   intro ⟨ x1, x2 ⟩ y HPerm
   apply Module.comp_refines.mk
   . intro ident ⟨x'1, x'2⟩ v Hcontains
@@ -1406,13 +1436,12 @@ theorem refine:
     by_cases heq : { inst := InstIdent.top, name := "i_in" } = ident
     . unfold PortMap.getIO
       subst ident
-      rw[PortMap.rw_rule_execution (getIO_cons_eq (α := (rhsGhostType Data)))] at Hcontains
+      rw[PortMap.rw_rule_execution (getIO_cons_eq (α := rhsGhostType))] at Hcontains
       dsimp [reduceAssocListfind?]
       apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
       apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
       with_reducible and_intros; any_goals apply existSR.done
-      · dsimp [Module.liftR, Module.liftL]
-        and_intros <;> rfl
+      any_goals dsimp [Module.liftR, Module.liftL]
       · cases HPerm; constructor <;> try rfl;
         · dsimp at Hcontains; grind
         · rename_i h _ _
@@ -1529,8 +1558,8 @@ theorem refine:
           constructor; rfl
           grind
     . unfold PortMap.getIO
-      rw[PortMap.rw_rule_execution (getIO_cons_neq heq (α := (rhsGhostType Data)))] at Hcontains
-      rw[PortMap.rw_rule_execution (getIO_nil (α := (rhsGhostType Data)) (b := ident))] at Hcontains
+      rw[PortMap.rw_rule_execution (getIO_cons_neq heq (α := rhsGhostType))] at Hcontains
+      rw[PortMap.rw_rule_execution (getIO_nil (α := rhsGhostType) (b := ident))] at Hcontains
       contradiction
   . intro ident ⟨x'1, x'2⟩ v Hcontains
     unfold rhsGhostEvaled at *
@@ -1538,14 +1567,14 @@ theorem refine:
     by_cases heq : { inst := InstIdent.top, name := "o_out" } = ident
     . unfold PortMap.getIO
       subst ident
-      rw[PortMap.rw_rule_execution (getIO_cons_eq (α := (rhsGhostType Data)))] at Hcontains
+      rw[PortMap.rw_rule_execution (getIO_cons_eq (α := rhsGhostType))] at Hcontains
       cases HPerm
       cases ‹lhs_is_empty _›
       cases ‹_ = y›
       cases ‹_ = ([], _)›
       cases ‹_ = (_, _)›
-      have hst := ‹state_relation _ _›
-      obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hassoclist, _, _, _⟩ := ‹state_relation _ _›
+      have hst := ‹state_relation _›
+      obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hassoclist, _, _, _⟩ := ‹state_relation _›
       cases ‹_ = (_, (_, _), _)›
       dsimp [reduceAssocListfind?] at Hcontains ⊢
       repeat with_reducible cases ‹_ ∧ _›
@@ -1577,8 +1606,8 @@ theorem refine:
             · rfl
             · apply false_is_init_node_state
     . unfold PortMap.getIO
-      rw[PortMap.rw_rule_execution (getIO_cons_neq heq (α := (rhsGhostType Data)))] at Hcontains
-      rw[PortMap.rw_rule_execution (getIO_nil (α := (rhsGhostType Data)) (b := ident))] at Hcontains
+      rw[PortMap.rw_rule_execution (getIO_cons_neq heq (α := rhsGhostType))] at Hcontains
+      rw[PortMap.rw_rule_execution (getIO_nil (α := rhsGhostType) (b := ident))] at Hcontains
       contradiction
   . cases HPerm
     rename_i h_state_relation _ _
@@ -1586,15 +1615,19 @@ theorem refine:
     constructor
     . constructor
       . constructor
-      . have H := state_relation_preserve f (x1, x2) _ rule hr hrr h_state_relation
-        have h := state_relation_preserve_input f (x1, x2) _ rule hr hrr h_state_relation
+      . have H := state_relation_preserve (x1, x2) _ rule hr hrr h_state_relation
+        have h := state_relation_preserve_input (x1, x2) _ rule hr hrr h_state_relation
         constructor <;> ( try rfl)
         . rw[← h]; clear h; subst_vars; rename_i h1 _; cases h1; simp
         . assumption
         . assumption
 
 /--
-info: 'Graphiti.LoopRewrite.refine' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: 'Graphiti.LoopRewrite.refine' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound,
+ Graphiti.LoopRewrite.available2,
+ Graphiti.LoopRewrite.available3]
 -/
 #guard_msgs in
 #print axioms refine

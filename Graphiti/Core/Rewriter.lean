@@ -73,6 +73,12 @@ structure RewriteState where
 deriving Repr, Inhabited
 
 abbrev RewriteResult := EStateM RewriteError RewriteState
+abbrev RewriteResultSL := Except RewriteError
+
+def RewriteResultSL.runWithState {α} (r : RewriteResultSL α) : RewriteResult α :=
+  match r with
+  | .ok res => fun st => .ok res st
+  | .error err => fun st => .error err st
 
 section Rewrite
 
@@ -80,7 +86,7 @@ variable (Ident Typ)
 variable [DecidableEq Ident]
 variable [DecidableEq Typ]
 
-@[simp] abbrev Pattern n := ExprHigh Ident Typ → RewriteResult (List Ident × Vector Nat n)
+@[simp] abbrev Pattern n := ExprHigh Ident Typ → RewriteResultSL (List Ident × Vector Nat n)
 
 structure Abstraction (n) where
   pattern : Pattern Ident Typ n
@@ -98,7 +104,7 @@ structure DefiniteRewrite where
 structure Rewrite where
   params : Nat
   pattern : Pattern Ident Typ params
-  rewrite : Vector Nat params → DefiniteRewrite Ident Typ
+  rewrite : Vector Nat params → Nat → DefiniteRewrite Ident Typ
   transformedNodes : List (Option (PortMapping String)) := []
   addedNodes : List (PortMapping String) := []
   fresh_types : Nat := 0
@@ -217,8 +223,8 @@ however, currently the low-level expression language does not remember any names
   let fresh_prefix := s!"rw_{current_state.fresh_prefix}_"
 
   -- Pattern match on the graph and extract the first list of nodes that correspond to the first subgraph.
-  let (sub, types) ← rewrite.pattern g
-  let def_rewrite := rewrite.rewrite types
+  let (sub, types) ← rewrite.pattern g |>.runWithState
+  let def_rewrite := rewrite.rewrite types current_state.fresh_type
 
   -- Extract the actual subgraph from the input graph using the list of nodes `sub`.
   let (g₁, g₂) ← ofOption (.error "could not extract graph") <| g.extract sub
@@ -345,7 +351,7 @@ def reverse_rewrite' (def_rewrite : DefiniteRewrite String String) (rinfo : Runt
 
   return ({ params := 0
             pattern := λ _ => pure (rhsNodes', default),
-            rewrite := λ _ => ⟨rhs_renamed, lhs_renamed⟩,
+            rewrite := λ _ _ => ⟨rhs_renamed, lhs_renamed⟩,
             name := s!"rev-{rinfo.name.getD "unknown"}",
             -- TODO: These dictate ordering of nodes quite strictly.
             transformedNodes := rhsNodes_renamed.map some ++ rhsNodes_added.map (λ _ => none),
@@ -356,8 +362,9 @@ def reverse_rewrite' (def_rewrite : DefiniteRewrite String String) (rinfo : Runt
 Generate a reverse rewrite from a rewrite and the RuntimeEntry associated with the execution.
 -/
 def reverse_rewrite (rw : Rewrite String String) (rinfo : RuntimeEntry) : RewriteResult (Rewrite String String) := do
-  let (_nodes, l) ← rw.pattern rinfo.input_graph
-  let def_rewrite := rw.rewrite l
+  let (_nodes, l) ← rw.pattern rinfo.input_graph |>.runWithState
+  let current_state ← EStateM.get
+  let def_rewrite := rw.rewrite l current_state.fresh_type
   reverse_rewrite' def_rewrite rinfo
 
 -- /--

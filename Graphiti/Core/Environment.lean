@@ -79,6 +79,9 @@ end Env
 
 namespace FinEnv
 
+@[simp]
+def toEnv {Ident Typ} [DecidableEq Typ] (ε : FinEnv Ident Typ) : Env Ident Typ := ε.find?
+
 theorem exists_fresh {Ident} {ε : FinEnv Ident (String × String)} {a : List String}
   : ∃ (b : List String), a.length = b.length ∧ (∀ a' b', (a', b') ∈ a.zip b → ¬ ε.contains (a', b')) ∧ (a.zip b).Nodup := by sorry
 
@@ -96,27 +99,28 @@ theorem select_fresh_spec {Ident} {ε : FinEnv Ident (String × String)} {a : Li
   a.length = (select_fresh ε a).length ∧ (∀ a' b', (a', b') ∈ select_fresh ε a → ¬ ε.contains (a', b')) ∧ (select_fresh ε a).Nodup := by
   grind [select_fresh, select_fresh'_spec]
 
-def max_type {Ident} (f : FinEnv Ident (String × Nat)) : Nat :=
-  f.keysList.map Prod.snd |>.foldl Nat.max 0
+def max_type {Ident} (f : FinEnv Ident (String × Nat)) : Option Nat :=
+  f.keysList.map Prod.snd |>.max?
+
+def max_typeD {Ident} (f : FinEnv Ident (String × Nat)) : Nat :=
+  f.max_type |>.getD 0
 
 theorem union_eq {Ident Typ} [DecidableEq Typ] {ε₁ ε₂ : FinEnv Ident Typ} :
-  (ε₁ ++ ε₂).find? = Env.union ε₁.find? ε₂.find? := by
+  (ε₁ ++ ε₂).toEnv = Env.union ε₁.toEnv ε₂.toEnv := by
+  unfold toEnv Env
   ext i v; dsimp [Env.union]
   constructor
   · intro hfinda; have := Batteries.AssocList.append_find?2 hfinda; grind
   · grind [Batteries.AssocList.append_find_left, Batteries.AssocList.append_find_right]
 
 theorem subset_of_union {Ident Typ} [DecidableEq Typ] {ε₁ ε₂ : FinEnv Ident Typ} :
-  Env.subsetOf ε₁.find? (ε₁ ++ ε₂).find? := by
+  Env.subsetOf ε₁.toEnv (ε₁ ++ ε₂).toEnv := by
   rw [union_eq]; exact Env.subset_of_union
 
 theorem independent_subset_of_union {Ident Typ} [DecidableEq Typ] {ε₁ ε₂ : FinEnv Ident Typ} :
-  Env.independent ε₁.find? ε₂.find? →
-  Env.subsetOf ε₂.find? (ε₁ ++ ε₂).find? := by
+  Env.independent ε₁.toEnv ε₂.toEnv →
+  Env.subsetOf ε₂.toEnv (ε₁ ++ ε₂).toEnv := by
   rw [union_eq]; exact Env.independent_subset_of_union
-
-@[simp]
-def toEnv {Ident Typ} [DecidableEq Typ] (ε : FinEnv Ident Typ) : Env Ident Typ := ε.find?
 
 end FinEnv
 

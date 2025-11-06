@@ -61,7 +61,7 @@ def rewrite : Rewrite String (String × Nat) :=
   { params := 2
     abstractions := [],
     pattern := matcher,
-    rewrite := λ l => ⟨lhsLower l, rhsLower 2⟩
+    rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
     name := "pure-sink"
     transformedNodes := [.none, findRhs "sink" |>.get rfl]
   }
