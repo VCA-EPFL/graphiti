@@ -321,7 +321,15 @@ theorem append_find_right_disjoint {α β} [DecidableEq α] {a b : AssocList α 
   ((a.cons ident val).find? ident) = some val := by
     simpa
 
+@[simp] theorem find?_cons_eq' {α β} [BEq α] [LawfulBEq α] {a : AssocList α β} {ident val} :
+  ((a.cons ident val).find? ident) = some val := by
+  simpa
+
 @[simp] theorem find?_cons_neq {α β} [DecidableEq α] {a : AssocList α β} {ident ident' val} :
+  ident' ≠ ident → ((a.cons ident' val).find? ident) = a.find? ident := by
+    simp +contextual (disch := assumption) [find?, beq_false_of_ne]
+
+@[simp] theorem find?_cons_neq' {α β} [BEq α] [LawfulBEq α] {a : AssocList α β} {ident ident' val} :
   ident' ≠ ident → ((a.cons ident' val).find? ident) = a.find? ident := by
     simp +contextual (disch := assumption) [find?, beq_false_of_ne]
 

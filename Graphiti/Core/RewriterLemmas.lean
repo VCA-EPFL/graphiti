@@ -22,7 +22,7 @@ class Environment {n} (lhs : Vector Nat n → ExprLow String (String × Nat)) wh
   max_type : Nat
   types : Vector Nat n
   h_wf : WellFormedEnv ε max_type
-  h_wt : (lhs types).well_typed ε.find?
+  h_wt : (lhs types).well_typed ε.toEnv
 
 theorem EStateM.bind_eq_ok {ε σ α β} {x : EStateM ε σ α} {f : α → EStateM ε σ β} {s v s'} :
   x.bind f s = .ok v s' →
@@ -176,6 +176,98 @@ theorem rewrite_OK_implies_pattern {g b st g' _st' rw}:
   · rw [heq] at Hpattern; dsimp [RewriteResultSL.runWithState] at Hpattern; cases Hpattern
   · constructor; rfl
 
+theorem Rewriter_wt_lhs {b} {ε_global : FinEnv String (String × Nat)}
+  {h_wf : ∀ s, Env.well_formed ε_global.toEnv s}
+  {g g' : ExprHigh String (String × Nat)}
+  {e_g : ExprLow String (String × Nat)}
+  {st _st'}
+  {rw : Rewrite String (String × Nat)}
+  {elems types}
+  {grph} :
+  rw.pattern g = .ok (elems, types) →
+  g.lower = some e_g →
+  e_g.well_formed ε_global.toEnv →
+  e_g.well_typed ε_global.toEnv →
+  Rewrite.run' g rw b st = .ok g' _st' →
+  grph = (rw.rewrite types st.fresh_type).input_expr →
+  grph.locally_wf →
+  grph.well_typed ε_global.toEnv := by
+  unfold Rewrite.run'; simp; intro hpat hlower_some hwf hwt hrewrite _ hloc
+  subst grph
+  dsimp [Bind.bind, Monad.toBind, EStateM.instMonad] at *
+  repeat
+    rename (EStateM.bind _ _ _ = .ok _ _) => hrewrite
+    replace hrewrite := EStateM.bind_eq_ok hrewrite
+    let ⟨_, _, _, hrewrite'⟩ := hrewrite
+    clear hrewrite; have hrewrite := hrewrite'; clear hrewrite'
+  repeat
+    try have hofOption' := hofOption; clear hofOption
+    rename (ofOption _ _ _ = .ok _ _) => hofOption
+    replace hofOption := ofOption_eq_ok hofOption
+    cases hofOption
+  repeat
+    try have hofOption' := hofOption; clear hofOption
+    rename (liftError _ _ = .ok _ _) => hofOption
+    replace hofOption := liftError_eq_ok hofOption
+    cases hofOption
+  repeat
+    try have hofOption' := hofOption; clear hofOption
+    rename (EStateM.guard _ _ _ = .ok _ _) => hofOption
+    replace hofOption := guard_eq_ok hofOption
+    cases hofOption
+  repeat
+    try have hofOption' := hofOption; clear hofOption
+    rename (EStateM.map _ _ _ = .ok _ _) => hofOption
+    replace hofOption := EStateM.map_eq_ok hofOption
+    let ⟨_, _, _, _, _⟩ := hofOption; clear hofOption
+  rename ExprHigh.lower g = _ => hverylower
+  rw [hlower_some] at hverylower
+  cases hverylower
+  subst_vars
+  repeat cases ‹Unit›
+  rename RewriteState => rewrite_info
+  rename g.extract _ = _ => Hextract
+  rename ExprHigh.lower _ = _ => Hlower
+  rename ExprLow.higher_correct _ _ = _ => Hrewrite
+  rename ExprLow.weak_beq _ _ = _ => Hweakbeq
+  rename (rw.pattern _).runWithState _ = _ => Hpattern
+  rename PortMapping String × PortMapping String => ioPortMap
+  rename ExprLow String (String × Nat) => lowered
+  repeat clear ‹portmappingToNameRename' _ _ _ = _›
+  repeat clear ‹addRewriteInfo _ _ = _›
+  repeat clear ‹updRewriteInfo _ _ = _›
+  rename ExprHigh String (String × Nat) × ExprHigh String (String × Nat) => extractedGraphs
+  rename List String × Vector Nat rw.params => pattern
+  rename ExprHigh String (String × Nat) => outGraph
+  rw [hpat] at Hpattern
+  dsimp [RewriteResultSL.runWithState] at Hpattern
+  cases Hpattern
+  cases ‹EStateM.get _ = _›
+  rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+  have wi_wf : ExprLow.well_formed ε_global.toEnv wi = true := by
+    apply ExprLow.refines_comm_connections'_well_formed2
+    · apply ExprLow.replacement_well_formed2; rotate_left 1
+      · assumption
+      · apply ExprLow.refines_comm_connections'_well_formed
+        apply ExprLow.refines_comm_bases_well_formed
+        assumption
+  have rw_input_wf : ExprLow.well_formed ε_global.toEnv (rw.rewrite types st.fresh_type).input_expr = true := by
+    apply ExprLow.mapPorts2_well_formed2; rotate_left 2
+    . apply hloc
+    · apply wi_wf
+    · assumption
+    · apply AssocList.bijectivePortRenaming_bijective
+    · apply AssocList.bijectivePortRenaming_bijective
+  apply ExprLow.renamePorts_well_typed; assumption; assumption
+  apply ExprLow.comm_connections_well_typed; assumption
+  apply ExprLow.replacement_well_typed; rotate_left; assumption
+  apply ExprLow.wt_comm_connections2'
+  apply ExprLow.refines_comm_bases_well_formed
+  assumption
+  apply ExprLow.wt_comm_bases
+  assumption
+  assumption
+
 theorem Rewrite_run'_correct2 {b} {ε_global : FinEnv String (String × Nat)}
   {h_wf : ∀ s, Env.well_formed ε_global.toEnv s}
   {g g' : ExprHigh String (String × Nat)}
@@ -183,16 +275,14 @@ theorem Rewrite_run'_correct2 {b} {ε_global : FinEnv String (String × Nat)}
   {st _st'}
   {rw : Rewrite String (String × Nat)}
   {elems types}
-  -- {vrw_wf : (rw.rewrite types st.fresh_type).input_expr.well_typed ε_global.toEnv}
   {vrw : VerifiedRewrite (rw.rewrite types st.fresh_type) ε_global}:
-  ε_global.max_typeD <= st.fresh_type →
   rw.pattern g = .ok (elems, types) →
   g.lower = some e_g →
   e_g.well_formed ε_global.toEnv →
   e_g.well_typed ε_global.toEnv →
   Rewrite.run' g rw b st = .ok g' _st' →
-  [Ge| g', (ε_global ++ (vrw.ε_ext)).toEnv ] ⊑ [Ge| g, ε_global.toEnv ] := by
-  unfold Rewrite.run'; simp; intro _ hpat hlower_some hwf hwt hrewrite
+  [Ge| g', (ε_global ++ vrw.ε_ext).toEnv ] ⊑ [Ge| g, ε_global.toEnv ] := by
+  unfold Rewrite.run'; simp; intro hpat hlower_some hwf hwt hrewrite
   dsimp [Bind.bind, Monad.toBind, EStateM.instMonad] at *
   repeat
     rename (EStateM.bind _ _ _ = .ok _ _) => hrewrite
@@ -340,274 +430,275 @@ theorem Rewrite_run'_correct2 {b} {ε_global : FinEnv String (String × Nat)}
   apply FinEnv.subset_of_union
   assumption
 
--- theorem Rewrite_run'_correct2_well_formed {b} {ε_global : FinEnv String (String × Nat)}
---   {h_wf : ∀ s, Env.well_formed ε_global.toEnv s}
---   {g g' : ExprHigh String (String × Nat)}
---   {e_g : ExprLow String (String × Nat)}
---   {st _st'}
---   {h_max : ε_global.max_typeD <= st.fresh_type}
---   {rw : VerifiedRewrite ⟨ε_global, st.fresh_type, h_wf, h_max⟩}:
---   g.lower = some e_g →
---   e_g.well_formed ε_global.toEnv →
---   Rewrite.run' g rw.rewrite b st = .ok g' _st' →
---   ∃ e_g', g'.lower = some e_g' ∧ e_g'.well_formed (ε_global ++ rw.ε_extension).toEnv := by
---   unfold Rewrite.run'; simp; intro hlower_some hwf hrewrite
---   dsimp [Bind.bind, Monad.toBind, EStateM.instMonad] at *
---   repeat
---     rename (EStateM.bind _ _ _ = .ok _ _) => hrewrite
---     replace hrewrite := EStateM.bind_eq_ok hrewrite
---     let ⟨_, _, _, hrewrite'⟩ := hrewrite
---     clear hrewrite; have hrewrite := hrewrite'; clear hrewrite'
---   repeat
---     try have hofOption' := hofOption; clear hofOption
---     rename (ofOption _ _ _ = .ok _ _) => hofOption
---     replace hofOption := ofOption_eq_ok hofOption
---     cases hofOption
---   repeat
---     try have hofOption' := hofOption; clear hofOption
---     rename (liftError _ _ = .ok _ _) => hofOption
---     replace hofOption := liftError_eq_ok hofOption
---     cases hofOption
---   repeat
---     try have hofOption' := hofOption; clear hofOption
---     rename (EStateM.guard _ _ _ = .ok _ _) => hofOption
---     replace hofOption := guard_eq_ok hofOption
---     cases hofOption
---   repeat
---     try have hofOption' := hofOption; clear hofOption
---     rename (EStateM.map _ _ _ = .ok _ _) => hofOption
---     replace hofOption := EStateM.map_eq_ok hofOption
---     let ⟨_, _, _, _, _⟩ := hofOption; clear hofOption
---   rename ExprHigh.lower g = _ => hverylower
---   rw [hlower_some] at hverylower
---   cases hverylower
---   subst_vars
---   repeat cases ‹Unit›
---   rename RewriteState => rewrite_info
---   rename g.extract _ = _ => Hextract
---   rename ExprHigh.lower _ = _ => Hlower
---   rename ExprLow.higher_correct _ _ = _ => Hrewrite
---   rename ExprLow.weak_beq _ _ = _ => Hweakbeq
---   rename rw.rewrite.pattern _ _ = _ => Hpattern
---   rename PortMapping String × PortMapping String => ioPortMap
---   rename ExprLow String (String × Nat) => lowered
---   repeat clear ‹portmappingToNameRename' _ _ _ = _›
---   repeat clear ‹addRewriteInfo _ _ = _›
---   repeat clear ‹updRewriteInfo _ _ = _›
---   rename ExprHigh String (String × Nat) × ExprHigh String (String × Nat) => extractedGraphs
---   rename List String × Vector Nat rw.rewrite.params => pattern
---   rename ExprHigh String (String × Nat) => outGraph
---   cases ‹EStateM.get _ = _›
---   rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
---   have rw_output_wf : ExprLow.well_formed (ε_global ++ rw.ε_extension).toEnv (rw.rewrite.rewrite pattern.2 st.fresh_type).output_expr = true := by
---     apply ExprLow.refines_subset_well_formed
---     apply FinEnv.independent_subset_of_union
---     apply Env.independent_symm
---     apply rw.ε_independent
---     apply rw.rhs_wf
---   have wi_wf : ExprLow.well_formed ε_global.toEnv wi = true := by
---     apply ExprLow.refines_comm_connections'_well_formed2
---     · apply ExprLow.replacement_well_formed2; rotate_left 1
---       · assumption
---       · apply ExprLow.refines_comm_connections'_well_formed
---         apply ExprLow.refines_comm_bases_well_formed
---         assumption
---   have rw_input_wf : ExprLow.well_formed ε_global.toEnv (rw.rewrite.rewrite pattern.2 st.fresh_type).input_expr = true := by
---     apply ExprLow.mapPorts2_well_formed2; rotate_left 2
---     . apply rw.lhs_wf
---     · apply wi_wf
---     · assumption
---     · apply AssocList.bijectivePortRenaming_bijective
---     · apply AssocList.bijectivePortRenaming_bijective
---   have wo_wf : ExprLow.well_formed (ε_global ++ rw.ε_extension).toEnv wo = true := by
---     solve_by_elim [ExprLow.refines_renamePorts_well_formed]
---   have lowered_wf : ExprLow.well_formed (ε_global ++ rw.ε_extension).toEnv lowered = true := by
---     solve_by_elim [ExprLow.refines_renamePorts_well_formed]
---   constructor; and_intros
---   · solve_by_elim [higher_correct_eq]
---   · apply ExprLow.refines_comm_bases_well_formed
---     rw [ExprLow.force_replace_eq_replace]
---     apply ExprLow.replacement_well_formed
---     apply ExprLow.refines_comm_connections'_well_formed
---     apply ExprLow.refines_comm_bases_well_formed
---     apply ExprLow.refines_subset_well_formed
---     apply FinEnv.subset_of_union
---     assumption
---     assumption
+theorem Rewrite_run'_correct2_well_formed {b} {ε_global : FinEnv String (String × Nat)}
+  {h_wf : ∀ s, Env.well_formed ε_global.toEnv s}
+  {g g' : ExprHigh String (String × Nat)}
+  {e_g : ExprLow String (String × Nat)}
+  {st _st'}
+  {rw : Rewrite String (String × Nat)}
+  {elems types}
+  {vrw : VerifiedRewrite (rw.rewrite types st.fresh_type) ε_global}:
+  rw.pattern g = .ok (elems, types) →
+  g.lower = some e_g →
+  e_g.well_formed ε_global.toEnv →
+  e_g.well_typed ε_global.toEnv →
+  Rewrite.run' g rw b st = .ok g' _st' →
+  ∃ e_g', g'.lower = some e_g' ∧ e_g'.well_formed (ε_global ++ vrw.ε_ext).toEnv := by
+  unfold Rewrite.run'; simp; intro hpat hlower_some hwf hwt hrewrite
+  dsimp [Bind.bind, Monad.toBind, EStateM.instMonad] at *
+  repeat
+    rename (EStateM.bind _ _ _ = .ok _ _) => hrewrite
+    replace hrewrite := EStateM.bind_eq_ok hrewrite
+    let ⟨_, _, _, hrewrite'⟩ := hrewrite
+    clear hrewrite; have hrewrite := hrewrite'; clear hrewrite'
+  repeat
+    try have hofOption' := hofOption; clear hofOption
+    rename (ofOption _ _ _ = .ok _ _) => hofOption
+    replace hofOption := ofOption_eq_ok hofOption
+    cases hofOption
+  repeat
+    try have hofOption' := hofOption; clear hofOption
+    rename (liftError _ _ = .ok _ _) => hofOption
+    replace hofOption := liftError_eq_ok hofOption
+    cases hofOption
+  repeat
+    try have hofOption' := hofOption; clear hofOption
+    rename (EStateM.guard _ _ _ = .ok _ _) => hofOption
+    replace hofOption := guard_eq_ok hofOption
+    cases hofOption
+  repeat
+    try have hofOption' := hofOption; clear hofOption
+    rename (EStateM.map _ _ _ = .ok _ _) => hofOption
+    replace hofOption := EStateM.map_eq_ok hofOption
+    let ⟨_, _, _, _, _⟩ := hofOption; clear hofOption
+  rename ExprHigh.lower g = _ => hverylower
+  rw [hlower_some] at hverylower
+  cases hverylower
+  subst_vars
+  repeat cases ‹Unit›
+  rename RewriteState => rewrite_info
+  rename g.extract _ = _ => Hextract
+  rename ExprHigh.lower _ = _ => Hlower
+  rename ExprLow.higher_correct _ _ = _ => Hrewrite
+  rename ExprLow.weak_beq _ _ = _ => Hweakbeq
+  rename (rw.pattern _).runWithState _ = _ => Hpattern
+  rename PortMapping String × PortMapping String => ioPortMap
+  rename ExprLow String (String × Nat) => lowered
+  repeat clear ‹portmappingToNameRename' _ _ _ = _›
+  repeat clear ‹addRewriteInfo _ _ = _›
+  repeat clear ‹updRewriteInfo _ _ = _›
+  rename ExprHigh String (String × Nat) × ExprHigh String (String × Nat) => extractedGraphs
+  rename List String × Vector Nat rw.params => pattern
+  rename ExprHigh String (String × Nat) => outGraph
+  rw [hpat] at Hpattern
+  dsimp [RewriteResultSL.runWithState] at Hpattern
+  cases Hpattern
+  cases ‹EStateM.get _ = _›
+  rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+  have rw_output_wf : ExprLow.well_formed (ε_global ++ vrw.ε_ext).toEnv (rw.rewrite types st.fresh_type).output_expr = true := by
+    apply ExprLow.refines_subset_well_formed
+    apply FinEnv.independent_subset_of_union
+    apply Env.independent_symm
+    apply vrw.ε_independent
+    apply vrw.rhs_wf
+  have wi_wf : ExprLow.well_formed ε_global.toEnv wi = true := by
+    apply ExprLow.refines_comm_connections'_well_formed2
+    · apply ExprLow.replacement_well_formed2; rotate_left 1
+      · assumption
+      · apply ExprLow.refines_comm_connections'_well_formed
+        apply ExprLow.refines_comm_bases_well_formed
+        assumption
+  have rw_input_wf : ExprLow.well_formed ε_global.toEnv (rw.rewrite types st.fresh_type).input_expr = true := by
+    apply ExprLow.mapPorts2_well_formed2; rotate_left 2
+    . apply vrw.lhs_locally_wf
+    · apply wi_wf
+    · assumption
+    · apply AssocList.bijectivePortRenaming_bijective
+    · apply AssocList.bijectivePortRenaming_bijective
+  have wo_wf : ExprLow.well_formed (ε_global ++ vrw.ε_ext).toEnv wo = true := by
+    solve_by_elim [ExprLow.refines_renamePorts_well_formed]
+  have lowered_wf : ExprLow.well_formed (ε_global ++ vrw.ε_ext).toEnv lowered = true := by
+    solve_by_elim [ExprLow.refines_renamePorts_well_formed]
+  constructor; and_intros
+  · solve_by_elim [higher_correct_eq]
+  · apply ExprLow.refines_comm_bases_well_formed
+    rw [ExprLow.force_replace_eq_replace]
+    apply ExprLow.replacement_well_formed
+    apply ExprLow.refines_comm_connections'_well_formed
+    apply ExprLow.refines_comm_bases_well_formed
+    apply ExprLow.refines_subset_well_formed
+    apply FinEnv.subset_of_union
+    assumption
+    assumption
 
--- theorem Rewrite_run'_correct2_well_typed {b} {ε_global : FinEnv String (String × Nat)}
---     {h_wf : ∀ s, Env.well_formed ε_global.toEnv s}
---     {g g' : ExprHigh String (String × Nat)}
---     {e_g : ExprLow String (String × Nat)}
---     {st _st'}
---     {h_max : ε_global.max_typeD <= st.fresh_type}
---     {rw : VerifiedRewrite ⟨ε_global, st.fresh_type, h_wf, h_max⟩}:
---   g.lower = some e_g →
---   e_g.well_formed ε_global.toEnv →
---   e_g.well_typed ε_global.toEnv →
---   Rewrite.run' g rw.rewrite b st = .ok g' _st' →
---   ∃ e_g', g'.lower = some e_g' ∧ e_g'.well_typed (ε_global ++ rw.ε_extension).toEnv := by
---   unfold Rewrite.run'; simp; intro hlower_some hwf hwt hrewrite
---   dsimp [Bind.bind, Monad.toBind, EStateM.instMonad] at *
---   repeat
---     rename (EStateM.bind _ _ _ = .ok _ _) => hrewrite
---     replace hrewrite := EStateM.bind_eq_ok hrewrite
---     let ⟨_, _, _, hrewrite'⟩ := hrewrite
---     clear hrewrite; have hrewrite := hrewrite'; clear hrewrite'
---   repeat
---     try have hofOption' := hofOption; clear hofOption
---     rename (ofOption _ _ _ = .ok _ _) => hofOption
---     replace hofOption := ofOption_eq_ok hofOption
---     cases hofOption
---   repeat
---     try have hofOption' := hofOption; clear hofOption
---     rename (liftError _ _ = .ok _ _) => hofOption
---     replace hofOption := liftError_eq_ok hofOption
---     cases hofOption
---   repeat
---     try have hofOption' := hofOption; clear hofOption
---     rename (EStateM.guard _ _ _ = .ok _ _) => hofOption
---     replace hofOption := guard_eq_ok hofOption
---     cases hofOption
---   repeat
---     try have hofOption' := hofOption; clear hofOption
---     rename (EStateM.map _ _ _ = .ok _ _) => hofOption
---     replace hofOption := EStateM.map_eq_ok hofOption
---     let ⟨_, _, _, _, _⟩ := hofOption; clear hofOption
---   rename ExprHigh.lower g = _ => hverylower
---   rw [hlower_some] at hverylower
---   cases hverylower
---   subst_vars
---   repeat cases ‹Unit›
---   rename RewriteState => rewrite_info
---   rename g.extract _ = _ => Hextract
---   rename ExprHigh.lower _ = _ => Hlower
---   rename ExprLow.higher_correct _ _ = _ => Hrewrite
---   rename ExprLow.weak_beq _ _ = _ => Hweakbeq
---   rename rw.rewrite.pattern _ _ = _ => Hpattern
---   rename PortMapping String × PortMapping String => ioPortMap
---   rename ExprLow String (String × Nat) => lowered
---   repeat clear ‹portmappingToNameRename' _ _ _ = _›
---   repeat clear ‹addRewriteInfo _ _ = _›
---   repeat clear ‹updRewriteInfo _ _ = _›
---   rename ExprHigh String (String × Nat) × ExprHigh String (String × Nat) => extractedGraphs
---   rename List String × Vector Nat rw.rewrite.params => pattern
---   rename ExprHigh String (String × Nat) => outGraph
---   cases ‹EStateM.get _ = _›
---   rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
---   have rw_output_wf : ExprLow.well_formed (ε_global ++ rw.ε_extension).toEnv (rw.rewrite.rewrite pattern.2 st.fresh_type).output_expr = true := by
---     apply ExprLow.refines_subset_well_formed
---     apply FinEnv.independent_subset_of_union
---     apply Env.independent_symm
---     apply rw.ε_independent
---     apply rw.rhs_wf
---   have wi_wf : ExprLow.well_formed ε_global.toEnv wi = true := by
---     apply ExprLow.refines_comm_connections'_well_formed2
---     · apply ExprLow.replacement_well_formed2; rotate_left 1
---       · assumption
---       · apply ExprLow.refines_comm_connections'_well_formed
---         apply ExprLow.refines_comm_bases_well_formed
---         assumption
---   have rw_input_wf : ExprLow.well_formed ε_global.toEnv (rw.rewrite.rewrite pattern.2 st.fresh_type).input_expr = true := by
---     apply ExprLow.mapPorts2_well_formed2; rotate_left 2
---     . apply rw.lhs_wf
---     · apply wi_wf
---     · assumption
---     · apply AssocList.bijectivePortRenaming_bijective
---     · apply AssocList.bijectivePortRenaming_bijective
---   have wo_wf : ExprLow.well_formed (ε_global ++ rw.ε_extension).toEnv wo = true := by
---     solve_by_elim [ExprLow.refines_renamePorts_well_formed]
---   have lowered_wf : ExprLow.well_formed (ε_global ++ rw.ε_extension).toEnv lowered = true := by
---     solve_by_elim [ExprLow.refines_renamePorts_well_formed]
---   constructor; and_intros
---   · solve_by_elim [higher_correct_eq]
---   · apply ExprLow.wt_comm_bases
---     rw [ExprLow.force_replace_eq_replace]
---     apply ExprLow.replacement_well_formed
---     apply ExprLow.refines_comm_connections'_well_formed
---     apply ExprLow.refines_comm_bases_well_formed
---     apply ExprLow.refines_subset_well_formed
---     apply FinEnv.subset_of_union
---     assumption
---     assumption
---     rw [ExprLow.force_replace_eq_replace]
---     apply ExprLow.wt_replacement
+theorem Rewrite_run'_correct2_well_typed {b} {ε_global : FinEnv String (String × Nat)}
+  {h_wf : ∀ s, Env.well_formed ε_global.toEnv s}
+  {g g' : ExprHigh String (String × Nat)}
+  {e_g : ExprLow String (String × Nat)}
+  {st _st'}
+  {rw : Rewrite String (String × Nat)}
+  {elems types}
+  {vrw : VerifiedRewrite (rw.rewrite types st.fresh_type) ε_global}:
+  rw.pattern g = .ok (elems, types) →
+  g.lower = some e_g →
+  e_g.well_formed ε_global.toEnv →
+  e_g.well_typed ε_global.toEnv →
+  Rewrite.run' g rw b st = .ok g' _st' →
+  ∃ e_g', g'.lower = some e_g' ∧ e_g'.well_typed (ε_global ++ vrw.ε_ext).toEnv := by
+  unfold Rewrite.run'; simp; intro hpat hlower_some hwf hwt hrewrite
+  dsimp [Bind.bind, Monad.toBind, EStateM.instMonad] at *
+  repeat
+    rename (EStateM.bind _ _ _ = .ok _ _) => hrewrite
+    replace hrewrite := EStateM.bind_eq_ok hrewrite
+    let ⟨_, _, _, hrewrite'⟩ := hrewrite
+    clear hrewrite; have hrewrite := hrewrite'; clear hrewrite'
+  repeat
+    try have hofOption' := hofOption; clear hofOption
+    rename (ofOption _ _ _ = .ok _ _) => hofOption
+    replace hofOption := ofOption_eq_ok hofOption
+    cases hofOption
+  repeat
+    try have hofOption' := hofOption; clear hofOption
+    rename (liftError _ _ = .ok _ _) => hofOption
+    replace hofOption := liftError_eq_ok hofOption
+    cases hofOption
+  repeat
+    try have hofOption' := hofOption; clear hofOption
+    rename (EStateM.guard _ _ _ = .ok _ _) => hofOption
+    replace hofOption := guard_eq_ok hofOption
+    cases hofOption
+  repeat
+    try have hofOption' := hofOption; clear hofOption
+    rename (EStateM.map _ _ _ = .ok _ _) => hofOption
+    replace hofOption := EStateM.map_eq_ok hofOption
+    let ⟨_, _, _, _, _⟩ := hofOption; clear hofOption
+  rename ExprHigh.lower g = _ => hverylower
+  rw [hlower_some] at hverylower
+  cases hverylower
+  subst_vars
+  repeat cases ‹Unit›
+  rename RewriteState => rewrite_info
+  rename g.extract _ = _ => Hextract
+  rename ExprHigh.lower _ = _ => Hlower
+  rename ExprLow.higher_correct _ _ = _ => Hrewrite
+  rename ExprLow.weak_beq _ _ = _ => Hweakbeq
+  rename (rw.pattern _).runWithState _ = _ => Hpattern
+  rename PortMapping String × PortMapping String => ioPortMap
+  rename ExprLow String (String × Nat) => lowered
+  repeat clear ‹portmappingToNameRename' _ _ _ = _›
+  repeat clear ‹addRewriteInfo _ _ = _›
+  repeat clear ‹updRewriteInfo _ _ = _›
+  rename ExprHigh String (String × Nat) × ExprHigh String (String × Nat) => extractedGraphs
+  rename List String × Vector Nat rw.params => pattern
+  rename ExprHigh String (String × Nat) => outGraph
+  rw [hpat] at Hpattern
+  dsimp [RewriteResultSL.runWithState] at Hpattern
+  cases Hpattern
+  cases ‹EStateM.get _ = _›
+  rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+  have rw_output_wf : ExprLow.well_formed (ε_global ++ vrw.ε_ext).toEnv (rw.rewrite types st.fresh_type).output_expr = true := by
+    apply ExprLow.refines_subset_well_formed
+    apply FinEnv.independent_subset_of_union
+    apply Env.independent_symm
+    apply vrw.ε_independent
+    apply vrw.rhs_wf
+  have wi_wf : ExprLow.well_formed ε_global.toEnv wi = true := by
+    apply ExprLow.refines_comm_connections'_well_formed2
+    · apply ExprLow.replacement_well_formed2; rotate_left 1
+      · assumption
+      · apply ExprLow.refines_comm_connections'_well_formed
+        apply ExprLow.refines_comm_bases_well_formed
+        assumption
+  have rw_input_wf : ExprLow.well_formed ε_global.toEnv (rw.rewrite types st.fresh_type).input_expr = true := by
+    apply ExprLow.mapPorts2_well_formed2; rotate_left 2
+    . apply vrw.lhs_locally_wf
+    · apply wi_wf
+    · assumption
+    · apply AssocList.bijectivePortRenaming_bijective
+    · apply AssocList.bijectivePortRenaming_bijective
+  have wo_wf : ExprLow.well_formed (ε_global ++ vrw.ε_ext).toEnv wo = true := by
+    solve_by_elim [ExprLow.refines_renamePorts_well_formed]
+  have lowered_wf : ExprLow.well_formed (ε_global ++ vrw.ε_ext).toEnv lowered = true := by
+    solve_by_elim [ExprLow.refines_renamePorts_well_formed]
+  constructor; and_intros
+  · solve_by_elim [higher_correct_eq]
+  · apply ExprLow.wt_comm_bases
+    rw [ExprLow.force_replace_eq_replace]
+    apply ExprLow.replacement_well_formed
+    apply ExprLow.refines_comm_connections'_well_formed
+    apply ExprLow.refines_comm_bases_well_formed
+    apply ExprLow.refines_subset_well_formed
+    apply FinEnv.subset_of_union
+    assumption
+    assumption
+    rw [ExprLow.force_replace_eq_replace]
+    apply ExprLow.wt_replacement
 
---     apply Module.refines_transitive (imod' := ([e| wi, (ε_global ++ rw.ε_extension).toEnv ]))
---     · apply Module.refines_transitive
---       apply ExprLow.refines_renamePorts_2'; rotate_left 1; assumption; rotate_right 1
---       · assumption
---       rw [ExprLow.ensureIOUnmodified_correct] <;> try assumption
---       apply Module.refines_transitive
---       apply ExprLow.refines_renamePorts_2'; rotate_left 1; assumption; rotate_right 1
---       · assumption
---       apply Module.refines_transitive
---       apply Module.refines_renamePorts
---       apply rw.refinement
---       apply ExprLow.renamePorts_well_typed; assumption; assumption
---       apply ExprLow.comm_connections_well_typed; assumption
---       apply ExprLow.replacement_well_typed; rotate_left; assumption;
---       apply Module.refines_transitive
---       apply Module.refines_renamePorts
---       apply ExprLow.refines_subset_left
---       apply FinEnv.subset_of_union (ε₂ := rw.ε_extension)
---       assumption
---       apply ExprLow.refines_renamePorts_1'; rotate_left 1; assumption; rotate_right 1
---       apply ExprLow.refines_subset_well_formed
---       apply FinEnv.subset_of_union
---       assumption
---       apply ExprLow.wt_comm_connections2'
---       apply ExprLow.refines_comm_bases_well_formed
---       assumption
---       apply ExprLow.wt_comm_bases
---       assumption
---       assumption
+    apply Module.refines_transitive (imod' := ([e| wi, (ε_global ++ vrw.ε_ext).toEnv ]))
+    · apply Module.refines_transitive
+      apply ExprLow.refines_renamePorts_2'; rotate_left 1; assumption; rotate_right 1
+      · assumption
+      rw [ExprLow.ensureIOUnmodified_correct] <;> try assumption
+      apply Module.refines_transitive
+      apply ExprLow.refines_renamePorts_2'; rotate_left 1; assumption; rotate_right 1
+      · assumption
+      apply Module.refines_transitive
+      apply Module.refines_renamePorts
+      apply vrw.refinement
+      apply Module.refines_transitive
+      apply Module.refines_renamePorts
+      apply ExprLow.refines_subset_left
+      apply FinEnv.subset_of_union (ε₂ := vrw.ε_ext)
+      assumption
+      apply ExprLow.refines_renamePorts_1'; rotate_left 1; assumption; rotate_right 1
+      apply ExprLow.refines_subset_well_formed
+      apply FinEnv.subset_of_union
+      assumption
 
---     apply ExprLow.refines_comm_connections2'
---     · apply ExprLow.refines_renamePorts_well_formed
---       · assumption
---       · apply ExprLow.refines_subset_well_formed
---         apply FinEnv.subset_of_union
---         assumption
+    apply ExprLow.refines_comm_connections2'
+    · apply ExprLow.refines_renamePorts_well_formed
+      · assumption
+      · apply ExprLow.refines_subset_well_formed
+        apply FinEnv.subset_of_union
+        assumption
 
---     apply ExprLow.refines_comm_connections'_well_formed
---     apply ExprLow.refines_comm_bases_well_formed
---     apply ExprLow.refines_subset_well_formed
---     apply FinEnv.subset_of_union
---     assumption
+    apply ExprLow.refines_comm_connections'_well_formed
+    apply ExprLow.refines_comm_bases_well_formed
+    apply ExprLow.refines_subset_well_formed
+    apply FinEnv.subset_of_union
+    assumption
 
---     assumption
+    assumption
 
---     apply ExprLow.wt_comm_connections2'
---     apply ExprLow.refines_comm_bases_well_formed
---     apply ExprLow.refines_subset_well_formed
---     apply FinEnv.subset_of_union
---     assumption
---     apply ExprLow.wt_comm_bases
---     apply ExprLow.refines_subset_well_formed
---     apply FinEnv.subset_of_union
---     assumption
---     apply ExprLow.subset_well_typed
---     apply FinEnv.subset_of_union
---     assumption
---     apply ExprLow.renamePorts_well_typed2
---     apply wo_wf
---     assumption
---     apply ExprLow.renamePorts_well_typed2
+    apply ExprLow.wt_comm_connections2'
+    apply ExprLow.refines_comm_bases_well_formed
+    apply ExprLow.refines_subset_well_formed
+    apply FinEnv.subset_of_union
+    assumption
+    apply ExprLow.wt_comm_bases
+    apply ExprLow.refines_subset_well_formed
+    apply FinEnv.subset_of_union
+    assumption
+    apply ExprLow.subset_well_typed
+    apply FinEnv.subset_of_union
+    assumption
+    apply ExprLow.renamePorts_well_typed2
+    apply wo_wf
+    assumption
+    apply ExprLow.renamePorts_well_typed2
 
---     apply ExprLow.refines_subset_well_formed
---     apply FinEnv.independent_subset_of_union
---     apply Env.independent_symm
---     apply rw.ε_independent
---     apply rw.rhs_wf
---     rotate_left
---     assumption
---     apply ExprLow.subset_well_typed
---     apply FinEnv.independent_subset_of_union
---     apply Env.independent_symm
---     apply rw.ε_independent
---     apply rw.rhs_wt
+    apply ExprLow.refines_subset_well_formed
+    apply FinEnv.independent_subset_of_union
+    apply Env.independent_symm
+    apply vrw.ε_independent
+    apply vrw.rhs_wf
+    assumption
+    apply ExprLow.subset_well_typed
+    apply FinEnv.independent_subset_of_union
+    apply Env.independent_symm
+    apply vrw.ε_independent
+    apply vrw.rhs_wt
 
--- #print axioms Rewrite_run'_correct2_well_typed
+#print axioms Rewrite_run'_correct2_well_typed
 
 end Graphiti
