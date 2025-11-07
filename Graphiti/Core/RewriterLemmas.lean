@@ -142,7 +142,7 @@ structure VerifiedRewrite (rewrite : DefiniteRewrite String (String × Nat)) (ε
   lhs_locally_wf : rewrite.input_expr.locally_wf
   refinement : [e| rewrite.output_expr, (ε ++ ε_ext).toEnv ] ⊑ [e| rewrite.input_expr, ε.toEnv ]
 
-theorem rewrite_OK_implies_pattern {g b st g' _st' rw}:
+theorem run'_implies_pattern {g b st g' _st' rw}:
   Rewrite.run' g rw b st = .ok g' _st' →
   ∃ out, rw.pattern g = .ok out := by
   intro hrewrite
@@ -176,8 +176,7 @@ theorem rewrite_OK_implies_pattern {g b st g' _st' rw}:
   · rw [heq] at Hpattern; dsimp [RewriteResultSL.runWithState] at Hpattern; cases Hpattern
   · constructor; rfl
 
-theorem Rewriter_wt_lhs {b} {ε_global : FinEnv String (String × Nat)}
-  {h_wf : ∀ s, Env.well_formed ε_global.toEnv s}
+theorem run'_implies_wt_lhs {b} {ε_global : FinEnv String (String × Nat)}
   {g g' : ExprHigh String (String × Nat)}
   {e_g : ExprLow String (String × Nat)}
   {st _st'}
@@ -268,8 +267,7 @@ theorem Rewriter_wt_lhs {b} {ε_global : FinEnv String (String × Nat)}
   assumption
   assumption
 
-theorem Rewrite_run'_correct2 {b} {ε_global : FinEnv String (String × Nat)}
-  {h_wf : ∀ s, Env.well_formed ε_global.toEnv s}
+theorem run'_refines {b} {ε_global : FinEnv String (String × Nat)}
   {g g' : ExprHigh String (String × Nat)}
   {e_g : ExprLow String (String × Nat)}
   {st _st'}
@@ -430,8 +428,7 @@ theorem Rewrite_run'_correct2 {b} {ε_global : FinEnv String (String × Nat)}
   apply FinEnv.subset_of_union
   assumption
 
-theorem Rewrite_run'_correct2_well_formed {b} {ε_global : FinEnv String (String × Nat)}
-  {h_wf : ∀ s, Env.well_formed ε_global.toEnv s}
+theorem run'_preserves_well_formed {b} {ε_global : FinEnv String (String × Nat)}
   {g g' : ExprHigh String (String × Nat)}
   {e_g : ExprLow String (String × Nat)}
   {st _st'}
@@ -531,8 +528,7 @@ theorem Rewrite_run'_correct2_well_formed {b} {ε_global : FinEnv String (String
     assumption
     assumption
 
-theorem Rewrite_run'_correct2_well_typed {b} {ε_global : FinEnv String (String × Nat)}
-  {h_wf : ∀ s, Env.well_formed ε_global.toEnv s}
+theorem run'_preserves_well_typed {b} {ε_global : FinEnv String (String × Nat)}
   {g g' : ExprHigh String (String × Nat)}
   {e_g : ExprLow String (String × Nat)}
   {st _st'}
@@ -699,6 +695,6 @@ theorem Rewrite_run'_correct2_well_typed {b} {ε_global : FinEnv String (String 
     apply vrw.ε_independent
     apply vrw.rhs_wt
 
-#print axioms Rewrite_run'_correct2_well_typed
+#print axioms run'_preserves_well_typed
 
 end Graphiti
