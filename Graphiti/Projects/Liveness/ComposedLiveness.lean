@@ -382,7 +382,25 @@ lemma gcompf_reachable_states {T} (f g: T → T) (t: List (IOEvent ℕ )) (s1 s2
 @reachable _ _ (state_transition (NatModule.gcompf T f g)) t ⟨ s1, (NatModule.gcompf T f g ) ⟩
 → @reachable _ _ (state_transition (NatModule.gcompf T f g)) t ⟨ s2, (NatModule.gcompf T f g ) ⟩
 → s1.snd ++ s1.fst.map g = s2.snd ++ s2.fst.map g := by
-  sorry
+  sorry -- have to prove some kind of preservation
+  -- if ppty holds on s1 s2, if you do a step from s1 to s1' with t, and s2-[t]->s2', then this ppty should still hold on s1' s2'
+  -- then want to do it on star
+
+-- maybe go to a s_final instead of (∅, ∅) ?
+/-
+  if two states are the "same" [à un flush près] = have the same "future data", then if they both flush out their "future data" the same way and end up in the empty state
+ -/
+lemma gcompf_computational_equiv {T} (f g) (s1 s3 : List T × List T) (t : List (IOEvent ℕ)) :
+(s1.snd ++ s1.fst.map g = s3.snd ++ s3.fst.map g)
+→ (∀ x, IOEvent.input 0 ⟨T, x⟩ ∉ t)
+→ (@star _ _ (NatModule.gcompf T f g).state_transition { state := s1, module := (NatModule.gcompf T f g) } t { state := (∅, ∅), module := (NatModule.gcompf T f g) }
+  ↔ @star _ _ (NatModule.gcompf T f g).state_transition { state := s3, module := (NatModule.gcompf T f g) } t { state := (∅, ∅), module := (NatModule.gcompf T f g) }) := by
+  intros reachable_equiv_states no_input
+  induction t -- Proof by induction on the non-input trace t ?
+  case nil =>
+    sorry
+  case cons h t ih =>
+    sorry
 
 theorem gcompf_reachness_empty_2 {T f g} (t t0: List (IOEvent ℕ )) (s1 s2 s3: (List T × List T)):
 @reachable _ _ (state_transition (NatModule.gcompf T f g)) t ⟨ s1, (NatModule.gcompf T f g ) ⟩
@@ -438,9 +456,11 @@ theorem gcompf_reachness_empty_2 {T f g} (t t0: List (IOEvent ℕ )) (s1 s2 s3: 
       case right =>
         assumption
       case left =>
-        have s1_equiv_s2 := gcompf_reachable_states f g t s1 s2 reachable_s1 reachable_s2
-
-        sorry
+        have s1_equiv_s3 := gcompf_reachable_states f g t s1 s3 reachable_s1 reachable_s3
+        -- big lemma, unsure how to prove :
+        have star_equiv := gcompf_computational_equiv f g s1 s3 (t1 ++ t2) s1_equiv_s3 h_t0_input
+        apply star_equiv.mp
+        exact h_t0_s1star
 
 theorem gcompf_reachness_empty {T f g} (t t0: List (IOEvent ℕ )) (s1 s3: (List T × List T)): @reachable _ _ (state_transition (NatModule.gcompf T f g)) t ⟨ s1, (NatModule.gcompf T f g ) ⟩
 → ( ∀ x, .input 0 ⟨ T, x ⟩ ∉ t0) ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) ⟨ s1, (NatModule.gcompf T f g ) ⟩  t0 ⟨ (∅, ∅), (NatModule.gcompf T f g ) ⟩
