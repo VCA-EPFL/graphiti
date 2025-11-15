@@ -51,31 +51,40 @@ theorem independent_subset_of_union {Ident Typ} {ε₁ ε₂ : Env Ident Typ} :
   intros; simp [subsetOf, independent, union] at *
   grind
 
-def well_formed {α} (ε : Env String (String × α)) (s : String) : Prop :=
-  match s with
-  | "branch" => ∀ a mod, ε (s, a) = some mod → ∃ T, mod = ⟨_, StringModule.branch T⟩
-  | "cntrl_merge" => ∀ a mod, ε (s, a) = some mod → ∃ T, mod = ⟨_, StringModule.cntrl_merge T⟩
-  | "constant" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Sigma id), mod = ⟨_, StringModule.constant T.2⟩
-  | "fork" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Type _ × Nat), mod = ⟨_, StringModule.fork T.1 T.2⟩
-  | "fork2" => ∀ a mod, ε (s, a) = some mod → ∃ T, mod = ⟨_, StringModule.fork T 2⟩
-  | "init" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Sigma id), mod = ⟨_, StringModule.init T.1 T.2⟩
-  | "initBool" => ∀ a mod, ε (s, a) = some mod → mod = ⟨_, StringModule.init Bool false⟩
-  | "join" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Type _ × Type _), mod = ⟨_, StringModule.join T.1 T.2⟩
-  | "load" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Type _ × Type _), mod = ⟨_, StringModule.load T.1 T.2⟩
-  | "merge" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Type _ × Nat), mod = ⟨_, StringModule.merge T.1 T.2⟩
-  | "merge2" => ∀ a mod, ε (s, a) = some mod → ∃ T, mod = ⟨_, StringModule.merge T 2⟩
-  | "mux" => ∀ a mod, ε (s, a) = some mod → ∃ T, mod = ⟨_, StringModule.mux T⟩
-  | "operator1" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Type _ × (Sigma (λ x => Inhabited x)) × String), mod = ⟨_, @StringModule.operator1 T.1 T.2.1.1 T.2.1.2 T.2.2⟩
-  | "operator2" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Type _ × Type _ × (Sigma (λ x => Inhabited x)) × String), mod = ⟨_, @StringModule.operator2 T.1 T.2.1 T.2.2.1.1 T.2.2.1.2 T.2.2.2⟩
-  | "operator3" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Type _ × Type _ × Type _ × (Sigma (λ x => Inhabited x)) × String), mod = ⟨_, @StringModule.operator3 T.1 T.2.1 T.2.2.1 T.2.2.2.1.1 T.2.2.2.1.2 T.2.2.2.2⟩
-  | "pure" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Sigma (λ ((x, y) : Type _ × Type _) => x -> y)), mod = ⟨_, StringModule.pure T.2⟩
-  | "queue" => ∀ a mod, ε (s, a) = some mod → ∃ T, mod = ⟨_, StringModule.queue T⟩
-  | "sink" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Type _ × Nat), mod = ⟨_, StringModule.sink T.1 T.2⟩
-  | "split" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Type _ × Type _), mod = ⟨_, StringModule.split T.1 T.2⟩
-  | "tagger_untagger_val" => ∀ a mod, ε (s, a) = some mod → ∃ (T : Sigma (λ x => DecidableEq x) × Type _ × Type _), mod = ⟨_, @StringModule.tagger_untagger_val T.1.1 T.1.2 T.2.1 T.2.2⟩
+def well_formed' {α} (ε : Env String (String × α)) (s : String × α) : Prop :=
+  match s.1 with
+  | "branch" => ∃ T, ε s = some ⟨_, StringModule.branch T⟩
+  | "cntrl_merge" => ∃ T, ε s = some ⟨_, StringModule.cntrl_merge T⟩
+  | "constant" => ∃ (T : Sigma id), ε s = some ⟨_, StringModule.constant T.2⟩
+  | "fork" => ∃ (T : Type _ × Nat), ε s = some ⟨_, StringModule.fork T.1 T.2⟩
+  | "fork2" => ∃ T, ε s = some ⟨_, StringModule.fork2 T⟩
+  | "init" => ∃ (T : Sigma id), ε s = some ⟨_, StringModule.init T.1 T.2⟩
+  | "initBool" => ε s = some ⟨_, StringModule.init Bool false⟩
+  | "join" => ∃ (T : Type _ × Type _), ε s = some ⟨_, StringModule.join T.1 T.2⟩
+  | "load" => ∃ (T : Type _ × Type _), ε s = some ⟨_, StringModule.load T.1 T.2⟩
+  | "merge" => ∃ (T : Type _ × Nat), ε s = some ⟨_, StringModule.merge T.1 T.2⟩
+  | "merge2" => ∃ T, ε s = some ⟨_, StringModule.merge T 2⟩
+  | "mux" => ∃ T, ε s = some ⟨_, StringModule.mux T⟩
+  | "operator1" => ∃ (T : Type _ × (Sigma (λ x => Inhabited x)) × String), ε s = some ⟨_, @StringModule.operator1 T.1 T.2.1.1 T.2.1.2 T.2.2⟩
+  | "operator2" => ∃ (T : Type _ × Type _ × (Sigma (λ x => Inhabited x)) × String), ε s = some ⟨_, @StringModule.operator2 T.1 T.2.1 T.2.2.1.1 T.2.2.1.2 T.2.2.2⟩
+  | "operator3" => ∃ (T : Type _ × Type _ × Type _ × (Sigma (λ x => Inhabited x)) × String), ε s = some ⟨_, @StringModule.operator3 T.1 T.2.1 T.2.2.1 T.2.2.2.1.1 T.2.2.2.1.2 T.2.2.2.2⟩
+  | "pure" => ∃ (T : Σ R, Σ S, R → S), ε s = some ⟨_, StringModule.pure T.2.2⟩
+  | "queue" => ∃ T, ε s = some ⟨_, StringModule.queue T⟩
+  | "sink" => ∃ (T : Type _ × Nat), ε s = some ⟨_, StringModule.sink T.1 T.2⟩
+  | "split" => ∃ (T : Type _ × Type _), ε s = some ⟨_, StringModule.split T.1 T.2⟩
+  | "tagger_untagger_val" => ∃ (T : Sigma (λ x => DecidableEq x) × Type _ × Type _), ε s = some ⟨_, @StringModule.tagger_untagger_val T.1.1 T.1.2 T.2.1 T.2.2⟩
   | _ => True
 
+def well_formed {α} (ε : Env String (String × α)) : Prop :=
+  ∀ s, (ε s).isSome → well_formed' ε s
+
 end Env
+
+def ExprLow.well_formed_wrt {α} (ε : Env String (String × α)) : ExprLow String (String × α) → Prop
+| product e1 e2 =>
+  e1.well_formed_wrt ε ∧ e2.well_formed_wrt ε
+| connect c e => e.well_formed_wrt ε
+| base inst t => ε.well_formed' t
 
 namespace FinEnv
 

@@ -3058,7 +3058,114 @@ theorem build_module_connect_foldr {α} {ε : Env Ident Typ} {acc accb} {l : Lis
   = List.foldr (λ i acc => ⟨acc.1, acc.2.connect' (f i).output (f i).input⟩) (ExprLow.build_module ε acc) l := by
     sorry
 
+axiom AssocList.bijectivePortRenaming_inverse {α} [DecidableEq α] {i : AssocList α α} {x} :
+  i.invertible → i.bijectivePortRenaming x ∈ i.keysList → x ∈ i.valsList
+
+theorem build_module_interface'_unique {ε : Env Ident Typ} {e mi x y} :
+  e.well_formed ε →
+  build_module_interface' ε e = some mi →
+  mi.inputs.find? x = some y →
+  x ∈ e.valsList.1 := by
+  induction e generalizing mi x y with
+  | base inst typ =>
+    dsimp [valsList, well_formed, build_module_interface', Module.toModuleInterface]; intro h1 h2 h3; split at h1 <;> try contradiction
+    rename_i _ _ heq; rw [heq] at h2; dsimp at h2; cases h2
+    simp at h1
+    dsimp at *
+    rw [AssocList.find?_mapVal] at h3
+    rw [show x = (AssocList.bijectivePortRenaming inst.input (AssocList.bijectivePortRenaming inst.input x)) by rw [AssocList.bijectivePortRenaming_involutive]] at h3
+    rw [AssocList.mapKey_find?] at h3
+    obtain ⟨m, h3', h4'⟩ := Option.map_eq_some_iff.mp h3
+    have h5 := AssocList.keysList_find (by rw [h3']; rfl)
+    have h6 : ((AssocList.bijectivePortRenaming inst.input x) ∈ inst.input.keysList) := by
+      grind [List.Perm.mem_iff]
+    -- unfold AssocList.bijectivePortRenaming at h6
+    -- rw [h1.2.2.1] at h6; dsimp at h6
+    apply AssocList.bijectivePortRenaming_inverse; apply h1.2.2.1; assumption; apply AssocList.bijectivePortRenaming_bijective.1
+  | product e1 e2 he1 he2 =>
+    simp [well_formed, -AssocList.find?_eq]; intro hwf1 hwf2 hbuild hfind
+    have ⟨v1, v2, h1, h2, h3, h4⟩ := ExprLow.build_module_interface'_product hbuild
+    dsimp [valsList]
+    rw [h3] at hfind
+    grind [AssocList.append_find?2]
+  | connect c e ih =>
+    simp [well_formed, -AssocList.find?_eq]; intro hwf hbuild hfind
+    have hbuild' := ExprLow.build_module_interface'_connect hbuild
+    dsimp [valsList]; grind
+
+theorem build_module_interface_build_module_interface' {ε} {e : ExprLow Ident Typ} {mi mi' x T} :
+  e.well_formed ε →
+  e.unique_valsList →
+  e.build_module_interface ε = some mi →
+  mi.inputs.find? x = some T →
+  e.build_module_interface' ε = some mi' →
+  mi'.inputs.find? x = some T := by
+  induction e generalizing mi mi' with
+  | base inst typ => dsimp [build_module_interface, build_module_interface']; grind
+  | connect c e ih =>
+    intro hwf hvals hbuild hfind
+    dsimp [build_module_interface, build_module_interface'] at *
+    rw [] at hbuild
+    obtain ⟨mi'', h1, h2⟩ := Option.bind_eq_some_iff.mp hbuild
+    cases h2
+    dsimp at *
+    rw [h1] at hbuild; dsimp at hbuild; cases hbuild
+    apply ih <;> try assumption
+    apply Batteries.AssocList.find?_eraseAll; assumption
+  | product e1 e2 he1 he2 =>
+    intro hwf hvals h1 h2 h3
+    have h1_2 := build_module_interface_product h1
+    obtain ⟨m1, m2, h1', h2', h3', h4'⟩ := h1_2
+    dsimp [build_module_interface', build_module_interface] at *
+    rw [h1'] at h1
+    rw [h2'] at h1; dsimp at h1; cases h1; cases h3'; cases h4'
+    dsimp at h2
+    have ⟨mi'', hbuild''⟩ := build_module_interface_build_module_interface'' h1'
+    have ⟨mi''', hbuild'''⟩ := build_module_interface_build_module_interface'' h2'
+    dsimp [unique_valsList, valsList] at *
+    rw [hbuild'', hbuild'''] at h3; dsimp at h3; cases h3
+    rcases Batteries.AssocList.append_find?2 h2 with hfind | ⟨hfind1, hfind2⟩
+    · grind [well_formed_product, Batteries.AssocList.append_find_left, Batteries.AssocList.append_find_right]
+    · dsimp;
+      cases h: (Batteries.AssocList.find? x mi''.inputs)
+      · grind [well_formed_product, Batteries.AssocList.append_find_left, Batteries.AssocList.append_find_right]
+      · have ⟨val', h5⟩ : ∃ val, Batteries.AssocList.find? x mi'''.inputs = some val := by grind [well_formed_product]
+        have h' := List.nodup_append.mp hvals.1
+        have ⟨h1, h2, h3⟩ := h'
+        have hx1 : x ∈ e1.valsList.1 := by grind [build_module_interface'_unique, well_formed_product]
+        have hx1 : x ∈ e2.valsList.1 := by grind [build_module_interface'_unique, well_formed_product]
+        grind
+
+theorem well_typed_well_typed' {ε} {e : ExprLow Ident Typ} :
+  e.well_formed ε →
+  e.well_typed ε →
+  e.well_typed' ε := by
+  -- induction e with
+  -- | base inst typ =>
+  --   intro hwf hwt; dsimp [well_typed', build_module_interface', well_typed'', well_formed] at *
+  --   split at hwf
+  --   rename_i _ _ heq; rw [heq]; constructor; simp [Option.map]; rfl
+  --   contradiction
+  -- | product e1 e2 he1 he2 =>
+  --   intro hwf; intro hwt
+  --   dsimp [well_typed', build_module_interface', well_typed'', well_formed] at *
+  --   simp at hwf; dsimp [well_typed] at hwt
+  --   specialize he1 hwf.1 hwt.1
+  --   specialize he2 hwf.2 hwt.2
+  --   obtain ⟨mi1, hb1, hwt1⟩ := he1
+  --   obtain ⟨mi2, hb2, hwt2⟩ := he2
+  --   rw [hb1, hb2]
+  --   dsimp; constructor
+  --   and_intros; rfl;
+  all_goals sorry
+
 end ExprLowFoldL
+
+theorem well_formed_wrt_from_well_typed {α} {e : ExprLow String (String × α)} {ε : Env String (String × α)} :
+  e.well_formed ε →
+  ε.well_formed →
+  e.well_formed_wrt ε := by
+  induction e <;> (dsimp [well_formed, Env.well_formed, well_formed_wrt] at *; grind)
 
 end ExprLow
 end Graphiti

@@ -1694,6 +1694,17 @@ theorem refines_renamePorts {I S} {imod : Module Ident I} {smod : Module Ident S
   intro Href; unfold renamePorts
   solve_by_elim [refines_mapPorts2, AssocList.bijectivePortRenaming_bijective]
 
+theorem refines_eq {imod : TModule Ident} {smod : TModule Ident} :
+  imod = smod → imod.snd ⊑ smod.snd := by
+  intro heq; subst imod; apply refines_reflexive
+
+theorem refines_eq_equiv {imod smod : TModule Ident} :
+  imod = smod → imod.snd ≡ smod.snd := by
+  intro heq; subst imod; constructor <;> apply refines_reflexive
+
+theorem equivalent_reflexive {I} {imod : Module Ident I} : imod ≡ imod := by
+  constructor <;> apply refines_reflexive
+
 end Refinement
 
 variable {Ident}

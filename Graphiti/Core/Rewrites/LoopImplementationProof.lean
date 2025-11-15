@@ -1623,14 +1623,14 @@ theorem refine:
         . assumption
 
 /--
-info: 'Graphiti.LoopRewrite.refine' depends on axioms: [propext,
- Classical.choice,
- Quot.sound,
- Graphiti.LoopRewrite.available2,
- Graphiti.LoopRewrite.available3]
+info: 'Graphiti.LoopRewrite.refine' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs in
 #print axioms refine
+
+axiom verified_rewrite : VerifiedRewrite (rewrite.rewrite e.types e.max_type) e.ε -- where
+  -- ε_ext := ε_rhs_ghost
+
 
 end Proof
 end Graphiti.LoopRewrite

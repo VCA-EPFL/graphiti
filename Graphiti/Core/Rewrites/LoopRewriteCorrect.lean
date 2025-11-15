@@ -92,21 +92,10 @@ def rhsLower max_type := (rhs_extract max_type).fst.lower_TR.get rfl
 
 variable [e : Environment lhsLower]
 
-axiom available : (∃ a, Batteries.AssocList.find? ("queue", e.types[7]) e.ε = some a) ∧
-      (∃ a, Batteries.AssocList.find? ("queue", e.types[6]) e.ε = some a) ∧
-        (∃ a, Batteries.AssocList.find? ("initBool", e.types[5]) e.ε = some a) ∧
-          (∃ a, Batteries.AssocList.find? ("pure", e.types[4]) e.ε = some a) ∧
-            (∃ a, Batteries.AssocList.find? ("split", e.types[3]) e.ε = some a) ∧
-              (∃ a,
-                  Batteries.AssocList.find? ("branch", e.types[2]) e.ε = some a) ∧
-                (∃ a,
-                    Batteries.AssocList.find? ("fork2", e.types[1]) e.ε = some a) ∧
-                  ∃ a, Batteries.AssocList.find? ("mux", e.types[0]) e.ε = some a -- := by sorry
-
-noncomputable def queue := Exists.choose available.1
+instance : BEq (String × Nat) := instBEqOfDecidableEq
 
 -- By the well formedness of the environment
-axiom available2 : (∃ T, Batteries.AssocList.find? ("queue", e.types[7]) e.ε = some ⟨_, StringModule.queue T⟩) ∧
+theorem available2 : (∃ T, Batteries.AssocList.find? ("queue", e.types[7]) e.ε = some ⟨_, StringModule.queue T⟩) ∧
       (∃ T, Batteries.AssocList.find? ("queue", e.types[6]) e.ε = some ⟨_, StringModule.queue T⟩) ∧
         (Batteries.AssocList.find? ("initBool", e.types[5]) e.ε = some ⟨_, init Bool false⟩) ∧
           (∃ (T : Σ R, Σ S, R → S), Batteries.AssocList.find? ("pure", e.types[4]) e.ε = some ⟨_, pure T.2.2 ⟩) ∧
@@ -115,34 +104,72 @@ axiom available2 : (∃ T, Batteries.AssocList.find? ("queue", e.types[7]) e.ε 
                   Batteries.AssocList.find? ("branch", e.types[2]) e.ε = some ⟨_, branch A⟩) ∧
                 (∃ A,
                     Batteries.AssocList.find? ("fork2", e.types[1]) e.ε = some ⟨_, fork2 A⟩) ∧
-                  ∃ A, Batteries.AssocList.find? ("mux", e.types[0]) e.ε = some ⟨_, mux A⟩
-
-#check available2.2.2.2.1
+                  ∃ A, Batteries.AssocList.find? ("mux", e.types[0]) e.ε = some ⟨_, mux A⟩ := by
+  have h5 := ExprLow.well_formed_wrt_from_well_typed e.6 e.4.1
+  dsimp [drunfold_defs, reduceAssocListfind?] at h5
+  dsimp [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR, ExprHigh.uncurry] at h5
+  dsimp [ExprLow.well_formed_wrt, ExprHigh.uncurry, Env.well_formed'] at h5
+  simp only [String.reduceEq, imp_self] at h5
+  assumption
 
 -- By the well typedness of the lhs
-axiom available3 : available2.2.1.choose = available2.1.choose
+set_option pp.proofs true in
+theorem available3 : available2.2.1.choose = available2.1.choose
   ∧ available2.2.2.2.1.choose.1 = available2.1.choose
   ∧ available2.2.2.2.1.choose.2.1 = (available2.1.choose × Bool)
   ∧ available2.2.2.2.2.1.choose.1 = available2.1.choose
   ∧ available2.2.2.2.2.1.choose.2 = Bool
   ∧ available2.2.2.2.2.2.1.choose = available2.1.choose
   ∧ available2.2.2.2.2.2.2.1.choose = Bool
-  ∧ available2.2.2.2.2.2.2.2.choose = available2.1.choose
+  ∧ available2.2.2.2.2.2.2.2.choose = available2.1.choose := by
+  have h1 := e.5
+  dsimp [drunfold_defs, reduceAssocListfind?] at h1
+  dsimp [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR, ExprHigh.uncurry] at h1
+  have h1' := h1; clear h1
+  repeat
+    unfold ExprLow.well_typed at h1'
+    have ⟨h1'', ⟨mi, T, hwt, h2', h3'⟩⟩ := h1'; clear h1'; have h1' := h1''; clear h1''
+    dsimp [ExprLow.build_module_interface, ExprHigh.uncurry] at hwt
+    simp only [available2.1.choose_spec, available2.2.1.choose_spec, available2.2.2.1, available2.2.2.2.1.choose_spec,
+      available2.2.2.2.2.1.choose_spec, available2.2.2.2.2.2.1.choose_spec, available2.2.2.2.2.2.2.1.choose_spec,
+      available2.2.2.2.2.2.2.2.choose_spec] at hwt
+    dsimp at hwt
+    rw [← ((Option.some.injEq _ _).mp hwt)] at h2' h3'; clear hwt
+    dsimp at h2' h3'
+    simp -failIfUnchanged (disch := decide) only [AssocList.find?_eraseAll_neq] at h2' h3'
+    dsimp [reduceAssocListfind?] at h2' h3'
+    dsimp at h2' h3'
+  grind
 
 abbrev TagT := Nat
-
 def T := available2.1.choose
-noncomputable def f' := (available3.2.1 ▸ available3.2.2.1 ▸ available2.2.2.2.1.choose.2.2)
-noncomputable def f : T → T × Bool := f'
 
-@[drenv] axiom lhs_ε_find1 : e.ε.find? ("queue", e.types[7]) = some ⟨_, StringModule.queue T⟩
-@[drenv] axiom lhs_ε_find2 : e.ε.find? ("queue", e.types[6]) = some ⟨_, StringModule.queue T⟩
-@[drenv] axiom lhs_ε_find3 : e.ε.find? ("initBool", e.types[5]) = some ⟨_, init Bool false⟩
-@[drenv] axiom lhs_ε_find4 : e.ε.find? ("pure", e.types[4]) = some ⟨_, pure f⟩
-@[drenv] axiom lhs_ε_find5 : e.ε.find? ("split", e.types[3]) = some ⟨_, split T Bool⟩
-@[drenv] axiom lhs_ε_find6 : e.ε.find? ("branch", e.types[2]) = some ⟨_, branch T⟩
-@[drenv] axiom lhs_ε_find7 : e.ε.find? ("fork2", e.types[1]) = some ⟨_, fork2 Bool⟩
-@[drenv] axiom lhs_ε_find8 : e.ε.find? ("mux", e.types[0]) = some ⟨_, mux T⟩
+noncomputable def cast_f (f : available2.2.2.2.1.choose.1 → available2.2.2.2.1.choose.2.1) : T → T × Bool := by
+  rw [available3.2.2.1, available3.2.1] at f; exact f
+
+noncomputable def f : T → T × Bool := cast_f available2.2.2.2.1.choose.2.2
+
+@[drenv] theorem lhs_ε_find1 : e.ε.find? ("queue", e.types[7]) = some ⟨_, StringModule.queue T⟩ := by
+  rewrite [available2.1.choose_spec]; rfl
+@[drenv] theorem lhs_ε_find2 : e.ε.find? ("queue", e.types[6]) = some ⟨_, StringModule.queue T⟩ := by
+  rewrite [available2.2.1.choose_spec, available3.1]; rfl
+@[drenv] theorem lhs_ε_find3 : e.ε.find? ("initBool", e.types[5]) = some ⟨_, init Bool false⟩ := by
+  rewrite [available2.2.2.1]; rfl
+@[drenv] theorem lhs_ε_find4 : e.ε.find? ("pure", e.types[4]) = some ⟨_, pure f⟩ := by
+  rewrite [available2.2.2.2.1.choose_spec]
+  congr
+  · exact available3.2.2.1
+  · exact available3.2.1
+  · exact available3.2.2.1
+  · simp [f, cast_f]
+@[drenv] theorem lhs_ε_find5 : e.ε.find? ("split", e.types[3]) = some ⟨_, split T Bool⟩ := by
+  rewrite [available2.2.2.2.2.1.choose_spec,available3.2.2.2.1,available3.2.2.2.2.1]; rfl
+@[drenv] theorem lhs_ε_find6 : e.ε.find? ("branch", e.types[2]) = some ⟨_, branch T⟩ := by
+  rewrite [available2.2.2.2.2.2.1.choose_spec,available3.2.2.2.2.2.1]; rfl
+@[drenv] theorem lhs_ε_find7 : e.ε.find? ("fork2", e.types[1]) = some ⟨_, fork2 Bool⟩ := by
+  rewrite [available2.2.2.2.2.2.2.1.choose_spec,available3.2.2.2.2.2.2.1]; rfl
+@[drenv] theorem lhs_ε_find8 : e.ε.find? ("mux", e.types[0]) = some ⟨_, mux T⟩ := by
+  rewrite [available2.2.2.2.2.2.2.2.choose_spec,available3.2.2.2.2.2.2.2]; rfl
 
 noncomputable def ε_rhs : FinEnv String (String × Nat) :=
   ([ (("tagger_untagger_val", e.max_type+1), ⟨_, StringModule.tagger_untagger_val TagT T T⟩)
@@ -347,14 +374,76 @@ reduction_by
    unfold Module.connect''
    dsimp [Module.liftL, Module.liftR, drcomponents])
 
+omit e in
+theorem rw_opaque' {f : Type _ → Type _} {a s s' : Σ T, f T} (heq : s = s') : a = s ↔ a = s' := by
+  subst s; rfl
+
+omit e in
+theorem rw_opaque'' {f : Type _ → Type _} {a s s' : Σ T, f T} (heq1 : s.fst = s'.fst) (heq2 : s.snd = (congrArg f heq1).mpr s'.snd) : a = s ↔ a = s' := by
+  cases s; cases s'
+  constructor <;> (intros; subst a; simp_all)
+  assumption
+  symm; assumption
+
+omit e in
+theorem rw_opaque''' {f : Type _ → Type _} {s s' : Σ T, f T} (heq : s = s') : Sigma.mk s.fst s.snd = Sigma.mk s'.fst s'.snd := by grind
+
+seal T f in
+theorem lhs_evaled_eq :
+  (⟨_, lhsEvaled⟩ : TModule1 String) = ⟨_, [e| (lhsLower e.types), e.ε.find? ]⟩ := by
+  (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
+   dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
+   dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
+   rw [rw_opaque''' (by simp only [drenv]; rfl)]; dsimp
+   dsimp [Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts, Module.mapInputPorts, reduceAssocListfind?]
+   simp (disch := decide) only [AssocList.bijectivePortRenaming_invert]
+   dsimp [Module.product]
+   dsimp -failIfUnchanged
+   -- dsimp only [drcomponents, Batteries.AssocList.mapKey, NatModule.stringify_input, InternalPort.map]
+   -- dsimp only [reduceAssocListfind?]
+   -- set_option pp.explicit true in trace_state
+
+   -- set_option diagnostics true in
+   -- dsimp only [reduceModuleconnect'2]
+   dsimp only [Module.connect']
+   dsimp only [reduceEraseAll]
+   dsimp; dsimp [PortMap.getIO, reduceAssocListfind?]
+   unfold Module.connect''
+   dsimp [Module.liftL, Module.liftR, drcomponents])
+  rfl
+
+seal T f ε_rhs_ghost in
+theorem rhs_ghost_evaled_eq :
+  (⟨_, rhsGhostEvaled⟩ : TModule1 String) = ⟨_, [e| (rhsGhostLower e.max_type), ε_rhs_ghost.find? ]⟩ := by
+  (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
+   dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
+   dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
+   rw [rw_opaque''' (by simp only [drenv]; rfl)]; dsimp
+   dsimp [Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts, Module.mapInputPorts, reduceAssocListfind?]
+   simp (disch := decide) only [AssocList.bijectivePortRenaming_invert]
+   dsimp [Module.product]
+   dsimp -failIfUnchanged
+   -- dsimp only [drcomponents, Batteries.AssocList.mapKey, NatModule.stringify_input, InternalPort.map]
+   -- dsimp only [reduceAssocListfind?]
+   -- set_option pp.explicit true in trace_state
+
+   -- set_option diagnostics true in
+   -- dsimp only [reduceModuleconnect'2]
+   dsimp only [Module.connect']
+   dsimp only [reduceEraseAll]
+   dsimp; dsimp [PortMap.getIO, reduceAssocListfind?]
+   unfold Module.connect''
+   dsimp [Module.liftL, Module.liftR, drcomponents])
+  rfl
+
 def rewrite : Rewrite String (String × Nat) where
   params := 8
   pattern := default
-  rewrite := fun types n => ⟨lhsLower types, rhsLower n⟩
+  rewrite := fun types n => ⟨lhsLower types, rhsGhostLower n⟩
   fresh_types := 5
   name := "loop-rewrite"
 
-axiom verified_rewrite : VerifiedRewrite (rewrite.rewrite e.types e.max_type) e.ε -- where
+
   -- ε_ext := ε_rhs
   -- ε_ext_wf := sorry
   -- ε_independent := sorry
