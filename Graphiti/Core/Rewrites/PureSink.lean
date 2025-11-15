@@ -11,63 +11,57 @@ namespace Graphiti.PureSink
 
 open StringModule
 
-variable (T T' : Type)
-variable (f : T → T')
-variable [Inhabited T']
-variable (S S' : String)
-
-def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) := do
+def matcher : Pattern String (String × Nat) 2 := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
        if s.isSome then return s
-       unless "pure".isPrefixOf typ do return none
+       unless "pure" == typ.1 do return none
 
        let (.some sink) := followOutput g inst "out1" | return none
-       unless "sink".isPrefixOf sink.typ do return none
+       unless "sink" == sink.typ.1 do return none
 
-       let (.some t1) := typ.splitOn[1]? | return none
-       let (.some t2) := sink.typ.splitOn[1]? | return none
-       let (.some t3) := typ.splitOn[2]? | return none
-
-       unless t2 = t3 do return none
-
-       return some ([inst, sink.inst], [t1, t2])
+       return some ([inst, sink.inst], #v[typ.2, sink.typ.2])
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
-def lhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+variable (types : Vector Nat 2)
+
+def lhs : ExprHigh String (String × Nat) := [graph|
     i [type = "io"];
 
-    pure [typeImp = $(⟨_, pure f⟩), type = $(s!"pure {S} {S'}")];
-    sink [typeImp = $(⟨_, sink T' 1⟩), type = $(s!"sink {S'} 1")];
+    pure [typeImp = $(⟨_, pure f⟩), type = "pure", arg = $(types[0])];
+    sink [typeImp = $(⟨_, sink T' 1⟩), type = "sink", arg = $(types[1])];
 
     i -> pure [to="in1"];
     pure -> sink [from="out1", to="in1"];
   ]
 
-def lhs_extract := (lhs Unit Unit (λ _ => default) S S').fst.extract ["pure", "sink"] |>.get rfl
+def lhs_extract := (lhs types).extract ["pure", "sink"] |>.get rfl
 
-theorem double_check_empty_snd : (lhs_extract S S').snd = ExprHigh.mk ∅ ∅ := by rfl
+theorem double_check_empty_snd : (lhs_extract types).snd = ExprHigh.mk ∅ ∅ := by rfl
 
-def lhsLower := (lhs_extract S S').fst.lower.get rfl
+def lhsLower := (lhs_extract types).fst.lower.get rfl
 
-def rhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+variable (max_type : Nat)
+
+def rhs : ExprHigh String (String × Nat) := [graph|
     i [type = "io"];
 
-    sink [typeImp = $(⟨_, sink (T × T') 1⟩), type = $(s!"sink ({S} × {S'}) 1")];
+    sink [type = "sink", arg = $(max_type+1)];
 
     i -> sink [to="in1"];
   ]
 
-def rhs_extract := (rhs Unit Unit S S').fst.extract ["sink"] |>.get rfl
+def rhs_extract := (rhs max_type).extract ["sink"] |>.get rfl
 
-def rhsLower := (rhs_extract S S').fst.lower.get rfl
+def rhsLower := (rhs_extract max_type).fst.lower.get rfl
 
-def findRhs mod := (rhs_extract "" "").1.modules.find? mod |>.map Prod.fst
+def findRhs mod := (rhs_extract 0).1.modules.find? mod |>.map Prod.fst
 
-def rewrite : Rewrite String String :=
-  { abstractions := [],
+def rewrite : Rewrite String (String × Nat) :=
+  { params := 2
+    abstractions := [],
     pattern := matcher,
-    rewrite := λ | [S, S'] => .some ⟨lhsLower S S', rhsLower S S'⟩ | _ => failure
+    rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
     name := "pure-sink"
     transformedNodes := [.none, findRhs "sink" |>.get rfl]
   }
