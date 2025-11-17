@@ -16,30 +16,28 @@ def extractFirstWordAfterJoin (s : String) : String :=
   | []      => ""
   | x :: _  => x
 
-def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) := do
+def matcher : Pattern String (String × Nat) 2 := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
       if s.isSome then return s
-        unless String.isPrefixOf "split" typ do return none
+
+      unless "split" == typ.1 do return none
       let (.some join_nn) := followOutput g inst "out1" | return none
       let (.some join_nn') := followOutput g inst "out2" | return none
 
-      unless String.isPrefixOf "join" join_nn.typ && String.isPrefixOf "join" join_nn'.typ do return none
+      unless "join" == join_nn.typ.1 && "join" == join_nn'.typ.1 do return none
       unless join_nn.inst = join_nn'.inst do return none
       unless join_nn.inputPort = "in1" && join_nn'.inputPort = "in2" do return none
-      unless extractType join_nn.typ = extractType typ do return none
-      let .some typ1 := (join_nn.typ.splitOn " ")[1]? | throw (.error "Could not extract type 1 from 'join'")
-      let .some typ2 := (join_nn.typ.splitOn " ")[2]? | throw (.error "Could not extract type 2 from 'join'")
 
-      return some ([join_nn.inst, inst], [typ1, typ2])
+      return some ([join_nn.inst, inst], #v[typ.2, join_nn.typ.2])
     ) none | throw .done
   return list
 
-def lhs (T T' : Type) (Tₛ T'ₛ : String) : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+def lhs (T : Vector Nat 2) : ExprHigh String (String × Nat) := [graph|
     i [type = "io"];
     o [type = "io"];
 
-    split [typeImp = $(⟨_, split T T'⟩), type = $(s!"split {Tₛ} {T'ₛ}")];
-    join [typeImp = $(⟨_, join T T'⟩), type = $(s!"join {Tₛ} {T'ₛ}")];
+    split [type = "split", arg = $(T[0])];
+    join [type = "join", arg = $(T[0])];
 
     i -> split [to="in1"];
     split -> join [from="out1", to="in1"];
@@ -47,40 +45,41 @@ def lhs (T T' : Type) (Tₛ T'ₛ : String) : ExprHigh String String × IdentMap
     join -> o [from="out1"];
   ]
 
-def lhs_extract T₁ T₂ := (lhs Unit Unit T₁ T₂).fst.extract ["join", "split"] |>.get rfl
+def lhs_extract T := (lhs T).extract ["join", "split"] |>.get rfl
 
 -- #eval IO.print ((lhs Unit Unit "T" "T'").fst)
 
-theorem lhs_type_independent a b c d T₁ T₂ : (lhs a b T₁ T₂).fst = (lhs c d T₁ T₂).fst := by rfl
+theorem double_check_empty_snd T : (lhs_extract T).snd = ExprHigh.mk ∅ ∅ := by rfl
 
-theorem double_check_empty_snd T₁ T₂ : (lhs_extract T₁ T₂).snd = ExprHigh.mk ∅ ∅ := by rfl
+def lhsLower T := lhs_extract T |>.fst.lower.get rfl
 
-def lhsLower T₁ T₂ := lhs_extract T₁ T₂ |>.fst.lower.get rfl
-
-def rhs (T T' : Type) (Tₛ T'ₛ : String) : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+def rhs (M : Nat) : ExprHigh String (String × Nat) := [graph|
     i [type = "io"];
     o [type = "io"];
 
-    queue [typeImp = $(⟨_, queue T⟩), type = $(s!"queue ({Tₛ}×{T'ₛ})")];
+    queue [type = "queue", arg = $(M+1)];
 
     i -> queue [to="in1"];
     queue -> o [from="out1"];
   ]
 
-def rhsLower T₁ T₂ := (rhs Unit Unit T₁ T₂).fst.lower.get rfl
+def rhs_extract M := (rhs M).extract ["queue"] |>.get rfl
+
+def rhsLower M := (rhs_extract M).fst.lower.get rfl
+
+def findRhs mod := (rhs_extract 0).fst.modules.find? mod |>.map Prod.fst
 
 -- #eval IO.print ((rhs Unit Unit "T" "T'").fst)
 
-theorem rhs_type_independent a b c d T₁ T₂ : (rhs a b T₁ T₂).fst = (rhs c d T₁ T₂).fst := by rfl
-
-def rewrite : Rewrite String String :=
+def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
+    params := 2
     pattern := matcher,
-    rewrite := λ l => do
-      let T₁ ← l[0]?
-      let T₂ ← l[1]?
-      return ⟨lhsLower T₁ T₂, rhsLower T₁ T₂⟩
+    rewrite := λ l m => ⟨lhsLower l, rhsLower m⟩
+    transformedNodes := [.none, .none]
+    addedNodes := [findRhs "queue" |>.get rfl]
     name := .some "reduce-split-join"
+    fresh_types := 1
   }
 
 end Graphiti.ReduceSplitJoin

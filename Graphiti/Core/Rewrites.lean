@@ -24,7 +24,6 @@ import Graphiti.Core.Rewrites.PureJoinLeft
 import Graphiti.Core.Rewrites.PureJoinRight
 import Graphiti.Core.Rewrites.PureSplitRight
 import Graphiti.Core.Rewrites.PureSplitLeft
-import Graphiti.Core.Rewrites.JoinPureUnit
 import Graphiti.Core.Rewrites.JoinSplitElim
 import Graphiti.Core.Rewrites.JoinAssocL
 import Graphiti.Core.Rewrites.JoinAssocR
@@ -72,7 +71,6 @@ def rewrite_index :=
     , PureJoinRight.rewrite
     , PureSplitRight.rewrite
     , PureSplitLeft.rewrite
-    , JoinPureUnit.rewrite
     , JoinSplitElim.rewrite
     , JoinAssocL.rewrite
     , JoinAssocR.rewrite

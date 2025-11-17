@@ -11,31 +11,28 @@ namespace Graphiti.JoinQueueLeftRewrite
 
 open StringModule
 
-variable (T T' : Type)
-variable (S S' : String)
+variable (types : Vector Nat 2)
+variable (m : Nat)
 
-def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) := do
+def matcher : Pattern String (String × Nat) 2 := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
        if s.isSome then return s
-       unless "queue".isPrefixOf typ do return none
+       unless "queue" == typ.1 do return none
 
        let (.some join) := followOutput g inst "out1" | return none
-       unless "join".isPrefixOf join.typ ∧ join.inputPort = "in1" do return none
+       unless "join" == join.typ.1 ∧ join.inputPort = "in1" do return none
 
-       let (.some t1) := join.typ.splitOn[1]? | return none
-       let (.some t2) := join.typ.splitOn[2]? | return none
-
-       return some ([inst, join.inst], [t1, t2])
+       return some ([inst, join.inst], #v[typ.2, join.typ.2])
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
-def lhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+def lhs : ExprHigh String (String × Nat) := [graph|
     i_1 [type = "io"];
     i_2 [type = "io"];
     o_out [type = "io"];
 
-    q [typeImp = $(⟨_, queue T⟩), type = $(s!"queue {S}")];
-    join [typeImp = $(⟨_, join T T'⟩), type = $(s!"join {S} {S'}")];
+    q [type = "queue", arg = $(types[0])];
+    join [type = "join", arg = $(types[1])];
 
     i_1 -> q [to = "in1"];
     i_2 -> join [to = "in2"];
@@ -44,31 +41,39 @@ def lhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphE
     q -> join [from="out1", to="in1"];
   ]
 
-def lhs_extract := (lhs Unit Unit S S').fst.extract ["q", "join"] |>.get rfl
+def lhs_extract := (lhs types).extract ["q", "join"] |>.get rfl
 
-theorem double_check_empty_snd : (lhs_extract S S').snd = ExprHigh.mk ∅ ∅ := by rfl
+theorem double_check_empty_snd : (lhs_extract types).snd = ExprHigh.mk ∅ ∅ := by rfl
 
-def lhsLower := (lhs_extract S S').fst.lower.get rfl
+def lhsLower := (lhs_extract types).fst.lower.get rfl
 
-def rhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+def rhs : ExprHigh String (String × Nat) := [graph|
     i_1 [type = "io"];
     i_2 [type = "io"];
     o_out [type = "io"];
 
-    join [typeImp = $(⟨_, join T T'⟩), type = $(s!"join {S} {S'}")];
+    join [type = "join", arg = $(m+1)];
 
     i_1 -> join [to = "in1"];
     i_2 -> join [to = "in2"];
     join -> o_out [from="out1"];
   ]
 
-def rhsLower := (rhs Unit Unit S S').fst.lower.get rfl
+def rhs_extract := (rhs m).extract ["join"] |>.get rfl
 
-def rewrite : Rewrite String String :=
+def rhsLower := (rhs_extract m).fst.lower.get rfl
+
+def findRhs mod := (rhs_extract 0).fst.modules.find? mod |>.map Prod.fst
+
+def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
+    params := 2,
     pattern := matcher,
-    rewrite := λ | [S, S'] => .some ⟨lhsLower S S', rhsLower S S'⟩ | _ => failure
+    rewrite := λ l m => ⟨lhsLower l, rhsLower m⟩
     name := "join-queue-left"
+    transformedNodes := [.none, findRhs "join"]
+    addedNodes := []
+    fresh_types := 1
   }
 
 end Graphiti.JoinQueueLeftRewrite

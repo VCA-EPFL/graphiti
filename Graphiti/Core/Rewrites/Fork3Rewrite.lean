@@ -65,13 +65,14 @@ def rhsLower m := (rhs_extract m).fst.lower.get rfl
 def findRhs mod := (rhs_extract 0).fst.modules.find? mod |>.map Prod.fst
 
 def rewrite : Rewrite String (String × Nat) :=
-  { abstractions := [],
-    params := 1,
-    pattern := matcher,
+  { abstractions := []
+    params := 1
+    pattern := matcher
     rewrite := fun l m => ⟨lhsLower l, rhsLower m⟩
     name := .some "fork-3"
     transformedNodes := [.none]
     addedNodes := [findRhs "fork1" |>.get rfl, findRhs "fork2" |>.get rfl]
+    fresh_types := 2
   }
 
 end Graphiti.Fork3Rewrite

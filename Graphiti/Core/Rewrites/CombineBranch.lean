@@ -16,30 +16,26 @@ open StringModule
 -- Additionally, accept Branches that feed a Split at one of their outputs because
 -- this is an indication that the combineBranches rewrite has been already applied
 -- to them and we need to apply it one more time including an uncombined Branch.
-def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) := do
+def matcher : Pattern String (String × Nat) 3 := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
       if s.isSome then return s
 
-      unless typ = "fork Bool 2" do return none
+      unless typ.1 == "fork2" do return none
       let (.some branch_nn) := followOutput g inst "out1" | return none
-      -- let (.some branch_nn_out_1) := followOutput g branch_nn.inst "out1" | return none
-      -- let (.some branch_nn_out_2) := followOutput g branch_nn.inst "out2" | return none
 
       let (.some branch_nn') := followOutput g inst "out2" | return none
-      -- let (.some branch_nn'_out_1) := followOutput g branch_nn'.inst "out1" | return none
-      -- let (.some branch_nn'_out_2) := followOutput g branch_nn'.inst "out2" | return none
 
-      unless String.isPrefixOf "branch" branch_nn.typ && branch_nn.inputPort = "in2" do return none
-      unless String.isPrefixOf "branch" branch_nn'.typ && branch_nn'.inputPort = "in2" do return none
+      unless "branch" == branch_nn.typ.1 && branch_nn.inputPort = "in2" do return none
+      unless "branch" == branch_nn'.typ.1 && branch_nn'.inputPort = "in2" do return none
 
-      -- unless String.isPrefixOf "join" branch_nn_out_1.typ || String.isPrefixOf "split" branch_nn_out_1.typ || String.isPrefixOf "join" branch_nn_out_2.typ || String.isPrefixOf "split" branch_nn_out_2.typ do return none
-      -- unless String.isPrefixOf "join" branch_nn'_out_1.typ || String.isPrefixOf "split" branch_nn'_out_1.typ || String.isPrefixOf "join" branch_nn'_out_2.typ || String.isPrefixOf "split" branch_nn'_out_2.typ do return none
-
-      return ([branch_nn.inst, branch_nn'.inst, inst], [extractType branch_nn.typ, extractType branch_nn'.typ])
+      return ([branch_nn.inst, branch_nn'.inst, inst], #v[branch_nn.typ.2, branch_nn'.typ.2, typ.2])
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
-def lhs (T T' : Type) (Tₛ T'ₛ : String) : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+variable (T : Vector Nat 3)
+variable (M : Nat)
+
+def lhs : ExprHigh String (String × Nat) := [graph|
     b1_t_o [type = "io"];
     b1_f_o [type = "io"];
     b2_t_o [type = "io"];
@@ -48,9 +44,9 @@ def lhs (T T' : Type) (Tₛ T'ₛ : String) : ExprHigh String String × IdentMap
     b1_i [type = "io"];
     b2_i [type = "io"];
 
-    branch1 [typeImp = $(⟨_, branch T⟩), type = $(s!"branch {Tₛ}")];
-    branch2 [typeImp = $(⟨_, branch T'⟩), type = $(s!"branch {T'ₛ}")];
-    condFork [typeImp = $(⟨_, fork Bool 2⟩), type = "fork Bool 2"];
+    branch1 [type = "branch", arg = $(T[0])];
+    branch2 [type = "branch", arg = $(T[1])];
+    condFork [type = "fork2", arg = $(T[2])];
 
     branch1 -> b1_t_o [from = "out1"];
     branch1 -> b1_f_o [from = "out2"];
@@ -65,19 +61,11 @@ def lhs (T T' : Type) (Tₛ T'ₛ : String) : ExprHigh String String × IdentMap
     condFork -> branch2 [from = "out2", to = "in2"];
   ]
 
--- #reduce lhs Unit Unit "H" "Y"
+def lhs_extract T := (lhs T).extract ["branch1", "branch2", "condFork"] |>.get rfl
+theorem double_check_empty_snd : (lhs_extract T).snd = ExprHigh.mk ∅ ∅ := by rfl
+def lhsLower := lhs_extract T |>.fst.lower.get rfl
 
-def lhs_extract T₁ T₂ := (lhs Unit Unit T₁ T₂).fst.extract ["branch1", "branch2", "condFork"] |>.get rfl
-
--- #eval IO.print ((lhs Unit Unit "T" "T'").fst)
-
-theorem lhs_type_independent a b c d T₁ T₂ : (lhs a b T₁ T₂).fst = (lhs c d T₁ T₂).fst := by rfl
-
-theorem double_check_empty_snd T₁ T₂ : (lhs_extract T₁ T₂).snd = ExprHigh.mk ∅ ∅ := by rfl
-
-def lhsLower T₁ T₂ := lhs_extract T₁ T₂ |>.fst.lower.get rfl
-
-def rhs (T T' : Type) (Tₛ Tₛ' : String) : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+def rhs : ExprHigh String (String × Nat) := [graph|
     b1_t_o [type = "io"];
     b1_f_o [type = "io"];
     b2_t_o [type = "io"];
@@ -86,10 +74,10 @@ def rhs (T T' : Type) (Tₛ Tₛ' : String) : ExprHigh String String × IdentMap
     b1_i [type = "io"];
     b2_i [type = "io"];
 
-    join [typeImp = $(⟨_, join T T'⟩), type = $(s!"join {Tₛ} {Tₛ'}")];
-    branch [typeImp = $(⟨_, branch (T×T')⟩), type = $(s!"branch ({Tₛ}×{Tₛ'})")];
-    splitT [typeImp = $(⟨_, split T T'⟩), type = $(s!"split {Tₛ} {Tₛ'}")];
-    splitF [typeImp = $(⟨_, split T T'⟩), type = $(s!"split {Tₛ} {Tₛ'}")];
+    join [type = "join", arg = $(M+1)];
+    branch [type = "branch", arg = $(M+2)];
+    splitT [type = "split", arg = $(M+3)];
+    splitF [type = "split", arg = $(M+4)];
 
     b1_i -> join [to = "in1"];
     b2_i -> join [to = "in2"];
@@ -105,20 +93,21 @@ def rhs (T T' : Type) (Tₛ Tₛ' : String) : ExprHigh String String × IdentMap
     branch -> splitF [from = "out2", to = "in1"];
   ]
 
-def rhsLower T₁ T₂ := (rhs Unit Unit T₁ T₂).fst.lower.get rfl
+def rhs_extract := (rhs M).extract ["join", "branch", "splitT", "splitF"] |>.get rfl
+def rhsLower := (rhs_extract M).fst.lower.get rfl
+def findRhs mod := (rhs_extract 0).fst.modules.find? mod |>.map Prod.fst
 
--- #eval IO.print ((rhs Unit Unit "T" "T'").fst)
-
-theorem rhs_type_independent a b c d T₁ T₂ : (rhs a b T₁ T₂).fst = (rhs c d T₁ T₂).fst := by rfl
-
-def rewrite : Rewrite String String :=
+def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
+    params := 3
     pattern := matcher,
-    rewrite := λ l => do
-      let T₁ ← l[0]?
-      let T₂ ← l[1]?
-      return ⟨ lhsLower T₁ T₂, rhsLower T₁ T₂ ⟩
+    rewrite := λ l n => ⟨ lhsLower l, rhsLower n ⟩
     name := .some "combine-branch"
+    transformedNodes := [.none, .none, .none]
+    addedNodes := [ findRhs "join" |>.get rfl, findRhs "branch" |>.get rfl
+                  , findRhs "splitT" |>.get rfl, findRhs "splitF" |>.get rfl
+                  ]
+    fresh_types := 4
   }
 
 end Graphiti.CombineBranch

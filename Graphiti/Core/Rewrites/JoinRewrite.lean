@@ -14,7 +14,7 @@ open StringModule
 def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) := sorry
 
 @[drunfold_defs]
-def lhs (T₁ T₂ T₃ : Type) (S₁ S₂ S₃ : String) : ExprHigh String (String × Nat) × IdentMap String (TModule1 String) := [graphEnv|
+def lhs (T₁ T₂ T₃ : Type) (S₁ S₂ S₃ : String) : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
     i_0 [type = "io"];
     i_1 [type = "io"];
     i_2 [type = "io"];
@@ -70,12 +70,12 @@ theorem double_check_empty_snd_rhs S₁ S₂ S₃ : (rhs_extract S₁ S₂ S₃)
 @[drunfold_defs]
 def rhsLower S₁ S₂ S₃ := (rhs_extract S₁ S₂ S₃).fst.lower_TR.get rfl
 
-@[drunfold_defs]
-def rewrite : Rewrite String String :=
-  { abstractions := [],
-    pattern := matcher,
-    rewrite := λ | [S₁, S₂, S₃] => pure ⟨lhsLower S₁ S₂ S₃, rhsLower S₁ S₂ S₃⟩
-                 | _ => throw (.error "number of parameters incorrect.")
-    }
+-- @[drunfold_defs]
+-- def rewrite : Rewrite String String :=
+--   { abstractions := [],
+--     pattern := matcher,
+--     rewrite := λ | [S₁, S₂, S₃] => pure ⟨lhsLower S₁ S₂ S₃, rhsLower S₁ S₂ S₃⟩
+--                  | _ => throw (.error "number of parameters incorrect.")
+--     }
 
 end Graphiti.JoinRewrite
