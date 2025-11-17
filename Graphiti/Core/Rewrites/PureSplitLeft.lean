@@ -11,33 +11,28 @@ namespace Graphiti.PureSplitLeft
 
 open StringModule
 
-variable (T₁ T₂ T₃ : Type)
-variable (f : T₂ → T₃)
-variable (S₁ S₂ S₃ : String)
+variable (T : Vector Nat 2)
+variable (M : Nat)
 
-def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) := do
+def matcher : Pattern String (String × Nat) 2 := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
        if s.isSome then return s
-       unless "split".isPrefixOf typ do return none
+       unless "split" == typ.1 do return none
 
        let (.some p) := followOutput g inst "out1" | return none
-       unless "pure".isPrefixOf p.typ do return none
+       unless "pure" == p.typ.1 do return none
 
-       let (.some t2) := p.typ.splitOn[1]? | return none
-       let (.some t3) := p.typ.splitOn[2]? | return none
-       let (.some t1) := typ.splitOn[2]? | return none
-
-       return some ([inst, p.inst], [t1, t2, t3])
+       return some ([inst, p.inst], #v[typ.2, p.typ.2])
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
-def lhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+def lhs : ExprHigh String (String × Nat) := [graph|
     i [type = "io"];
     o1 [type = "io"];
     o2 [type = "io"];
 
-    split [typeImp = $(⟨_, split T₂ T₁⟩), type = $(s!"split {S₂} {S₁}")];
-    pure [typeImp = $(⟨_, StringModule.pure f⟩), type = $(s!"pure {S₂} {S₃}")];
+    split [type = "split", arg = $(T[0])];
+    pure [type = "pure", arg = $(T[1])];
 
     i -> split [to="in1"];
     pure -> o1 [from="out1"];
@@ -46,19 +41,17 @@ def lhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphE
     split -> pure [from="out1", to="in1"];
   ]
 
-def lhs_extract := (lhs Unit Unit Unit (λ _ => default) S₁ S₂ S₃).fst.extract ["split", "pure"] |>.get rfl
+def lhs_extract := (lhs T).extract ["split", "pure"] |>.get rfl
+theorem double_check_empty_snd : (lhs_extract T).snd = ExprHigh.mk ∅ ∅ := by rfl
+def lhsLower := lhs_extract T |>.fst.lower.get rfl
 
-theorem double_check_empty_snd : (lhs_extract S₁ S₂ S₃).snd = ExprHigh.mk ∅ ∅ := by rfl
-
-def lhsLower := (lhs_extract S₁ S₂ S₃).fst.lower.get rfl
-
-def rhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+def rhs : ExprHigh String (String × Nat) := [graph|
     i [type = "io"];
     o1 [type = "io"];
     o2 [type = "io"];
 
-    split [typeImp = $(⟨_, split T₃ T₁⟩), type = $(s!"split {S₃} {S₁}")];
-    pure [typeImp = $(⟨_, StringModule.pure λ (x : T₂×T₁) => (f x.1, x.2)⟩), type = $(s!"pure ({S₂}×{S₁}) ({S₃}×{S₁})")];
+    split [type = "split", arg = $(M+1)];
+    pure [type = "pure", arg = $(M+2)];
 
     i -> pure [to="in1"];
     pure -> split [from="out1", to="in1"];
@@ -66,16 +59,18 @@ def rhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphE
     split -> o2 [from="out2"];
   ]
 
-def rhsLower := (rhs Unit Unit Unit (λ _ => default) S₁ S₂ S₃).fst.lower.get rfl
+def rhs_extract := (rhs M).extract ["split", "pure"] |>.get rfl
+def rhsLower := (rhs_extract M).fst.lower.get rfl
+def findRhs mod := (rhs_extract 0).fst.modules.find? mod |>.map Prod.fst
 
-def findRhs mod := (rhs Unit Unit Unit (λ _ => default) "" "" "").1.modules.find? mod |>.map Prod.fst
-
-def rewrite : Rewrite String String :=
+def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
+    params := 2
     pattern := matcher,
-    rewrite := λ | [S₁, S₂, S₃] => .some ⟨lhsLower S₁ S₂ S₃, rhsLower S₁ S₂ S₃⟩ | _ => failure,
+    rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
     name := "pure-split-left"
     transformedNodes := [findRhs "split" |>.get rfl, findRhs "pure" |>.get rfl]
+    fresh_types := 2
   }
 
 end Graphiti.PureSplitLeft

@@ -13,7 +13,10 @@ namespace Graphiti.JoinSplitElim
 
 open StringModule
 
-def identMatcher (s : String) (g : ExprHigh String String) : RewriteResult (List String × List String) := do
+variable (T : Vector Nat 2)
+variable (M : Nat)
+
+def identMatcher (s : String) : Pattern String (String × Nat) 2 := fun g => do
   let n ← ofOption (.error s!"{decl_name%}: could not find '{s}'") <| g.modules.find? s
   unless "join".isPrefixOf n.2 do throw (.error s!"{decl_name%}: type of '{s}' is '{n.2}' instead of 'join'")
   let next1 ← ofOption (.error s!"{decl_name%}: could not find next node") <| followInput g s "in1"
