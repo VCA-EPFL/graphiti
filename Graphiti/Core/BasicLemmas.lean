@@ -147,4 +147,6 @@ theorem getIO_cons_nil_false
 
 end PortMap
 
+theorem sigma_rw {f : Type _ → Type _} {s s' : Σ T, f T} (heq : s = s') : Sigma.mk s.fst s.snd = Sigma.mk s'.fst s'.snd := by grind
+
 end Graphiti

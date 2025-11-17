@@ -92,7 +92,7 @@ def rhsLower max_type := (rhs_extract max_type).fst.lower_TR.get rfl
 
 variable [e : Environment lhsLower]
 
-instance : BEq (String × Nat) := instBEqOfDecidableEq
+local instance : BEq (String × Nat) := instBEqOfDecidableEq
 
 -- By the well formedness of the environment
 theorem available2 : (∃ T, Batteries.AssocList.find? ("queue", e.types[7]) e.ε = some ⟨_, StringModule.queue T⟩) ∧
@@ -207,12 +207,6 @@ reduction_by
    simp (disch := decide) only [AssocList.bijectivePortRenaming_invert]
    dsimp [Module.product]
    dsimp -failIfUnchanged
-   -- dsimp only [drcomponents, Batteries.AssocList.mapKey, NatModule.stringify_input, InternalPort.map]
-   -- dsimp only [reduceAssocListfind?]
-   -- set_option pp.explicit true in trace_state
-
-   -- set_option diagnostics true in
-   -- dsimp only [reduceModuleconnect'2]
    dsimp only [Module.connect']
    dsimp only [reduceEraseAll]
    dsimp; dsimp [PortMap.getIO, reduceAssocListfind?]
@@ -251,44 +245,6 @@ reduction_by
    dsimp; dsimp [PortMap.getIO, reduceAssocListfind?]
    unfold Module.connect''
    dsimp [Module.liftL, Module.liftR, drcomponents])
-
-/--
-Essentially tagger + join without internal rule
--/
-@[drunfold_defs] def NatModule.tagger_untagger_val_ghost (TagT : Type 0) [_i: DecidableEq TagT] (T : Type 0) (name := "tagger_untagger_val_ghost") : NatModule (NatModule.Named name (List (TagT × T) × Batteries.AssocList TagT (T × (Nat × T)) × List (T × (Nat × T)))) :=
-  {
-    inputs := [
-      -- Complete computation
-      -- Models the input of the Cal + Untagger (coming from a previously tagged region)
-      (0, ⟨ (TagT × T) × (Nat × T), λ (oldOrder, oldMap, oldVal) ((tag,el), r) (newOrder, newMap, newVal) =>
-        -- Tag must be used, but no value ready, otherwise block:
-        (tag ∈ oldOrder.map Prod.fst ∧ oldMap.find? tag = none) ∧
-        newMap = oldMap.cons tag (el, r) ∧ newOrder = oldOrder ∧ newVal = oldVal ⟩),
-      -- Enq a value to be tagged
-      -- Models the input of the Tagger (coming from outside)
-      (1, ⟨ T, λ (oldOrder, oldMap, oldVal) v (newOrder, newMap, newVal) =>
-        newMap = oldMap ∧ newOrder = oldOrder ∧ newVal = oldVal.concat (v, 0, v) ⟩)
-    ].toAssocList,
-    outputs := [
-      -- Allocate fresh tag and output with value
-      -- Models the output of the Tagger
-      (0, ⟨ (TagT × T) × (Nat × T), λ (oldOrder, oldMap, oldVal) ((tag, v), z) (newOrder, newMap, newVal) =>
-        -- Tag must be unused otherwise block (alternatively we
-        -- could an implication to say undefined behavior):
-        (tag ∉ oldOrder.map Prod.fst ∧ oldMap.find? tag = none) ∧
-        newMap = oldMap ∧ newOrder = oldOrder.concat (tag, v) ∧ (v, z) :: newVal = oldVal⟩),
-      -- Dequeue + free tag
-      -- Models the output of the Cal + Untagger
-      (1, ⟨ T, λ (oldorder, oldmap, oldVal) el (neworder, newmap, newVal) =>
-        -- tag must be used otherwise, but no value brought, undefined behavior:
-        ∃ tag r, oldorder = tag :: neworder ∧ oldmap.find? tag.fst = some (el, r) ∧
-        newmap = oldmap.eraseAll tag.fst ∧ newVal = oldVal ⟩),
-    ].toAssocList,
-    init_state := λ s => s = ⟨[], Batteries.AssocList.nil, []⟩,
-  }
-
-@[drunfold_defs] def StringModule.tagger_untagger_val_ghost TagT [DecidableEq TagT] T :=
-  NatModule.tagger_untagger_val_ghost TagT T |>.stringify
 
 def liftF2 {α β γ δ} (f : α -> β × δ) : α × (Nat × γ) -> (β × (Nat × γ)) × δ
 | (a, g) =>
@@ -338,12 +294,56 @@ noncomputable def ε_rhs_ghost : FinEnv String (String × Nat) :=
 @[drenv] theorem rhs_ghost_ε_find4 : ε_rhs_ghost.find? ("split", e.max_type+4) = some ⟨_, split ((TagT × T) × (Nat × T)) Bool⟩ := by simp [ε_rhs_ghost]
 @[drenv] theorem rhs_ghost_ε_find5 : ε_rhs_ghost.find? ("pure", e.max_type+5) = some ⟨_, StringModule.pure (liftF2 (γ := T) (liftF (γ := TagT) f))⟩ := by simp [ε_rhs_ghost]
 
+theorem ε_rhs_ghost_gt {n} : (ε_rhs_ghost.find? n).isSome → e.max_type < n.2 := by simp [ε_rhs_ghost]; grind
+
+theorem ε_rhs_ghost_independent : e.ε.toEnv.independent ε_rhs_ghost.toEnv := by
+  obtain ⟨wf1, wf2⟩ := e.4
+  dsimp [Env.independent]
+  intro n m hfind
+  match h : Batteries.AssocList.find? n ε_rhs_ghost with
+  | none => rfl
+  | some m' =>
+    exfalso
+    have h' := ε_rhs_ghost_gt (by rw [h]; rfl)
+    rw [FinEnv.max_typeD_none] at hfind
+    contradiction
+    assumption
+    assumption
+
+theorem ε_rhs_ghost_wf : ε_rhs_ghost.toEnv.well_formed := by
+  rw [Env.well_formed_alt_correct]
+  dsimp [Env.well_formed_alt, Env.well_formed'']
+  intro s y hfind
+  simp [ε_rhs_ghost] at hfind
+  obtain ⟨a, b, hfind⟩ := hfind
+  simp; grind
+
 @[drunfold_defs]
 def rhsGhostLower max_type := (ghost_rhs_extract max_type |>.1).lower_TR.get rfl
 
+theorem ghost_rhs_wf : (rhsGhostLower e.max_type).well_formed ε_rhs_ghost.toEnv := by
+  dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
+  dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
+  dsimp [ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
+  dsimp [ExprLow.well_formed]
+  simp only [drenv]; dsimp
+  simp; and_intros <;> (try decide) <;> (try simp [AssocList.keysList, drcomponents, List.range, List.range.loop]; decide)
+
+theorem ghost_rhs_wt : (rhsGhostLower e.max_type).well_typed ε_rhs_ghost.toEnv := by
+  dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
+  dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
+  dsimp [ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
+  dsimp [ExprLow.well_typed]
+  and_intros <;> try trivial
+  any_goals
+    constructor; constructor; and_intros
+    · dsimp [ExprLow.build_module_interface]; simp only [drenv]; rfl
+    · dsimp [reduceAssocListfind?]
+    · dsimp [reduceEraseAll, reduceAssocListfind?]
+
 seal T f ε_rhs_ghost in
 def_module rhsGhostType : Type :=
-  [T| (rhsGhostLower e.max_type), ε_rhs_ghost.find? ]
+  [T| (rhsGhostLower e.max_type), ε_rhs_ghost.toEnv ]
 reduction_by
   dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
   dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
@@ -352,7 +352,7 @@ reduction_by
 
 seal T f ε_rhs_ghost in
 noncomputable def_module rhsGhostEvaled : StringModule rhsGhostType :=
-  [e| (rhsGhostLower e.max_type), ε_rhs_ghost.find? ]
+  [e| (rhsGhostLower e.max_type), ε_rhs_ghost.toEnv ]
 reduction_by
   (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
    dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
@@ -362,49 +362,23 @@ reduction_by
    simp (disch := decide) only [AssocList.bijectivePortRenaming_invert]
    dsimp [Module.product]
    dsimp -failIfUnchanged
-   -- dsimp only [drcomponents, Batteries.AssocList.mapKey, NatModule.stringify_input, InternalPort.map]
-   -- dsimp only [reduceAssocListfind?]
-   -- set_option pp.explicit true in trace_state
-
-   -- set_option diagnostics true in
-   -- dsimp only [reduceModuleconnect'2]
    dsimp only [Module.connect']
    dsimp only [reduceEraseAll]
    dsimp; dsimp [PortMap.getIO, reduceAssocListfind?]
    unfold Module.connect''
    dsimp [Module.liftL, Module.liftR, drcomponents])
 
-omit e in
-theorem rw_opaque' {f : Type _ → Type _} {a s s' : Σ T, f T} (heq : s = s') : a = s ↔ a = s' := by
-  subst s; rfl
-
-omit e in
-theorem rw_opaque'' {f : Type _ → Type _} {a s s' : Σ T, f T} (heq1 : s.fst = s'.fst) (heq2 : s.snd = (congrArg f heq1).mpr s'.snd) : a = s ↔ a = s' := by
-  cases s; cases s'
-  constructor <;> (intros; subst a; simp_all)
-  assumption
-  symm; assumption
-
-omit e in
-theorem rw_opaque''' {f : Type _ → Type _} {s s' : Σ T, f T} (heq : s = s') : Sigma.mk s.fst s.snd = Sigma.mk s'.fst s'.snd := by grind
-
 seal T f in
 theorem lhs_evaled_eq :
-  (⟨_, lhsEvaled⟩ : TModule1 String) = ⟨_, [e| (lhsLower e.types), e.ε.find? ]⟩ := by
+  (⟨_, lhsEvaled⟩ : TModule1 String) = ⟨_, [e| (lhsLower e.types), e.ε.toEnv ]⟩ := by
   (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
    dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
    dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
-   rw [rw_opaque''' (by simp only [drenv]; rfl)]; dsimp
+   rw [sigma_rw (by simp only [drenv]; rfl)]; dsimp
    dsimp [Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts, Module.mapInputPorts, reduceAssocListfind?]
    simp (disch := decide) only [AssocList.bijectivePortRenaming_invert]
    dsimp [Module.product]
    dsimp -failIfUnchanged
-   -- dsimp only [drcomponents, Batteries.AssocList.mapKey, NatModule.stringify_input, InternalPort.map]
-   -- dsimp only [reduceAssocListfind?]
-   -- set_option pp.explicit true in trace_state
-
-   -- set_option diagnostics true in
-   -- dsimp only [reduceModuleconnect'2]
    dsimp only [Module.connect']
    dsimp only [reduceEraseAll]
    dsimp; dsimp [PortMap.getIO, reduceAssocListfind?]
@@ -414,21 +388,15 @@ theorem lhs_evaled_eq :
 
 seal T f ε_rhs_ghost in
 theorem rhs_ghost_evaled_eq :
-  (⟨_, rhsGhostEvaled⟩ : TModule1 String) = ⟨_, [e| (rhsGhostLower e.max_type), ε_rhs_ghost.find? ]⟩ := by
+  (⟨_, rhsGhostEvaled⟩ : TModule1 String) = ⟨_, [e| (rhsGhostLower e.max_type), ε_rhs_ghost.toEnv ]⟩ := by
   (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
    dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
    dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
-   rw [rw_opaque''' (by simp only [drenv]; rfl)]; dsimp
+   rw [sigma_rw (by simp only [drenv]; rfl)]; dsimp
    dsimp [Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts, Module.mapInputPorts, reduceAssocListfind?]
    simp (disch := decide) only [AssocList.bijectivePortRenaming_invert]
    dsimp [Module.product]
    dsimp -failIfUnchanged
-   -- dsimp only [drcomponents, Batteries.AssocList.mapKey, NatModule.stringify_input, InternalPort.map]
-   -- dsimp only [reduceAssocListfind?]
-   -- set_option pp.explicit true in trace_state
-
-   -- set_option diagnostics true in
-   -- dsimp only [reduceModuleconnect'2]
    dsimp only [Module.connect']
    dsimp only [reduceEraseAll]
    dsimp; dsimp [PortMap.getIO, reduceAssocListfind?]
@@ -436,21 +404,35 @@ theorem rhs_ghost_evaled_eq :
    dsimp [Module.liftL, Module.liftR, drcomponents])
   rfl
 
+seal T f ε_rhs_ghost in
+theorem build_rhs_ghost_isSome : ((rhsGhostLower e.max_type).build_module' ε_rhs_ghost.toEnv).isSome := by
+  rw [Option.isSome_iff_exists]; constructor
+  (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
+   dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
+   dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
+   simp only [drenv]; rfl)
+
+seal T f ε_rhs_ghost in
+theorem rhs_ghost_evaled_eq2 :
+  (⟨_, [e| (rhsGhostLower e.max_type), ε_rhs_ghost.toEnv ]⟩ : TModule1 String) = ⟨_, [e| (rhsGhostLower e.max_type), (e.ε ++ ε_rhs_ghost).toEnv ]⟩ := by
+  apply ExprLow.build_module'_build_module_eq
+  apply ExprLow.subset_build_module_isSome
+  · rw [FinEnv.union_eq]
+    apply Env.independent_subset_of_union
+    apply ε_rhs_ghost_independent
+  · apply build_rhs_ghost_isSome
+
+seal T f ε_rhs_ghost in
+theorem rhs_ghost_evaled_eq3 :
+  (⟨_, rhsGhostEvaled⟩ : TModule1 String) = ⟨_, [e| (rhsGhostLower e.max_type), (e.ε ++ ε_rhs_ghost).toEnv ]⟩ := by
+  rw [rhs_ghost_evaled_eq, rhs_ghost_evaled_eq2]
+
 def rewrite : Rewrite String (String × Nat) where
   params := 8
   pattern := default
   rewrite := fun types n => ⟨lhsLower types, rhsGhostLower n⟩
   fresh_types := 5
   name := "loop-rewrite"
-
-
-  -- ε_ext := ε_rhs
-  -- ε_ext_wf := sorry
-  -- ε_independent := sorry
-  -- rhs_wf := sorry
-  -- rhs_wt := sorry
-  -- lhs_locally_wf := lhsLower_locally_wf
-  -- refinement := by sorry
 
 end Proof
 

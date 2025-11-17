@@ -509,6 +509,12 @@ theorem run'_refines {b} {ε_global : FinEnv String (String × Nat)}
   apply FinEnv.subset_of_union
   assumption
 
+/--
+info: 'Graphiti.run'_refines' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms run'_refines
+
 theorem run'_preserves_well_formed {b} {ε_global : FinEnv String (String × Nat)}
   {g g' : ExprHigh String (String × Nat)}
   {e_g : ExprLow String (String × Nat)}
@@ -775,7 +781,5 @@ theorem run'_preserves_well_typed {b} {ε_global : FinEnv String (String × Nat)
     apply Env.independent_symm
     apply vrw.ε_independent
     apply vrw.rhs_wt
-
-#print axioms run'_preserves_well_typed
 
 end Graphiti

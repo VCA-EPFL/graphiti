@@ -107,6 +107,7 @@ inductive type_correct_module : ExprLow Ident Typ → Prop where
 
 notation:max "[e| " e ", " ε " ]" => build_module_expr ε e
 notation:max "[T| " e ", " ε " ]" => build_module_type ε e
+-- notation:max "〚" e "〛_{" ε "}" => build_module_expr ε e
 
 def wf : ExprLow Ident Typ → Bool := ExprLow.all (λ typ => (ε typ).isSome)
 
@@ -3027,6 +3028,15 @@ theorem subset_build_module {ε : Env Ident Typ} {ε' : Env Ident Typ} {e : Expr
     cases h2'
     rw [ih1,ih2] <;> try assumption
     rfl
+
+theorem subset_build_module_isSome {ε : Env Ident Typ} {ε' : Env Ident Typ} {e : ExprLow Ident Typ} :
+  ε.subsetOf ε' → (e.build_module' ε).isSome → e.build_module' ε = e.build_module' ε' := by
+  grind [subset_build_module, Option.isSome_iff_exists]
+
+theorem build_module'_build_module_eq {ε : Env Ident Typ} {ε' : Env Ident Typ} {e e' : ExprLow Ident Typ} :
+  e.build_module' ε = e'.build_module' ε' → Sigma.mk _ [e| e, ε] = Sigma.mk _ [e| e', ε'] := by
+  intro heq; dsimp [build_module_expr, build_module]
+  rw [sigma_rw (by rw [heq])]
 
 theorem subset_build_module_interface {ε : Env Ident Typ} {ε' : Env Ident Typ} {e : ExprLow Ident Typ} {m} :
   ε.subsetOf ε' → e.build_module_interface ε = some m → e.build_module_interface ε' = some m := by

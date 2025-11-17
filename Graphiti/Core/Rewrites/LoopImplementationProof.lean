@@ -132,6 +132,18 @@ inductive state_relation : rhsGhostType -> Prop where
 def default_lhs : lhsType := by unfold lhsType; apply default
 def default_rhs : rhsGhostType := by unfold rhsGhostType; apply default
 
+theorem default_rhs_eq {p} : rhsGhostEvaled.init_state p → p = default_rhs := by
+  intro hghost
+  dsimp [rhsGhostEvaled, tagger_untagger_val_ghost, NatModule.tagger_untagger_val_ghost, NatModule.stringify, Module.mapIdent] at hghost
+  dsimp [default_rhs, default, Batteries.instInhabitedAssocList.default];
+  obtain ⟨x_module, ⟨x_branchD, x_branchB⟩, x_merge, ⟨x_tagT, x_tagM, x_tagD ⟩, ⟨x_splitD, x_splitB⟩⟩ := p
+  grind
+
+theorem default_lhs_eq : lhsEvaled.init_state default_lhs := by
+  dsimp [lhsEvaled, tagger_untagger_val_ghost, NatModule.tagger_untagger_val_ghost, NatModule.stringify, Module.mapIdent]
+  dsimp [default_lhs, default, Batteries.instInhabitedAssocList.default]
+  grind
+
 theorem state_relation_empty :
   state_relation default_rhs := by
   constructor <;> try trivial
@@ -1622,15 +1634,32 @@ theorem refine:
         . assumption
         . assumption
 
+theorem refines_init :
+  Module.refines_initial rhsGhostEvaled lhsEvaled φ := by
+  unfold Module.refines_initial; intro i hi
+  have hi' := default_rhs_eq hi; subst i
+  refine ⟨_, default_lhs_eq, φ_empty⟩
+
+theorem refines : rhsGhostEvaled ⊑ lhsEvaled := ⟨inferInstance, φ, refine, refines_init⟩
+
+noncomputable def verified_rewrite : VerifiedRewrite (rewrite.rewrite e.types e.max_type) e.ε where
+  ε_ext := ε_rhs_ghost
+  ε_ext_wf := ε_rhs_ghost_wf
+  ε_independent := Env.independent_symm ε_rhs_ghost_independent
+  rhs_wf := ghost_rhs_wf
+  rhs_wt := ghost_rhs_wt
+  lhs_locally_wf := by dsimp [rewrite]; apply lhsLower_locally_wf
+  refinement := by
+    apply Module.refines_eq_relax
+    apply rhs_ghost_evaled_eq3.symm
+    apply lhs_evaled_eq.symm
+    apply refines
+
 /--
-info: 'Graphiti.LoopRewrite.refine' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: 'Graphiti.LoopRewrite.verified_rewrite' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs in
-#print axioms refine
-
-axiom verified_rewrite : VerifiedRewrite (rewrite.rewrite e.types e.max_type) e.ε -- where
-  -- ε_ext := ε_rhs_ghost
-
+#print axioms verified_rewrite
 
 end Proof
 end Graphiti.LoopRewrite

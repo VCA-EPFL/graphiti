@@ -51,6 +51,31 @@ theorem independent_subset_of_union {Ident Typ} {ε₁ ε₂ : Env Ident Typ} :
   intros; simp [subsetOf, independent, union] at *
   grind
 
+def well_formed'' (s : String) (m : TModule1 String) : Prop :=
+  match s with
+  | "branch" => ∃ T, m = ⟨_, StringModule.branch T⟩
+  | "cntrl_merge" => ∃ T, m = ⟨_, StringModule.cntrl_merge T⟩
+  | "constant" => ∃ (T : Sigma id), m = ⟨_, StringModule.constant T.2⟩
+  | "fork" => ∃ (T : Type _ × Nat), m = ⟨_, StringModule.fork T.1 T.2⟩
+  | "fork2" => ∃ T, m = ⟨_, StringModule.fork2 T⟩
+  | "init" => ∃ (T : Sigma id), m = ⟨_, StringModule.init T.1 T.2⟩
+  | "initBool" => m = ⟨_, StringModule.init Bool false⟩
+  | "join" => ∃ (T : Type _ × Type _), m = ⟨_, StringModule.join T.1 T.2⟩
+  | "load" => ∃ (T : Type _ × Type _), m = ⟨_, StringModule.load T.1 T.2⟩
+  | "merge" => ∃ (T : Type _ × Nat), m = ⟨_, StringModule.merge T.1 T.2⟩
+  | "merge2" => ∃ T, m = ⟨_, StringModule.merge T 2⟩
+  | "mux" => ∃ T, m = ⟨_, StringModule.mux T⟩
+  | "operator1" => ∃ (T : Type _ × (Sigma (λ x => Inhabited x)) × String), m = ⟨_, @StringModule.operator1 T.1 T.2.1.1 T.2.1.2 T.2.2⟩
+  | "operator2" => ∃ (T : Type _ × Type _ × (Sigma (λ x => Inhabited x)) × String), m = ⟨_, @StringModule.operator2 T.1 T.2.1 T.2.2.1.1 T.2.2.1.2 T.2.2.2⟩
+  | "operator3" => ∃ (T : Type _ × Type _ × Type _ × (Sigma (λ x => Inhabited x)) × String), m = ⟨_, @StringModule.operator3 T.1 T.2.1 T.2.2.1 T.2.2.2.1.1 T.2.2.2.1.2 T.2.2.2.2⟩
+  | "pure" => ∃ (T : Σ R, Σ S, R → S), m = ⟨_, StringModule.pure T.2.2⟩
+  | "queue" => ∃ T, m = ⟨_, StringModule.queue T⟩
+  | "sink" => ∃ (T : Type _ × Nat), m = ⟨_, StringModule.sink T.1 T.2⟩
+  | "split" => ∃ (T : Type _ × Type _), m = ⟨_, StringModule.split T.1 T.2⟩
+  | "tagger_untagger_val" => ∃ (T : Sigma (λ x => DecidableEq x) × Type _ × Type _), m = ⟨_, @StringModule.tagger_untagger_val T.1.1 T.1.2 T.2.1 T.2.2⟩
+  | "tagger_untagger_val_ghost" => ∃ (T : Sigma (λ x => DecidableEq x) × Type _), m = ⟨_, @StringModule.tagger_untagger_val_ghost T.1.1 T.1.2 T.2⟩
+  | _ => True
+
 def well_formed' {α} (ε : Env String (String × α)) (s : String × α) : Prop :=
   match s.1 with
   | "branch" => ∃ T, ε s = some ⟨_, StringModule.branch T⟩
@@ -73,10 +98,37 @@ def well_formed' {α} (ε : Env String (String × α)) (s : String × α) : Prop
   | "sink" => ∃ (T : Type _ × Nat), ε s = some ⟨_, StringModule.sink T.1 T.2⟩
   | "split" => ∃ (T : Type _ × Type _), ε s = some ⟨_, StringModule.split T.1 T.2⟩
   | "tagger_untagger_val" => ∃ (T : Sigma (λ x => DecidableEq x) × Type _ × Type _), ε s = some ⟨_, @StringModule.tagger_untagger_val T.1.1 T.1.2 T.2.1 T.2.2⟩
+  | "tagger_untagger_val_ghost" => ∃ (T : Sigma (λ x => DecidableEq x) × Type _), ε s = some ⟨_, @StringModule.tagger_untagger_val_ghost T.1.1 T.1.2 T.2⟩
   | _ => True
 
 def well_formed {α} (ε : Env String (String × α)) : Prop :=
   ∀ s, (ε s).isSome → well_formed' ε s
+
+def well_formed_alt {α} (ε : Env String (String × α)) : Prop :=
+  ∀ s y, ε s = some y → well_formed'' s.1 y
+
+theorem well_formed_alt_correct {α} {ε : Env String (String × α)} :
+  well_formed ε ↔ well_formed_alt ε := by
+  constructor
+  · intro hwf
+    dsimp [well_formed, well_formed_alt] at *
+    intro s y hsome
+    specialize hwf _ (by rw [hsome]; rfl)
+    dsimp [well_formed'', well_formed'] at *
+    split at hwf
+    all_goals
+      try obtain ⟨T, ht⟩ := hwf; exists T
+      grind
+  · intro hwf
+    dsimp [well_formed, well_formed_alt] at *
+    intro s hsome
+    have ⟨y, hsome'⟩ := Option.isSome_iff_exists.mp hsome
+    specialize hwf _ _ hsome'
+    dsimp [well_formed'', well_formed'] at *
+    split at hwf
+    all_goals
+      try obtain ⟨T, ht⟩ := hwf; exists T
+      grind
 
 end Env
 
@@ -113,6 +165,25 @@ def max_type {Ident} (f : FinEnv Ident (String × Nat)) : Option Nat :=
 
 def max_typeD {Ident} (f : FinEnv Ident (String × Nat)) : Nat :=
   f.max_type |>.getD 0
+
+theorem max_typeD_none [BEq (String × Nat)] [LawfulBEq (String × Nat)] {Ident n m} {f : FinEnv Ident (String × Nat)} :
+  f.max_typeD ≤ m →
+  m < n.2 →
+  f.find? n = none := by
+  dsimp [max_typeD, max_type]; intro h hlt
+  match hsome : (List.map Prod.snd (Batteries.AssocList.keysList f)).max? with
+  | some n' =>
+    have hsome' := @List.max?_le_iff _ _ _ _ _ _ hsome
+    rw [hsome] at h; dsimp at h
+    rw [hsome'] at h
+    match hfind? : f.find? n with
+    | some elem =>
+      exfalso
+      specialize h n.2
+      specialize h (by apply List.mem_map_of_mem; apply Batteries.AssocList.keysList_find'; rw [hfind?]; rfl)
+      grind
+    | none => rfl
+  | none => simp_all [Batteries.AssocList.keysList]
 
 theorem union_eq {Ident Typ} [DecidableEq Typ] {ε₁ ε₂ : FinEnv Ident Typ} :
   (ε₁ ++ ε₂).toEnv = Env.union ε₁.toEnv ε₂.toEnv := by

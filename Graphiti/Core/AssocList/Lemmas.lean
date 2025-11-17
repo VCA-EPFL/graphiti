@@ -243,6 +243,9 @@ theorem contains_find?_none_iff {α β} [DecidableEq α] {m : AssocList α β} {
 theorem keysList_find {α β} [DecidableEq α] {m : AssocList α β} {ident} :
   (m.find? ident).isSome → ident ∈ m.keysList := by simp_all [keysList]
 
+theorem keysList_find' {α β} [BEq α] [LawfulBEq α] {m : AssocList α β} {ident} :
+  (m.find? ident).isSome → ident ∈ m.keysList := by simp_all [keysList]
+
 theorem keysList_find2 {α β} [DecidableEq α] {m : AssocList α β} {ident} :
   ident ∈ m.keysList → (m.find? ident).isSome := by simp_all [keysList]
 
