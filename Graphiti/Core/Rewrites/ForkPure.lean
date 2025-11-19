@@ -11,39 +11,28 @@ namespace Graphiti.ForkPure
 
 open StringModule
 
-variable (T₁ T₂ : Type)
-variable (f : T₁ → T₂)
-variable (S₁ S₂ : String)
+variable (T : Vector Nat 2)
+variable (M : Nat)
 
-def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) := do
+def matcher : Pattern String (String × Nat) 2 := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
        if s.isSome then return s
-       unless "pure".isPrefixOf typ do return none
+       unless "pure" == typ.1 do return none
 
        let (.some p) := followOutput g inst "out1" | return none
-       unless "fork".isPrefixOf p.typ do return none
+       unless "fork" == p.typ.1 do return none
 
-       let (.some t1) := p.typ.splitOn[1]? | return none
-       let (.some jt1) := typ.splitOn[1]? | return none
-       let (.some jt2) := typ.splitOn[2]? | return none
-
-       unless t1 = jt2 do throw (.error s!"{inst} :: {p.inst}")
-
-       -- -- TODO: prevent forks being moved away from branch/mux
-       -- let (.some mux) := followOutput g p.inst "out1" | return none
-       -- unless "mux".isPrefixOf mux.typ || "branch".isPrefixOf mux.typ do return none
-
-       return some ([inst, p.inst], [jt1, jt2])
+       return some ([inst, p.inst], #v[typ.2, p.typ.2])
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
-def lhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+def lhs : ExprHigh String (String × Nat) := [graph|
     i [type = "io"];
     o1 [type = "io"];
     o2 [type = "io"];
 
-    pure [typeImp = $(⟨_, StringModule.pure f⟩), type = $(s!"pure {S₁} {S₂}")];
-    fork [typeImp = $(⟨_, fork T₂ 2⟩), type = $(s!"fork {S₂} 2")];
+    pure [type = "pure", arg = $(T[0])];
+    fork [type = "fork", arg = $(T[1])];
 
     i -> pure [to="in1"];
     pure -> fork [from="out1",to="in1"];
@@ -51,20 +40,18 @@ def lhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphE
     fork -> o2 [from="out2"];
   ]
 
-def lhs_extract := (lhs Unit Unit (λ _ => default) S₁ S₂).fst.extract ["pure", "fork"] |>.get rfl
+def lhs_extract := (lhs T).extract ["pure", "fork"] |>.get rfl
+theorem double_check_empty_snd : (lhs_extract T).snd = ExprHigh.mk ∅ ∅ := by rfl
+def lhsLower := lhs_extract T |>.fst.lower.get rfl
 
-theorem double_check_empty_snd : (lhs_extract S₁ S₂).snd = ExprHigh.mk ∅ ∅ := by rfl
-
-def lhsLower := (lhs_extract S₁ S₂).fst.lower.get rfl
-
-def rhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+def rhs : ExprHigh String (String × Nat) := [graph|
     i [type = "io"];
     o1 [type = "io"];
     o2 [type = "io"];
 
-    fork [typeImp = $(⟨_, fork T₁ 2⟩), type = $(s!"fork {S₁} 2")];
-    pure1 [typeImp = $(⟨_, StringModule.pure f⟩), type = $(s!"pure {S₁} {S₂}")];
-    pure2 [typeImp = $(⟨_, StringModule.pure f⟩), type = $(s!"pure {S₁} {S₂}")];
+    fork [type = "fork", arg = $(M+1)];
+    pure1 [type = "pure", arg = $(M+2)];
+    pure2 [type = "pure", arg = $(M+3)];
 
     i -> fork [to="in1"];
     fork -> pure1 [from="out1",to="in1"];
@@ -73,19 +60,19 @@ def rhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphE
     pure2 -> o2 [from="out1"];
   ]
 
-def rhs_extract := (rhs Unit Unit (λ _ => default) S₁ S₂).fst.extract ["fork", "pure1", "pure2"] |>.get rfl
+def rhs_extract := (rhs M).extract ["fork", "pure1", "pure2"] |>.get rfl
+def rhsLower := (rhs_extract M).fst.lower.get rfl
+def findRhs mod := (rhs_extract 0).fst.modules.find? mod |>.map Prod.fst
 
-def rhsLower := (rhs_extract S₁ S₂).fst.lower.get rfl
-
-def findRhs mod := (rhs_extract "" "").1.modules.find? mod |>.map Prod.fst
-
-def rewrite : Rewrite String String :=
+def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
+    params := 2
     pattern := matcher,
-    rewrite := λ | [S₁, S₂] => .some ⟨lhsLower S₁ S₂, rhsLower S₁ S₂⟩ | _ => failure,
+    rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
     name := "fork-pure"
     transformedNodes := [.none, findRhs "fork" |>.get rfl]
     addedNodes := [findRhs "pure1" |>.get rfl, findRhs "pure2" |>.get rfl]
+    fresh_types := 3
   }
 
 end Graphiti.ForkPure

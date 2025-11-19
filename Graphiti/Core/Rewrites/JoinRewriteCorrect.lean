@@ -35,7 +35,7 @@ abbrev Ident := Nat
 -- abbrev S₁ := "S1"
 -- abbrev S₂ := "S2"
 -- abbrev S₃ := "S3"
-variable {T₁ T₂ T₃ : Type}
+variable {l : Vector Nat 3}
 variable (S₁ S₂ S₃ : String)
 
 @[drunfold_defs]

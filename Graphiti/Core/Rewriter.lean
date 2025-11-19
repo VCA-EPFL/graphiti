@@ -119,6 +119,10 @@ def ofOption {ε α σ} (e : ε) : Option α → EStateM ε σ α
 | some o => pure o
 | none => throw e
 
+def ofOption' {ε α} (e : ε) : Option α → Except ε α
+| some o => pure o
+| none => throw e
+
 def liftError {α σ} : Except String α → EStateM RewriteError σ α
 | .ok o => pure o
 | .error s => throw (.error s)
@@ -772,9 +776,9 @@ def extractType (s : String) : String :=
   let parts := s.splitOn " "
   parts.tail.foldl (λ a b => a ++ " " ++ b) "" |>.drop 1
 
-def match_node (extract_type : String → RewriteResult (List String)) (nn : String) (g : ExprHigh String String)
-    : RewriteResult (List String × List String) := do
-  let (_map, typ) ← ofOption (.error s!"{decl_name%}: module '{nn}' not found") (g.modules.find? nn)
+def match_node {n : Nat} (extract_type : (String × Nat) → RewriteResultSL (Vector Nat n)) (nn : String) (g : ExprHigh String (String × Nat))
+    : RewriteResultSL (List String × Vector Nat n) := do
+  let (_map, typ) ← ofOption' (.error s!"{decl_name%}: module '{nn}' not found") (g.modules.find? nn)
   let types ← extract_type typ
   return ([nn], types)
 
