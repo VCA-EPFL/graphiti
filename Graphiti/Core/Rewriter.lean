@@ -15,7 +15,7 @@ namespace Graphiti
 inductive RewriteError where
 | error (s : String)
 | done
-deriving Repr
+deriving Repr, Inhabited, DecidableEq
 
 instance : ToString RewriteError where
   toString
@@ -39,7 +39,7 @@ structure RuntimeEntry where
   new_output_nodes : List String
   debug : Option String := .none
   name : Option String := .none
-  deriving Repr, Inhabited
+  deriving Repr, Inhabited, DecidableEq
 
 def RuntimeEntry.marker (s : String) : RuntimeEntry :=
   {(default : RuntimeEntry) with type := .marker s}
@@ -70,7 +70,7 @@ structure RewriteState where
   runtime_trace : RuntimeTrace
   fresh_prefix : Nat
   fresh_type : Nat
-deriving Repr, Inhabited
+deriving Repr, Inhabited, DecidableEq
 
 abbrev RewriteResult := EStateM RewriteError RewriteState
 abbrev RewriteResultSL := Except RewriteError
@@ -95,11 +95,12 @@ structure Abstraction (n) where
 structure Concretisation where
   expr : ExprLow Ident Typ
   typ : Ident
-deriving Repr, Inhabited
+deriving Repr, Inhabited, DecidableEq
 
 structure DefiniteRewrite where
   input_expr : ExprLow Ident Typ
   output_expr : ExprLow Ident Typ
+deriving Repr, Inhabited, DecidableEq
 
 structure Rewrite where
   params : Nat

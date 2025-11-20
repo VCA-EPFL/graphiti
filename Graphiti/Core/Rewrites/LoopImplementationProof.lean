@@ -1654,7 +1654,7 @@ noncomputable def verified_rewrite : VerifiedRewrite (rewrite.rewrite e.types e.
     apply rhs_ghost_evaled_eq3.symm
     apply lhs_evaled_eq.symm
     apply refines
-
+#check Quot.sound
 /--
 info: 'Graphiti.LoopRewrite.verified_rewrite' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/

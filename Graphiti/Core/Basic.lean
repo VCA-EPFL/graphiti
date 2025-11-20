@@ -55,6 +55,8 @@ instance {α} [Inhabited α] : Alternative (Except α) where
                 | .ok x => .ok x
                 | _ => f ()
 
+deriving instance DecidableEq for Except
+
 section SimpProc
 
 open Lean Meta Simp
