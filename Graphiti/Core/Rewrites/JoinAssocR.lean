@@ -13,33 +13,32 @@ namespace Graphiti.JoinAssocR
 
 open StringModule
 
-def identMatcher (s : String) (g : ExprHigh String String) : RewriteResult (List String × List String) := do
-  let n ← ofOption (.error s!"{decl_name%}: could not find '{s}'") <| g.modules.find? s
-  unless "join".isPrefixOf n.2 do throw (.error s!"type of '{s}' is '{n.2}' instead of 'join'")
-  let next ← ofOption (.error s!"{decl_name%}: could not find next node") <| followInput g s "in1"
-  unless "join".isPrefixOf next.typ do throw (.error s!"type of '{next.inst}' is '{next.typ}' instead of 'join'")
+variable (T : Vector Nat 2)
+variable (M : Nat)
 
-  let (.some t1) := next.typ.splitOn[1]? | throw (.error s!"{decl_name%}: type incorrect1")
-  let (.some t2) := next.typ.splitOn[2]? | throw (.error s!"{decl_name%}: type incorrect2")
-  let (.some t3) := n.2.splitOn[2]? | throw (.error s!"{decl_name%}: type incorrect3")
+def identMatcher (s : String) : Pattern String (String × Nat) 2 := fun g => do
+  let n ← ofOption' (.error s!"{decl_name%}: could not find '{s}'") <| g.modules.find? s
+  unless "join" == n.2.1 do throw (.error s!"type of '{s}' is '{n.2}' instead of 'join'")
+  let next ← ofOption' (.error s!"{decl_name%}: could not find next node") <| followInput g s "in1"
+  unless "join" == next.typ.1 do throw (.error s!"type of '{next.inst}' is '{next.typ}' instead of 'join'")
 
-  return ([s, next.inst], [t1, t2, t3])
+  return ([s, next.inst], #v[n.2.2, next.typ.2])
 
-def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) :=
+def matcher : Pattern String (String × Nat) 2 := fun g => do
   throw (.error s!"{decl_name%}: matcher not implemented")
 
-def identRenaming (s : String) (g : ExprHigh String String) : RewriteResult (AssocList String (Option String)) := do
-  let next ← ofOption (.error s!"{decl_name%}: could not find next node") <| followInput g s "in1"
+def identRenaming (s : String) (g : ExprHigh String String) : RewriteResultSL (AssocList String (Option String)) := do
+  let next ← ofOption' (.error s!"{decl_name%}: could not find next node") <| followInput g s "in1"
   return [(next.inst, (.some "join1")), (s, (.some "join2"))].toAssocList
 
-def lhs (T₁ T₂ T₃ : Type) (S₁ S₂ S₃ : String) : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+def lhs : ExprHigh String (String × Nat) := [graph|
     i_0 [type = "io"];
     i_1 [type = "io"];
     i_2 [type = "io"];
     o_out [type = "io"];
 
-    join1 [typeImp = $(⟨_, join T₁ T₂⟩), type = $(s!"join {S₁} {S₂}")];
-    join2 [typeImp = $(⟨_, join (T₁ × T₂) T₃⟩), type = $(s!"join ({S₁}×{S₂}) {S₃}")];
+    join1 [type = "join", arg = $(T[0])];
+    join2 [type = "join", arg = $(T[1])];
 
     i_0 -> join1 [to = "in1"];
     i_1 -> join1 [to = "in2"];
@@ -50,22 +49,19 @@ def lhs (T₁ T₂ T₃ : Type) (S₁ S₂ S₃ : String) : ExprHigh String Stri
     join2 -> o_out [from = "out1"];
   ]
 
-def lhs_extract S₁ S₂ S₃ := (lhs Unit Unit Unit S₁ S₂ S₃).fst.extract ["join2", "join1"] |>.get rfl
+def lhs_extract := (lhs T).extract ["join1", "join2"] |>.get rfl
+theorem double_check_empty_snd : (lhs_extract T).snd = ExprHigh.mk ∅ ∅ := by rfl
+def lhsLower := lhs_extract T |>.fst.lower.get rfl
 
-theorem double_check_empty_snd S₁ S₂ S₃ : (lhs_extract S₁ S₂ S₃).snd = ExprHigh.mk ∅ ∅ := by rfl
-
-def lhsLower S₁ S₂ S₃ := (lhs_extract S₁ S₂ S₃).fst.lower.get rfl
-
-def rhs (T₁ T₂ T₃ : Type) (S₁ S₂ S₃ : String) : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+def rhs : ExprHigh String (String × Nat) := [graph|
     i_0 [type = "io"];
     i_1 [type = "io"];
     i_2 [type = "io"];
     o_out [type = "io"];
 
-    join2 [typeImp = $(⟨_, join T₂ T₃⟩), type = $(s!"join {S₂} {S₃}")];
-    join1 [typeImp = $(⟨_, join T₁ (T₂ × T₃)⟩), type = $(s!"join {S₁} ({S₂}×{S₃})")];
-    pure [typeImp = $(⟨_, StringModule.pure (λ ((a, b, c) : T₁ × T₂ × T₃) => ((a, b), c))⟩),
-          type = $(s!"pure ({S₁}×({S₂}×{S₃})) (({S₁}×{S₂})×{S₃})")];
+    join2 [type = "split", arg = $(M+1)];
+    join1 [type = "split", arg = $(M+2)];
+    pure [type = "pure", arg = $(M+3)];
 
     i_1 -> join2 [to = "in1"];
     i_2 -> join2 [to = "in2"];
@@ -77,22 +73,22 @@ def rhs (T₁ T₂ T₃ : Type) (S₁ S₂ S₃ : String) : ExprHigh String Stri
     pure -> o_out [from = "out1"];
   ]
 
-def rhs_extract S₁ S₂ S₃ := (rhs Unit Unit Unit S₁ S₂ S₃).fst.extract ["join2", "join1", "pure"] |>.get rfl
+def rhs_extract := (rhs M).extract ["join2", "join1", "pure"] |>.get rfl
+def rhsLower := (rhs_extract M).fst.lower.get rfl
+def findRhs mod := (rhs_extract 0).fst.modules.find? mod |>.map Prod.fst
 
-def rhsLower S₁ S₂ S₃ := (rhs_extract S₁ S₂ S₃).fst.lower.get rfl
-
-def findRhs mod := (rhs Unit Unit Unit "" "" "").1.modules.find? mod |>.map Prod.fst
-
-def rewrite : Rewrite String String :=
+def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
+    params := 2
     pattern := matcher,
-    rewrite := λ | [S₁, S₂, S₃] => pure ⟨lhsLower S₁ S₂ S₃, rhsLower S₁ S₂ S₃⟩ | _ => failure,
+    rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
     name := "join-assoc-right"
     transformedNodes := [findRhs "join2" |>.get rfl, findRhs "join1" |>.get rfl],
     addedNodes := [findRhs "pure" |>.get rfl]
+    fresh_types := 3
   }
 
-def targetedRewrite (s : String) : Rewrite String String :=
+def targetedRewrite (s : String) :=
   { rewrite with pattern := identMatcher s }
 
 end Graphiti.JoinAssocR

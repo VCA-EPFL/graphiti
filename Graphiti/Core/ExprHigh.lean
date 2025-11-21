@@ -25,12 +25,12 @@ structure NamedExprHigh (Ident Typ : Type _) where
   inPorts     : IdentMap Ident (InternalPort Ident)
   outPorts    : IdentMap Ident (InternalPort Ident)
 
-structure NextNode (Ident) where
+structure NextNode (Ident Typ : Type _) where
   inst : Ident
   incomingPort : Ident
   outgoingPort : Ident
   portMap : PortMapping Ident
-  typ : Ident
+  typ : Typ
   connection : Connection Ident
 deriving Repr, Inhabited
 
@@ -48,28 +48,28 @@ variable {Typ : Type t}
 variable [DecidableEq Ident]
 variable [DecidableEq Typ]
 
-def findInputPort (p : InternalPort Ident) (i : IdentMap Ident (PortMapping Ident × Ident)) : Option Ident :=
+def findInputPort (p : InternalPort Ident) (i : IdentMap Ident (PortMapping Ident × Typ)) : Option Ident :=
   i.foldl (λ a k v =>
       match a with | some a' => a | none => do
         let _ ← if (v.fst.input.filter (λ k' v' => p = v')).length > 0 then pure PUnit.unit else failure
         return k
     ) none
 
-def findInputPort' (p : InternalPort Ident) (i : IdentMap Ident (PortMapping Ident × Ident)) : Option (Ident × Ident) :=
+def findInputPort' (p : InternalPort Ident) (i : IdentMap Ident (PortMapping Ident × Typ)) : Option (Ident × Ident) :=
   i.foldl (λ a k v =>
       match a with | some a' => a | none => do
         let l ← v.fst.input.findEntryP? (λ k' v' => p = v')
         return (k, l.fst.name)
     ) none
 
-def findOutputPort (p : InternalPort Ident) (i : IdentMap Ident (PortMapping Ident × Ident)) : Option Ident :=
+def findOutputPort (p : InternalPort Ident) (i : IdentMap Ident (PortMapping Ident × Typ)) : Option Ident :=
   i.foldl (λ a k v =>
       match a with | some a' => a | none => do
         let _ ← if (v.fst.output.filter (λ k' v' => p = v')).length > 0 then pure PUnit.unit else failure
         return k
     ) none
 
-def findOutputPort' (p : InternalPort Ident) (i : IdentMap Ident (PortMapping Ident × Ident)) : Option (Ident × Ident) :=
+def findOutputPort' (p : InternalPort Ident) (i : IdentMap Ident (PortMapping Ident × Typ)) : Option (Ident × Ident) :=
   i.foldl (λ a k v =>
       match a with | some a' => a | none => do
         let l ← v.fst.output.findEntryP? (λ k' v' => p = v')
@@ -139,6 +139,9 @@ def lower_TR (e : ExprHigh Ident Typ) : Option (ExprLow Ident Typ) :=
   match e.modules.toList with
   | x :: xs => some <| lower'_conn_TR e.connections <| lower'_prod_TR xs.toAssocList (uncurry .base x.snd)
   | _ => none
+
+def map {Typ'} (f : Typ → Typ') (e : ExprHigh Ident Typ) : ExprHigh Ident Typ' :=
+  {modules := e.modules.mapVal (λ _ v => (v.1, f v.2)), connections := e.connections}
 
 end ExprHigh
 
@@ -271,17 +274,17 @@ def renamePorts f (g : ExprHigh Ident Typ) (p : PortMapping Ident) := do
   let g_lower ← g.lower
   g_lower.renamePorts p >>= ExprLow.higher_correct f
 
-def normaliseNames (e : ExprHigh String String) : Option (ExprHigh String String) :=
+def normaliseNames {α} [DecidableEq α] (e : ExprHigh String α) : Option (ExprHigh String α) :=
   let renameMap := e.modules.toList.map (λ (x, (inst, typ)) =>
     inst.mapKeys (λ keyPort bodyPort => if bodyPort.inst.isTop then bodyPort else ⟨.internal x, keyPort.name⟩))
       |> PortMapping.combinePortMapping
   e.renamePorts (λ x => PortMapping.getInstanceName x |>.getD default) renameMap
 
-def renameModules (e : ExprHigh String String) (map : Batteries.AssocList String String) :=
+def renameModules {α} [DecidableEq α] (e : ExprHigh String α) (map : Batteries.AssocList String String) :=
   let newModules := e.modules.mapKey (λ k => map.find? k |>.getD k)
   {e with modules := newModules}.normaliseNames
 
-instance : ToString (ExprHigh String String) where
+instance {α} [ToString α] [DecidableEq α] [Repr α] : ToString (ExprHigh String α) where
   toString a :=
     -- let instances :=
     --   a.modules.foldl (λ s inst mod => s ++ s!"\n {inst} [mod = \"{mod}\"];") ""
@@ -324,7 +327,7 @@ instance : ToString (ExprHigh String String) where
 }"
     | none => repr a |>.pretty
 
-def toBlueSpec (a : ExprHigh String String): String :=
+def toBlueSpec {α} [ToString α] [DecidableEq α] [Repr α] (a : ExprHigh String α): String :=
   -- let instances :=
   --   a.modules.foldl (λ s inst mod => s ++ s!"\n {inst} [mod = \"{mod}\"];") ""
   match a.normaliseNames with
@@ -347,7 +350,7 @@ def toBlueSpec (a : ExprHigh String String): String :=
     let modules :=
       a.modules.foldl
         (λ s k v =>
-          let (typ, args) := TypeExpr.Parser.parseNode v.snd |>.getD ("unknown", [])
+          let (typ, args) := TypeExpr.Parser.parseNode (toString v.snd) |>.getD ("unknown", [])
           let args' := (List.range args.length).zip args |>.map (λ (n, arg) => arg.toBlueSpec n)
           s ++ s!"  \"{k}\" [type = \"{typ}\", {", ".intercalate args'}, label = \"{k}: {v.snd}\"];\n"
           ) ""
@@ -412,20 +415,20 @@ def parseInternalPort (s : String) : Option (InternalPort String) :=
   | [first, second] => some ⟨.internal first, second⟩
   | _ => none
 
-structure InstMaps where
+structure InstMaps (α) where
   instMap : Std.HashMap String (InstIdent String × Bool)
-  instTypeMap : Std.HashMap String (PortMapping String × String)
+  instTypeMap : Std.HashMap String (PortMapping String × α)
 
-def updateNodeMaps (maps : InstMaps) (inst typ : String) (cluster : Bool := false) : Except String InstMaps := do
+def updateNodeMaps {α} (maps : InstMaps α) (inst : String) (typ : α) (isIO : Bool) (cluster : Bool := false) : Except String (InstMaps α) := do
   let mut instMap := maps.instMap
   let mut instTypeMap := maps.instTypeMap
   let mut modInst : InstIdent String := .top
-  unless typ == "io" do modInst := .internal inst
+  unless isIO do modInst := .internal inst
   let (b, map') := instMap.containsThenInsertIfNew inst (modInst, cluster)
   if !b then
     instMap := map'
     -- IO "modules" are not added to the instTypeMap.
-    unless typ == "io" do instTypeMap := instTypeMap.insert inst (∅, typ)
+    unless isIO do instTypeMap := instTypeMap.insert inst (∅, typ)
   else
     throw s!"Multiple references to {inst} found"
   return ⟨instMap, instTypeMap⟩
@@ -443,9 +446,9 @@ def ConnError.toString : ConnError → String
 instance : ToString ConnError where
   toString c := c.toString
 
-def updateConnMaps (maps : InstMaps) (conns : List (Connection String))
+def updateConnMaps {α} [Inhabited α] (maps : InstMaps α) (conns : List (Connection String))
     (outInst inInst : String) (outP inP : Option String)
-    : Except ConnError (InstMaps × List (Connection String)) := do
+    : Except ConnError (InstMaps α × List (Connection String)) := do
   let mut out := outP
   let mut inp := inP
   let some aInst := maps.instMap[outInst]? | throw (.outInstError s!"Instance has not been declared: {outInst}")

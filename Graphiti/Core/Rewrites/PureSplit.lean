@@ -11,33 +11,28 @@ namespace Graphiti.PureJoinRight
 
 open StringModule
 
-variable (T₁ T₂ T₃ : Type)
-variable (f : T₁ → T₂)
-variable (S₁ S₂ S₃ : String)
+variable (T : Vector Nat 2)
+variable (M : Nat)
 
-def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) := do
+def matcher : Pattern String (String × Nat) 2 := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
        if s.isSome then return s
-       unless "pure".isPrefixOf typ do return none
+       unless "pure" == typ.1 do return none
 
        let (.some join) := followOutput g inst "out1" | return none
-       unless "join".isPrefixOf join.typ ∧ join.inputPort = "in2" do return none
+       unless "join" == join.typ.1 ∧ join.inputPort = "in2" do return none
 
-       let (.some t1) := typ.splitOn[1]? | return none
-       let (.some t2) := typ.splitOn[2]? | return none
-       let (.some t3) := join.typ.splitOn[1]? | return none
-
-       return some ([inst, join.inst], [t1, t2, t3])
+       return some ([inst, join.inst], #v[typ.2, join.typ.2])
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
-def lhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+def lhs : ExprHigh String (String × Nat) := [graph|
     i_0 [type = "io"];
     i_1 [type = "io"];
     o_out [type = "io"];
 
-    pure [typeImp = $(⟨_, StringModule.pure f⟩), type = $(s!"pure {S₁} {S₂}")];
-    join [typeImp = $(⟨_, join T₃ T₂⟩), type = $(s!"join {S₃} {S₂}")];
+    pure [type = "pure", arg = $(T[0])];
+    join [type = "join", arg = $(T[1])];
 
     i_0 -> join [to="in1"];
     i_1 -> pure [to="in1"];
@@ -47,19 +42,17 @@ def lhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphE
     join -> o_out [from="out1"];
   ]
 
-def lhs_extract := (lhs Unit Unit Unit (λ _ => default) S₁ S₂ S₃).fst.extract ["pure", "join"] |>.get rfl
+def lhs_extract := (lhs T).extract ["pure", "join"] |>.get rfl
+theorem double_check_empty_snd : (lhs_extract T).snd = ExprHigh.mk ∅ ∅ := by rfl
+def lhsLower := (lhs_extract T).fst.lower.get rfl
 
-theorem double_check_empty_snd : (lhs_extract S₁ S₂ S₃).snd = ExprHigh.mk ∅ ∅ := by rfl
-
-def lhsLower := (lhs_extract S₁ S₂ S₃).fst.lower.get rfl
-
-def rhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+def rhs : ExprHigh String (String × Nat) := [graph|
     i_0 [type = "io"];
     i_1 [type = "io"];
     o_out [type = "io"];
 
-    join [typeImp = $(⟨_, join T₃ T₁⟩), type = $(s!"join {S₃} {S₁}")];
-    pure [typeImp = $(⟨_, StringModule.pure λ (x : T₃ × T₁) => (x.1, f x.2)⟩), type = $(s!"pure ({S₃}×{S₁}) ({S₃}×{S₂})")];
+    join [type = "join", arg = $(M+1)];
+    pure [type = "pure", arg = $(M+2)];
 
     i_0 -> join [to="in1"];
     i_1 -> join [to="in2"];
@@ -69,13 +62,18 @@ def rhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphE
     pure -> o_out [from="out1"];
   ]
 
-def rhsLower := (rhs Unit Unit Unit (λ _ => default) S₁ S₂ S₃).fst.lower.get rfl
+def rhs_extract := (rhs M).extract ["pure", "join"] |>.get rfl
+def rhsLower := (rhs_extract M).fst.lower.get rfl
+def findRhs mod := (rhs_extract 0).fst.modules.find? mod |>.map Prod.fst
 
-def rewrite : Rewrite String String :=
+def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
+    params := 2
     pattern := matcher,
-    rewrite := λ | [S₁, S₂, S₃] => .some ⟨lhsLower S₁ S₂ S₃, rhsLower S₁ S₂ S₃⟩ | _ => failure,
+    rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
+    transformedNodes := [findRhs "pure" |>.get rfl, findRhs "join" |>.get rfl]
     name := "pure-join-right"
+    fresh_types := 2
   }
 
 end Graphiti.PureJoinRight

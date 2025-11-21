@@ -32,6 +32,14 @@ inductive ExprLow (Ident Typ : Type _) : Type _ where
 | connect (c : Connection Ident) (e : ExprLow Ident Typ)
 deriving Repr, Inhabited, DecidableEq
 
+def ExprLow.map {Ident α β} (f : α → β) : ExprLow Ident α → ExprLow Ident β
+| .base map typ => .base map (f typ)
+| .product e₁ e₂ => .product (map f e₁) (map f e₂)
+| .connect c e₁ => .connect c (map f e₁)
+
+instance {Ident} : Functor (ExprLow Ident) where
+  map := ExprLow.map
+
 inductive NamedExprLow Ident Typ where
 | input : InternalPort Ident → Ident → NamedExprLow Ident Typ → NamedExprLow Ident Typ
 | output : InternalPort Ident → Ident → NamedExprLow Ident Typ → NamedExprLow Ident Typ
@@ -221,7 +229,7 @@ def force_concretise (e e_sub : ExprLow Ident Typ) (i_inst : PortMapping Ident) 
   .base i_inst i_typ |> (e.force_replace · e_sub)
 
 @[drunfold]
-def normalisedNamesMap' (pref : String) (count : Nat) : ExprLow String String → (PortMapping String × Nat)
+def normalisedNamesMap' (pref : String) (count : Nat) : ExprLow String Typ → (PortMapping String × Nat)
 | .base port typ' =>
   let p := port.inverse.mapPairs
     (λ | ⟨.top, n⟩, v => ⟨.top, n⟩
@@ -235,7 +243,7 @@ def normalisedNamesMap' (pref : String) (count : Nat) : ExprLow String String �
   (p₁.append p₂, count₂)
 
 @[drunfold]
-def normalisedNamesMap (pref : String) (e : ExprLow String String) : PortMapping String :=
+def normalisedNamesMap (pref : String) (e : ExprLow String Typ) : PortMapping String :=
   normalisedNamesMap' pref 0 e |>.fst
 
 def findBase (typ : Typ) : ExprLow Ident Typ → Option (PortMapping Ident)
@@ -496,7 +504,7 @@ def comm_connections {Ident} [DecidableEq Ident] (conn : List (Connection Ident)
 def comm_bases {Ident} [DecidableEq Ident] (bases : List (PortMapping Ident × Typ)) (e : ExprLow Ident Typ): ExprLow Ident Typ :=
   bases.foldr (Function.uncurry ExprLow.comm_base) e
 
-def getPortMaps : ExprLow String String → List (PortMapping String)
+def getPortMaps {α β} : ExprLow α β → List (PortMapping α)
 | .base inst typ => [inst]
 | .connect c e => getPortMaps e
 | .product e₁ e₂ => getPortMaps e₁ ++ getPortMaps e₂

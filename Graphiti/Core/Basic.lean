@@ -55,6 +55,13 @@ instance {α} [Inhabited α] : Alternative (Except α) where
                 | .ok x => .ok x
                 | _ => f ()
 
+def _root_.Option.toExcept {α ε} (s : ε) (o : Option α) : Except ε α :=
+  match o with
+  | .some a => .ok a
+  | .none => .error s
+
+deriving instance DecidableEq for Except
+
 section SimpProc
 
 open Lean Meta Simp
@@ -162,7 +169,7 @@ abbrev IdentMap Ident α := AssocList Ident α
 
 namespace IdentMap
 
-def replace_env {Ident α} [DecidableEq Ident] (ε : IdentMap Ident α) {ident mod}
+def replace_env {Ident α} [BEq Ident] (ε : IdentMap Ident α) {ident mod}
   (h : ε.mem ident mod) mod' :=
   (ε.replace ident mod')
 
@@ -181,13 +188,13 @@ abbrev PortMap Ident α := AssocList (InternalPort Ident) α
 namespace PortMap
 
 variable {Ident}
-variable [DecidableEq Ident]
 
 /--
 Get an IO port using external IO ports, i.e. `InternalPort Ident` with the
 instance set to `top`.
 -/
 @[drunfold] def getIO.{u₁, u₂} {S : Type u₁}
+    [BEq (InternalPort Ident)]
     (l : PortMap Ident (Σ T : Type u₂, (S → T → S → Prop)))
     (n : InternalPort Ident)
     : Σ T : Type u₂, (S → T → S → Prop) :=

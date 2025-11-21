@@ -11,31 +11,29 @@ namespace Graphiti.MuxQueueRightRewrite
 
 open StringModule
 
-variable (T : Type)
-variable (S : String)
+variable (T : Vector Nat 2)
+variable (M : Nat)
 
-def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) := do
+def matcher : Pattern String (String × Nat) 2 := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
        if s.isSome then return s
-       unless "queue".isPrefixOf typ do return none
+       unless "queue" == typ.1 do return none
 
        let (.some mux) := followOutput g inst "out1" | return none
-       unless "mux".isPrefixOf mux.typ ∧ mux.inputPort = "in3" do return none
+       unless "mux" == mux.typ.1 ∧ mux.inputPort = "in3" do return none
 
-       let (.some t1) := typ.splitOn[1]? | return none
-
-       return some ([inst, mux.inst], [t1])
+       return some ([inst, mux.inst], #v[typ.2, mux.typ.2])
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
-def lhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+def lhs : ExprHigh String (String × Nat) := [graph|
     i_1 [type = "io"];
     i_2 [type = "io"];
     i_3 [type = "io"];
     o_out [type = "io"];
 
-    q [typeImp = $(⟨_, queue T⟩), type = $(s!"queue {S}")];
-    mux [typeImp = $(⟨_, mux T⟩), type = $(s!"mux {S}")];
+    q [type = "queue", arg = $(T[0])];
+    mux [type = "mux", arg = $(T[1])];
 
     i_2 -> mux [to="in2"];
     i_1 -> mux [to="in1"];
@@ -45,19 +43,19 @@ def lhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphE
     q -> mux [from="out1", to="in3"];
   ]
 
-def lhs_extract := (lhs Unit S).fst.extract ["q", "mux"] |>.get rfl
+def lhs_extract := (lhs T).extract ["q", "mux"] |>.get rfl
 
-theorem double_check_empty_snd : (lhs_extract S).snd = ExprHigh.mk ∅ ∅ := by rfl
+theorem double_check_empty_snd : (lhs_extract T).snd = ExprHigh.mk ∅ ∅ := by rfl
 
-def lhsLower := (lhs_extract S).fst.lower.get rfl
+def lhsLower := (lhs_extract T).fst.lower.get rfl
 
-def rhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+def rhs : ExprHigh String (String × Nat) := [graph|
     i_1 [type = "io"];
     i_2 [type = "io"];
     i_3 [type = "io"];
     o_out [type = "io"];
 
-    mux [typeImp = $(⟨_, mux T⟩), type = $(s!"mux {S}")];
+    mux [type = "mux", arg = $(M+1)];
 
     i_2 -> mux [to="in2"];
     i_1 -> mux [to="in1"];
@@ -65,13 +63,21 @@ def rhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphE
     mux -> o_out [from="out1"];
   ]
 
-def rhsLower := (rhs Unit S).fst.lower.get rfl
+def rhs_extract := (rhs M).extract ["mux"] |>.get rfl
 
-def rewrite : Rewrite String String :=
+def rhsLower := (rhs_extract M).fst.lower.get rfl
+
+def findRhs mod := (rhs_extract 0).fst.modules.find? mod |>.map Prod.fst
+
+def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
+    params := 2
     pattern := matcher,
-    rewrite := λ | [S] => .some ⟨lhsLower S, rhsLower S⟩ | _ => failure
+    rewrite := λ l m => ⟨lhsLower l, rhsLower m⟩
     name := "mux-queue-right"
+    transformedNodes := [.none, findRhs "mux"]
+    addedNodes := []
+    fresh_types := 1
   }
 
 end Graphiti.MuxQueueRightRewrite

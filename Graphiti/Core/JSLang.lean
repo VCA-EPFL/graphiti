@@ -35,14 +35,14 @@ def toSExpr : JSLang → String
 
 structure JSLang.Info where
   inst : String
-  typ : String
+  typ : String × Nat
   inPort : String
   outPort : String
 
-instance : Coe (NextNode String) (JSLang.Info) where
+instance : Coe (NextNode String (String × Nat)) (JSLang.Info) where
   coe a := ⟨a.inst, a.typ, a.inputPort, a.outputPort⟩
 
-instance : Coe (Std.HashMap String (Array (NextNode String))) (Std.HashMap String (Array JSLang.Info)) where
+instance : Coe (Std.HashMap String (Array (NextNode String (String × Nat)))) (Std.HashMap String (Array JSLang.Info)) where
   coe a := a.map (fun _ v => v.map Coe.coe)
 
 def JSLang.construct (term : Nat) (succ : Std.HashMap String (Array JSLang.Info)) (endN : String) (startN : JSLang.Info) : Option JSLang :=
@@ -60,9 +60,9 @@ def JSLang.construct (term : Nat) (succ : Std.HashMap String (Array JSLang.Info)
         return .join startN.inst jsB jsA
     | .some [a] => do -- split node
       let js ← construct term' succ endN a
-      if "pure".isPrefixOf startN.typ then
+      if "pure" == startN.typ.1 then
         return pure startN.inst js
-      if "split".isPrefixOf startN.typ && startN.inPort = "out1" then
+      if "split" == startN.typ.1 && startN.inPort = "out1" then
         return split1 startN.inst js
       else
         return split2 startN.inst js
@@ -96,7 +96,7 @@ def parseRewrites (s : String) : Except String (List JSLangRewrite) := do
       ) []
   | j => throw s!"top-level JSON object is not an array: {j}"
 
-def JSLangRewrite.mapToRewrite : JSLangRewrite → Rewrite String String
+def JSLangRewrite.mapToRewrite : JSLangRewrite → Rewrite String (String × Nat)
 | .assocL s true
 | .assocR s false => JoinAssocL.targetedRewrite s
 | .assocR s true
@@ -127,10 +127,10 @@ def runCommandWithStdin (cmd : String) (args : Array String) (stdin : String) : 
   let stdout ← IO.ofExcept stdout.get
   pure { exitCode := exitCode, stdout := stdout, stderr := stderr }
 
-def rewriteWithEgg (eggCmd := "graphiti_oracle") (p : Pattern String String) (rewrittenExprHigh : ExprHigh String String)
+def rewriteWithEgg {n} (eggCmd := "graphiti_oracle") (p : Pattern String (String × Nat) n) (rewrittenExprHigh : ExprHigh String (String × Nat))
     : IO (List JSLangRewrite) := do
   let .some succ := calcSucc rewrittenExprHigh.invert | throw (.userError s!"{decl_name%}: could not calculate succ")
-  let .ok ([first, last], _) _ := p rewrittenExprHigh |>.run default
+  let .ok ([first, last], _) := p rewrittenExprHigh
     | return [] -- throw (.userError s!"{decl_name%}: first/last not found")
   let .some constructed := JSLang.construct 10000 succ first (⟨last, default, default, default⟩)
     | throw (.userError s!"{decl_name%}: could not construct")

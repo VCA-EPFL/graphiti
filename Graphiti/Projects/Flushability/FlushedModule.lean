@@ -361,7 +361,7 @@ theorem flushed_reachable_from_nonflushed [lc: QuasiConfluent mod] : ∀ ident s
 by
   intro ident s₁ v s₂ s₃ h₁ h₂
   have := flushed_inputs_are_rflushed mod ident
-  rw [sigma_rw this] at h₁
+  rw [PortMap.rw_rule_execution this] at h₁
   dsimp [rflushed] at h₁
   obtain ⟨w, _, _, _⟩ := h₁
   have: ∃ s₄, existSR mod.internals s₂ s₄ ∧ existSR mod.internals w s₄ := by
@@ -391,7 +391,7 @@ by
   have: (flushed mod).inputs.getIO ident = rflushed mod (mod.inputs.getIO ident) := by
     apply flushed_inputs_are_rflushed <;> assumption
   clear HContains
-  rw [sigma_rw (by assumption)] at h
+  rw [PortMap.rw_rule_execution (by assumption)] at h
   dsimp [rflushed] at h
   obtain ⟨_, _, _, _⟩ := h
   assumption
@@ -507,7 +507,7 @@ instance [dt: DeterministicOutputs mod]: DeterministicOutputs (flushed mod) := {
 instance [dt: DeterministicInputs mod] [gc: GloballyConfluent mod]: DeterministicInputs (flushed mod) := {
   input_deterministic := by
     intros ident s₁ v s₂ s₃ h₁ h₂
-    rw [sigma_rw (flushed_inputs_are_rflushed _ _)] at *
+    rw [PortMap.rw_rule_execution (flushed_inputs_are_rflushed _ _)] at *
     obtain ⟨w₁, _, h₁⟩ := h₁
     obtain ⟨w₂, _, h₂⟩ := h₂
     have: w₁ = w₂ := by apply dt.input_deterministic <;> assumption
@@ -545,8 +545,8 @@ variable [MatchInterface mod₁ mod₂]
 instance [sr: SimulationRelation φ mod₁ mod₂]: SimulationRelation φ (flushed mod₁) (flushed mod₂) := {
   inputs_preserved    := by
     intros ident i₁ i₂ v s₁ s₂ h₁ h₂ h₃
-    rw [sigma_rw (flushed_inputs_are_rflushed _ _)] at h₂
-    rw [sigma_rw (flushed_inputs_are_rflushed _ _)] at h₃
+    rw [PortMap.rw_rule_execution (flushed_inputs_are_rflushed _ _)] at h₂
+    rw [PortMap.rw_rule_execution (flushed_inputs_are_rflushed _ _)] at h₃
     obtain ⟨w₁, _, _, _⟩ := h₂
     obtain ⟨w₂, _, _, _⟩ := h₃
     simp at *
@@ -587,7 +587,7 @@ by
   obtain ⟨s₃, _⟩ := f.flushable s₂
   use s₃
   have := flushed_inputs_are_rflushed mod ident
-  rw [sigma_rw this]
+  rw [PortMap.rw_rule_execution this]
   simp [rflushed]
   use s₂
 
@@ -597,7 +597,7 @@ lemma fm_imp_m: ∀ ident s₁ v s₂,
 by
   intros ident _ _ _ h
   have := flushed_inputs_are_rflushed mod ident
-  rw [sigma_rw this] at h
+  rw [PortMap.rw_rule_execution this] at h
   simp [rflushed] at h
   obtain ⟨s₃, _, _⟩ := h
   simp
@@ -650,7 +650,7 @@ private theorem flushed_refinesφ_nonflushed:
   -- input rules
   . intro ident mid_i v h
     simp only [eq_mp_eq_cast, exists_and_left, exists_eq_right']
-    rw [sigma_rw (flushed_inputs_are_rflushed _ _)] at h
+    rw [PortMap.rw_rule_execution (flushed_inputs_are_rflushed _ _)] at h
     dsimp [rflushed] at h
     obtain ⟨s', _, h⟩ := h
     apply flushesTo_implies_reachable at h
@@ -716,7 +716,7 @@ by
     . assumption
     . apply existSR_reflexive
     . have := flushed_inputs_are_rflushed mod ident
-      rw [sigma_rw this] at h₃
+      rw [PortMap.rw_rule_execution this] at h₃
       simp [rflushed] at h₃ <;> clear this
       obtain ⟨s₅, _, _, _⟩ := h₃
       constructor

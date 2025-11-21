@@ -70,11 +70,12 @@ theorem double_check_empty_snd_rhs S₁ S₂ S₃ : (rhs_extract S₁ S₂ S₃)
 @[drunfold_defs]
 def rhsLower S₁ S₂ S₃ := (rhs_extract S₁ S₂ S₃).fst.lower_TR.get rfl
 
-@[drunfold_defs]
-def rewrite : Rewrite String String :=
-  { abstractions := [],
-    pattern := matcher,
-    rewrite := λ | [S₁, S₂, S₃] => pure ⟨lhsLower S₁ S₂ S₃, rhsLower S₁ S₂ S₃⟩ | _ => failure
-    }
+-- @[drunfold_defs]
+-- def rewrite : Rewrite String String :=
+--   { abstractions := []
+--     params := 2
+--     pattern := matcher
+--     rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
+--     }
 
 end Graphiti.JoinRewrite

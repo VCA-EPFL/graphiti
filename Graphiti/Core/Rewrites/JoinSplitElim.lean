@@ -13,43 +13,35 @@ namespace Graphiti.JoinSplitElim
 
 open StringModule
 
-def identMatcher (s : String) (g : ExprHigh String String) : RewriteResult (List String × List String) := do
-  let n ← ofOption (.error s!"{decl_name%}: could not find '{s}'") <| g.modules.find? s
-  unless "join".isPrefixOf n.2 do throw (.error s!"{decl_name%}: type of '{s}' is '{n.2}' instead of 'join'")
-  let next1 ← ofOption (.error s!"{decl_name%}: could not find next node") <| followInput g s "in1"
-  unless "split".isPrefixOf next1.typ do
+variable (T : Vector Nat 2)
+variable (M : Nat)
+
+def identMatcher (s : String) : Pattern String (String × Nat) 2 := fun g => do
+  let n ← ofOption' (.error s!"{decl_name%}: could not find '{s}'") <| g.modules.find? s
+  unless "join" == n.2.1 do throw (.error s!"{decl_name%}: type of '{s}' is '{n.2}' instead of 'join'")
+  let next1 ← ofOption' (.error s!"{decl_name%}: could not find next node") <| followInput g s "in1"
+  unless "split" == next1.typ.1 do
     throw (.error s!"{decl_name%}: type of '{next1.inst}' is '{next1.typ}' instead of 'split'")
-  unless next1.inputPort = "out1" do throw (.error s!"{decl_name%}: output port of split is incorrect")
-  let next2 ← ofOption (.error s!"{decl_name%}: could not find next node") <| followInput g s "in2"
-  unless "split".isPrefixOf next2.typ do
+  unless next1.inputPort == "out1" do throw (.error s!"{decl_name%}: output port of split is incorrect")
+  let next2 ← ofOption' (.error s!"{decl_name%}: could not find next node") <| followInput g s "in2"
+  unless "split" == next2.typ.1 do
     throw (.error s!"{decl_name%}: type of '{next2.inst}' is '{next2.typ}' instead of 'split'")
-  unless next2.inputPort = "out2" do throw (.error s!"{decl_name%}: output port of split is incorrect")
+  unless next2.inputPort == "out2" do throw (.error s!"{decl_name%}: output port of split is incorrect")
 
-  let (.some t1) := n.2.splitOn[1]? | throw (.error s!"{decl_name%}: type incorrect1")
-  let (.some t2) := n.2.splitOn[2]? | throw (.error s!"{decl_name%}: type incorrect2")
-  let (.some t1') := next1.typ.splitOn[1]? | throw (.error s!"{decl_name%}: type incorrect1")
-  let (.some t2') := next1.typ.splitOn[2]? | throw (.error s!"{decl_name%}: type incorrect2")
+  return ([s, next1.inst], #v[n.2.2, next1.typ.2])
 
-  unless t1 = t1' ∧ t2 = t2' do
-    throw (.error s!"{decl_name%}: types '{t1} ≠ {t1'}' or '{t2} ≠ {t2'}' do not match")
-  unless next1.inst = next2.inst do
-    throw (.error s!"{decl_name%}: join instances do not match: {next1.inst} ≠ {next2.inst}")
-
-  return ([s, next1.inst], [t1, t2])
-
-def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) :=
+def matcher : Pattern String (String × Nat) 2 := fun g => do
   throw (.error s!"{decl_name%}: matcher not implemented")
 
-def identRenaming (s : String) (g : ExprHigh String String) : RewriteResult (AssocList String (Option String)) :=
+def identRenaming (s : String) (g : ExprHigh String (String × Nat)) : RewriteResult (AssocList String (Option String)) :=
   pure .nil
 
-@[drunfold_defs]
-def lhs (T₁ T₂ : Type) (S₁ S₂ : String) : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+def lhs : ExprHigh String (String × Nat) := [graph|
     i_0 [type = "io"];
     o_out [type = "io"];
 
-    split [typeImp = $(⟨_, split T₁ T₂⟩), type = $(s!"split {S₁} {S₂}")];
-    join [typeImp = $(⟨_, join T₁ T₂⟩), type = $(s!"join {S₁} {S₂}")];
+    split [type = "split", arg = $(T[0])];
+    join [type = "join", arg = $(T[1])];
 
     i_0 -> split [to = "in1"];
 
@@ -59,42 +51,35 @@ def lhs (T₁ T₂ : Type) (S₁ S₂ : String) : ExprHigh String String × Iden
     join -> o_out [from = "out1"];
   ]
 
-@[drunfold_defs]
-def lhs_extract S₁ S₂ := (lhs Unit Unit S₁ S₂).fst.extract ["join", "split"] |>.get rfl
+def lhs_extract := (lhs T).extract ["split", "join"] |>.get rfl
+theorem double_check_empty_snd : (lhs_extract T).snd = ExprHigh.mk ∅ ∅ := by rfl
+def lhsLower := (lhs_extract T).fst.lower.get rfl
 
-theorem double_check_empty_snd S₁ S₂ : (lhs_extract S₁ S₂).snd = ExprHigh.mk ∅ ∅ := by rfl
-
-@[drunfold_defs]
-def lhsLower S₁ S₂ := (lhs_extract S₁ S₂).fst.lower.get rfl
-
-@[drunfold_defs]
-def rhs (T₁ T₂ : Type) (S₁ S₂ : String) : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+def rhs : ExprHigh String (String × Nat) := [graph|
     i_0 [type = "io"];
     o_out [type = "io"];
 
-    pure [typeImp = $(⟨_, @StringModule.pure (T₁ × T₂) (T₁ × T₂) (λ a => a)⟩),
-          type = $(s!"pure ({S₁}×{S₂}) ({S₁}×{S₂})")];
+    pure [type = "pure", arg = $(M+1)];
 
     i_0 -> pure [to = "in1"];
     pure -> o_out [from = "out1"];
   ]
 
-@[drunfold_defs]
-def rhsLower S₁ S₂ := (rhs Unit Unit S₁ S₂).fst.lower.get rfl
+def rhs_extract := (rhs M).extract ["pure"] |>.get rfl
+def rhsLower := (rhs_extract M).fst.lower.get rfl
+def findRhs mod := (rhs_extract 0).fst.modules.find? mod |>.map Prod.fst
 
-def findRhs mod := (rhs Unit Unit "" "").1.modules.find? mod |>.map Prod.fst
-
-@[drunfold_defs]
-def rewrite : Rewrite String String :=
+def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
+    params := 2
     pattern := matcher,
-    rewrite := λ | [S₁, S₂] => pure ⟨lhsLower S₁ S₂, rhsLower S₁ S₂⟩ | _ => failure,
+    rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
     name := "join-split-elim"
     transformedNodes := [.none, .none]
     addedNodes := [findRhs "pure" |>.get rfl]
+    fresh_types := 1
   }
 
-def targetedRewrite (s : String) : Rewrite String String :=
-  { rewrite with pattern := identMatcher s }
+def targetedRewrite (s : String) := { rewrite with pattern := identMatcher s }
 
 end Graphiti.JoinSplitElim

@@ -11,45 +11,44 @@ namespace Graphiti.LoopRewrite2
 
 open StringModule
 
-def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) := do
+def matcher : Pattern String (String × Nat) 6 := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
        if s.isSome then return s
-       unless typ = "init Bool false" do return none
+       unless typ.1 = "initBool" do return none
 
        let (.some mux) := followOutput g inst "out1" | return none
-       unless String.isPrefixOf "mux" mux.typ do return none
+       unless "mux" == mux.typ.1 do return none
 
        let (.some mod) := followOutput g mux.inst "out1" | return none
-       unless "pure".isPrefixOf mod.typ do return none
+       unless "pure" == mod.typ.1 do return none
 
        let (.some tag_split) := followOutput g mod.inst "out1" | return none
-       unless String.isPrefixOf "split" tag_split.typ do return none
+       unless "split" == tag_split.typ.1 do return none
 
        let (.some condition_fork) := followOutput g tag_split.inst "out2" | return none
-       unless String.isPrefixOf "fork" condition_fork.typ do return none
+       unless "fork2" == condition_fork.typ.1 do return none
 
        let (.some branch) := followOutput g tag_split.inst "out1" | return none
-       unless String.isPrefixOf "branch" branch.typ do return none
+       unless "branch" == branch.typ.1 do return none
 
-       return some ([mux.inst, condition_fork.inst, branch.inst, tag_split.inst, mod.inst, inst], [extractType mux.typ])
+       return some ([mux.inst, condition_fork.inst, branch.inst, tag_split.inst, mod.inst, inst], #v[mux.typ.2, condition_fork.typ.2, branch.typ.2, tag_split.typ.2, mod.typ.2, typ.2])
 
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
-variable (T : Type)
-variable (Tₛ : String)
-variable (f : T → T × Bool)
+variable (T : Vector Nat 6)
+variable (M : Nat)
 
-def lhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+def lhs : ExprHigh String (String × Nat) := [graph|
     i_in [type = "io"];
     o_out [type = "io"];
 
-    mux [typeImp = $(⟨_, mux T⟩), type = $(s!"mux {Tₛ}")];
-    condition_fork [typeImp = $(⟨_, fork Bool 2 ⟩), type = "fork Bool 2"];
-    branch [typeImp = $(⟨_, branch T⟩), type = $(s!"branch {Tₛ}")];
-    tag_split [typeImp = $(⟨_, split T Bool⟩), type = $(s!"split {Tₛ} Bool")];
-    mod [typeImp = $(⟨_, pure f⟩), type = $(s!"pure {Tₛ} ({Tₛ}×Bool)")];
-    loop_init [typeImp = $(⟨_, init Bool false⟩), type = "init Bool false"];
+    mux [type = "mux", arg = $(T[0])];
+    condition_fork [type = "fork2", arg = $(T[1])];
+    branch [type = "branch", arg = $(T[2])];
+    tag_split [type = "split", arg = $(T[3])];
+    mod [type = "pure", arg = $(T[4])];
+    loop_init [type = "initBool", arg = $(T[5])];
 
     i_in -> mux [to="in2"];
     branch -> o_out [from="out2"];
@@ -64,29 +63,23 @@ def lhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphE
     branch -> mux [from="out1", to="in3"];
   ]
 
-def lhs_extract := lhs Unit Tₛ (λ _ => default) |>.1
-  |>.extract ["mux", "condition_fork", "branch", "tag_split", "mod", "loop_init"]
-  |>.get rfl
+def lhs_extract := (lhs T).extract ["mux", "condition_fork", "branch", "tag_split", "mod", "loop_init"] |>.get rfl
+theorem double_check_empty_snd : (lhs_extract T).snd = ExprHigh.mk ∅ ∅ := by rfl
+def lhsLower := lhs_extract T |>.fst.lower.get rfl
 
-theorem double_check_empty_snd : (lhs_extract Tₛ).snd = ExprHigh.mk ∅ ∅ := by rfl
-
-def lhsLower := (lhs_extract Tₛ).fst.lower.get rfl
-
-abbrev TagT := Nat
-
-def rhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+def rhs : ExprHigh String (String × Nat) := [graph|
     i_in [type = "io"];
     o_out [type = "io"];
 
-    tagger [typeImp = $(⟨_, tagger_untagger_val TagT T T ⟩), type = $(s!"tagger_untagger_val TagT {Tₛ} {Tₛ}")];
-    merge [typeImp = $(⟨_, merge (TagT × T) 2⟩), type = $(s!"merge (TagT×{Tₛ}) 2")];
-    branch [typeImp = $(⟨_, branch (TagT × T)⟩), type = $(s!"branch (TagT×{Tₛ})")];
-    tag_split [typeImp = $(⟨_, split (TagT × T) Bool⟩), type = $(s!"split (TagT×{Tₛ}) Bool")];
-    split_tag [typeImp = $(⟨_, split TagT T⟩), type = $(s!"split TagT {Tₛ}")];
-    split_bool [typeImp = $(⟨_, split T Bool⟩), type = $(s!"split {Tₛ} Bool")];
-    join_tag [typeImp = $(⟨_, join TagT T⟩), type = $(s!"join TagT {Tₛ}")];
-    join_bool [typeImp = $(⟨_, join (TagT × T) Bool⟩), type = $(s!"join (TagT×{Tₛ}) Bool")];
-    mod [typeImp = $(⟨_, pure f⟩), type = $(s!"pure {Tₛ} ({Tₛ}×Bool)")];
+    tagger [type = "tag_untagger_val", arg = $(M+1)];
+    merge [type = "merge", arg = $(M+2)];
+    branch [type = "branch", arg = $(M+3)];
+    tag_split [type = "split", arg = $(M+4)];
+    split_tag [type = "split", arg = $(M+5)];
+    split_bool [type = "split", arg = $(M+6)];
+    join_tag [type = "join", arg = $(M+7)];
+    join_bool [type = "join", arg = $(M+8)];
+    mod [type = "pure", arg = $(M+9)];
 
     i_in -> tagger [to="in2"];
     tagger -> o_out [from="out2"];
@@ -106,18 +99,21 @@ def rhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphE
     branch -> tagger [from="out2", to="in1"];
   ]
 
-def rhsLower := (rhs Unit Tₛ (λ _ => default) |>.1).lower.get rfl
+def rhs_extract := (rhs M).extract ["merge", "branch", "tag_split", "mod", "tagger", "split_tag", "split_bool", "join_tag", "join_bool"] |>.get rfl
+def rhsLower := (rhs_extract M).fst.lower.get rfl
+def findRhs mod := (rhs_extract 0).fst.modules.find? mod |>.map Prod.fst
 
-def findRhs mod := (rhs Unit "" (λ _ => default)).1.modules.find? mod |>.map Prod.fst
-
-def rewrite : Rewrite String String :=
-  { pattern := matcher,
-    rewrite := λ | [T] => pure ⟨lhsLower T, rhsLower T⟩ | _ => failure
+def rewrite : Rewrite String (String × Nat) :=
+  {
+    params := 6
+    pattern := matcher,
+    rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
     name := .some "loop-rewrite"
     transformedNodes := [ findRhs "merge" |>.get rfl, .none, findRhs "branch" |>.get rfl
                         , findRhs "tag_split" |>.get rfl, findRhs "mod" |>.get rfl, .none]
     addedNodes := [ findRhs "tagger" |>.get rfl, findRhs "split_tag" |>.get rfl, findRhs "split_bool" |>.get rfl
                   , findRhs "join_tag" |>.get rfl, findRhs "join_bool" |>.get rfl]
+    fresh_types := 9
   }
 
 end Graphiti.LoopRewrite2

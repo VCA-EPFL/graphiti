@@ -17,7 +17,7 @@ namespace Graphiti.BranchInorderMux2Merge
 Matcher used for abstraction of the left module. Currently we do not check that the Mux and Branch are paired
 so it could probably be unsafe (what would happen?).
 -/
-def matchModLeft : Pattern String String := fun g => do
+def matchModLeft : Pattern String String 0 := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
       if s.isSome then return s
       unless typ = "TaggerCntrlAligner" do return none
@@ -30,13 +30,13 @@ def matchModLeft : Pattern String String := fun g => do
       let (.some scc) := findClosedRegion g begin_m.inst end_m.inst | return none
       return some scc
     ) none | throw .done
-  return (list, [])
+  return (list, #v[])
 
 
 /--
 Matcher used for abstraction of the right module
 -/
-def matchModRight : Pattern String String := fun g => do
+def matchModRight : Pattern String String 0 := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
       if s.isSome then return s
       unless typ = "TaggerCntrlAligner" do return none
@@ -49,10 +49,10 @@ def matchModRight : Pattern String String := fun g => do
       let (.some scc) := findClosedRegion g begin_m.inst end_m.inst | return none
       return some scc
     ) none | throw .done
-  return (list, [])
+  return (list, #v[])
 
 
-def matcher : Pattern String String := fun g => do
+def matcher : Pattern String String 0 := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
       if s.isSome then return s
       unless typ = "Branch" do return none
@@ -72,7 +72,7 @@ def matcher : Pattern String String := fun g => do
 
       return some [inst, taggerL.inst, taggerR.inst, begin_l.inst, begin_r.inst, mux_nn.inst]
     ) none | throw .done
-  return (list, [])
+  return (list, #v[])
 
 def lhs' : ExprHigh String String := [graph|
     i_data [type = "io"];
@@ -147,27 +147,16 @@ def rhs : ExprHigh String String := [graph|
 def rhsLower := rhs.lower.get rfl
 -- Double checking that the left and right abstracter seems to work:
 
-/-- info: ([m_right], []) -/
-#guard_msgs in
-#eval match (matchModRight lhs').run' default with | .some e => IO.print e | _ => IO.print ""
-/-- info: ([m_left], []) -/
-#guard_msgs in
-#eval match (matchModLeft lhs').run' default with | .some e => IO.print e | _ => IO.print ""
-/-- info: ([branch, tagger1, tagger2, m_left, m_right, merge], []) -/
-#guard_msgs in
-#eval match (matcher lhs').run' default with | .some e => IO.print e | _ => IO.print ""
--- #eval IO.print lhs'
-
-
 /--
 This rewrite adds abstractions to the definition, which provide patterns to
 extract parts of the graph.  The `type` given to each extracted node has to
 match the `type` of the node in LHS and RHS graphs.
 -/
 def rewrite : Rewrite String String :=
-  { abstractions := [⟨matchModLeft, "mod_left"⟩, ⟨matchModRight, "mod_right"⟩],
+  { abstractions := [⟨0, matchModLeft, "mod_left"⟩, ⟨0, matchModRight, "mod_right"⟩],
+    params := 0
     pattern := matcher,
-    rewrite := fun _ => pure ⟨lhsLower, rhsLower⟩ }
+    rewrite := fun _ _ => ⟨lhsLower, rhsLower⟩ }
 
 namespace TEST
 
@@ -204,41 +193,6 @@ def lhs' : ExprHigh String String :=
     tagger2 -> merge [from = "deq_untagged", to = "in2"];
 
   ]
-
-/--
-info: digraph {
-
-  "i_cond" [type = "io", label = "i_cond: io"];
-  "i_data" [type = "io", label = "i_data: io"];
-  "o_out" [type = "io", label = "o_out: io"];
-  "rw_4_7" [type = "mod_left1", label = "rw_4_7: mod_left1"];
-  "rw_4_6" [type = "mod_left2", label = "rw_4_6: mod_left2"];
-  "rw_4_5" [type = "Join", label = "rw_4_5: Join"];
-  "rw_4_4" [type = "Branch", label = "rw_4_4: Branch"];
-  "rw_4_3" [type = "mod_right2", label = "rw_4_3: mod_right2"];
-  "rw_4_2" [type = "Merge", label = "rw_4_2: Merge"];
-  "rw_4_1" [type = "TaggerCntrlAligner", label = "rw_4_1: TaggerCntrlAligner"];
-  "rw_4_0" [type = "Split", label = "rw_4_0: Split"];
-
-
-  "i_cond" -> "rw_4_5" [to = "in2", headlabel = "in2"];
-  "i_data" -> "rw_4_5" [to = "in1", headlabel = "in1"];
- "rw_4_1" -> "o_out" [from = "deq_untagged", taillabel = "deq_untagged"];
-
-  "rw_4_2" -> "rw_4_1" [from = "m_out", to = "complete_tagged", taillabel = "m_out", headlabel = "complete_tagged",];
-  "rw_4_3" -> "rw_4_2" [from = "m_out", to = "in2", taillabel = "m_out", headlabel = "in2",];
-  "rw_4_6" -> "rw_4_2" [from = "m_out", to = "in1", taillabel = "m_out", headlabel = "in1",];
-  "rw_4_4" -> "rw_4_3" [from = "false", to = "m_in", taillabel = "false", headlabel = "m_in",];
-  "rw_4_4" -> "rw_4_7" [from = "true", to = "m_in", taillabel = "true", headlabel = "m_in",];
-  "rw_4_0" -> "rw_4_4" [from = "out2", to = "cond", taillabel = "out2", headlabel = "cond",];
-  "rw_4_0" -> "rw_4_4" [from = "out1", to = "data", taillabel = "out1", headlabel = "data",];
-  "rw_4_1" -> "rw_4_0" [from = "tagged", to = "in1", taillabel = "tagged", headlabel = "in1",];
-  "rw_4_5" -> "rw_4_1" [from = "out1", to = "enq_untagged", taillabel = "out1", headlabel = "enq_untagged",];
-  "rw_4_7" -> "rw_4_6" [from = "m_out", to = "m_in", taillabel = "m_out", headlabel = "m_in",];
-}
--/
-#guard_msgs in
-#eval rewrite.run lhs' |>.run' default |>.get! |> IO.print
 
 end TEST
 

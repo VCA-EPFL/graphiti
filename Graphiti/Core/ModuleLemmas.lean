@@ -947,8 +947,8 @@ def refines'_φ (φ : I → S → Prop) :=
     φ init_i init_s →
      comp_refines' imod smod φ init_i init_s
 
-notation:35 x " ⊑_{" φ:35 "} " y:34 => refines_φ x y φ
-notation:35 x " ⊑'_{" φ:35 "} " y:34 => refines'_φ x y φ
+notation:40 x " ⊑_{" φ "} " y:40 => refines_φ x y φ
+notation:40 x " ⊑'_{" φ "} " y:40 => refines'_φ x y φ
 
 theorem refines_φ_reflexive : imod ⊑_{Eq} imod := by
   intro init_i init_s heq; subst_vars
@@ -1091,7 +1091,14 @@ def refines :=
   ∃ (mm : MatchInterface imod smod) (φ : I → S → Prop),
     (imod ⊑_{φ} smod) ∧ refines_initial imod smod (fun x y => φ x y)
 
-notation:35 x " ⊑ " y:34 => refines x y
+notation:40 x " ⊒ " y:40 => refines y x
+notation:40 x " ⊑ " y:40 => refines x y
+
+def equivalent :=
+    imod ⊑ smod
+  ∧ imod ⊒ smod
+
+notation:40 x " ≡ " y:40 => equivalent x y
 
 variable {imod smod}
 
@@ -1686,6 +1693,28 @@ theorem refines_renamePorts {I S} {imod : Module Ident I} {smod : Module Ident S
   imod.renamePorts p ⊑ smod.renamePorts p := by
   intro Href; unfold renamePorts
   solve_by_elim [refines_mapPorts2, AssocList.bijectivePortRenaming_bijective]
+
+theorem refines_eq' {imod : TModule Ident} {smod : TModule Ident} :
+  imod = smod → imod.snd ⊑ smod.snd := by
+  intro heq; subst imod; apply refines_reflexive
+
+theorem refines_eq {imod : Module Ident I} {smod : Module Ident S} :
+  Sigma.mk _ imod = Sigma.mk _ smod → imod ⊑ smod := refines_eq'
+
+theorem refines_eq_relax {I' S'} {imod : Module Ident I} {imod' : Module Ident I'} {smod : Module Ident S} {smod' : Module Ident S'} :
+  Sigma.mk _ imod = Sigma.mk _ imod' → Sigma.mk _ smod = Sigma.mk _ smod' → imod' ⊑ smod' → imod ⊑ smod := by
+  intro ha hb hc
+  apply Module.refines_transitive
+  apply refines_eq; assumption
+  apply Module.refines_transitive; assumption
+  apply refines_eq; apply hb.symm
+
+theorem refines_eq_equiv {imod smod : TModule Ident} :
+  imod = smod → imod.snd ≡ smod.snd := by
+  intro heq; subst imod; constructor <;> apply refines_reflexive
+
+theorem equivalent_reflexive {I} {imod : Module Ident I} : imod ≡ imod := by
+  constructor <;> apply refines_reflexive
 
 end Refinement
 

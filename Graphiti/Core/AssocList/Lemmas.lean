@@ -142,6 +142,9 @@ theorem mapKey_toList {α β} {l : AssocList α β} {f : α → α} :
   l.mapKey f = (l.toList.map (λ | (a, b) => (f a, b))).toAssocList := by
   induction l <;> simp [*]
 
+theorem mapKey_id {α β} {l : AssocList α β} :
+  l.mapKey id = l := by induction l <;> simp [*]
+
 @[drcompute]
 theorem mapVal_map_toAssocList {T α β1 β2} {l : List T}
   {f : α → β1 → β2} {g : T → α} {h : T → β1}:
@@ -240,6 +243,9 @@ theorem contains_find?_none_iff {α β} [DecidableEq α] {m : AssocList α β} {
 theorem keysList_find {α β} [DecidableEq α] {m : AssocList α β} {ident} :
   (m.find? ident).isSome → ident ∈ m.keysList := by simp_all [keysList]
 
+theorem keysList_find' {α β} [BEq α] [LawfulBEq α] {m : AssocList α β} {ident} :
+  (m.find? ident).isSome → ident ∈ m.keysList := by simp_all [keysList]
+
 theorem keysList_find2 {α β} [DecidableEq α] {m : AssocList α β} {ident} :
   ident ∈ m.keysList → (m.find? ident).isSome := by simp_all [keysList]
 
@@ -318,7 +324,15 @@ theorem append_find_right_disjoint {α β} [DecidableEq α] {a b : AssocList α 
   ((a.cons ident val).find? ident) = some val := by
     simpa
 
+@[simp] theorem find?_cons_eq' {α β} [BEq α] [LawfulBEq α] {a : AssocList α β} {ident val} :
+  ((a.cons ident val).find? ident) = some val := by
+  simpa
+
 @[simp] theorem find?_cons_neq {α β} [DecidableEq α] {a : AssocList α β} {ident ident' val} :
+  ident' ≠ ident → ((a.cons ident' val).find? ident) = a.find? ident := by
+    simp +contextual (disch := assumption) [find?, beq_false_of_ne]
+
+@[simp] theorem find?_cons_neq' {α β} [BEq α] [LawfulBEq α] {a : AssocList α β} {ident ident' val} :
   ident' ≠ ident → ((a.cons ident' val).find? ident) = a.find? ident := by
     simp +contextual (disch := assumption) [find?, beq_false_of_ne]
 

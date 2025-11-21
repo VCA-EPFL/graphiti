@@ -11,33 +11,30 @@ namespace Graphiti.LoadRewrite
 
 open StringModule
 
-variable (T : Type)
-variable [Inhabited T]
-variable (Op : String)
+variable (T : Vector Nat 2)
+variable (M : Nat)
 
-def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) := do
+def matcher : Pattern String (String × Nat) 2 := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
        if s.isSome then return s
-       unless typ = "load T T" do return none
+       unless typ.1 == "load" do return none
 
        let (.some mc) := followOutput g inst "out2" | return none
-       unless String.isPrefixOf "operator1" mc.typ do return none
+       unless "operator1" == mc.typ.1 do return none
 
        let (.some load) := followOutput g mc.inst "out1" | return none
        unless load.inst = inst do return none
 
-       let (.some op) := mc.typ.splitOn[3]? | return none
-
-       return some ([inst, mc.inst], [op])
+       return some ([inst, mc.inst], #v[typ.2, mc.typ.2])
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
-def lhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+def lhs : ExprHigh String (String × Nat) := [graph|
     i_in [type = "io"];
     o_out [type = "io"];
 
-    load [typeImp = $(⟨_, load T T⟩), type = $("load T T")];
-    mc [typeImp = $(⟨_, operator1 T T Op⟩), type = $(s!"operator1 T T {Op}")];
+    load [type = "load", arg = $(T[0])];
+    mc [type = "operator1", arg = $(T[1])];
 
     i_in -> load [to = "in2"];
     load -> o_out [from = "out1"];
@@ -46,35 +43,37 @@ def lhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphE
     mc -> load [from = "out1", to = "in1"];
   ]
 
-def lhs_extract := (lhs Unit Op).fst.extract ["load", "mc"] |>.get rfl
+def lhs_extract := (lhs T).extract ["load", "mc"] |>.get rfl
 
-theorem double_check_empty_snd : (lhs_extract Op).snd = ExprHigh.mk ∅ ∅ := by rfl
+theorem double_check_empty_snd : (lhs_extract T).snd = ExprHigh.mk ∅ ∅ := by rfl
 
-def lhsLower := (lhs_extract Op).fst.lower.get rfl
+def lhsLower := (lhs_extract T).fst.lower.get rfl
 
-def rhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+def rhs : ExprHigh String (String × Nat) := [graph|
     i_in [type = "io"];
     o_out [type = "io"];
 
-    pure [typeImp = $(⟨_, StringModule.pure (@NatModule.op1_function T _ T Op)⟩), type = $(s!"pure T T")];
+    pure [type = "pure", arg = $(M+1)];
 
     i_in -> pure [to = "in1"];
     pure -> o_out [from = "out1"];
   ]
 
-def rhs_extract := (rhs Unit Op).fst.extract ["pure"] |>.get rfl
+def rhs_extract := (rhs M).extract ["pure"] |>.get rfl
 
-def rhsLower := (rhs_extract Op).fst.lower.get rfl
+def rhsLower := (rhs_extract M).fst.lower.get rfl
 
-def findRhs mod := (rhs_extract "").1.modules.find? mod |>.map Prod.fst
+def findRhs mod := (rhs_extract 0).1.modules.find? mod |>.map Prod.fst
 
-def rewrite : Rewrite String String :=
+def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
+    params := 2
     pattern := matcher,
-    rewrite := λ | [Op] => .some ⟨lhsLower Op, rhsLower Op⟩ | _ => failure
+    rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
     name := "load-rewrite"
     transformedNodes := [.none, .none]
     addedNodes := [findRhs "pure" |>.get rfl]
+    fresh_types := 1
   }
 
 end Graphiti.LoadRewrite

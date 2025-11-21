@@ -39,12 +39,7 @@ variable {T₁ T₂ T₃ : Type}
 variable (S₁ S₂ S₃ : String)
 
 @[drunfold_defs]
-def lhsNames := ((rewrite.rewrite [S₁, S₂, S₃]).get rfl).input_expr.build_module_names
-@[drunfold_defs]
-def rhsNames := ((rewrite.rewrite [S₁, S₂, S₃]).get rfl).output_expr.build_module_names
-
-@[drunfold_defs]
-def rewriteLhsRhs := rewrite.rewrite [S₁, S₂, S₃] |>.get rfl
+def rewriteLhsRhs : DefiniteRewrite String String := ⟨lhsLower S₁ S₂ S₃, rhsLower S₁ S₂ S₃⟩
 
 def environmentLhs : IdentMap String (TModule1 String) := lhs T₁ T₂ T₃ S₁ S₂ S₃ |>.snd
 def environmentRhs : IdentMap String (TModule1 String) := rhs T₁ T₂ T₃ S₁ S₂ S₃ |>.snd
@@ -107,6 +102,20 @@ variable (T₁ T₂ T₃) in
 seal environmentLhs in
 def_module lhsModule : StringModule (lhsModuleType T₁ T₂ T₃) :=
   [e| (rewriteLhsRhs S₁ S₂ S₃).input_expr, (@environmentLhs T₁ T₂ T₃ S₁ S₂ S₃).find? ]
+reduction_by
+ (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
+  dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
+  dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
+  rw [rw_opaque (by simp only [drenv]; rfl)]; dsimp
+  dsimp [Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts, Module.mapInputPorts, reduceAssocListfind?]
+  simp (disch := decide) only [AssocList.bijectivePortRenaming_invert]
+  dsimp [Module.product]
+  dsimp only [reduceModuleconnect'2]
+  dsimp only [reduceEraseAll]
+  dsimp; dsimp [reduceAssocListfind?]
+
+  unfold Module.connect''
+  dsimp [Module.liftL, Module.liftR, drcomponents])
 
 variable (T₁ T₂ T₃) in
 seal environmentRhs in

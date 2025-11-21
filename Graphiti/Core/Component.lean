@@ -571,6 +571,41 @@ def operator3 T₁ T₂ T₃ T [Inhabited T] (s : String) :=
 def cast S T [Inhabited T] :=
   unary_op (name := s!"cast") (@op1_function T _ S "cast")
 
+/--
+Essentially tagger + join without internal rule
+-/
+@[drunfold, drcomponents] def tagger_untagger_val_ghost (TagT : Type 0) [_i: DecidableEq TagT] (T : Type 0) (name := "tagger_untagger_val_ghost") : NatModule (NatModule.Named name (List (TagT × T) × Batteries.AssocList TagT (T × (Nat × T)) × List (T × (Nat × T)))) :=
+  {
+    inputs := [
+      -- Complete computation
+      -- Models the input of the Cal + Untagger (coming from a previously tagged region)
+      (0, ⟨ (TagT × T) × (Nat × T), λ (oldOrder, oldMap, oldVal) ((tag,el), r) (newOrder, newMap, newVal) =>
+        -- Tag must be used, but no value ready, otherwise block:
+        (tag ∈ oldOrder.map Prod.fst ∧ oldMap.find? tag = none) ∧
+        newMap = oldMap.cons tag (el, r) ∧ newOrder = oldOrder ∧ newVal = oldVal ⟩),
+      -- Enq a value to be tagged
+      -- Models the input of the Tagger (coming from outside)
+      (1, ⟨ T, λ (oldOrder, oldMap, oldVal) v (newOrder, newMap, newVal) =>
+        newMap = oldMap ∧ newOrder = oldOrder ∧ newVal = oldVal.concat (v, 0, v) ⟩)
+    ].toAssocList,
+    outputs := [
+      -- Allocate fresh tag and output with value
+      -- Models the output of the Tagger
+      (0, ⟨ (TagT × T) × (Nat × T), λ (oldOrder, oldMap, oldVal) ((tag, v), z) (newOrder, newMap, newVal) =>
+        -- Tag must be unused otherwise block (alternatively we
+        -- could an implication to say undefined behavior):
+        (tag ∉ oldOrder.map Prod.fst ∧ oldMap.find? tag = none) ∧
+        newMap = oldMap ∧ newOrder = oldOrder.concat (tag, v) ∧ (v, z) :: newVal = oldVal⟩),
+      -- Dequeue + free tag
+      -- Models the output of the Cal + Untagger
+      (1, ⟨ T, λ (oldorder, oldmap, oldVal) el (neworder, newmap, newVal) =>
+        -- tag must be used otherwise, but no value brought, undefined behavior:
+        ∃ tag r, oldorder = tag :: neworder ∧ oldmap.find? tag.fst = some (el, r) ∧
+        newmap = oldmap.eraseAll tag.fst ∧ newVal = oldVal ⟩),
+    ].toAssocList,
+    init_state := λ s => s = ⟨[], Batteries.AssocList.nil, []⟩,
+  }
+
 namespace FixedSize
 
 def BoundedList T n := { ls : List T // ls.length <= n }
@@ -690,6 +725,9 @@ namespace Graphiti.StringModule
 
 @[drunfold, drcomponents] def tagger_untagger_val TagT [DecidableEq TagT] T T' :=
   NatModule.tagger_untagger_val TagT T T' |>.stringify
+
+@[drunfold, drcomponents] def tagger_untagger_val_ghost TagT [DecidableEq TagT] T :=
+  NatModule.tagger_untagger_val_ghost TagT T |>.stringify
 
 -- -- Associate the above modules with a String name to be used in the matcher of each rewrite
 -- -- Essentially, those constitute our primitives

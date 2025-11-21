@@ -117,6 +117,18 @@ def findStxStr' (n : Name) (stx : Array Syntax) : TermElabM (Option Q(String)) :
   return out
 
 open Lean Qq in
+def findStxNat' (n : Name) (stx : Array Syntax) : TermElabM (Option Q(Nat)) := do
+  let mut out := none
+  for pair in stx do
+    if checkName n pair[0] then
+      match pair[2][0].isNatLit? with
+      | .some out' => out := .some <| .lit <| .natVal out'
+      | .none =>
+        let term ← elabTermEnsuringType pair[2] <| .some q(Nat)
+        out := some term
+  return out
+
+open Lean Qq in
 def findStxTerm (n : Name) (stx : Array Syntax) : TermElabM (Option (Expr × String)) := do
   let mut out := none
   for pair in stx do
@@ -166,53 +178,182 @@ def mkPortMapping {u : Level} {α : Q(Type $u)} : PortMapping Q($α) → Q(PortM
   q(@PortMapping.mk $α $a' $b')
 
 open Lean Qq in
+def isIO (i : Q(String)) : Bool := i == .lit (.strVal "io")
+
+#check Lean.Expr
+
+open Lean Qq in
 @[term_elab dot_graph]
-def dotGraphElab : TermElab := λ stx _typ? => do
-  let mut instMap : Std.HashMap String (InstIdent String × Bool) := ∅
-  let mut instTypeMap : Std.HashMap String (PortMapping String × String) := ∅
-  let mut conns : List (Connection String) := []
-  for stmnt in stx[1][0].getArgs do
-    let low_stmnt := stmnt.getArgs[0]!
-    match low_stmnt with
-    | `(dot_stmnt| $i:ident $[[$[$el:dot_attr],*]]? ) =>
-      let some el := el
-        | throwErrorAt i "Element list is not present"
-      let some modId ← findStxStr `type el
-        | throwErrorAt i "No `type` attribute found at node"
-      let mut modCluster : Bool := findStxBool `cluster el |>.getD false
-      match updateNodeMaps ⟨instMap, instTypeMap⟩ i.getId.toString modId modCluster with
-      | .ok ⟨a, b⟩ =>
-        instMap := a
-        instTypeMap := b
-      | .error s =>
-        throwErrorAt i s
-    | `(dot_stmnt| $a:ident -> $b:ident $[[$[$el:dot_attr],*]]? ) =>
-      -- Error checking to report it early if the instance is not present in the
-      -- hashmap.
-      let some el := el
-        | throwErrorAt (mkListNode #[a, b]) "No `type` attribute found at node"
-      let mut out ← (findStxStr `from el)
-      let mut inp ← (findStxStr `to el)
-      match updateConnMaps ⟨instMap, instTypeMap⟩ conns a.getId.toString b.getId.toString out inp with
-      | .ok (⟨_, b⟩, c) =>
-        conns := c
-        instTypeMap := b
-      | .error (.outInstError s) => throwErrorAt a s
-      | .error (.inInstError s) => throwErrorAt b s
-      | .error (.portError s) => throwErrorAt (mkListNode el) s
-    | _ => pure ()
-  let connExpr : Q(List (Connection String)) ←
-    mkListLit q(Connection String) (← conns.mapM (λ ⟨ a, b ⟩ => do
-      mkAppM ``Connection.mk #[reifyInternalPort a, reifyInternalPort b]))
-  let modList : Q(List (String × (PortMapping String × String))) ←
-    mkListLit q(String × (PortMapping String × String))
-      (instTypeMap.toList.map (fun (a, (p, b)) =>
-        let a' : Q(String) := .lit (.strVal a)
-        let b' : Q(String) := .lit (.strVal b)
-        let p' : Q(PortMapping String) := mkPortMapping <| p.map (.strVal · |> .lit)
-        q(($a', ($p', $b')))))
-  let modListMap : Q(IdentMap String (PortMapping String × String)) := q(List.toAssocList $modList)
-  return q(ExprHigh.mk $modListMap $connExpr)
+def dotGraphElab : TermElab := λ stx typ? =>
+  match typ? with
+  | some a => do
+    if ← isDefEq a q(ExprHigh String String) then go stx
+    else if ← isDefEq a q(ExprHigh String (String × Nat)) then go'' stx
+         else go' stx
+  | none => go stx
+  where
+    go (stx : Syntax) := do
+      let mut instMap : Std.HashMap String (InstIdent String × Bool) := ∅
+      let mut instTypeMap : Std.HashMap String (PortMapping String × Q(String)) := ∅
+      let mut conns : List (Connection String) := []
+      for stmnt in stx[1][0].getArgs do
+        let low_stmnt := stmnt.getArgs[0]!
+        match low_stmnt with
+        | `(dot_stmnt| $i:ident $[[$[$el:dot_attr],*]]? ) =>
+          let some el := el
+            | throwErrorAt i "Element list is not present"
+          let some modId ← findStxStr' `type el
+            | throwErrorAt i "No `type` attribute found at node"
+          let mut modCluster : Bool := findStxBool `cluster el |>.getD false
+          match updateNodeMaps ⟨instMap, instTypeMap⟩ i.getId.toString modId (isIO modId) modCluster with
+          | .ok ⟨a, b⟩ =>
+            instMap := a
+            instTypeMap := b
+          | .error s =>
+            throwErrorAt i s
+        | `(dot_stmnt| $a:ident -> $b:ident $[[$[$el:dot_attr],*]]? ) =>
+          -- Error checking to report it early if the instance is not present in the
+          -- hashmap.
+          let some el := el
+            | throwErrorAt (mkListNode #[a, b]) "No `type` attribute found at node"
+          let mut out ← (findStxStr `from el)
+          let mut inp ← (findStxStr `to el)
+          match updateConnMaps ⟨instMap, instTypeMap⟩ conns a.getId.toString b.getId.toString out inp with
+          | .ok (⟨_, b⟩, c) =>
+            conns := c
+            instTypeMap := b
+          | .error (.outInstError s) => throwErrorAt a s
+          | .error (.inInstError s) => throwErrorAt b s
+          | .error (.portError s) => throwErrorAt (mkListNode el) s
+        | _ => pure ()
+      let connExpr : Q(List (Connection String)) ←
+        mkListLit q(Connection String) (← conns.mapM (λ ⟨ a, b ⟩ => do
+          mkAppM ``Connection.mk #[reifyInternalPort a, reifyInternalPort b]))
+      let modList : Q(List (String × (PortMapping String × String))) ←
+        mkListLit q(String × (PortMapping String × String))
+          (instTypeMap.toList.map (fun (a, (p, b)) =>
+            let a' : Q(String) := .lit (.strVal a)
+            let b' : Q(String) := b
+            let p' : Q(PortMapping String) := mkPortMapping <| p.map (.strVal · |> .lit)
+            q(($a', ($p', $b')))))
+      let modListMap : Q(IdentMap String (PortMapping String × String)) := q(List.toAssocList $modList)
+      return q(ExprHigh.mk $modListMap $connExpr)
+
+    go' (stx : Syntax) : TermElabM Expr := do
+      let mut instMap : Std.HashMap String (InstIdent String × Bool) := ∅
+      let mut instTypeMap : Std.HashMap String (PortMapping String × (Q(String) × Q(String))) := ∅
+      let mut conns : List (Connection String) := []
+      for stmnt in stx[1][0].getArgs do
+        let low_stmnt := stmnt.getArgs[0]!
+        match low_stmnt with
+        | `(dot_stmnt| $i:ident $[[$[$el:dot_attr],*]]? ) =>
+          let some el := el
+            | throwErrorAt i "Element list is not present"
+          let some modId ← findStxStr' `type el
+            | throwErrorAt i "No `type` attribute found at node"
+          let mut modCluster : Bool := findStxBool `cluster el |>.getD false
+          if isIO modId then
+            match updateNodeMaps ⟨instMap, instTypeMap⟩ i.getId.toString (modId, default) (isIO modId) modCluster with
+            | .ok ⟨a, b⟩ =>
+              instMap := a
+              instTypeMap := b
+            | .error s =>
+              throwErrorAt i s
+          else
+            let some modIdArgs ← findStxStr' `arg el
+              | throwErrorAt i "No `arg` attribute found at node"
+            match updateNodeMaps ⟨instMap, instTypeMap⟩ i.getId.toString (modId, modIdArgs) (isIO modId) modCluster with
+            | .ok ⟨a, b⟩ =>
+              instMap := a
+              instTypeMap := b
+            | .error s =>
+              throwErrorAt i s
+        | `(dot_stmnt| $a:ident -> $b:ident $[[$[$el:dot_attr],*]]? ) =>
+          -- Error checking to report it early if the instance is not present in the
+          -- hashmap.
+          let some el := el
+            | throwErrorAt (mkListNode #[a, b]) "No `type` attribute found at node"
+          let mut out ← (findStxStr `from el)
+          let mut inp ← (findStxStr `to el)
+          match updateConnMaps ⟨instMap, instTypeMap⟩ conns a.getId.toString b.getId.toString out inp with
+          | .ok (⟨_, b⟩, c) =>
+            conns := c
+            instTypeMap := b
+          | .error (.outInstError s) => throwErrorAt a s
+          | .error (.inInstError s) => throwErrorAt b s
+          | .error (.portError s) => throwErrorAt (mkListNode el) s
+        | _ => pure ()
+      let connExpr : Q(List (Connection String)) ←
+        mkListLit q(Connection String) (← conns.mapM (λ ⟨ a, b ⟩ => do
+          mkAppM ``Connection.mk #[reifyInternalPort a, reifyInternalPort b]))
+      let modList : Q(List (String × (PortMapping String × (String × String)))) ←
+        mkListLit q(String × (PortMapping String × (String × String)))
+          (instTypeMap.toList.map (fun (a, (p, b)) =>
+            let a' : Q(String) := .lit (.strVal a)
+            let b' : Q(String) := b.1
+            let b'' : Q(String) := b.2
+            let p' : Q(PortMapping String) := mkPortMapping <| p.map (.strVal · |> .lit)
+            q(($a', ($p', ($b', $b''))))))
+      let modListMap : Q(IdentMap String (PortMapping String × (String × String))) := q(List.toAssocList $modList)
+      return q(ExprHigh.mk $modListMap $connExpr)
+
+    go'' (stx : Syntax) : TermElabM Expr := do
+      let mut instMap : Std.HashMap String (InstIdent String × Bool) := ∅
+      let mut instTypeMap : Std.HashMap String (PortMapping String × (Q(String) × Q(Nat))) := ∅
+      let mut conns : List (Connection String) := []
+      for stmnt in stx[1][0].getArgs do
+        let low_stmnt := stmnt.getArgs[0]!
+        match low_stmnt with
+        | `(dot_stmnt| $i:ident $[[$[$el:dot_attr],*]]? ) =>
+          let some el := el
+            | throwErrorAt i "Element list is not present"
+          let some modId ← findStxStr' `type el
+            | throwErrorAt i "No `type` attribute found at node"
+          let mut modCluster : Bool := findStxBool `cluster el |>.getD false
+          if isIO modId then
+            match updateNodeMaps ⟨instMap, instTypeMap⟩ i.getId.toString (modId, default) (isIO modId) modCluster with
+            | .ok ⟨a, b⟩ =>
+              instMap := a
+              instTypeMap := b
+            | .error s =>
+              throwErrorAt i s
+          else
+            let some modIdArgs ← findStxNat' `arg el
+              | throwErrorAt i "No `arg` attribute found at node"
+            match updateNodeMaps ⟨instMap, instTypeMap⟩ i.getId.toString (modId, modIdArgs) (isIO modId) modCluster with
+            | .ok ⟨a, b⟩ =>
+              instMap := a
+              instTypeMap := b
+            | .error s =>
+              throwErrorAt i s
+        | `(dot_stmnt| $a:ident -> $b:ident $[[$[$el:dot_attr],*]]? ) =>
+          -- Error checking to report it early if the instance is not present in the
+          -- hashmap.
+          let some el := el
+            | throwErrorAt (mkListNode #[a, b]) "No `type` attribute found at node"
+          let mut out ← (findStxStr `from el)
+          let mut inp ← (findStxStr `to el)
+          match updateConnMaps ⟨instMap, instTypeMap⟩ conns a.getId.toString b.getId.toString out inp with
+          | .ok (⟨_, b⟩, c) =>
+            conns := c
+            instTypeMap := b
+          | .error (.outInstError s) => throwErrorAt a s
+          | .error (.inInstError s) => throwErrorAt b s
+          | .error (.portError s) => throwErrorAt (mkListNode el) s
+        | _ => pure ()
+      let connExpr : Q(List (Connection String)) ←
+        mkListLit q(Connection String) (← conns.mapM (λ ⟨ a, b ⟩ => do
+          mkAppM ``Connection.mk #[reifyInternalPort a, reifyInternalPort b]))
+      let modList : Q(List (String × (PortMapping String × (String × Nat)))) ←
+        mkListLit q(String × (PortMapping String × (String × Nat)))
+          (instTypeMap.toList.map (fun (a, (p, b)) =>
+            let a' : Q(String) := .lit (.strVal a)
+            let b' : Q(String) := b.1
+            let b'' : Q(Nat) := b.2
+            let p' : Q(PortMapping String) := mkPortMapping <| p.map (.strVal · |> .lit)
+            q(($a', ($p', ($b', $b''))))))
+      let modListMap : Q(IdentMap String (PortMapping String × (String × Nat))) := q(List.toAssocList $modList)
+      return q(ExprHigh.mk $modListMap $connExpr)
 
 -- open Qq in
 -- instance {α : Q(Type)} : Lean.ToExpr Q($α) where
