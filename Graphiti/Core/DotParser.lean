@@ -278,7 +278,7 @@ def dotToExprHigh (d : Parser.DotGraph) : Except String (ExprHigh String String 
       if typVal = "Fork" then
         let [sizesIn] ← parseIOSizes l "in" |>.mapM translateSize
           | throw "more that one input in fork"
-        typVal := s!"fork {sizesIn} {keyArgNumbers l "out"}"
+        typVal := s!"fork{keyArgNumbers l "out"} {sizesIn}"
 
       if typVal = "Mux" then
         current_extra_args ← addOpt current_extra_args "delay"
@@ -289,8 +289,8 @@ def dotToExprHigh (d : Parser.DotGraph) : Except String (ExprHigh String String 
       if typVal = "Merge" then
         current_extra_args ← addOpt current_extra_args "delay"
         if splitAndSearch l "in" "in0:0" then
-          typVal := s!"merge Unit {keyArgNumbers l "in"}"
-        else typVal := s!"merge T {keyArgNumbers l "in"}"
+          typVal := s!"merge{keyArgNumbers l "in"} Unit"
+        else typVal := s!"merge{keyArgNumbers l "in"} T"
 
       if typVal = "Entry" then
         current_extra_args ← addOpt current_extra_args "control"
