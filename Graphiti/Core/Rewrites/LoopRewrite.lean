@@ -11,27 +11,27 @@ namespace Graphiti.LoopRewrite
 
 open StringModule
 
-def boxLoopBody (g : ExprHigh String String) : RewriteResult (List String × List (Connection String)) := do
+def boxLoopBody (g : ExprHigh String (String × Nat)) : RewriteResultSL (List String × List (Connection String)) := do
  let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
       if s.isSome then return s
-      unless typ = "init Bool false" do return none
+      unless typ.1 = "initBool" do return none
 
       let (.some mux) := followOutput g inst "out1" | return none
-      unless String.isPrefixOf "mux" mux.typ && mux.inputPort = "in1" do return none
+      unless "mux" == mux.typ.1 && mux.inputPort = "in1" do return none
 
       let (.some muxNext) := followOutput g mux.inst "out1" | return none
 
       let (.some condition_fork) := followInput g inst "in1" | return none
-      unless String.isPrefixOf "fork" condition_fork.typ do return none
+      unless "fork2" == condition_fork.typ.1 do return none
 
       let (.some tag_split) := followInput g condition_fork.inst "in1" | return none
-      unless String.isPrefixOf "split" tag_split.typ do return none
+      unless "split" == tag_split.typ.1 do return none
 
       let (.some tagPrev) := followInput g tag_split.inst "in1" | return none
 
       -- as an extra check, the tag_split should be feeding a Branch
       let (.some branch) := followOutput g tag_split.inst "out1" | return none
-      unless String.isPrefixOf "branch" branch.typ do return none
+      unless "branch" == branch.typ.1 do return none
 
       let (.some scc) := findClosedRegion g mux.inst tag_split.inst | return none
       return some (scc.erase mux.inst |>.erase tag_split.inst,
@@ -40,23 +40,23 @@ def boxLoopBody (g : ExprHigh String String) : RewriteResult (List String × Lis
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
-def boxLoopBodyOther (g : ExprHigh String String) : RewriteResult (List String × List String) := do
+def boxLoopBodyOther : Pattern String (String × Nat) 0 := fun g => do
  let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
       if s.isSome then return s
-      unless typ = "init Bool false" do return none
+      unless typ.1 == "initBool" do return none
 
       let (.some mux) := followOutput g inst "out1" | return none
-      unless String.isPrefixOf "mux" mux.typ && mux.inputPort = "in1" do return none
+      unless "mux" == mux.typ.1 && mux.inputPort = "in1" do return none
 
       let (.some condition_fork) := followInput g inst "in1" | return none
-      unless String.isPrefixOf "fork" condition_fork.typ do return none
+      unless "fork2" == condition_fork.typ.1 do return none
 
       let (.some tag_split) := followInput g condition_fork.inst "in1" | return none
-      unless String.isPrefixOf "split" tag_split.typ do return none
+      unless "split" == tag_split.typ.1 do return none
 
       -- as an extra check, the tag_split should be feeding a Branch
       let (.some branch) := followOutput g tag_split.inst "out1" | return none
-      unless String.isPrefixOf "branch" branch.typ do return none
+      unless "branch" == branch.typ.1 do return none
 
       let (.some first) := followOutput g mux.inst "out1" | return none
       -- let (.some first) := followOutput g first.inst "out1" | return none
@@ -66,65 +66,68 @@ def boxLoopBodyOther (g : ExprHigh String String) : RewriteResult (List String �
 
       if last'.inst = first.inst then return none
 
-      return some ([first.inst, last.inst], [])
+      return some ([first.inst, last.inst], #v[])
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
-def boxLoopBodyOther' (g : ExprHigh String String) : RewriteResult (List String × List String) := do
+def boxLoopBodyOther' : Pattern String (String × Nat) 0 := fun g => do
   let (.cons inp _ .nil) := g.modules.filter (λ _ (p, _) => p.input.any (λ a b => b.inst.isTop)) | throw .done
   let (.cons out _ .nil) := g.modules.filter (λ _ (p, _) => p.output.any (λ a b => b.inst.isTop)) | throw .done
-  return ([inp, out], [])
+  return ([inp, out], #v[])
 
-def nonPureMatcher : Pattern String String := Graphiti.nonPureMatcher <| toPattern boxLoopBody
+def nonPureMatcher {n} : Pattern String (String × Nat) n := Graphiti.nonPureMatcher <| toPattern boxLoopBody
 
-def nonPureForkMatcher : Pattern String String := Graphiti.nonPureForkMatcher <| toPattern boxLoopBody
+def nonPureForkMatcher {n} : Pattern String (String × Nat) n := Graphiti.nonPureForkMatcher <| toPattern boxLoopBody
 
-def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) := do
+def matcher : Pattern String (String × Nat) 8 := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
        if s.isSome then return s
-       unless typ = "init Bool false" do return none
+       unless typ.1 == "initBool" do return none
 
        let (.some mux) := followOutput g inst "out1" | return none
-       unless String.isPrefixOf "mux" mux.typ do return none
+       unless "mux" == mux.typ.1 do return none
 
        let (.some mod) := followOutput g mux.inst "out1" | return none
-       unless String.isPrefixOf "pure f" mod.typ do return none
+       unless "pure" == mod.typ.1 do return none
 
        let (.some tag_split) := followOutput g mod.inst "out1" | return none
-       unless String.isPrefixOf "split" tag_split.typ do return none
+       unless "split" == tag_split.typ.1 do return none
 
        let (.some condition_fork) := followOutput g tag_split.inst "out2" | return none
-       unless String.isPrefixOf "fork" condition_fork.typ do return none
+       unless "fork2" == condition_fork.typ.1 do return none
 
        let (.some branch) := followOutput g tag_split.inst "out1" | return none
-       unless String.isPrefixOf "branch" branch.typ do return none
+       unless "branch" == branch.typ.1 do return none
 
        let (.some queue) := followOutput g branch.inst "out1" | return none
-       unless String.isPrefixOf "queue" queue.typ do return none
+       unless "queue" == queue.typ.1 do return none
 
-       return some ([mux.inst, condition_fork.inst, branch.inst, tag_split.inst, mod.inst, inst, queue.inst], [extractType mux.typ])
+       let (.some queue') := followOutput g branch.inst "out2" | return none
+       unless "queue" == queue'.typ.1 do return none
+
+       return some ([mux.inst, condition_fork.inst, branch.inst, tag_split.inst, mod.inst, inst, queue.inst],
+           #v[typ.2, mux.typ.2, mod.typ.2, tag_split.typ.2, condition_fork.typ.2, branch.typ.2, queue.typ.2, queue'.typ.2]
+         )
 
     ) none | MonadExceptOf.throw RewriteError.done
   return list
--- It can then be tested using the below command
--- #eval (matcher [graph| merge1 [type = "merge"]; merge2 [type = "merge"];
---                merge1 -> merge2 [from = "out1", to = "in1"]; ] /- <--- replace this with the input graph to test with (as an ExprHigh). -/
---        ).run' default
+
+variable (T : Vector Nat 8)
+variable (M : Nat)
 
 @[drunfold_defs]
-def lhs (T : Type) [Inhabited T] (Tₛ : String) (f : T → T × Bool)
-      : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+def lhs : ExprHigh String (String × Nat) := [graph|
     i_in [type = "io"];
     o_out [type = "io"];
 
-    mux [typeImp = $(⟨_, mux T⟩), type = $("mux " ++ Tₛ)];
-    condition_fork [typeImp = $(⟨_, fork Bool 2 ⟩), type = "fork Bool 2"];
-    branch [typeImp = $(⟨_, branch T⟩), type = $("branch " ++ Tₛ)];
-    tag_split [typeImp = $(⟨_, split T Bool⟩), type = $("split " ++ Tₛ ++ " Bool")];
-    mod [typeImp = $(⟨_, pure f⟩), type = "pure f"];
-    loop_init [typeImp = $(⟨_, init Bool false⟩), type = "init Bool false"];
-    queue [typeImp = $(⟨_, queue T⟩), type = $("queue " ++ Tₛ)];
-    queue_out [typeImp = $(⟨_, queue T⟩), type = $("queue " ++ Tₛ)];
+    mux [type = "mux", arg = $(T[0])];
+    condition_fork [type = "fork2", arg = $(T[1])];
+    branch [type = "branch", arg = $(T[2])];
+    tag_split [type = "split", arg = $(T[3])];
+    mod [type = "pure", arg = $(T[4])];
+    loop_init [type = "initBool", arg = $(T[5])];
+    queue [type = "queue", arg = $(T[6])];
+    queue_out [type = "queue", arg = $(T[7])];
 
     i_in -> mux [to="in2"];
     queue_out -> o_out [from="out1"];
@@ -141,20 +144,12 @@ def lhs (T : Type) [Inhabited T] (Tₛ : String) (f : T → T × Bool)
     branch -> queue_out [from="out2", to="in1"];
   ]
 
--- #eval IO.print ((lhs Unit "T" (λ _ => default)).fst)
-
--- #eval lhs Unit Unit Unit (λ _ _ _ => False) (λ _ _ _ => False) |>.1 |> IO.print
-
 @[drunfold_defs]
-def lhs_extract T := lhs Unit T (λ _ => default) |>.1
+def lhs_extract := (lhs T)
   |>.extract ["mux", "condition_fork", "branch", "tag_split", "mod", "loop_init", "queue",  "queue_out"]
   |>.get rfl
 
 theorem double_check_empty_snd T: (lhs_extract T).snd = ExprHigh.mk ∅ ∅ := by rfl
-
-theorem lhs_type_independent a f a₂ f₂ T
-        [Inhabited a] [Inhabited a₂]
-  : (lhs a T f).fst = (lhs a₂ T f₂).fst := by rfl
 
 @[drunfold_defs]
 def lhsLower T := (lhs_extract T).fst.lower_TR.get rfl
@@ -165,16 +160,15 @@ abbrev TagT := Nat
 def liftF {α β γ δ} (f : α -> β × δ) : γ × α -> (γ × β) × δ | (g, a) => ((g, f a |>.fst), f a |>.snd)
 
 @[drunfold_defs]
-def rhs (T : Type) [Inhabited T] (Tₛ : String) (f : T → T × Bool)
-    : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+def rhs : ExprHigh String (String × Nat) := [graph|
     i_in [type = "io"];
     o_out [type = "io"];
 
-    tagger [typeImp = $(⟨_, tagger_untagger_val TagT T T ⟩), type = $("tagger_untagger_val TagT " ++ Tₛ ++ " " ++ Tₛ)];
-    merge [typeImp = $(⟨_, merge (TagT × T) 2⟩), type = $("merge (TagT × " ++ Tₛ ++ ") 2")];
-    branch [typeImp = $(⟨_, branch (TagT × T)⟩), type = $("branch (TagT × " ++ Tₛ ++ ")")];
-    tag_split [typeImp = $(⟨_, split (TagT × T) Bool⟩), type = $("split (TagT × " ++ Tₛ ++ ") Bool")];
-    mod [typeImp = $(⟨_, pure (liftF f)⟩), type = "pure (liftF f)"];
+    tagger [type = "tagger_untagger_val", arg = $(M+1)];
+    merge [type = "merge2", arg = $(M+2)];
+    branch [type = "branch", arg = $(M+3)];
+    tag_split [type = "split", arg = $(M+4)];
+    mod [type = "pure", arg = $(M+5)];
 
     i_in -> tagger [to="in2"];
     tagger -> o_out [from="out2"];
@@ -189,23 +183,21 @@ def rhs (T : Type) [Inhabited T] (Tₛ : String) (f : T → T × Bool)
   ]
 
 @[drunfold_defs]
-def rhs_extract T := rhs Unit T (λ _ => default) |>.1
+def rhs_extract := rhs M
   |>.extract ["tag_split", "tagger", "merge", "branch", "mod"]
   |>.get rfl
 
 @[drunfold_defs]
 def rhsLower T := (rhs_extract T |>.1).lower_TR.get rfl
 
-theorem rhs_type_independent b f b₂ f₂ T [Inhabited b] [Inhabited b₂]
-  : (rhs b T f).fst = (rhs b₂ T f₂).fst := by rfl
-
 -- #eval IO.print ((rhs Unit "T" (λ _ => default)).fst)
 
 @[drunfold_defs]
-def rewrite : Rewrite String String :=
+def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
-    pattern := unsafe matcher,
-    rewrite := λ | [T] => pure ⟨lhsLower T, rhsLower T⟩ | _ => failure
+    params := 8,
+    pattern := matcher,
+    rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
     name := .some "loop-rewrite"
   }
 

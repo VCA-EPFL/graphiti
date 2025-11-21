@@ -199,17 +199,17 @@ theorem map_fst {α β γ η  : Type} {i : α} {l : List ((α × β) × γ × η
 omit e in
 theorem getIO_cons_neq {α} {a b x} {xs}:
   a ≠ b ->
-  PortMap.getIO (.cons a x xs) b = @PortMap.getIO String _ α xs b := by
+  PortMap.getIO (.cons a x xs) b = @PortMap.getIO String α _ xs b := by
   unfold PortMap.getIO; intro heq
-  rw [Batteries.AssocList.find?_cons_neq]; assumption
+  rw [Batteries.AssocList.find?_cons_neq']; assumption
 
 omit e in
 theorem getIO_nil {α} {b}:
-  @PortMap.getIO String _ α .nil b = ⟨ Unit, λ _ _ _ => False ⟩ := by aesop
+  @PortMap.getIO String α _ .nil b = ⟨ Unit, λ _ _ _ => False ⟩ := by aesop
 
 omit e in
 theorem getIO_cons_eq {α} {a x} {xs}:
-  @PortMap.getIO String _ α (.cons a x xs) a = x := by
+  @PortMap.getIO String α _ (.cons a x xs) a = x := by
   unfold PortMap.getIO; rw [Batteries.AssocList.find?_cons_eq]; rfl
 
 omit e in
@@ -883,8 +883,6 @@ theorem state_relation_preserve:
                     List.filter_cons_of_neg, List.mem_filter, beq_false,
                     List.filter_cons_of_pos, Bool.not_eq_eq_eq_not, Bool.not_true, forall_eq_or_imp] at *
           grind
-
-#print axioms state_relation_preserve
 
 /-
 # Proof refinment rhsGhost ⊑ lhs
@@ -1654,7 +1652,7 @@ noncomputable def verified_rewrite : VerifiedRewrite (rewrite.rewrite e.types e.
     apply rhs_ghost_evaled_eq3.symm
     apply lhs_evaled_eq.symm
     apply refines
-#check Quot.sound
+
 /--
 info: 'Graphiti.LoopRewrite.verified_rewrite' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/

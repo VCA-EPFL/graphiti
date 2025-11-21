@@ -274,17 +274,17 @@ def renamePorts f (g : ExprHigh Ident Typ) (p : PortMapping Ident) := do
   let g_lower ← g.lower
   g_lower.renamePorts p >>= ExprLow.higher_correct f
 
-def normaliseNames (e : ExprHigh String String) : Option (ExprHigh String String) :=
+def normaliseNames {α} [DecidableEq α] (e : ExprHigh String α) : Option (ExprHigh String α) :=
   let renameMap := e.modules.toList.map (λ (x, (inst, typ)) =>
     inst.mapKeys (λ keyPort bodyPort => if bodyPort.inst.isTop then bodyPort else ⟨.internal x, keyPort.name⟩))
       |> PortMapping.combinePortMapping
   e.renamePorts (λ x => PortMapping.getInstanceName x |>.getD default) renameMap
 
-def renameModules (e : ExprHigh String String) (map : Batteries.AssocList String String) :=
+def renameModules {α} [DecidableEq α] (e : ExprHigh String α) (map : Batteries.AssocList String String) :=
   let newModules := e.modules.mapKey (λ k => map.find? k |>.getD k)
   {e with modules := newModules}.normaliseNames
 
-instance : ToString (ExprHigh String String) where
+instance {α} [ToString α] [DecidableEq α] [Repr α] : ToString (ExprHigh String α) where
   toString a :=
     -- let instances :=
     --   a.modules.foldl (λ s inst mod => s ++ s!"\n {inst} [mod = \"{mod}\"];") ""
@@ -327,7 +327,7 @@ instance : ToString (ExprHigh String String) where
 }"
     | none => repr a |>.pretty
 
-def toBlueSpec (a : ExprHigh String String): String :=
+def toBlueSpec {α} [ToString α] [DecidableEq α] [Repr α] (a : ExprHigh String α): String :=
   -- let instances :=
   --   a.modules.foldl (λ s inst mod => s ++ s!"\n {inst} [mod = \"{mod}\"];") ""
   match a.normaliseNames with
@@ -350,7 +350,7 @@ def toBlueSpec (a : ExprHigh String String): String :=
     let modules :=
       a.modules.foldl
         (λ s k v =>
-          let (typ, args) := TypeExpr.Parser.parseNode v.snd |>.getD ("unknown", [])
+          let (typ, args) := TypeExpr.Parser.parseNode (toString v.snd) |>.getD ("unknown", [])
           let args' := (List.range args.length).zip args |>.map (λ (n, arg) => arg.toBlueSpec n)
           s ++ s!"  \"{k}\" [type = \"{typ}\", {", ".intercalate args'}, label = \"{k}: {v.snd}\"];\n"
           ) ""

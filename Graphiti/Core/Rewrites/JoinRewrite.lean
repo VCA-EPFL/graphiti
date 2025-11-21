@@ -20,7 +20,7 @@ def lhs (T₁ T₂ T₃ : Type) (S₁ S₂ S₃ : String) : ExprHigh String Stri
     i_2 [type = "io"];
     o_out [type = "io"];
 
-    join1 [typeImp = $(⟨_, join T₁ T₂⟩), type = $("join" ++ S₁ ++  " " ++ S₂)];
+    join1 [typeImp = $(⟨_, join T₁ T₂⟩), type = $("join " ++ S₁ ++  " " ++ S₂)];
     join2 [typeImp = $(⟨_, join (T₁ × T₂) T₃⟩), type = $("join (" ++ S₁ ++ " × " ++ S₂ ++ ") " ++ S₃)];
 
     i_0 -> join1 [to = "in1"];
@@ -72,10 +72,10 @@ def rhsLower S₁ S₂ S₃ := (rhs_extract S₁ S₂ S₃).fst.lower_TR.get rfl
 
 -- @[drunfold_defs]
 -- def rewrite : Rewrite String String :=
---   { abstractions := [],
---     pattern := matcher,
---     rewrite := λ | [S₁, S₂, S₃] => pure ⟨lhsLower S₁ S₂ S₃, rhsLower S₁ S₂ S₃⟩
---                  | _ => throw (.error "number of parameters incorrect.")
+--   { abstractions := []
+--     params := 2
+--     pattern := matcher
+--     rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
 --     }
 
 end Graphiti.JoinRewrite

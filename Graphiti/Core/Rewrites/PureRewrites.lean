@@ -316,7 +316,7 @@ def rewrite : Rewrite String (String × Nat) :=
 end Fork
 
 -- TODO: do not pass the pattern, instead just precompute the pattern.
-def specialisedPureRewrites (p : Pattern String (String × Nat) 1) :=
+def specialisedPureRewrites {n} (p : Pattern String (String × Nat) n) :=
   [ { Constant.rewrite with
         pattern := fun g => do
           let (s :: _, t) ← p g | throw RewriteError.done

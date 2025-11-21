@@ -11,31 +11,28 @@ namespace Graphiti.BranchPureMuxLeft
 
 open StringModule
 
-variable (T₁ : Type)
-variable (S₁ : String)
-
 /--
 Matches a region that needs to be converted to a pure on the left hand side of a branch/mux pair that is not empty.
 Additionally, it checks that none of the nodes between the branch/mux pair includes another branch.  It does not return
 any types.  The assumption is that `out1` from the fork feeds the `in2` of the branch, and `out2` feeds the mux.
 -/
-def matchAllNodes : Pattern String String := fun g => do
+def matchAllNodes : Pattern String (String × Nat) 0 := fun g => do
   let (.some list) ← g.modules.foldlM (λ s branch_inst (pmap, branch_typ) => do
        if s.isSome then return s
 
        -- Find the branch
-       unless "branch".isPrefixOf branch_typ do return none
+       unless "branch" == branch_typ.1 do return none
 
        -- Check that the next node is not a mux
        let (.some nn) := followOutput g branch_inst "out1" | return none
-       if "mux".isPrefixOf nn.typ then return none
+       if "mux" == nn.typ.1 then return none
 
        -- Follow the fork to the mux
        let (.some fork) := followInput g branch_inst "in2" | return none
-       unless "fork".isPrefixOf fork.typ && fork.incomingPort == "out1" do return none
+       unless "fork2" == fork.typ.1 && fork.incomingPort == "out1" do return none
 
        let (.some mux) := followOutput g fork.inst "out2" | return none
-       unless "mux".isPrefixOf mux.typ && mux.incomingPort == "in1" do return none
+       unless "mux" == mux.typ.1 && mux.incomingPort == "in1" do return none
 
        let (.some pp) := followInput g mux.inst "in3" | return none
        if pp.inst == nn.inst then return none
@@ -46,58 +43,59 @@ def matchAllNodes : Pattern String String := fun g => do
        -- Check if there are any additional branches and muxes in the region
        unless nodes.all (λ x =>
          match g.modules.find? x with
-         | .some (_, typ) => !"branch".isPrefixOf typ && !"mux".isPrefixOf typ
+         | .some (_, typ) => !"branch" == typ.1 && !"mux" == typ.1
          | .none => false
        )
        do return none
 
-       return some ([branch_inst, mux.inst, fork.inst, nn.inst, pp.inst] ++ (nodes.erase nn.inst |>.erase pp.inst), [])
+       return some ([branch_inst, mux.inst, fork.inst, nn.inst, pp.inst] ++ (nodes.erase nn.inst |>.erase pp.inst), #v[])
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
 /--
 Only return the first and last instances of the region.
 -/
-def matchPreAndPost : Pattern String String := fun g => do
+def matchPreAndPost : Pattern String (String × Nat) 0 := fun g => do
   let (l, _) ← matchAllNodes g
   let .some n := l[3]? | throw (.error s!"{decl_name%}: could not find n")
   let .some p := l[4]? | throw (.error s!"{decl_name%}: could not find p")
-  return ([n, p], [])
+  return ([n, p], #v[])
 
-def matcherEmpty : Pattern String String := fun g => do
+def matcherEmpty : Pattern String (String × Nat) 3 := fun g => do
   let (.some list) ← g.modules.foldlM (λ s branch_inst (pmap, branch_typ) => do
        if s.isSome then return s
 
        -- Find the branch
-       unless "branch".isPrefixOf branch_typ do return none
+       unless "branch" == branch_typ.1 do return none
 
        -- Check that the next node is the mux node (which also connects to the same fork).
        let (.some mux) := followOutput g branch_inst "out1" | return none
-       unless "mux".isPrefixOf mux.typ && mux.incomingPort = "in3" do return none
+       unless "mux" == mux.typ.1 && mux.incomingPort = "in3" do return none
 
        -- Follow the fork to the mux
        let (.some fork) := followInput g branch_inst "in2" | return none
-       unless "fork".isPrefixOf fork.typ && fork.incomingPort == "out1" do return none
+       unless "fork2" == fork.typ.1 && fork.incomingPort == "out1" do return none
 
        let (.some mux') := followOutput g fork.inst "out2" | return none
-       unless mux'.inst = mux.inst && mux'.incomingPort == "in1" do return none
+       unless mux'.inst == mux.inst && mux'.incomingPort == "in1" do return none
 
-       let (.some t1) := branch_typ.splitOn[1]? | return none
-
-       return some ([branch_inst, mux.inst, fork.inst], [t1])
+       return some ([branch_inst, mux.inst, fork.inst], #v[branch_typ.2, mux.typ.2, fork.typ.2])
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
-def lhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+variable (T : Vector Nat 3)
+variable (M : Nat)
+
+def lhs : ExprHigh String (String × Nat) := [graph|
     i1 [type = "io"];
     i2 [type = "io"];
     i3 [type = "io"];
     o1 [type = "io"];
     o2 [type = "io"];
 
-    branch [typeImp = $(⟨_, branch T₁⟩), type = $(s!"branch {S₁}")];
-    mux [typeImp = $(⟨_, mux T₁⟩), type = $(s!"mux {S₁}")];
-    fork [typeImp = $(⟨_, fork Bool 2⟩), type = $(s!"fork Bool 2")];
+    branch [type = "branch", arg = $(T[0])];
+    mux [type = "mux", arg = $(T[1])];
+    fork [type = "fork2", arg = $(T[2])];
 
     i1 -> fork [to="in1"];
     i2 -> branch [to="in1"];
@@ -111,23 +109,21 @@ def lhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphE
     mux -> o2 [from="out1"];
   ]
 
-def lhs_extract := (lhs Unit S₁).fst.extract ["branch", "mux", "fork"] |>.get rfl
+def lhs_extract := (lhs T).extract ["branch", "mux", "fork"] |>.get rfl
+theorem double_check_empty_snd : (lhs_extract T).snd = ExprHigh.mk ∅ ∅ := by rfl
+def lhsLower := lhs_extract T |>.fst.lower.get rfl
 
-theorem double_check_empty_snd : (lhs_extract S₁).snd = ExprHigh.mk ∅ ∅ := by rfl
-
-def lhsLower := (lhs_extract S₁).fst.lower.get rfl
-
-def rhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+def rhs : ExprHigh String (String × Nat) := [graph|
     i1 [type = "io"];
     i2 [type = "io"];
     i3 [type = "io"];
     o1 [type = "io"];
     o2 [type = "io"];
 
-    branch [typeImp = $(⟨_, branch T₁⟩), type = $(s!"branch {S₁}")];
-    mux [typeImp = $(⟨_, mux T₁⟩), type = $(s!"mux {S₁}")];
-    fork [typeImp = $(⟨_, fork Bool 2⟩), type = $(s!"fork Bool 2")];
-    pure [typeImp = $(⟨_, pure (@id T₁)⟩), type = $(s!"pure {S₁} {S₁}")];
+    branch [type = "branch", arg = $(M+1)];
+    mux [type = "mux", arg = $(M+2)];
+    fork [type = "fork2", arg = $(M+3)];
+    pure [type = "pure", arg = $(M+4)];
 
     i1 -> fork [to="in1"];
     i2 -> branch [to="in1"];
@@ -142,39 +138,39 @@ def rhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphE
     mux -> o2 [from="out1"];
   ]
 
-def rhs_extract := (rhs Unit S₁).fst.extract ["branch", "mux", "fork", "pure"] |>.get rfl
+def rhs_extract := (rhs M).extract ["branch", "mux", "fork", "pure"] |>.get rfl
+def rhsLower := (rhs_extract M).fst.lower.get rfl
+def findRhs mod := (rhs_extract 0).fst.modules.find? mod |>.map Prod.fst
 
-def rhsLower := (rhs_extract S₁).fst.lower.get rfl
-
-def findRhs mod := (rhs_extract "").1.modules.find? mod |>.map Prod.fst
-
-def rewrite : Rewrite String String :=
+def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
+    params := 3
     pattern := matcherEmpty,
-    rewrite := λ | [S₁] => .some ⟨lhsLower S₁, rhsLower S₁⟩ | _ => failure,
+    rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
     name := "branch-pure-mux-left"
     transformedNodes := [findRhs "branch" |>.get rfl, findRhs "mux" |>.get rfl, findRhs "fork" |>.get rfl]
     addedNodes := [findRhs "pure" |>.get rfl]
+    fresh_types := 4
   }
 
 namespace Test
 
 /-- info: true -/
 #guard_msgs in
-#eval (matcherEmpty (lhs Unit "T").1 |>.run' default) == some (["branch", "mux", "fork"], ["T"])
+#eval (matcherEmpty (lhs #v[1, 2, 3])) == .ok (["branch", "mux", "fork"], #v[1, 2, 3])
 
-def rhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|
+def rhs : ExprHigh String (String × Nat) := [graph|
     i1 [type = "io"];
     i2 [type = "io"];
     i3 [type = "io"];
     o1 [type = "io"];
     o2 [type = "io"];
 
-    branch [typeImp = $(⟨_, branch T₁⟩), type = $(s!"branch {S₁}")];
-    mux [typeImp = $(⟨_, mux T₁⟩), type = $(s!"mux {S₁}")];
-    fork [typeImp = $(⟨_, fork Bool 2⟩), type = $(s!"fork Bool 2")];
-    pure [typeImp = $(⟨_, pure (@id T₁)⟩), type = $(s!"pure {S₁} {S₁}")];
-    pure2 [typeImp = $(⟨_, pure (@id T₁)⟩), type = $(s!"pure {S₁} {S₁}")];
+    branch [type = "branch", arg = $(1)];
+    mux [type = "mux", arg = $(2)];
+    fork [type = "fork2", arg = $(3)];
+    pure [type = "pure", arg = $(4)];
+    pure2 [type = "pure", arg = $(5)];
 
     i1 -> fork [to="in1"];
     i2 -> branch [to="in1"];
@@ -190,13 +186,13 @@ def rhs : ExprHigh String String × IdentMap String (TModule1 String) := [graphE
     mux -> o2 [from="out1"];
   ]
 
-/-- info: some true -/
+/-- info: Except.ok true -/
 #guard_msgs in
-#eval (matchAllNodes (rhs Unit "T").1 |>.run' default).map (·.1 == ["branch", "mux", "fork", "pure", "pure2"])
+#eval (matchAllNodes rhs).map (·.1 == ["branch", "mux", "fork", "pure", "pure2"])
 
-/-- info: some true -/
+/-- info: Except.ok true -/
 #guard_msgs in
-#eval (matchPreAndPost (rhs Unit "T").1 |>.run' default).map (·.1 == ["pure", "pure2"])
+#eval (matchPreAndPost rhs).map (·.1 == ["pure", "pure2"])
 
 end Test
 

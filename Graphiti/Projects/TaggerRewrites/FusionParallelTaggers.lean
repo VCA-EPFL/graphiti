@@ -14,7 +14,7 @@ namespace Graphiti.FusionParallelTagger
 /--
 Matcher used for abstraction of the top module.
 -/
-def matchModL : Pattern String String := fun g => do
+def matchModL : Pattern String String 0 := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
       if s.isSome then return s
       unless typ = "Join" do return none
@@ -27,13 +27,13 @@ def matchModL : Pattern String String := fun g => do
       let (.some scc) := findClosedRegion g begin_l.inst end_l.inst | return none
       return some scc
     ) none | throw .done
-  return (list, [])
+  return (list, #v[])
 
 
 /--
 Matcher used for abstraction of the right module
 -/
-def matchModR : Pattern String String := fun g => do
+def matchModR : Pattern String String 0 := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
       if s.isSome then return s
       unless typ = "Join" do return none
@@ -46,10 +46,10 @@ def matchModR : Pattern String String := fun g => do
       let (.some scc) := findClosedRegion g begin_r.inst end_r.inst | return none
       return some scc
     ) none | throw .done
-  return (list, [])
+  return (list, #v[])
 
 
-def matcher : Pattern String String := fun g => do
+def matcher : Pattern String String 0 := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
       if s.isSome then return s
       unless typ = "Join" do return none
@@ -64,7 +64,7 @@ def matcher : Pattern String String := fun g => do
       unless begin_l.inst == end_l.inst && begin_r.inst == end_r.inst do return none
       return some [inst, tagger_l.inst, tagger_r.inst, begin_l.inst, begin_r.inst]
     ) none | throw .done
-  return (list, [])
+  return (list, #v[])
 
 def lhs' : ExprHigh String String := [graph|
     i_datal [type = "io"];
@@ -156,9 +156,10 @@ extract parts of the graph.  The `type` given to each extracted node has to
 match the `type` of the node in LHS and RHS graphs.
 -/
 def rewrite : Rewrite String String :=
-  { abstractions := [⟨matchModL, "mod_left"⟩, ⟨matchModR, "mod_right"⟩],
+  { abstractions := [⟨0, matchModL, "mod_left"⟩, ⟨0, matchModR, "mod_right"⟩],
+    params := 0
     pattern := matcher,
-    rewrite := fun _ => pure ⟨lhsLower, rhsLower⟩
+    rewrite := fun _ _ => ⟨lhsLower, rhsLower⟩
   }
 
 namespace TEST

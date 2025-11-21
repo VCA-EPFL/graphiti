@@ -190,7 +190,7 @@ def fixComponentNames (s : String) : String :=
 --fmt.1: Type
 --fmt.2.1 and fmt.2.2.1: Input and output attributes
 --fmt.2.2.2: Additional options.
-def dynamaticString (a: ExprHigh String String) (m : AssocList String (AssocList String String)): Option String := do
+def dynamaticString (a: ExprHigh String (String × Nat)) (m : AssocList String (AssocList String String)): Option String := do
   -- let instances :=
   --   a.modules.foldl (λ s inst mod => s ++ s!"\n {inst} [mod = \"{mod}\"];") ""
   let a ← a.normaliseNames
@@ -198,19 +198,19 @@ def dynamaticString (a: ExprHigh String String) (m : AssocList String (AssocList
     a.modules.foldlM
       (λ s k v => do
         -- search for the type of the passed node in interfaceTypes
-        let fmt := translateTypes v.snd
+        let fmt := translateTypes v.snd.1
         match m.find? k with
         | some input_fmt =>
           -- If the node is found to be coming from the input,
           -- retrieve its attributes from what we saved and bypass it
           -- without looking for it in interfaceTypes
-        return (RenameJoinToConcat s) ++ s!"\"{k}\" [type = \"{capitalizeFirstChar (extractStandardType (fmt.1.getD v.snd))}\"{formatOptions input_fmt.toList}];\n"
+        return (RenameJoinToConcat s) ++ s!"\"{k}\" [type = \"{capitalizeFirstChar (extractStandardType (fmt.1.getD v.snd.1))}\"{formatOptions input_fmt.toList}];\n"
         --return s ++ s!"\"{k}\" [type = \"{fmt.1.getD v.snd}\"{formatOptions input_fmt.toList}];\n"
         | none =>
           -- If this is a new node, then we sue `fmt` to correctly add the right
           -- arguments from what is given in interfaceTypes.  We should never be generating constructs like MC, so
           -- this shouldn't be a problem.
-        return (RenameJoinToConcat s) ++ s!"\"{k}\" [type = \"{capitalizeFirstChar (extractStandardType (fmt.1.getD v.snd))}\", in = \"{removeLetter 'p' fmt.2.1}\", out = \"{fmt.2.2.1}\"{formatOptions fmt.2.2.2}];\n"
+        return (RenameJoinToConcat s) ++ s!"\"{k}\" [type = \"{capitalizeFirstChar (extractStandardType (fmt.1.getD v.snd.1))}\", in = \"{removeLetter 'p' fmt.2.1}\", out = \"{fmt.2.2.1}\"{formatOptions fmt.2.2.2}];\n"
         --return s ++ s!"\"{k}\" [type = \"{fmt.1.getD v.snd}\", in = \"{removeLetter 'p' fmt.2.1}\", out = \" {fmt.2.2.1} \"{formatOptions fmt.2.2.2}];\n"
 
       ) ""

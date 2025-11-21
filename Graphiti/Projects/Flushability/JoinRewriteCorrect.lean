@@ -46,7 +46,7 @@ variable {T₁ T₂ T₃ : Type}
 variable (S₁ S₂ S₃ : String)
 
 @[drunfold_defs]
-def rewriteLhsRhs := rewrite.rewrite [S₁, S₂, S₃] |>.get rfl
+def rewriteLhsRhs : DefiniteRewrite String String := ⟨lhsLower S₁ S₂ S₃, rhsLower S₁ S₂ S₃⟩
 
 def environmentLhs : IdentMap String (TModule1 String) := lhs T₁ T₂ T₃ S₁ S₂ S₃ |>.snd
 def environmentRhs : IdentMap String (TModule1 String) := rhs T₁ T₂ T₃ S₁ S₂ S₃ |>.snd
@@ -87,6 +87,7 @@ def environmentRhs : IdentMap String (TModule1 String) := rhs T₁ T₂ T₃ S�
   rw [Batteries.AssocList.find?.eq_2]; rw [this]
 
 variable (T₁ T₂ T₃) in
+include T₁ T₂ T₃ in
 seal environmentLhs in
 def_module lhsModuleType : Type :=
   [T| (rewriteLhsRhs S₁ S₂ S₃).input_expr, (@environmentLhs T₁ T₂ T₃ S₁ S₂ S₃).find? ]
@@ -94,13 +95,27 @@ reduction_by
   dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
   dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
   dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
-  simp only [find?_join1_data, find?_join2_data]
+  simp only [find?_join2_data, find?_join1_data]
   dsimp
 
 variable (T₁ T₂ T₃) in
 seal environmentLhs in
 def_module lhsModule : StringModule (lhsModuleType T₁ T₂ T₃) :=
   [e| (rewriteLhsRhs S₁ S₂ S₃).input_expr, (@environmentLhs T₁ T₂ T₃ S₁ S₂ S₃).find? ]
+reduction_by
+       (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
+        dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
+        dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
+        rw [rw_opaque (by simp only [drenv]; rfl)]; dsimp
+        dsimp [Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts, Module.mapInputPorts, reduceAssocListfind?]
+        simp (disch := decide) only [AssocList.bijectivePortRenaming_invert]
+        dsimp [Module.product]
+        dsimp only [reduceModuleconnect'2]
+        dsimp only [reduceEraseAll]
+        dsimp; dsimp [reduceAssocListfind?]
+
+        unfold Module.connect''
+        dsimp [Module.liftL, Module.liftR, drcomponents])
 
 variable (T₁ T₂ T₃) in
 seal environmentRhs in
@@ -608,7 +623,7 @@ by
   obtain ⟨s₄, _⟩ := flhs.flushable s₃
   use s₄
   have := flushed_inputs_are_rflushed (lhsModule T₁ T₂ T₃) ident
-  rw [sigma_rw this]
+  rw [PortMap.rw_rule_execution this]
   dsimp [rflushed]
   use s₃ <;> and_intros <;> assumption
 
@@ -1130,8 +1145,8 @@ by
     . apply And.intro
       . apply existSR_reflexive
       . unfold φ₄; apply And.intro
-        . rw [sigma_rw (flushed_inputs_are_rflushed _ _)] at h₁
-          rw [sigma_rw (flushed_inputs_are_rflushed _ _)] at h₂
+        . rw [PortMap.rw_rule_execution (flushed_inputs_are_rflushed _ _)] at h₁
+          rw [PortMap.rw_rule_execution (flushed_inputs_are_rflushed _ _)] at h₂
           obtain ⟨s₁, _, h₁⟩ := h₁
           obtain ⟨s₂, _, h₂⟩ := h₂
           obtain ⟨_, _⟩ := Hψ -- TODO: This can be removed if we go down to ψ instead of φ₄

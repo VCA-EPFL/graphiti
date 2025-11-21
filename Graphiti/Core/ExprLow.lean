@@ -504,7 +504,7 @@ def comm_connections {Ident} [DecidableEq Ident] (conn : List (Connection Ident)
 def comm_bases {Ident} [DecidableEq Ident] (bases : List (PortMapping Ident × Typ)) (e : ExprLow Ident Typ): ExprLow Ident Typ :=
   bases.foldr (Function.uncurry ExprLow.comm_base) e
 
-def getPortMaps : ExprLow String String → List (PortMapping String)
+def getPortMaps {α β} : ExprLow α β → List (PortMapping α)
 | .base inst typ => [inst]
 | .connect c e => getPortMaps e
 | .product e₁ e₂ => getPortMaps e₁ ++ getPortMaps e₂
