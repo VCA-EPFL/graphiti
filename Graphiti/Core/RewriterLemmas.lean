@@ -70,7 +70,7 @@ theorem higher_correct_products_correct {Ident Typ} {f} {e₂ : ExprLow Ident Ty
   | product e₁ e₂ ih1 ih2 =>
     intro hc
     cases e₁ <;> dsimp [ExprLow.higher_correct_products] at hc <;> (try contradiction)
-    rw [Option.bind_eq_some] at hc
+    rw [Option.bind_eq_some_iff] at hc
     obtain ⟨v', ha', hb'⟩ := hc; cases hb'
     dsimp
     rw [ih2]
@@ -86,7 +86,7 @@ theorem refines_higher_correct_connections {Ident Typ} {f} {e : ExprLow Ident Ty
   | base inst typ =>
     intro h
     dsimp [ExprLow.higher_correct_connections] at h
-    rw [Option.bind_eq_some] at h
+    rw [Option.bind_eq_some_iff] at h
     obtain ⟨v, ha, hb⟩ := h
     cases hb
     dsimp [ExprHigh.lower, ExprHigh.lower']
@@ -94,7 +94,7 @@ theorem refines_higher_correct_connections {Ident Typ} {f} {e : ExprLow Ident Ty
   | connect c e ihe =>
     intro h
     dsimp [ExprLow.higher_correct_connections] at h
-    rw [Option.bind_eq_some] at h
+    rw [Option.bind_eq_some_iff] at h
     obtain ⟨v, ha, hb⟩ := h
     cases hb
     dsimp [ExprHigh.lower, ExprHigh.lower']
@@ -105,14 +105,14 @@ theorem refines_higher_correct_connections {Ident Typ} {f} {e : ExprLow Ident Ty
   | product e₁ e₂ ihe₁ ihe₂ =>
     intro h
     dsimp [ExprLow.higher_correct_connections] at h
-    rw [Option.bind_eq_some] at h
+    rw [Option.bind_eq_some_iff] at h
     obtain ⟨v, ha, hb⟩ := h
     cases hb
     dsimp [ExprHigh.lower, ExprHigh.lower']
     cases e₁ <;> (try dsimp [ExprLow.higher_correct_products] at ha <;> contradiction)
     rename_i map1 typ1
     dsimp [ExprLow.higher_correct_products] at ha
-    rw [Option.bind_eq_some] at ha
+    rw [Option.bind_eq_some_iff] at ha
     obtain ⟨v', ha', hb'⟩ := ha; cases hb'
     dsimp; rw [Batteries.AssocList.toList_toAssocList]
     congr
@@ -146,12 +146,13 @@ structure VerifiedRewrite (rewrite : DefiniteRewrite String (String × Nat)) (ε
 theorem run'_implies_pattern {g b st g' _st' rw}:
   Rewrite.run' g rw b st = .ok g' _st' →
   ∃ out, rw.pattern g = .ok out := by
-  intro hrewrite
+  unfold Rewrite.run'; simp
+  intro hrewrite; dsimp [Bind.bind, Monad.toBind, EStateM.instMonad] at *
   repeat
     rename (EStateM.bind _ _ _ = .ok _ _) => hrewrite
     replace hrewrite := EStateM.bind_eq_ok hrewrite
-    let ⟨_, _, _, hrewrite'⟩ := hrewrite
-    clear hrewrite; have hrewrite := hrewrite'; clear hrewrite'
+    rcases hrewrite with ⟨_, _, _, hrewrite'⟩
+    have hrewrite := hrewrite'; clear hrewrite'
   repeat
     try have hofOption' := hofOption; clear hofOption
     rename (ofOption _ _ _ = .ok _ _) => hofOption
@@ -175,7 +176,7 @@ theorem run'_implies_pattern {g b st g' _st' rw}:
   rename (rw.pattern _).runWithState _ = _ => Hpattern
   cases heq : (rw.pattern g)
   · rw [heq] at Hpattern; dsimp [RewriteResultSL.runWithState] at Hpattern; cases Hpattern
-  · constructor; rfl
+  · constructor; constructor; rfl
 
 theorem run'_implies_wt_lhs {b} {ε_global : FinEnv String (String × Nat)}
   {g g' : ExprHigh String (String × Nat)}
@@ -198,8 +199,8 @@ theorem run'_implies_wt_lhs {b} {ε_global : FinEnv String (String × Nat)}
   repeat
     rename (EStateM.bind _ _ _ = .ok _ _) => hrewrite
     replace hrewrite := EStateM.bind_eq_ok hrewrite
-    let ⟨_, _, _, hrewrite'⟩ := hrewrite
-    clear hrewrite; have hrewrite := hrewrite'; clear hrewrite'
+    rcases hrewrite with ⟨_, _, _, hrewrite'⟩
+    have hrewrite := hrewrite'; clear hrewrite'
   repeat
     try have hofOption' := hofOption; clear hofOption
     rename (ofOption _ _ _ = .ok _ _) => hofOption
@@ -288,8 +289,8 @@ theorem run'_implies_wf_lhs {b} {ε_global : FinEnv String (String × Nat)}
   repeat
     rename (EStateM.bind _ _ _ = .ok _ _) => hrewrite
     replace hrewrite := EStateM.bind_eq_ok hrewrite
-    let ⟨_, _, _, hrewrite'⟩ := hrewrite
-    clear hrewrite; have hrewrite := hrewrite'; clear hrewrite'
+    rcases hrewrite with ⟨_, _, _, hrewrite'⟩
+    have hrewrite := hrewrite'; clear hrewrite'
   repeat
     try have hofOption' := hofOption; clear hofOption
     rename (ofOption _ _ _ = .ok _ _) => hofOption
@@ -366,8 +367,8 @@ theorem run'_refines {b} {ε_global : FinEnv String (String × Nat)}
   repeat
     rename (EStateM.bind _ _ _ = .ok _ _) => hrewrite
     replace hrewrite := EStateM.bind_eq_ok hrewrite
-    let ⟨_, _, _, hrewrite'⟩ := hrewrite
-    clear hrewrite; have hrewrite := hrewrite'; clear hrewrite'
+    rcases hrewrite with ⟨_, _, _, hrewrite'⟩
+    have hrewrite := hrewrite'; clear hrewrite'
   repeat
     try have hofOption' := hofOption; clear hofOption
     rename (ofOption _ _ _ = .ok _ _) => hofOption
@@ -533,8 +534,8 @@ theorem run'_preserves_well_formed {b} {ε_global : FinEnv String (String × Nat
   repeat
     rename (EStateM.bind _ _ _ = .ok _ _) => hrewrite
     replace hrewrite := EStateM.bind_eq_ok hrewrite
-    let ⟨_, _, _, hrewrite'⟩ := hrewrite
-    clear hrewrite; have hrewrite := hrewrite'; clear hrewrite'
+    rcases hrewrite with ⟨_, _, _, hrewrite'⟩
+    have hrewrite := hrewrite'; clear hrewrite'
   repeat
     try have hofOption' := hofOption; clear hofOption
     rename (ofOption _ _ _ = .ok _ _) => hofOption
@@ -633,8 +634,8 @@ theorem run'_preserves_well_typed {b} {ε_global : FinEnv String (String × Nat)
   repeat
     rename (EStateM.bind _ _ _ = .ok _ _) => hrewrite
     replace hrewrite := EStateM.bind_eq_ok hrewrite
-    let ⟨_, _, _, hrewrite'⟩ := hrewrite
-    clear hrewrite; have hrewrite := hrewrite'; clear hrewrite'
+    rcases hrewrite with ⟨_, _, _, hrewrite'⟩
+    have hrewrite := hrewrite'; clear hrewrite'
   repeat
     try have hofOption' := hofOption; clear hofOption
     rename (ofOption _ _ _ = .ok _ _) => hofOption

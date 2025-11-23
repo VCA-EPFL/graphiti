@@ -166,7 +166,7 @@ theorem MatchInterface_product {I J S T} {imod : Module Ident I} {tmod : Module 
       <;> cases h' : AssocList.find? ident smod.inputs
       <;> simp only [AssocList.find?_mapVal, *] at *
       <;> dsimp at *
-      <;> (symm at h1 h2; simp -failIfUnchanged only [Option.map_eq_none, Option.map_eq_some] at h1 h2)
+      <;> (symm at h1 h2; simp -failIfUnchanged only [Option.map_eq_none_iff, Option.map_eq_some_iff] at h1 h2)
     . unfold Module.product; dsimp
       repeat (rw [AssocList.append_find_right] <;> simp only [AssocList.find?_mapVal, *] <;> try rfl)
     · rename_i v0; obtain ⟨v1, hfind, hf⟩ := h2; cases v0; cases v1; cases hf
@@ -185,7 +185,7 @@ theorem MatchInterface_product {I J S T} {imod : Module Ident I} {tmod : Module 
       <;> cases h' : AssocList.find? ident smod.outputs
       <;> simp only [AssocList.find?_mapVal, *] at *
       <;> dsimp at *
-      <;> (symm at h1 h2; simp -failIfUnchanged only [Option.map_eq_none, Option.map_eq_some] at h1 h2)
+      <;> (symm at h1 h2; simp -failIfUnchanged only [Option.map_eq_none_iff, Option.map_eq_some_iff] at h1 h2)
     . unfold Module.product; dsimp
       repeat (rw [AssocList.append_find_right] <;> simp only [AssocList.find?_mapVal, *] <;> try rfl)
     · rename_i v0; obtain ⟨v1, hfind, hf⟩ := h2; cases v0; cases v1; cases hf
