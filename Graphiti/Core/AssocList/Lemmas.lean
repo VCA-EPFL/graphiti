@@ -180,7 +180,7 @@ theorem mapKey_toList2 {α β} {l : AssocList α β} {f : α → α} :
 theorem contains_none {α β} [DecidableEq α] {m : AssocList α β} {ident} :
   ¬ m.contains ident → m.find? ident = none := by
     intros H; rw [Batteries.AssocList.contains_eq] at H
-    rw [Batteries.AssocList.find?_eq, Option.map_eq_none', List.find?_eq_none]
+    rw [Batteries.AssocList.find?_eq, Option.map_eq_none_iff, List.find?_eq_none]
     intros x H
     rcases x with ⟨a, b⟩
     simp at *; intros _; apply H
@@ -372,7 +372,7 @@ theorem find?_ge : ∀ {α} [DecidableEq α] {β x},
 
 @[simp] theorem find?_eraseAll_list {α β} { T : α} [DecidableEq α] (a : AssocList α β):
   List.find? (fun x => x.1 == T) (AssocList.eraseAllP (fun k x => decide (k = T)) a).toList = none := by
-  rw [←Batteries.AssocList.findEntry?_eq, ←Option.map_eq_none', ←Batteries.AssocList.find?_eq_findEntry?]
+  rw [←Batteries.AssocList.findEntry?_eq, ←Option.map_eq_none_iff, ←Batteries.AssocList.find?_eq_findEntry?]
   have := find?_eraseAll_eq a T; unfold eraseAll at *; rw [eraseAllP_TR_eraseAll] at *; assumption
 
 @[simp] theorem find?_eraseAll_neq {α β} [DecidableEq α] {a : AssocList α β} {i i'} :
@@ -1318,7 +1318,7 @@ theorem contains_mapval {α β γ} [DecidableEq α] {f : α → β → γ} {m : 
     simp [find?_mapVal, hfind, -find?_eq]
   · rw [←contains_find?_iff] at *
     obtain ⟨v, hfind⟩ := h
-    rw [find?_mapVal, Option.map_eq_some] at hfind
+    rw [find?_mapVal, Option.map_eq_some_iff] at hfind
     obtain ⟨v', hfind, heq⟩ := hfind
     subst v; solve_by_elim
 

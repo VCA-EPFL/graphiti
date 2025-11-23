@@ -268,13 +268,13 @@ theorem mapPorts2_unfold_base {e' : ExprLow Ident Typ} {inst typ} {f g} :
   e' = base {input := inst.input.mapVal (λ _ => f), output := inst.output.mapVal (λ _ => g)} typ := by
   dsimp [mapPorts2, mapInputPorts, mapOutputPorts]
   intro h
-  rw [Option.bind_eq_some'] at h
+  rw [Option.bind_eq_some_iff] at h
   obtain ⟨a, h1, h2⟩ := h
-  rw [Option.bind_eq_some'] at h1
+  rw [Option.bind_eq_some_iff] at h1
   obtain ⟨a', h1', h2'⟩ := h1
   cases h2';
   dsimp [mapOutputPorts] at h2
-  rw [Option.bind_eq_some'] at h2
+  rw [Option.bind_eq_some_iff] at h2
   obtain ⟨a'', h1'', h2''⟩ := h2
   cases h2''; rfl
 
@@ -522,24 +522,24 @@ theorem rename_build_module_eq {e e' : ExprLow Ident Typ} {f g} (h : Function.Bi
     · simp [-AssocList.find?_eq] at hfind
       rw [build_module_unfold_2 hfind]
       simp [drunfold] at heq
-      repeat rw [Option.bind_eq_some'] at heq
+      repeat rw [Option.bind_eq_some_iff] at heq
       obtain ⟨_, h1, heq⟩ := heq
-      rw [Option.bind_eq_some] at h1
+      rw [Option.bind_eq_some_iff] at h1
       obtain ⟨_, h1', heq'⟩ := h1
       cases heq'; simp [drunfold] at heq
-      rw [Option.bind_eq_some] at heq
+      rw [Option.bind_eq_some_iff] at heq
       obtain ⟨_, h1'', heq''⟩ := heq
       cases heq''
       dsimp [drunfold]; rw [hfind]; rfl
     · rw [Option.isSome_iff_exists] at hfind; obtain ⟨m, hfind⟩ := hfind
       rw [build_base_in_env hfind]
       simp [drunfold] at heq
-      repeat rw [Option.bind_eq_some'] at heq
+      repeat rw [Option.bind_eq_some_iff] at heq
       obtain ⟨_, h1, heq⟩ := heq
-      rw [Option.bind_eq_some] at h1
+      rw [Option.bind_eq_some_iff] at h1
       obtain ⟨_, h1', heq'⟩ := h1
       cases heq'; simp [drunfold] at heq
-      rw [Option.bind_eq_some] at heq
+      rw [Option.bind_eq_some_iff] at heq
       obtain ⟨_, h1'', heq''⟩ := heq
       cases heq''
       dsimp [drunfold]; rw [hfind]; dsimp
@@ -576,18 +576,18 @@ theorem rename_build_module_eq {e e' : ExprLow Ident Typ} {f g} (h : Function.Bi
     · obtain ⟨e', heq', e'eq⟩ := mapPorts2_unfold_connect heq; subst_vars
       specialize ih (by assumption) (by assumption) heq'
       dsimp [drunfold] at hfind
-      dsimp [drunfold]; rw [Option.bind_eq_none] at hfind
+      dsimp [drunfold]; rw [Option.bind_eq_none_iff] at hfind
       cases h : build_module' ε e'
       · clear hfind; rw [h] at ih
-        symm at ih; rw [Option.map_eq_none'] at ih
+        symm at ih; rw [Option.map_eq_none_iff] at ih
         rw [ih]; rfl
       · have := hfind _ h; contradiction
     · obtain ⟨e', heq', e'eq⟩ := mapPorts2_unfold_connect heq; subst_vars
       rename_i val
       specialize ih (by assumption) (by assumption) heq'
-      symm at ih; dsimp [drunfold] at hfind; rw [Option.bind_eq_some] at hfind
+      symm at ih; dsimp [drunfold] at hfind; rw [Option.bind_eq_some_iff] at hfind
       obtain ⟨val', hfind', hst⟩ := hfind; cases hst
-      rw [hfind'] at ih; rw [Option.map_eq_some'] at ih; obtain ⟨m, hbuild1, hbuild2⟩ := ih
+      rw [hfind'] at ih; rw [Option.map_eq_some_iff] at ih; obtain ⟨m, hbuild1, hbuild2⟩ := ih
       dsimp [build_module']
       rw [hbuild1]; dsimp [Sigma.map];
       unfold Sigma.map at hbuild2; rename_i val; cases val'; cases m; dsimp at *
@@ -602,16 +602,16 @@ theorem rename_build_module_eq {e e' : ExprLow Ident Typ} {f g} (h : Function.Bi
     specialize ih₁ hwf_mapping.1 (locally_wf_product hloc).1 h1
     specialize ih₂ hwf_mapping.2 (locally_wf_product hloc).2 h2
     cases hfind : build_module' ε e'₁ <;> cases hfind₂ : build_module' ε e'₂
-    · rw [hfind] at ih₁; rw [hfind₂] at ih₂; symm at ih₁ ih₂; rw [Option.map_eq_none'] at ih₁ ih₂
+    · rw [hfind] at ih₁; rw [hfind₂] at ih₂; symm at ih₁ ih₂; rw [Option.map_eq_none_iff] at ih₁ ih₂
       dsimp [build_module']; rw [ih₁]; rw [hfind]; rfl
-    · rw [hfind] at ih₁; symm at ih₁; rw [Option.map_eq_none'] at ih₁
+    · rw [hfind] at ih₁; symm at ih₁; rw [Option.map_eq_none_iff] at ih₁
       dsimp [build_module']; rw [ih₁]; rw [hfind]; rfl
-    · rw [hfind] at ih₁; rw [hfind₂] at ih₂; symm at ih₁ ih₂; rw [Option.map_eq_none'] at ih₂
-      rw [Option.map_eq_some'] at ih₁; obtain ⟨a, ih₁, hf⟩ := ih₁
+    · rw [hfind] at ih₁; rw [hfind₂] at ih₂; symm at ih₁ ih₂; rw [Option.map_eq_none_iff] at ih₂
+      rw [Option.map_eq_some_iff] at ih₁; obtain ⟨a, ih₁, hf⟩ := ih₁
       dsimp [build_module']; rw [hfind, hfind₂, ih₁, ih₂]; rfl
     · dsimp [build_module']; rw [hfind,hfind₂]; dsimp
       rw [hfind] at ih₁; rw [hfind₂] at ih₂; symm at ih₁ ih₂;
-      rw [Option.map_eq_some'] at ih₁ ih₂
+      rw [Option.map_eq_some_iff] at ih₁ ih₂
       obtain ⟨m₁, ih1₁, ih2₁⟩ := ih₁
       obtain ⟨m₂, ih1₂, ih2₂⟩ := ih₂
       rw [ih1₂,ih1₁]; dsimp
@@ -636,12 +636,12 @@ theorem mapPorts2_well_formed {e e' : ExprLow Ident Typ} {f g} (h : Function.Bij
     split at hwf <;> try contradiction
     simp only [Bool.decide_and, Bool.decide_eq_true, Bool.and_eq_true, decide_eq_true_eq] at hwf
     dsimp [mapPorts2, mapInputPorts] at hmap
-    rw [Option.bind_eq_some] at hmap
+    rw [Option.bind_eq_some_iff] at hmap
     obtain ⟨e'', hval, hmap⟩ := hmap
-    rw [Option.bind_eq_some] at hval
+    rw [Option.bind_eq_some_iff] at hval
     obtain ⟨e''', hval', hmap'⟩ := hval
     cases hmap'
-    dsimp [mapOutputPorts] at hmap; rw [Option.bind_eq_some] at hmap
+    dsimp [mapOutputPorts] at hmap; rw [Option.bind_eq_some_iff] at hmap
     obtain ⟨e'''', hval'', hmap⟩ := hmap
     cases hmap
     dsimp [well_formed]
@@ -671,12 +671,12 @@ theorem mapPorts2_well_formed2 {e e' : ExprLow Ident Typ} {f g} (h : Function.Bi
   | base inst typ =>
     intro hloc hwf hmap
     dsimp [mapPorts2, mapInputPorts] at hmap
-    rw [Option.bind_eq_some] at hmap
+    rw [Option.bind_eq_some_iff] at hmap
     obtain ⟨e'', hval, hmap⟩ := hmap
-    rw [Option.bind_eq_some] at hval
+    rw [Option.bind_eq_some_iff] at hval
     obtain ⟨e''', hval', hmap'⟩ := hval
     cases hmap'
-    dsimp [mapOutputPorts] at hmap; rw [Option.bind_eq_some] at hmap
+    dsimp [mapOutputPorts] at hmap; rw [Option.bind_eq_some_iff] at hmap
     obtain ⟨e'''', hval'', hmap⟩ := hmap
     cases hmap
     dsimp [well_formed]
@@ -900,9 +900,9 @@ theorem findInput_iff_contains {e T m i} :
     intro wf hbuild
     simp only [findInput, Bool.decide_or, Bool.decide_eq_true]
     dsimp [build_module'] at hbuild
-    rw [Option.bind_eq_some] at hbuild
+    rw [Option.bind_eq_some_iff] at hbuild
     obtain ⟨m1, hbuild1, hrest⟩ := hbuild
-    rw [Option.bind_eq_some] at hrest
+    rw [Option.bind_eq_some_iff] at hrest
     obtain ⟨m2, hbuild2, hrest⟩ := hrest
     cases hrest;
     dsimp [Module.product]
@@ -914,7 +914,7 @@ theorem findInput_iff_contains {e T m i} :
     intro wf hbuild
     simp only [findInput, Bool.decide_or, Bool.decide_eq_true]
     dsimp [build_module'] at hbuild
-    rw [Option.bind_eq_some] at hbuild
+    rw [Option.bind_eq_some_iff] at hbuild
     obtain ⟨m1, hbuild1, hrest⟩ := hbuild
     cases hrest
     dsimp [Module.connect']
@@ -980,9 +980,9 @@ theorem findOutput_iff_contains {e T m o} :
     intro wf hbuild
     simp only [findOutput, Bool.decide_or, Bool.decide_eq_true]
     dsimp [build_module'] at hbuild
-    rw [Option.bind_eq_some] at hbuild
+    rw [Option.bind_eq_some_iff] at hbuild
     obtain ⟨m1, hbuild1, hrest⟩ := hbuild
-    rw [Option.bind_eq_some] at hrest
+    rw [Option.bind_eq_some_iff] at hrest
     obtain ⟨m2, hbuild2, hrest⟩ := hrest
     cases hrest;
     dsimp [Module.product]
@@ -994,7 +994,7 @@ theorem findOutput_iff_contains {e T m o} :
     intro wf hbuild
     simp only [findOutput, Bool.decide_or, Bool.decide_eq_true]
     dsimp [build_module'] at hbuild
-    rw [Option.bind_eq_some] at hbuild
+    rw [Option.bind_eq_some_iff] at hbuild
     obtain ⟨m1, hbuild1, hrest⟩ := hbuild
     cases hrest
     dsimp [Module.connect']
@@ -1038,7 +1038,7 @@ theorem refines_product_commutative {inst typ inst' typ'} :
   rw [wf1,wf2] at ⊢
   apply Module.refines_product_commutative
   dsimp at wf1 wf2
-  rw [Option.bind_eq_some] at wf1 wf2
+  rw [Option.bind_eq_some_iff] at wf1 wf2
   obtain ⟨m'₁, hfind₁, heq₁⟩ := wf1
   obtain ⟨m'₂, hfind₂, heq₂⟩ := wf2
   cases heq₂; cases heq₁
@@ -2145,7 +2145,7 @@ theorem wt_comm_base_ {e e' : ExprLow Ident Typ} {inst typ}:
   | connect c e ihe =>
     intro hwf hcomm hwt
     dsimp [comm_base_] at hcomm
-    rw [Option.map_eq_some'] at hcomm
+    rw [Option.map_eq_some_iff] at hcomm
     obtain ⟨a, hcomm, hconn⟩ := hcomm; subst_vars
     simp only [well_formed_connect] at *
     apply well_formed_refines_well_typed2
@@ -2174,7 +2174,7 @@ theorem wt_comm_base_ {e e' : ExprLow Ident Typ} {inst typ}:
       · split at hcomm <;> try contradiction
         cases hcomm
         cases hwt; constructor; constructor; assumption
-    · obtain ⟨e'', h1, h2⟩ := Option.map_eq_some'.mp hcomm
+    · obtain ⟨e'', h1, h2⟩ := Option.map_eq_some_iff.mp hcomm
       subst_vars
       constructor; apply hwt.1
       apply he2
@@ -3006,14 +3006,14 @@ theorem subset_build_module {ε : Env Ident Typ} {ε' : Env Ident Typ} {e : Expr
   induction e generalizing m with
   | base inst typ =>
     intro hsub hbuild; dsimp [build_module'] at *
-    rw [Option.bind_eq_some'] at hbuild
+    rw [Option.bind_eq_some_iff] at hbuild
     obtain ⟨a, h1, h2⟩ := hbuild
     have := hsub _ _ h1
     rw [← h2,this]; rfl
   | connect c e ih =>
     intro hsub hbuild
     dsimp [build_module'] at *
-    rw [Option.bind_eq_some'] at hbuild
+    rw [Option.bind_eq_some_iff] at hbuild
     obtain ⟨a, h1, h2⟩ := hbuild
     cases h2
     rw [ih] <;> try assumption
@@ -3021,9 +3021,9 @@ theorem subset_build_module {ε : Env Ident Typ} {ε' : Env Ident Typ} {e : Expr
   | product e1 e2 ih1 ih2 =>
     intro hsub hbuild
     dsimp [build_module'] at *
-    rw [Option.bind_eq_some'] at hbuild
+    rw [Option.bind_eq_some_iff] at hbuild
     obtain ⟨a, h1, h2⟩ := hbuild
-    rw [Option.bind_eq_some'] at h2
+    rw [Option.bind_eq_some_iff] at h2
     obtain ⟨a', h1', h2'⟩ := h2
     cases h2'
     rw [ih1,ih2] <;> try assumption
