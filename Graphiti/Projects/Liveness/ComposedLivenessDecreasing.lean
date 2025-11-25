@@ -158,6 +158,7 @@ theorem gcompf_ind_wf {T} {f g: T → T} : ∀ z, @gcompf_wf_P T f g z := by
         cases s1 <;> simp at s1_nonempty; try rename_i head tail
         cases s2 with
         | nil =>
+          have iH := iHn_ { state := (head :: tail, [], hist), module := NatModule.gcompfHist T f g }
           sorry
         | cons => sorry
       | inr s2_nonempty =>
@@ -176,66 +177,6 @@ theorem gcompf_ind_wf {T} {f g: T → T} : ∀ z, @gcompf_wf_P T f g z := by
         . simp; exact s_empty_stars_s'.right
 
 
--- DECREASE PROOFS: here we link the fact that the case is zero with the fact that it always decreases
-
-theorem star_and_in_state_imp_out_state {T}
-{f g: T → T} {st1 st2 st3: State ℕ (List T × List T × Trace ℕ)} {t: Trace ℕ}
-(io: T)
-(h_mod: st1.module = NatModule.gcompfHist T f g)
-(h_step: @step _ _ _ st1 [IOEvent.input 0 ⟨T, io⟩] st2)
-(h_star: @star _ _ (state_transition (NatModule.gcompfHist T f g)) st2 t st3)
-(h_empty: gcompfHistWeight f g st3 = 0):
-IOEvent.output 0 ⟨T, g ( f io) ⟩ ∈ t := by
-  simp [gcompfHistWeight] at h_empty; rcases h_empty with ⟨ eq1, eq2 ⟩
-  revert st1 io
-  induction h_star with
-  | refl st4 =>
-    intro st1 io h_mod h_step
-    cases h_step <;> simp at *
-    rename_i s4 st1Fst st2Fst TpeEq
-    rcases TpeEq; rcases s4 with ⟨ s41, s42, s4hist ⟩; rcases st1 with ⟨ ⟨ s11, s12, s1hist ⟩, mod1 ⟩; simp at *; subst_vars
-    rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
-    simp at *
-  | step st4 st5 st6 l1 l2 st4_steps_st5 st5_stars_st6 iH =>
-    intro st1 io st1mod st1_steps_st4
-    have iH_ := @iH eq1 eq2
-    sorry
-
-
-
-
-
-
-theorem star_and_in_imp_out {T}
-{f g: T → T} {st1 st2: State ℕ (List T × List T × Trace ℕ)} {t: Trace ℕ}
-(io: T)
-(h_mod: st1.module = NatModule.gcompfHist T f g)
-(h_star: @star _ _ (state_transition (NatModule.gcompfHist T f g)) st1 t st2)
-(h_empty: gcompfHistWeight f g st2 = 0):
-IOEvent.input 0 ⟨T, io ⟩ ∈ t → IOEvent.output 0 ⟨T, g ( f io) ⟩ ∈ t := by
-  have keep_empty := h_empty
-  simp [gcompfHistWeight, count_in_out] at h_empty
-  rcases h_empty with ⟨ eq1 , eq2 ⟩
-  intro ioInT
-  induction h_star
-  . rename_i st3
-    simp at *
-  . rename_i st3 st4 st5 t1 t2  st3_steps_st4 st4_stars_st5 iH
-    have mod := step_preserve_mod (NatModule.gcompfHist T f g) st3_steps_st4; rcases st3 with ⟨ s3, mod3 ⟩; subst h_mod
-    have iH_ := iH mod keep_empty eq1 eq2; clear iH
-    simp at ioInT;
-    cases ioInT with
-    | inl io_in_t1 =>
-      simp; right
-      have keep_step := st3_steps_st4
-      rcases st3_steps_st4 <;> simp at *
-      rename_i a b c d e p
-      rcases io_in_t1 with ⟨ g, h,i ⟩; subst_vars
-      have lemm := @star_and_in_state_imp_out_state T f g { state := s3, module := NatModule.gcompfHist T f g } { state := (s3.fst.concat (f c), s3.snd.fst, IOEvent.input 0 ⟨T, c⟩ :: s3.snd.snd), module := NatModule.gcompfHist T f g } st5 t2; simp at lemm keep_step st4_stars_st5
-      exact lemm io keep_step st4_stars_st5 keep_empty
-    | inr io_in_t2 =>
-      have iH := iH_ io_in_t2
-      exact List.mem_append_right t1 (iH_ io_in_t2)
 
 
 
@@ -258,9 +199,10 @@ theorem gcompf_wellness_implies_liveness {T} (f g: T → T) (t : Trace ℕ)
     intro in1 in1_in_t_or_t0
     have s1_module :=  s1_inits
     rcases s1_module with ⟨ temp, s1_mod ⟩; clear temp
-    have io_val := star_and_in_imp_out in1 s1_mod s1_stars_s3 s3_weights_zero
-    simp at io_val
-    exact io_val in1_in_t_or_t0
+    sorry
+    --have io_val := star_and_in_imp_out in1 s1_mod s1_stars_s3 s3_weights_zero
+    --simp at io_val
+    --exact io_val in1_in_t_or_t0
   . simp [behaviour]
     exists s1
     constructor; exact s1_inits
