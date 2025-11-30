@@ -4,10 +4,14 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Lean
+module
 
-import Graphiti.Core.AssocList.Basic
-import Graphiti.Core.Simp
+public import Lean
+
+public import Graphiti.Core.AssocList.Basic
+public meta import Graphiti.Core.Simp
+
+@[expose] public section
 
 open Batteries (AssocList)
 
@@ -22,21 +26,20 @@ attribute [drcompute]
   Bool.decide_and decide_not Batteries.AssocList.toList List.reverse_cons List.reverse_nil
   List.nil_append List.cons_append List.toAssocList List.foldl_cons
   AssocList.cons_append
-  reduceIte
-  AssocList.nil_append List.foldl_nil reduceCtorEq String.reduceEq
+  AssocList.nil_append List.foldl_nil
   and_self decide_false Bool.false_eq_true not_false_eq_true List.find?_cons_of_neg
   decide_true List.find?_cons_of_pos Option.isSome_some Bool.and_self
   List.filter_cons_of_pos List.filter_nil Function.comp_apply
   List.filter_cons_of_neg Option.get_some decide_not
   Bool.not_eq_eq_eq_not Bool.not_true decide_eq_false_iff_not ite_not AssocList.foldl_eq
-  Batteries.AssocList.toList List.foldl_cons reduceCtorEq and_true
-  String.reduceEq and_false List.foldl_nil AssocList.cons_append
+  Batteries.AssocList.toList List.foldl_cons and_true
+  and_false List.foldl_nil AssocList.cons_append
   AssocList.nil_append beq_iff_eq not_false_eq_true
   BEq.rfl Option.map_some Option.getD_some
   List.concat_eq_append
   eq_mp_eq_cast cast_eq Prod.exists forall_const ne_eq
   not_true_eq_false imp_self
-  String.append_empty String.reduceAppend
+  String.append_empty
 
 attribute [drunfold_defs] List.foldlM
 
@@ -66,16 +69,16 @@ section SimpProc
 
 open Lean Meta Simp
 
-def fromExpr? (e : Expr) : SimpM (Option Nat) :=
+meta def fromExpr? (e : Expr) : SimpM (Option Nat) :=
   getNatValue? e
 
-def fromExpr?' (e : Expr) : SimpM (Option (Array Char)) :=
+meta def fromExpr?' (e : Expr) : SimpM (Option (Array Char)) :=
   getListLitOf? e getCharValue?
 
 /--
 Reduce `toString 5` to `"5"`
 -/
-@[inline] def reduceToStringImp (e : Expr) : SimpM Simp.DStep := do
+@[inline] meta def reduceToStringImp (e : Expr) : SimpM Simp.DStep := do
   let some n ← fromExpr? e.appArg! | return .continue
   return .done <| .lit <| .strVal <| toString n
 
@@ -84,7 +87,7 @@ dsimproc [simp, seval, drcompute] reduceToString (toString (_ : Nat)) := reduceT
 /--
 Reduce `toString 5` to `"5"`
 -/
-@[inline] def reduceNatReprImp (e : Expr) : SimpM Simp.DStep := do
+@[inline] meta def reduceNatReprImp (e : Expr) : SimpM Simp.DStep := do
   let some n ← fromExpr? e.appArg! | return .continue
   return .done <| .lit <| .strVal <| toString n
 
@@ -93,7 +96,7 @@ dsimproc [simp, seval, drcompute] reduceNatRepr (Nat.repr _) := reduceNatReprImp
 /--
 Reduce `toString 5` to `"5"`
 -/
-@[inline] def reduceStringmkImp (e : Expr) : SimpM Simp.DStep := do
+@[inline] meta def reduceStringmkImp (e : Expr) : SimpM Simp.DStep := do
   let some n ← fromExpr?' e.appArg! | return .continue
   return .done <| .lit <| .strVal <| String.mk n.toList
 

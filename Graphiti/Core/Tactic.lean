@@ -4,10 +4,14 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Lean
-import Qq
-import Batteries.Tactic.SeqFocus
-import Batteries.Data.AssocList
+module
+
+public import Lean
+public import Qq
+public import Batteries.Tactic.SeqFocus
+public import Batteries.Data.AssocList
+
+@[expose] public section
 
 namespace Graphiti
 
@@ -21,7 +25,7 @@ of that term in the first position.
 -/
 syntax (name := specializeAll) "specializeAll " term : tactic
 
-@[tactic specializeAll] def specializeAllTactic : Tactic -- Syntax -> TacticM Unit
+@[tactic specializeAll] meta def specializeAllTactic : Tactic -- Syntax -> TacticM Unit
   | `(tactic| specializeAll $t:term) => withMainContext do
     let t ← elabTerm t none
     let termType ← inferType t
@@ -69,7 +73,7 @@ Run a tactic on an expression which must be a `Prop`.  The expression is set to
 be the current goal, then the tactic is executed.  The modified goal is then
 returned as the new expression.
 -/
-def evalTacticOnExprNoWrap (tac : Syntax) (e : Q(Prop)) : TacticM Q(Prop) := do
+meta def evalTacticOnExprNoWrap (tac : Syntax) (e : Q(Prop)) : TacticM Q(Prop) := do
   let s ← saveState
   let l ← mkFreshExprMVar e
   setGoals [l.mvarId!]
@@ -84,7 +88,7 @@ Run a tactic on an expression of any type.  This wraps the expression using
 `Opaque`, which transforms it into a `Prop` so that it can be set to the current
 goal.
 -/
-def evalTacticOnExpr (tac : Syntax) (e : Expr) : TacticM Expr := do
+meta def evalTacticOnExpr (tac : Syntax) (e : Expr) : TacticM Expr := do
   let e' ← mkAppOptM ``Opaque #[(← inferType e), e]
   match ← evalTacticOnExprNoWrap tac e' with
   | ~q(Opaque $e) => return e
@@ -102,7 +106,7 @@ elab "precomputeTac " t:term " by " tac:tacticSeq : tactic => Tactic.withMainCon
   let r := (← l.getDecl).type.getArg!' 1
   (← getMainGoal).assign r
 
-def generateMVarEq (expr : Expr) : TermElabM (MVarId × Expr) := do
+meta def generateMVarEq (expr : Expr) : TermElabM (MVarId × Expr) := do
   let exprType ← inferType expr
   let lhs ← Lean.Meta.mkFreshExprMVar (userName := `reduced) (kind := .natural) exprType
   return (lhs.mvarId!, ← mkEq lhs expr)
@@ -119,7 +123,7 @@ elab "precomputeTacEq " t:term " by " tac:tacticSeq : tactic => Tactic.withMainC
 
 elab "rfl_assign" : tactic => do Tactic.withMainContext <| withAssignableSyntheticOpaque <| evalTactic (← `(tactic| rfl))
 
-def r := by
+meta def r := by
   precomputeTacEq 3 by
     rewrite [show Eq.{1} 3 (2 + 1) by trivial]
     rfl

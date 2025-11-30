@@ -4,9 +4,13 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Batteries.Data.AssocList
+module
 
-import Graphiti.Core.Simp
+public import Batteries.Data.AssocList
+
+public meta import Graphiti.Core.Simp
+
+@[expose] public section
 
 namespace Batteries.AssocList
 

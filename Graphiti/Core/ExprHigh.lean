@@ -4,9 +4,13 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Lean
-import Graphiti.Core.ExprLow
-import Graphiti.Core.TypeExpr
+module
+
+public import Lean
+public import Graphiti.Core.ExprLow
+public import Graphiti.Core.TypeExpr
+
+@[expose] public section
 
 namespace Graphiti
 

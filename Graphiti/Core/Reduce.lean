@@ -4,11 +4,15 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import LeanSearchClient.Syntax
-import Mathlib.Tactic.DefEqTransformations
-import Mathlib.Tactic.GeneralizeProofs
-import Mathlib.Tactic.Recall
-import Mathlib.Tactic.StacksAttribute
+module
+
+public import LeanSearchClient.Syntax
+public import Mathlib.Tactic.DefEqTransformations
+public import Mathlib.Tactic.GeneralizeProofs
+public import Mathlib.Tactic.Recall
+public import Mathlib.Tactic.StacksAttribute
+
+@[expose] public meta section
 
 open Lean Expr Meta Elab Tactic
 

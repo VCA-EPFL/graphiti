@@ -5,8 +5,12 @@ This file was extracted from the lean-mlir project:
   https://github.com/opencompl/lean-mlir
 -/
 
-import Batteries.Tactic.Basic
-import Lean.Elab.Term
+module
+
+public import Batteries.Tactic.Basic
+public import Lean.Elab.Term
+
+@[expose] public section
 
 /-- An heterogeneous vector -/
 inductive HVector {α : Type _} (f : α → Type _) : List α → Type _

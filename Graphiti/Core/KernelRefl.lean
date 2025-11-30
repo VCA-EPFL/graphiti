@@ -4,7 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Lean
+module
+
+public import Lean
+
+public meta section
 
 namespace Graphiti
 
@@ -41,7 +45,7 @@ def _root_.Lean.MVarId.ker_refl (mvarId : MVarId) : MetaM Unit := do
     let α := targetType.appFn!.appFn!.appArg!
     mvarId.assign (mkApp2 (mkConst ``Eq.refl  us) α lhs)
 
-elab "ker_refl" : tactic => 
+elab "ker_refl" : tactic =>
   Elab.Tactic.liftMetaTactic fun mvarId => do mvarId.ker_refl; pure []
 
 end Graphiti

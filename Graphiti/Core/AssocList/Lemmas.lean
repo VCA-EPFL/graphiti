@@ -4,8 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Graphiti.Core.AssocList.Basic
-import Graphiti.Core.Simp
+module
+
+public import Graphiti.Core.AssocList.Basic
+public import Graphiti.Core.Simp
+
+@[expose] public section
 
 namespace Batteries.AssocList
 

@@ -4,11 +4,15 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Lean
+module
 
-import Graphiti.Core.AssocList
-import Graphiti.Core.Simp
-import Graphiti.Core.Basic
+public import Lean
+
+public import Graphiti.Core.AssocList
+public import Graphiti.Core.Simp
+public import Graphiti.Core.Basic
+
+@[expose] public section
 
 namespace Graphiti
 
@@ -19,7 +23,7 @@ variable [DecidableEq Ident]
 
 open Batteries (AssocList)
 
-@[reducible] def cast_first {β : Type _ → Type _} {a b : (Σ α, β α)} (h : a = b) : a.fst = b.fst := by
+theorem cast_first {β : Type _ → Type _} {a b : (Σ α, β α)} (h : a = b) : a.fst = b.fst := by
   subst_vars; rfl
 
 theorem rw_rule_execution {S : Type _} {a b : Σ (T : Type _), S → T → S → Prop}

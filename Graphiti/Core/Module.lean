@@ -4,16 +4,20 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Lean
-import Qq
+module
 
-import Graphiti.Core.Basic
-import Graphiti.Core.Simp
-import Graphiti.Core.List
-import Graphiti.Core.AssocList
-import Graphiti.Core.HVector
-import Graphiti.Core.Tactic
-import Graphiti.Core.BasicLemmas
+public import Lean
+public import Qq
+
+public import Graphiti.Core.Basic
+public import Graphiti.Core.Simp
+public import Graphiti.Core.List
+public import Graphiti.Core.AssocList
+public import Graphiti.Core.HVector
+public import Graphiti.Core.Tactic
+public import Graphiti.Core.BasicLemmas
+
+@[expose] public section
 
 open Batteries (AssocList)
 

@@ -4,11 +4,15 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Lean
-import Qq
+module
 
-import Graphiti.Core.ExprHigh
-import Graphiti.Core.Component
+public import Lean
+public import Qq
+
+public meta import Graphiti.Core.ExprHigh
+public import Graphiti.Core.Component
+
+@[expose] public meta section
 
 namespace Graphiti
 
@@ -140,11 +144,6 @@ def findStxTerm (n : Name) (stx : Array Syntax) : TermElabM (Option (Expr × Str
     out := some (term, Format.pretty str)
   return out
 
-def toInstIdent {α} [Inhabited α] (n : String) (h : Std.HashMap String α) : InstIdent α :=
-  match n with
-  | "io" => .top
-  | s => .internal h[s]!
-
 open Lean Qq in
 def reifyInternalPort : InternalPort String → Q(InternalPort String)
 | ⟨ .top, s ⟩ =>
@@ -179,8 +178,6 @@ def mkPortMapping {u : Level} {α : Q(Type $u)} : PortMapping Q($α) → Q(PortM
 
 open Lean Qq in
 def isIO (i : Q(String)) : Bool := i == .lit (.strVal "io")
-
-#check Lean.Expr
 
 open Lean Qq in
 @[term_elab dot_graph]

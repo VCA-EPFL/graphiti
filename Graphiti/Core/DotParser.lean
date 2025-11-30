@@ -4,8 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Lean
-import Graphiti.Core.ExprHigh
+module
+
+public import Lean
+public import Graphiti.Core.ExprHigh
+
+public section
 
 open Std.Internal (Parsec)
 open Std.Internal.Parsec String

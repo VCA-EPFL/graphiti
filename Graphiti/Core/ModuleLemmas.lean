@@ -4,11 +4,15 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Graphiti.Core.Module
-import Graphiti.Core.AssocList.Bijective
+module
 
-import Mathlib.Tactic.Convert
-import Mathlib.Logic.Function.Basic
+public import Graphiti.Core.Module
+public import Graphiti.Core.AssocList.Bijective
+
+public import Mathlib.Tactic.Convert
+public import Mathlib.Logic.Function.Basic
+
+@[expose] public section
 
 open Batteries (AssocList)
 

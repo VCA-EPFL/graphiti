@@ -4,8 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Graphiti.Core.Module
-import Graphiti.Core.ExprHigh
+module
+
+public import Graphiti.Core.Module
+public import Graphiti.Core.ExprHigh
+
+@[expose] public section
 
 namespace Graphiti.VerilogExport
 

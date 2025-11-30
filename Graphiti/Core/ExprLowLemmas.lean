@@ -4,13 +4,17 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Graphiti.Core.ModuleLemmas
-import Graphiti.Core.ExprLow
-import Graphiti.Core.Environment
-import Graphiti.Core.WellTyped
+module
 
-import Mathlib.Tactic
-import Mathlib.Data.QPF.Univariate.Basic
+public import Graphiti.Core.ModuleLemmas
+public import Graphiti.Core.ExprLow
+public import Graphiti.Core.Environment
+public import Graphiti.Core.WellTyped
+
+public import Mathlib.Tactic
+public import Mathlib.Data.QPF.Univariate.Basic
+
+@[expose] public section
 
 open Batteries (AssocList)
 

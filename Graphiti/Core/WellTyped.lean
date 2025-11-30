@@ -4,9 +4,14 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Lean
-import Graphiti.Core.ExprLow
-import Graphiti.Core.Environment
+module
+
+public import Lean
+public import Graphiti.Core.ExprLow
+public import Graphiti.Core.Environment
+public import Batteries.Data.UnionFind
+
+@[expose] public section
 
 namespace Graphiti
 
@@ -135,14 +140,29 @@ theorem build_module_interface_build_module_interface'' {e : ExprLow Ident Typ} 
     rw [h2'] at h1; dsimp at h1; cases h1; cases h3'; cases h4'
     grind
 
--- inductive TypeConstraint where
--- | const : TypeExpr → TypeConstraint
--- | var :
+inductive TypeConstraint where
+| typ : Nat → TypeConstraint
+| uninterp : String → TypeConstraint → TypeConstraint
+deriving DecidableEq
 
--- def well_typed_graph : ExprLow Ident (String × Nat) → List (Constraint Nat)
--- | .base i e => []
--- | .connect c e =>
--- | .product e1 e2 => e1.well_typed_graph ++ e2.well_typed_graph
+def toTypeConstraint (sn : String × Nat) : Option TypeConstraint :=
+  match sn.1 with
+  | "fork" => some (.typ sn.2)
+  | _ => none
+#check Nat
+def well_typed_graph : ExprLow Ident (String × Nat) → Option (List (Constraint TypeConstraint))
+| .base i e => some []
+| .connect c e =>
+  match findInputInst c.input e, findOutputInst c.output e, e.well_typed_graph with
+  | some inp, some out, some wt =>
+    match toTypeConstraint inp.2, toTypeConstraint out.2 with
+    | some tinp, some tout => some (.eq tinp tout :: wt)
+    | _, _ => none
+  | _, _, _ => none
+| .product e1 e2 => do
+  let e1' ← e1.well_typed_graph
+  let e2' ← e2.well_typed_graph
+  return e1' ++ e2'
 
 end BuildModule
 

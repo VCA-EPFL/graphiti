@@ -4,8 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Graphiti.Core.Rewriter
-import Graphiti.Core.TypeExpr
+module
+
+public import Graphiti.Core.Rewriter
+public import Graphiti.Core.TypeExpr
+
+public section
 
 open Batteries (AssocList)
 

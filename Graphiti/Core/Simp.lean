@@ -4,7 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Lean
+module
+
+public meta import Lean
+
+public meta section
 
 register_simp_attr dmod
 register_simp_attr drunfold

@@ -4,10 +4,14 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Graphiti.Core.ExprHighLemmas
-import Graphiti.Core.Rewriter
-import Graphiti.Core.Environment
-import Graphiti.Core.WellTyped
+module
+
+public import Graphiti.Core.ExprHighLemmas
+public import Graphiti.Core.Rewriter
+public import Graphiti.Core.Environment
+public import Graphiti.Core.WellTyped
+
+@[expose] public section
 
 open Batteries (AssocList)
 

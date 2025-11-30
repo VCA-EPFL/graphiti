@@ -4,14 +4,16 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Lean
+module
+
+public import Lean
 
 namespace List
 
 @[simp]
-def _root_.List.remove {α : Type _} (as : List α) (i : Fin as.length) : List α := as.eraseIdx i
+public def _root_.List.remove {α : Type _} (as : List α) (i : Fin as.length) : List α := as.eraseIdx i
 
-theorem perm_erase {α : Type _} [DecidableEq α] (l₁ l₂ : List α) i:
+public theorem perm_erase {α : Type _} [DecidableEq α] (l₁ l₂ : List α) i:
   l₁.Perm l₂ →
   (l₁.erase i).Perm (l₂.erase i) := by
   intro H; induction H generalizing i with

@@ -4,8 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Graphiti.Core.ModuleLemmas
-import Graphiti.Core.StateTransition
+module
+
+public import Graphiti.Core.ModuleLemmas
+public import Graphiti.Core.StateTransition
+
+@[expose] public section
 
 namespace Graphiti
 
@@ -180,12 +184,6 @@ theorem refines_implies_trace_inclusion :
     obtain ⟨s2, Hs2_1, Hs2_2⟩ :=
       refines_implies_star_preservation _ _ H1 i1 s1 i2 l Hi2 Hi1_mod Hs1_φ
     exists s2
-
-/--
-info: 'Graphiti.Module.refines_implies_trace_inclusion' depends on axioms: [propext]
--/
-#guard_msgs in
-#print axioms refines_implies_trace_inclusion
 
 end TraceInclusion
 

@@ -4,12 +4,16 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Lean
+module
 
-import Graphiti.Core.Tactic
-import Graphiti.Core.Module
-import Graphiti.Core.AssocList
-import Graphiti.Core.ExprHighLemmas
+public import Lean
+
+public import Graphiti.Core.Tactic
+public import Graphiti.Core.Module
+public import Graphiti.Core.AssocList
+public import Graphiti.Core.ExprHighLemmas
+
+@[expose] public section
 
 open Lean.Elab
 open Lean.Elab.Command
@@ -237,7 +241,7 @@ open Lean Meta Simp Qq
 /--
 Reduce `toString 5` to `"5"`
 -/
-@[inline] def reduceModuleconnect'Imp (e : Expr) : SimpM Simp.DStep := do
+@[inline] meta def reduceModuleconnect'Imp (e : Expr) : SimpM Simp.DStep := do
   -- trace[Meta.Tactic.simp.rewrite] m!"Heyyyy\n{e}\nwhnf: {← withDefault <| Meta.whnf e}"
   -- let rd ← withDefault <| whnf e
   -- let rd1 ← withDefault <| reduce <| rd.getArg! 2
@@ -264,7 +268,7 @@ Reduce `toString 5` to `"5"`
   let mod ← mkAppM ``Module.mk #[eraseIn, eraseOut, consList, ← mkAppM ``Module.init_state #[rdm]]
   return .done mod
 
-@[inline] def reduceModuleconnect'2Imp (e : Expr) : SimpM Simp.DStep := do
+@[inline] meta def reduceModuleconnect'2Imp (e : Expr) : SimpM Simp.DStep := do
   -- trace[Meta.Tactic.simp.rewrite] m!"Heyyyy\n{e}\nwhnf: {← withDefault <| Meta.whnf e}"
   -- let rd ← withDefault <| whnf e
   -- let rd1 ← withDefault <| reduce <| rd.getArg! 2
@@ -291,7 +295,7 @@ Reduce `toString 5` to `"5"`
   let mod ← mkAppM ``Module.mk #[eraseIn, eraseOut, consList, rdm.getArg! 5]
   return .done mod
 
-@[inline] def reduceAssocListfind?Imp (e : Expr) : SimpM Simp.DStep := do
+@[inline] meta def reduceAssocListfind?Imp (e : Expr) : SimpM Simp.DStep := do
   return .done (← withDefault <| whnf e)
 
 dsimproc [] reduceModuleconnect' (Module.connect' _ _ _) := reduceModuleconnect'Imp

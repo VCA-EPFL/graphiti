@@ -4,9 +4,13 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Graphiti.Core.ExprHigh
+module
 
-import Lean.Data.Json
+public import Lean.Data.Json
+
+public import Graphiti.Core.ExprHigh
+
+@[expose] public section
 
 open Batteries (AssocList)
 

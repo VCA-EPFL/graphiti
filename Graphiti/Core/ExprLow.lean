@@ -4,9 +4,13 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Graphiti.Core.Simp
-import Graphiti.Core.Basic
-import Graphiti.Core.AssocList
+module
+
+public import Graphiti.Core.Simp
+public import Graphiti.Core.Basic
+public import Graphiti.Core.AssocList
+
+@[expose] public section
 
 namespace Graphiti
 
@@ -386,6 +390,25 @@ def findOutput (o : InternalPort Ident) : ExprLow Ident Typ → Bool
 | .base inst _typ => inst.output.any (λ _ a => a = o)
 | .product e₁ e₂ => findOutput o e₁ ∨ findOutput o e₂
 | .connect c e => c.output ≠ o ∧ findOutput o e
+
+/--
+Find input and find output imply that build_module will contain that key
+-/
+def findInputInst (i : InternalPort Ident) : ExprLow Ident Typ → Option (PortMapping Ident × Typ)
+| .base inst typ => if inst.input.any (λ _ a => a = i) then some (inst, typ) else none
+| .product e₁ e₂ =>
+  match findInputInst i e₁ with
+  | some x => some x
+  | none => findInputInst i e₂
+| .connect c e => if c.input ≠ i then none else findInputInst i e
+
+def findOutputInst (i : InternalPort Ident) : ExprLow Ident Typ → Option (PortMapping Ident × Typ)
+| .base inst typ => if inst.output.any (λ _ a => a = i) then some (inst, typ) else none
+| .product e₁ e₂ =>
+  match findOutputInst i e₁ with
+  | some x => some x
+  | none => findOutputInst i e₂
+| .connect c e => if c.output ≠ i then none else findOutputInst i e
 
 def ensureIOUnmodified' (p : PortMapping Ident) (e : ExprLow Ident Typ) : Bool :=
   e.findAllInputs.all (λ x => (p.input.find? x).isNone)
