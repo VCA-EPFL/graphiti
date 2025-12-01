@@ -400,7 +400,7 @@ def findInputInst (i : InternalPort Ident) : ExprLow Ident Typ → Option (PortM
   match findInputInst i e₁ with
   | some x => some x
   | none => findInputInst i e₂
-| .connect c e => if c.input ≠ i then none else findInputInst i e
+| .connect c e => if c.input ≠ i then findInputInst i e else none
 
 def findOutputInst (i : InternalPort Ident) : ExprLow Ident Typ → Option (PortMapping Ident × Typ)
 | .base inst typ => if inst.output.any (λ _ a => a = i) then some (inst, typ) else none
@@ -408,7 +408,7 @@ def findOutputInst (i : InternalPort Ident) : ExprLow Ident Typ → Option (Port
   match findOutputInst i e₁ with
   | some x => some x
   | none => findOutputInst i e₂
-| .connect c e => if c.output ≠ i then none else findOutputInst i e
+| .connect c e => if c.output ≠ i then findOutputInst i e else none
 
 def ensureIOUnmodified' (p : PortMapping Ident) (e : ExprLow Ident Typ) : Bool :=
   e.findAllInputs.all (λ x => (p.input.find? x).isNone)

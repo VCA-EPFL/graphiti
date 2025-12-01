@@ -23,7 +23,7 @@ inductive TypeExpr where
 | tag
 | unit
 | pair (left right : TypeExpr)
-deriving Repr, DecidableEq, Inhabited
+deriving Repr, DecidableEq, Inhabited, Hashable
 
 namespace TypeExpr
 
