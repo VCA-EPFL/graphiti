@@ -11,7 +11,6 @@ public import Qq
 
 public meta import Graphiti.Core.ExprHigh
 public import Graphiti.Core.Component
-public import Graphiti.Core.WellTyped
 
 @[expose] public meta section
 
