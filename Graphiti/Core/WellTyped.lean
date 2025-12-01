@@ -202,8 +202,6 @@ end TypeUF
 
 def toTypeConstraint (sn : String × Nat) (i : String) (t : TypeUF) : Except String (TypeConstraint × TypeUF) :=
   match sn.1 with
-  | "fork2" => .ok (.var sn.2, t)
-  | "fork" => .ok (.var sn.2, t)
   | "mux" =>
     match i with
     | "in1" => .ok (.concr .bool, t)
@@ -234,9 +232,14 @@ def toTypeConstraint (sn : String × Nat) (i : String) (t : TypeUF) : Except Str
     | "in1" => .ok (.uninterp "fst" (.var sn.2), t)
     | "in2" => .ok (.uninterp "snd" (.var sn.2), t)
     | _ => .error s!"could not find port"
+  | "operator"
   | "pure" =>
     match i with
-    | "in1" => .ok (.uninterp "dom" (.var sn.2), t)
+    | "in1" => .ok (.uninterp "dom1" (.var sn.2), t)
+    | "in2" => .ok (.uninterp "dom2" (.var sn.2), t)
+    | "in3" => .ok (.uninterp "dom3" (.var sn.2), t)
+    | "in4" => .ok (.uninterp "dom4" (.var sn.2), t)
+    | "in5" => .ok (.uninterp "dom5" (.var sn.2), t)
     | "out1" => .ok (.uninterp "codom" (.var sn.2), t)
     | _ => .error s!"could not find port"
   | "initBool" =>
@@ -244,11 +247,16 @@ def toTypeConstraint (sn : String × Nat) (i : String) (t : TypeUF) : Except Str
     | "in1" => .ok (.concr .bool, t)
     | "out1" => .ok (.concr .bool, t)
     | _ => .error s!"could not find port"
-  | "queue" =>
-    match i with
-    | "in1" => .ok (.var sn.2, t)
-    | "out1" => .ok (.var sn.2, t)
-    | _ => .error s!"could not find port"
+  | "fork2"
+  | "fork"
+  | "merge"
+  | "merge2"
+  | "sink"
+  | "queue" => .ok (.var sn.2, t)
+  | "output"
+  | "constantNat"
+  | "input" => .ok (.concr .nat, t)
+  | "constantBool" => .ok (.concr .bool, t)
   | _ => .error s!"could not find port"
 
 def infer_types (e : ExprLow String (String × Nat)) (t : TypeUF) : Except String TypeUF :=
