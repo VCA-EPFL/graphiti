@@ -22,6 +22,7 @@ inductive TypeExpr where
 | bool
 | tag
 | unit
+| var (n : Nat)
 | pair (left right : TypeExpr)
 deriving Repr, DecidableEq, Inhabited, Hashable
 
@@ -32,6 +33,7 @@ def toBlueSpec : TypeExpr → String
 | .tag => "Token"
 | .bool => "Bool"
 | .unit => "Void"
+| .var n => s!"Var#({n})"
 | .pair left right =>
   s!"Tuple2#({toBlueSpec left}, {toBlueSpec right})"
 
@@ -77,6 +79,7 @@ noncomputable def TypeExpr.denote : TypeExpr → Type
 | tag => Unit
 | bool => Bool
 | unit => Unit
+| var n => Unit
 | pair t1 t2 => t1.denote × t2.denote
 
 def ValExpr.type : ValExpr → TypeExpr
@@ -158,6 +161,7 @@ def toString' : TypeExpr → String
   | TypeExpr.tag => "TagT" -- Unclear how we want to display TagT at the end?
   | TypeExpr.bool => "Bool"
   | TypeExpr.unit => "Unit"
+  | TypeExpr.var n => s!"Var({n})"
   | TypeExpr.pair left right =>
     let leftStr := toString' left
     let rightStr :=  toString' right
@@ -168,6 +172,7 @@ def getSize: TypeExpr → Int
   | TypeExpr.tag => 0
   | TypeExpr.bool => 1
   | TypeExpr.unit => 0
+  | TypeExpr.var n => 0
   | TypeExpr.pair left right =>
     let l := getSize left
     let r :=  getSize right
@@ -201,6 +206,7 @@ def flatten_type (t : TypeExpr) : List TypeExpr :=
   | TypeExpr.tag => [t]
   | TypeExpr.bool => [t]
   | TypeExpr.unit => [t]
+  | TypeExpr.var _ => [t]
   | TypeExpr.pair left right =>
     flatten_type left ++ flatten_type right
 

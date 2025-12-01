@@ -75,6 +75,14 @@ meta def fromExpr? (e : Expr) : SimpM (Option Nat) :=
 meta def fromExpr?' (e : Expr) : SimpM (Option (Array Char)) :=
   getListLitOf? e getCharValue?
 
+def ofOption {ε α σ} (e : ε) : Option α → EStateM ε σ α
+| some o => pure o
+| none => throw e
+
+def ofOption' {ε α} (e : ε) : Option α → Except ε α
+| some o => pure o
+| none => throw e
+
 /--
 Reduce `toString 5` to `"5"`
 -/

@@ -121,14 +121,6 @@ variable {Ident Typ}
 variable [Inhabited Ident]
 variable [Inhabited Typ]
 
-def ofOption {ε α σ} (e : ε) : Option α → EStateM ε σ α
-| some o => pure o
-| none => throw e
-
-def ofOption' {ε α} (e : ε) : Option α → Except ε α
-| some o => pure o
-| none => throw e
-
 def liftError {α σ} : Except String α → EStateM RewriteError σ α
 | .ok o => pure o
 | .error s => throw (.error s)

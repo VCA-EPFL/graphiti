@@ -23,7 +23,7 @@ Digraph G {
      "icmp_4" [type = "Operator", bbID= 2, op = "icmp_eq_op", in = "in1:32 in2:32 ", out = "out1:1 ", delay=1.530, latency=0, II=1, tagged=false, taggers_num=0, tagger_id=-1];
      "phiC_0" [type = "Mux", bbID= 2, in = "in1?:1 in2:0 in3:0 ", out = "out1:0", delay=0.166, tagged=false, taggers_num=0, tagger_id=-1];
      "branch_0" [type = "Branch", bbID= 2,  in = "in1:32 in2?:1", out = "out1+:32 out2-:32", tagged=false, taggers_num=0, tagger_id=-1];
-     "phi_n1" [type = "init Bool false", bbID= 2, in = "in1:1 ", out = "out1:1", delay=0.366, tagged=false, taggers_num=0, tagger_id=-1];
+     "phi_n1" [type = "Init", bbID= 2, in = "in1:1 ", out = "out1:1", delay=0.366, tagged=false, taggers_num=0, tagger_id=-1];
      "branch_1" [type = "Branch", bbID= 2,  in = "in1:32 in2?:1", out = "out1+:32 out2-:32", tagged=false, taggers_num=0, tagger_id=-1];
      "branchC_3" [type = "Branch", bbID= 2,  in = "in1:0 in2?:1", out = "out1+:0 out2-:0", tagged=false, taggers_num=0, tagger_id=-1];
      "fork_0" [type = "Fork", bbID= 2, in = "in1:32", out = "out1:32 out2:32 ", tagged=false, taggers_num=0, tagger_id=-1];
