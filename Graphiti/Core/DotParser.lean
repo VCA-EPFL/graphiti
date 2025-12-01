@@ -8,6 +8,7 @@ module
 
 public import Lean
 public import Graphiti.Core.ExprHigh
+public import Graphiti.Core.DynamaticTypes
 
 public section
 
@@ -269,49 +270,19 @@ def dotToExprHigh (d : Parser.DotGraph) : Except String (ExprHigh String String 
         current_extra_args ← addOpt current_extra_args "taggers_num"
         current_extra_args ← addOpt current_extra_args "tagger_id"
 
-      -- Different bitwidths matter so we distinguish them with types: Unit vs. Bool vs. T
-      if typVal = "Branch" then
-        if keyStartsWith l "in" "in1:0" then
-          typVal := "branch Unit"
-        else if keyStartsWith l "in" "in1:1" then
-          typVal := "branch Bool"
-        -- Else, if the bitwidth is 32, then:
-        else typVal := "branch T"
-
-      -- Different bitwidths matter so we distinguish them with types: Unit vs. Bool vs. T
-      if typVal = "Fork" then
-        let [sizesIn] ← parseIOSizes l "in" |>.mapM translateSize
-          | throw "more that one input in fork"
-        typVal := s!"fork{keyArgNumbers l "out"} {sizesIn}"
-
-      if typVal = "Mux" then
+      if typVal == "Mux" || typVal == "Merge" then
         current_extra_args ← addOpt current_extra_args "delay"
-        if splitAndSearch l "in" "in2:0" then
-          typVal := s!"mux Unit"
-        else typVal := s!"mux T"
-
-      if typVal = "Merge" then
-        current_extra_args ← addOpt current_extra_args "delay"
-        if splitAndSearch l "in" "in0:0" then
-          typVal := s!"merge{keyArgNumbers l "in"} Unit"
-        else typVal := s!"merge{keyArgNumbers l "in"} T"
 
       if typVal = "Entry" then
         current_extra_args ← addOpt current_extra_args "control"
 
-
       if typVal = "Constant" then
         let constVal ← keyArg l "value" |> Parser.hexParser.run
-        typVal := s!"constant {constVal}"
-        current_extra_args ← addOpt current_extra_args "value"
-
-      if typVal = "Sink" then
-        if splitAndSearch l "in" "in1:0" then
-          typVal := s!"sink Unit 1"
-        else if splitAndSearch l "in" "in1:1" then
-          typVal := s!"sink Bool 1"
+        if keyStartsWith l "out" "out1:1" then
+          typVal := s!"constantBool"
         else
-          typVal := s!"sink T 1"
+          typVal := s!"constantNat"
+        current_extra_args ← addOpt current_extra_args "value"
 
       if typVal = "Operator" then
         if splitAndSearch l "op" "mc_store_op" || splitAndSearch l "op" "mc_load_op" then
@@ -325,24 +296,28 @@ def dotToExprHigh (d : Parser.DotGraph) : Except String (ExprHigh String String 
         current_extra_args ← add current_extra_args "op"
 
         if splitAndSearch l "op" "mc_load_op" then
-          typVal := s!"load T T"
-        else if splitAndSearch l "op" "cast" then
-          typVal := s!"pure T Bool"
+          typVal := s!"load"
         else
           let sizesIn ← parseIOSizes l "in" |>.mapM translateSize
           let sizesOut ← parseIOSizes l "out" |>.mapM translateSize
-          typVal := s!"operator{keyArgNumbers l "in"} {" ".intercalate sizesIn} {" ".intercalate sizesOut} {keyArg l "op"}"
-
-       -- portId= 0, offset= 0  -- if mc_store_op and mc_load_op
+          typVal := s!"operator{keyArgNumbers l "in"}"
 
       if typVal = "MC" then
         let sizesIn ← parseIOSizes l "in" |>.mapM translateSize
         let sizesOut ← parseIOSizes l "out" |>.filter (·.trim.endsWith "*e" |> not) |>.mapM translateSize
-        typVal := s!"operator{keyArgNumbers l "in"} {" ".intercalate sizesIn} {" ".intercalate sizesOut} MC"
+        typVal := s!"operator{keyArgNumbers l "in"}"
         current_extra_args ← addOpt current_extra_args "memory"
         current_extra_args ← addOpt current_extra_args "bbcount"
         current_extra_args ← addOpt current_extra_args "ldcount"
         current_extra_args ← addOpt current_extra_args "stcount"
+
+      if typVal == "Fork" then
+        typVal := s!"fork{keyArgNumbers l "out"}"
+      if typVal == "Merge" then
+        typVal := s!"merge{keyArgNumbers l "in"}"
+
+      unless "merge".isPrefixOf typVal || "fork".isPrefixOf typVal || "constant".isPrefixOf typVal || "operator".isPrefixOf typVal do
+        typVal := dynamaticToGraphiti typVal
 
       let cluster := l.find? (·.key = "cluster") |>.getD ⟨"cluster", "false"⟩
       let .ok clusterB := Parser.parseBool.run cluster.value.trim

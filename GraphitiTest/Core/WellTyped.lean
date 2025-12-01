@@ -22,9 +22,10 @@ def lhs : ExprHigh String (String × Nat) := [graph|
     loop_init [type = "initBool", arg = $(6)];
     queue [type = "queue", arg = $(7)];
     queue_out [type = "queue", arg = $(8)];
+    output [type = "output", arg = $(9)];
 
     i_in -> mux [to="in2"];
-    queue_out -> o_out [from="out1"];
+    queue_out -> output [from="out1", to="in1"];
 
     loop_init -> mux [from="out1", to="in1"];
     condition_fork -> loop_init [from="out2", to="in1"];
@@ -42,10 +43,11 @@ def lhs : ExprHigh String (String × Nat) := [graph|
 
 #eval lhs.lower |>.get! |> (fun x => match (x : ExprLow String (String × Nat)) with | .connect _ e => e | _ => x) |>.findInputInst ⟨.internal "queue_out", "in1"⟩
 
-#eval lhs.lower |>.get! |>.infer_types ⟨∅, ∅⟩ |>.map (·.typeMap)
+#eval lhs.lower |>.get! |>.infer_equalities ⟨∅, ∅⟩ |>.map (·.typeMap)
 
-#eval lhs.lower |>.get! |>.infer_types ⟨∅, ∅⟩ |>.map (·.ufMap) |>.map (·.checkEquiv! 8 6 |>.snd)
-#eval lhs.lower |>.get! |>.infer_types ⟨∅, ∅⟩ |>.map (fun x => x.typeMap |>.toList.map (λ y => (y.fst, x.ufMap.root! y.snd)))
-#eval lhs.lower |>.get! |>.infer_types ⟨∅, ∅⟩ |>.map (fun x => (x.union (.var 7) (.concr .nat)).findConcr (Graphiti.ExprLow.TypeConstraint.var 4))
+#eval lhs.lower |>.get! |>.infer_equalities ⟨∅, ∅⟩ |>.map (·.ufMap) |>.map (·.checkEquiv! 8 6 |>.snd)
+#eval lhs.lower |>.get! |>.infer_equalities ⟨∅, ∅⟩ |>.map (fun x => x.typeMap |>.toList.map (λ y => (y.fst, x.ufMap.root! y.snd)))
+#eval lhs.lower |>.get! |>.infer_equalities ⟨∅, ∅⟩ |>.map (fun x => x.findConcr (Graphiti.ExprLow.TypeConstraint.var 4))
+#eval lhs.lower |>.get! |>.infer_types
 
 end Graphiti.ExprLow.Test

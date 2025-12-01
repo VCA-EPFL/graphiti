@@ -140,11 +140,16 @@ theorem build_module_interface_build_module_interface'' {e : ExprLow Ident Typ} 
     rw [h2'] at h1; dsimp at h1; cases h1; cases h3'; cases h4'
     grind
 
+end BuildModule
+
+end ExprLow
+
 inductive TypeExpr' where
 | nat
 | bool
 | tag
 | unit
+| var (n : Nat)
 | pair (left right : Nat)
 deriving Repr, DecidableEq, Inhabited, Hashable
 
@@ -174,9 +179,10 @@ def union (t : TypeUF) (t1 t2 : TypeConstraint) : TypeUF :=
   {t'' with ufMap := t''.ufMap.union! v1 v2}
 
 def findConcrTE'' (t : TypeUF) (c : Nat) : Option TypeExpr' := do
-  let (.concr n1Concr, _) ←
+  let (.concr n1Concr, _) :=
       t.typeMap.toList.filter (fun val => t.ufMap.root! val.2 == t.ufMap.root! c && val.1.isConcr?)
       |>.head?
+      |>.getD (.concr (.var (t.ufMap.root! c)), 0)
     | failure
   return n1Concr
 
@@ -188,95 +194,149 @@ partial def toTypeExpr (t : TypeUF) (e : TypeExpr') : Option TypeExpr :=
   | .bool => .some .bool
   | .tag => .some .tag
   | .unit => .some .unit
+  | .var n => .some (.var n)
   | .pair n1 n2 => do
-    let concr := t.typeMap.toList.filter (match ·.fst with | .concr _ => true | _ => false)
-    let (.concr n1Concr, _) ← concr.filter (fun val => t.ufMap.root! val.2 == t.ufMap.root! n1) |>.head? | failure
-    let (.concr n2Concr, _) ← concr.filter (fun val => t.ufMap.root! val.2 == t.ufMap.root! n2) |>.head? | failure
-    let n1Concr ← toTypeExpr t n1Concr
-    let n2Concr ← toTypeExpr t n2Concr
+    let n1Concr ← findConcrTE'' t n1 >>= toTypeExpr t
+    let n2Concr ← findConcrTE'' t n2 >>= toTypeExpr t
     .some <| .pair n1Concr n2Concr
 
+def findConcr' (t : TypeUF) (c : Nat) : Option TypeExpr := t.findConcrTE'' c >>= t.toTypeExpr
 def findConcr (t : TypeUF) (c : TypeConstraint) : Option TypeExpr := t.findConcrTE' c >>= t.toTypeExpr
 
 end TypeUF
 
-def toTypeConstraint (sn : String × Nat) (i : String) (t : TypeUF) : Except String (TypeConstraint × TypeUF) :=
+/--
+Generates the type constraint that corresponds to the type of the port in the module.
+-/
+def toTypeConstraint (sn : String × Nat) (i : String) : Except String TypeConstraint :=
   match sn.1 with
   | "mux" =>
     match i with
-    | "in1" => .ok (.concr .bool, t)
-    | "in2" | "in3" | "out1" => .ok (.var sn.2, t)
-    | _ => .error s!"could not find port"
+    | "in1" => .ok (.concr .bool)
+    | "in2" | "in3" | "out1" => .ok (.var sn.2)
+    | _ => .error s!"could not find port: {sn}/{i}"
   | "branch" =>
     match i with
-    | "in2" => .ok (.concr .bool, t)
-    | "in1" | "out1" | "out2" => .ok (.var sn.2, t)
-    | _ => .error s!"could not find port"
+    | "in2" => .ok (.concr .bool)
+    | "in1" | "out1" | "out2" => .ok (.var sn.2)
+    | _ => .error s!"could not find port: {sn}/{i}"
   | "split" =>
     match i with
-    | "in1" =>
-      let (vfst, t1) := t.insert (.uninterp "fst" (.var sn.2))
-      let (vsnd, t2) := t1.insert (.uninterp "snd" (.var sn.2))
-      let t3 := t2.union (.var sn.2) (.concr (.pair vfst vsnd))
-      .ok (.var sn.2, t3)
-    | "out1" => .ok (.uninterp "fst" (.var sn.2), t)
-    | "out2" => .ok (.uninterp "snd" (.var sn.2), t)
-    | _ => .error s!"could not find port"
+    | "in1" => .ok (.var sn.2)
+    | "out1" => .ok (.uninterp "fst" (.var sn.2))
+    | "out2" => .ok (.uninterp "snd" (.var sn.2))
+    | _ => .error s!"could not find port: {sn}/{i}"
   | "join" =>
     match i with
-    | "out1" =>
-      let (vfst, t1) := t.insert (.uninterp "fst" (.var sn.2))
-      let (vsnd, t2) := t1.insert (.uninterp "snd" (.var sn.2))
-      let t3 := t2.union (.var sn.2) (.concr (.pair vfst vsnd))
-      .ok (.var sn.2, t)
-    | "in1" => .ok (.uninterp "fst" (.var sn.2), t)
-    | "in2" => .ok (.uninterp "snd" (.var sn.2), t)
-    | _ => .error s!"could not find port"
-  | "operator"
+    | "out1" => .ok (.var sn.2)
+    | "in1" => .ok (.uninterp "fst" (.var sn.2))
+    | "in2" => .ok (.uninterp "snd" (.var sn.2))
+    | _ => .error s!"could not find port: {sn}/{i}"
+  | "operator1"
+  | "operator2"
+  | "operator3"
+  | "operator4"
+  | "operator5"
   | "pure" =>
     match i with
-    | "in1" => .ok (.uninterp "dom1" (.var sn.2), t)
-    | "in2" => .ok (.uninterp "dom2" (.var sn.2), t)
-    | "in3" => .ok (.uninterp "dom3" (.var sn.2), t)
-    | "in4" => .ok (.uninterp "dom4" (.var sn.2), t)
-    | "in5" => .ok (.uninterp "dom5" (.var sn.2), t)
-    | "out1" => .ok (.uninterp "codom" (.var sn.2), t)
-    | _ => .error s!"could not find port"
-  | "initBool" =>
+    | "in1" => .ok (.uninterp "dom1" (.var sn.2))
+    | "in2" => .ok (.uninterp "dom2" (.var sn.2))
+    | "in3" => .ok (.uninterp "dom3" (.var sn.2))
+    | "in4" => .ok (.uninterp "dom4" (.var sn.2))
+    | "in5" => .ok (.uninterp "dom5" (.var sn.2))
+    | "out1" => .ok (.uninterp "codom" (.var sn.2))
+    | _ => .error s!"could not find port: {sn}/{i}"
+  | "tagger_untagger_val" =>
     match i with
-    | "in1" => .ok (.concr .bool, t)
-    | "out1" => .ok (.concr .bool, t)
-    | _ => .error s!"could not find port"
+    | "in2" | "out2" => .ok (.uninterp "snd" (.var sn.2))
+    | "in1" | "out1" => .ok (.var sn.2)
+    | _ => .error s!"could not find port: {sn}/{i}"
   | "fork2"
+  | "fork3"
+  | "fork4"
+  | "fork5"
+  | "fork6"
+  | "fork7"
+  | "fork8"
+  | "fork9"
+  | "fork10"
   | "fork"
   | "merge"
   | "merge2"
   | "sink"
-  | "queue" => .ok (.var sn.2, t)
+  | "queue" => .ok (.var sn.2)
   | "output"
   | "constantNat"
-  | "input" => .ok (.concr .nat, t)
-  | "constantBool" => .ok (.concr .bool, t)
-  | _ => .error s!"could not find port"
+  | "load"
+  | "input" => .ok (.concr .nat)
+  | "initBool"
+  | "constantBool" => .ok (.concr .bool)
+  | s =>
+    -- If we don't know the type of the node, then we just return an uninterpreted function per port.
+    if "_graphiti_".isPrefixOf s then
+      .ok (.uninterp i (.var sn.2))
+    else
+      .error s!"could not find node: {sn.2}/{i}"
 
-def infer_types (e : ExprLow String (String × Nat)) (t : TypeUF) : Except String TypeUF :=
+/--
+Generates additional typing constraints for type inference for each of the types.
+-/
+def additionalConstraints (sn : String × Nat) (t : TypeUF) : TypeUF :=
+  match sn.1 with
+  | "split" =>
+    let (vfst, t1) := t.insert (.uninterp "fst" (.var sn.2))
+    let (vsnd, t2) := t1.insert (.uninterp "snd" (.var sn.2))
+    t2.union (.var sn.2) (.concr (.pair vfst vsnd))
+  | "join" =>
+    let (vfst, t1) := t.insert (.uninterp "fst" (.var sn.2))
+    let (vsnd, t2) := t1.insert (.uninterp "snd" (.var sn.2))
+    t2.union (.var sn.2) (.concr (.pair vfst vsnd))
+  | "operator"
+  | "pure" => t.insert (.var sn.2) |>.snd
+  | "tagger_untagger_val" =>
+    let (_, t) := t.insert (.var sn.2)
+    let (_, t) := t.insert (.uninterp "snd" (.var sn.2))
+    t.union (.uninterp "fst" (.var sn.2)) (.concr .tag)
+  | "output"
+  | "constantNat"
+  | "input" => t.union (.var sn.2) (.concr .nat)
+  | "initBool"
+  | "constantBool" => t.union (.var sn.2) (.concr .bool)
+  | _ => t
+
+namespace ExprLow
+
+def infer_equalities (e : ExprLow String (String × Nat)) (t : TypeUF) : Except String TypeUF :=
   match e with
   | .base i e => .ok t
   | .connect c e =>
-    match findInputInst c.input e, findOutputInst c.output e, e.infer_types t with
+    match findInputInst c.input e, findOutputInst c.output e, e.infer_equalities t with
     | some inp, some out, .ok t =>
       match inp.1.input.inverse.find? c.input, out.1.output.inverse.find? c.output with
       | some ⟨_, inpV⟩, some ⟨_, outV⟩ => do
-        let (tinp, t') ← toTypeConstraint inp.2 inpV t
-        let (tout, t'') ← toTypeConstraint out.2 outV t'
-        .ok (t''.union tinp tout)
+        let tinp ← toTypeConstraint inp.2 inpV
+        let tout ← toTypeConstraint out.2 outV
+        .ok (additionalConstraints inp.2 t |> additionalConstraints out.2 |>.union tinp tout)
       | _, _ => .error s!"could not find I/O in portmap {c.input}/{c.output}"
     | none, _, _ => .error s!"findInputInst failed on inp: {c.input}"
     | _, none, _ => .error s!"findOutputInst failed on inp: {c.output}"
     | _, _, .error s => .error s
-  | .product e1 e2 => e1.infer_types t >>= e2.infer_types
+  | .product e1 e2 => e1.infer_equalities t >>= e2.infer_equalities
 
-end BuildModule
+def infer_types (e : ExprLow String (String × Nat)) : Except String (ExprLow String (String × TypeExpr)) := do
+  let eqs ← e.infer_equalities ⟨∅, Batteries.UnionFind.mkEmpty 100⟩
+  go eqs e
+  where
+    go (t : TypeUF) : ExprLow String (String × Nat) → Except String (ExprLow String (String × TypeExpr))
+    | .base inst typ =>
+      match t.findConcr (.var typ.2) with
+      | some concr => .ok (.base inst (typ.1, concr))
+      | none => .error s!"could not find concrete type for {typ}"
+    | .connect c e => .connect c <$> go t e
+    | .product e1 e2 => do
+      let e1' ← go t e1
+      let e2' ← go t e2
+      return .product e1' e2'
 
 end ExprLow
 
@@ -294,6 +354,21 @@ def well_typed (h : ExprHigh Ident Typ) : Prop :=
   ∃ hl, h.lower = some hl ∧ hl.well_typed ε
 
 end WellTyped
+
+def infer_equalities (e : ExprHigh String (String × Nat)) (t : TypeUF) : Except String TypeUF := do
+  let e ← ofOption' "lowering failed" e.lower_TR
+  e.infer_equalities t
+
+def infer_types' (e : ExprHigh String (String × Nat)) : Except String (ExprHigh String (String × TypeExpr) × TypeUF) := do
+  let eqs ← e.infer_equalities ⟨∅, Batteries.UnionFind.mkEmpty 100⟩
+  let res ← e.modules.foldlM (λ s k typ =>
+      match eqs.findConcr (.var typ.2.2) with
+      | some concr => .ok (s.cons k (typ.1, (typ.2.1, concr)))
+      | none => .error s!"could not find concrete type for {typ}"
+    ) ∅
+  return ({e with modules := res}, eqs)
+
+def infer_types e := Prod.fst <$> infer_types' e
 
 end ExprHigh
 

@@ -268,13 +268,16 @@ def main (args : List String) : IO Unit := do
     | throw <| .userError s!"{decl_name%}: failed to undo name_mapping"
   rewrittenExprHigh := g'
 
-  let some l :=
+  /- IO.println (repr (renameAssocAll assoc st.1 rewrittenExprHigh)) -/
+
+  let uf ← IO.ofExcept <| rewrittenExprHigh.infer_equalities ⟨∅, ∅⟩
+
+  let l ← IO.ofExcept <|
     if parsed.noDynamaticDot then
       if parsed.blueSpecDot
       then pure rewrittenExprHigh.toBlueSpec
       else pure (toString rewrittenExprHigh)
-    else dynamaticString rewrittenExprHigh (renameAssocAll assoc st.1 rewrittenExprHigh)
-    | IO.eprintln s!"Failed to print ExprHigh: {rewrittenExprHigh}"
+    else dynamaticString rewrittenExprHigh uf (renameAssocAll assoc st.1 rewrittenExprHigh)
 
   match parsed.outputFile with
   | some ofile => IO.FS.writeFile ofile l
