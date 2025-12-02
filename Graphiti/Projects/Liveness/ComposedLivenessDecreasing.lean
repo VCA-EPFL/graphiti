@@ -19,21 +19,22 @@ open Graphiti.Module
 
 -- Calc #inputs in history
 def count_in (history : List (IOEvent Nat))  : Nat :=
-  history.foldl (fun acc event =>
-    match event with
-    | IOEvent.input _ _ => acc + 1
-    | IOEvent.output _ _ => acc
-  ) 0
-
+  match history with
+  | [] => 0
+  | x :: xs =>
+    match x with
+    | IOEvent.input _ _ => 1 + count_in xs
+    | IOEvent.output _ _ => count_in xs
 -- Calc #outputs in history
 def count_out (history : List (IOEvent Nat)) : Nat :=
-  history.foldl (fun acc event =>
-    match event with
-    | IOEvent.input _ _ => acc
-    | IOEvent.output _ _ => acc +1
-  ) 0
+  match history with
+  | [] => 0
+  | x :: xs =>
+    match x with
+    | IOEvent.input _ _ => count_out xs
+    | IOEvent.output _ _ => 1 + count_out xs
 
--- Calc #inputs - #outputs in history
+-- Calc #inputs - #outputs in history USE LIST OF PARTITION
 def count_in_out (history : List (IOEvent Nat))  : Nat :=
   count_in history  - count_out history
 
@@ -235,6 +236,107 @@ theorem gcompf_ind_wf {T} {f g: T → T} : ∀ z, @gcompf_wf_P T f g z := by
 
 
 
+
+
+
+theorem lemma_step {T}
+(f g: T → T)
+{n z: ℕ}
+{t: Trace ℕ}
+{s1 s2: State ℕ ((List T) × ((List T) × (Trace Nat)))}
+(reach: @StateTransition.step _ _ (state_transition (NatModule.gcompfHist T f g)) s1 t s2 )
+(h_zero_: gcompfHistWeight f g s1 = z )
+(h_zero: gcompfHistWeight f g s2 = n )
+(m_eq: s1.module = (NatModule.gcompfHist T f g))
+(assum: count_in s1.state.2.2 = z + count_out s1.state.2.2 )
+: count_in s2.state.2.2 = n + count_out s2.state.2.2  := by
+  cases reach with
+  | input trans TpeEq =>
+    rename_i ip st s1fst Tpe
+    rcases s1 with ⟨ ⟨ st11, st12, st1hist ⟩, mod1 ⟩; rcases st with ⟨ s1, s2, s1hist ⟩ ; simp at *; subst_vars
+    rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
+    split at trans
+    . subst_vars
+      simp at *
+      rcases trans with ⟨a, b, c⟩; subst_vars
+      simp [count_in, count_out, gcompfHistWeight] at *
+      rw [assum]
+      ac_rfl
+    . rename_i prop
+      exfalso
+      simp at *
+      sorry
+  | output trans TpeEq =>
+    rename_i ip st s1fst Tpe
+    rcases s1 with ⟨ ⟨ st11, st12, st1hist ⟩, mod1 ⟩; rcases st with ⟨ s1, s2, s1hist ⟩ ; simp at *; subst_vars
+    rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
+    split at trans
+    . subst_vars
+      simp at *
+      rcases trans with ⟨a, b, c⟩; cases st12 <;> try (simp at b; rcases b )
+      simp at b
+      subst_vars
+      simp [count_in, count_out, gcompfHistWeight] at *
+      rw [assum]
+      ac_rfl
+    . rename_i prop
+      exfalso
+      simp at *
+      sorry
+  | internal trans TpeEq =>
+    rename_i ip st
+    rcases s1 with ⟨ ⟨ st11, st12, st1hist ⟩, mod1 ⟩; rcases st with ⟨ s1, s2, s1hist ⟩ ; simp at *; subst_vars
+    simp [count_in, count_out, gcompfHistWeight] at *
+    cases trans
+    . rcases TpeEq with ⟨ a, b, c ⟩ ; simp
+      rw [assum]
+      ac_rfl
+    . rename_i c
+      cases c
+
+
+
+
+
+
+
+
+
+
+
+
+
+theorem gcompf_weight_of_s1_imp_weight_of_s2 {T}
+(f g: T → T)
+{n z: ℕ}
+{t: Trace ℕ}
+{s1 s2: State ℕ ((List T) × ((List T) × (Trace Nat)))}
+{m: _}
+(reach: @star _ _  m s1 t s2 )
+(h_zero: gcompfHistWeight f g s2 = n )
+(h_zero_: gcompfHistWeight f g s1 = z )
+(m_eq: m = (state_transition (NatModule.gcompfHist T f g)))
+(mod: s1.module = NatModule.gcompfHist T f g )
+(assum: count_in s1.state.2.2 = z + count_out s1.state.2.2 )
+: count_in s2.state.2.2 = n + count_out s2.state.2.2  := by
+  revert h_zero h_zero_ assum m_eq z n mod
+  induction reach with
+  | refl s3 =>
+    intro s3_is_n s2_is_n
+    grind
+  | step  s3 s4 s5 t1 t2 s3_steps_s4 s4_stars_s5 iH =>
+    intro n z s5_n s3_z m_trans mod count_eq
+    have iH_ := @iH n (@gcompfHistWeight T f g s4) s5_n; clear iH; simp at iH_
+    have iH := iH_ m_trans ; clear iH
+    subst m_trans
+    have s4mod := @step_preserve_mod ℕ _ _ _  s3 t1 s4 s3_steps_s4
+    have lemm := @lemma_step T f g (gcompfHistWeight f g s4) z t1 s3 s4 s3_steps_s4 s3_z; simp at lemm
+    rcases s3 with ⟨ s3s, mod3 ⟩; rcases s4 with ⟨ s4s, mod4 ⟩
+    simp at mod4 mod; subst_vars; simp at *
+    apply iH_; clear iH_;
+    apply lemm
+    exact count_eq
+
 theorem gcompf_weight_eq_num_of_vals {T}
 (f g: T → T)
 {n: ℕ}
@@ -242,10 +344,25 @@ theorem gcompf_weight_eq_num_of_vals {T}
 {s: State ℕ ((List T) × ((List T) × (Trace Nat)))}
 (h_zero: gcompfHistWeight f g s = n )
 (reach: @reachable _ _  (state_transition (NatModule.gcompfHist T f g)) t s )
-: count_in t = n + count_out t  := by
+: count_in s.state.snd.snd = n + count_out s.state.snd.snd  := by
   simp [reachable] at reach
-  rcases reach with ⟨ s1, trace ⟩
-  sorry
+  rcases reach with ⟨ s1, s1_inits, s1_stars_s ⟩
+  have cc := @gcompf_weight_of_s1_imp_weight_of_s2 T f g n (@gcompfHistWeight T f g s1)  t s1 s (state_transition (NatModule.gcompfHist T f g)) s1_stars_s h_zero
+  simp at cc
+  simp [gcompfHistWeight] at cc
+  rcases s1_inits with ⟨ s1_init_state, s1_mod ⟩
+  rcases s1 with ⟨⟨ s11, s12, s1hist ⟩, mod ⟩
+  simp [drunfold] at s1_init_state; rcases s1_init_state with ⟨ s1empty, s2empty, histempty ⟩
+  simp at s1_mod
+  subst_vars
+  simp [count_in, count_out] at cc;
+  rw [cc]
+
+
+
+
+
+
 
 theorem gcompf_eq_sum {T}
 (f g: T → T)
@@ -255,10 +372,8 @@ theorem gcompf_eq_sum {T}
 (reach: @reachable _ _  (state_transition (NatModule.gcompfHist T f g)) t s )
 : count_in t = count_out t  := by
   have num_with_zero := gcompf_weight_eq_num_of_vals f g h_zero reach
-
+  simp at num_with_zero
   sorry
-
-
 
 -- MAIN PROOF: where the magic happens
 
