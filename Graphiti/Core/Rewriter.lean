@@ -60,8 +60,8 @@ instance : Lean.ToJson RuntimeEntry where
     Lean.Json.mkObj
       [ ("type", Lean.Format.pretty <| repr r.type)
       , ("name", Lean.toJson r.name)
-      , ("input_graph", toString (repr r.input_graph))
-      , ("output_graph", toString (repr r.output_graph))
+      , ("input_graph", toString r.input_graph)
+      , ("output_graph", toString r.output_graph)
       , ("matched_subgraph", Lean.toJson r.matched_subgraph)
       , ("renamed_input_nodes", Lean.Json.mkObj <| r.renamed_input_nodes.toList.map (λ a => (a.1, Lean.toJson a.2)))
       , ("new_output_nodes", Lean.toJson r.new_output_nodes)
@@ -179,6 +179,10 @@ def addRuntimeEntry (rinfo : RuntimeEntry) : RewriteResult Unit := do
   let l ← EStateM.get
   EStateM.set <| ⟨l.1.concat rinfo, l.2, l.3⟩
 
+def incrFreshType (n : Nat) : RewriteResult Unit := do
+  let l ← EStateM.get
+  EStateM.set <| ⟨l.1, l.2, l.3+n⟩
+
 def addRuntimeMarker (s : String) : RewriteResult Unit := do
   let l ← EStateM.get
   EStateM.set <| ⟨l.1.concat (RuntimeEntry.marker s), l.2, l.3⟩
@@ -227,6 +231,7 @@ however, currently the low-level expression language does not remember any names
   -- Pattern match on the graph and extract the first list of nodes that correspond to the first subgraph.
   let (sub, types) ← rewrite.pattern g |>.runWithState
   let def_rewrite := rewrite.rewrite types current_state.fresh_type
+  incrFreshType rewrite.fresh_types
 
   -- Extract the actual subgraph from the input graph using the list of nodes `sub`.
   let (g₁, g₂) ← ofOption (.error "could not extract graph") <| g.extract sub

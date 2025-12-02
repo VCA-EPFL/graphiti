@@ -16,13 +16,13 @@ open StringModule
 variable (T : Vector Nat 2)
 variable (M : Nat)
 
-def identMatcher (s : String) : Pattern String (String × Nat) 2 := fun g => do
-  let n ← ofOption' (.error s!"{decl_name%}: could not find '{s}'") <| g.modules.find? s
-  unless "join" == n.2.1 do throw (.error s!"{decl_name%}: type of '{s}' is '{n.2}' instead of 'join'")
-  let next ← ofOption' (.error s!"{decl_name%}: could not find next node") <| followInput g s "in2"
-  unless "join" == next.typ.1 do throw (.error s!"{decl_name%}: type of '{next.inst}' is '{next.typ}' instead of 'join'")
+def identMatcher (join2 : String) : Pattern String (String × Nat) 2 := fun g => do
+  let join2_typ ← ofOption' (.error s!"{decl_name%}: could not find '{join2}'") <| g.modules.find? join2
+  unless "join" == join2_typ.2.1 do throw (.error s!"{decl_name%}: type of '{join2}' is '{join2_typ.2}' instead of 'join'")
+  let join1 ← ofOption' (.error s!"{decl_name%}: could not find next node") <| followInput g join2 "in2"
+  unless "join" == join1.typ.1 do throw (.error s!"{decl_name%}: type of '{join1.inst}' is '{join1.typ}' instead of 'join'")
 
-  return ([s, next.inst], #v[n.2.2, next.typ.2])
+  return ([join1.inst, join2], #v[join1.typ.2, join2_typ.2.2])
 
 def matcher : Pattern String (String × Nat) 2 := fun g => do
   throw (.error s!"{decl_name%}: matcher not implemented")

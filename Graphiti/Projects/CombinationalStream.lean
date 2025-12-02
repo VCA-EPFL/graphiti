@@ -337,7 +337,6 @@ def et_ms_flip_flop_m := [graphEnv|
     latch2 -> q_bar [from="q_bar"];
   ]
 
-#guard_msgs (drop info) in
 #eval IO.print <| build_verilog_module "d_latch_m" env d_latch_m.1 (simple_interface ["d", "clk"] ["q", "q_bar"])
 #guard_msgs (drop info) in
 #eval IO.print <| build_verilog_module "et_flip_flop_m" env et_flip_flop_m.1 (simple_interface ["d", "clk"] ["q", "q_bar"])

@@ -45,8 +45,8 @@ def lhs : ExprHigh String (String × Nat) := [graph|
     o_init [type = "io"];
 
     branch [type = "branch", arg = $(T[0])];
-    condFork [type = "fork2", arg = $(T[1])];
-    init [type = "initBool", arg = $(T[2])];
+    condFork [type = "fork2", arg = $(T[2])];
+    init [type = "initBool", arg = $(T[1])];
 
     c_i -> condFork [to="in1"];
     d_i -> branch [to="in1"];

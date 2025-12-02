@@ -28,7 +28,7 @@ def matcher : Pattern String (String × Nat) 2 := fun g => do
       unless join_nn.inst = join_nn'.inst do return none
       unless join_nn.inputPort = "in1" && join_nn'.inputPort = "in2" do return none
 
-      return some ([join_nn.inst, inst], #v[typ.2, join_nn.typ.2])
+      return some ([join_nn.inst, inst], #v[join_nn.typ.2, typ.2])
     ) none | throw .done
   return list
 
@@ -36,7 +36,7 @@ def lhs (T : Vector Nat 2) : ExprHigh String (String × Nat) := [graph|
     i [type = "io"];
     o [type = "io"];
 
-    split [type = "split", arg = $(T[0])];
+    split [type = "split", arg = $(T[1])];
     join [type = "join", arg = $(T[0])];
 
     i -> split [to="in1"];
