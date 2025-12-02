@@ -17,15 +17,27 @@ open Graphiti.Module
 
 -- COMPUTATION: different functions to compute the weight of the state
 
--- Calc #inputs - #outputs in history
-def count_in_out (history : List (IOEvent Nat)) : Nat :=
+-- Calc #inputs in history
+def count_in (history : List (IOEvent Nat))  : Nat :=
   history.foldl (fun acc event =>
     match event with
     | IOEvent.input _ _ => acc + 1
-    | IOEvent.output _ _ => acc - 1
+    | IOEvent.output _ _ => acc
   ) 0
 
-def gcompfHistWeight {T} (f g : T -> T) (s : Graphiti.Module.State Nat ((List T) × ((List T) × (Trace Nat)))) : Nat :=
+-- Calc #outputs in history
+def count_out (history : List (IOEvent Nat)) : Nat :=
+  history.foldl (fun acc event =>
+    match event with
+    | IOEvent.input _ _ => acc
+    | IOEvent.output _ _ => acc +1
+  ) 0
+
+-- Calc #inputs - #outputs in history
+def count_in_out (history : List (IOEvent Nat))  : Nat :=
+  count_in history  - count_out history
+
+def gcompfHistWeight {T} (f g : T -> T) (s : State Nat ((List T) × ((List T) × (Trace Nat)))) : Nat :=
   let s_stt := s.state;
   List.length s_stt.fst + List.length s_stt.snd.fst
 
@@ -35,10 +47,13 @@ def gcompfHistWeight {T} (f g : T -> T) (s : Graphiti.Module.State Nat ((List T)
 def gcompf_P {T} (t: Trace Nat)(f g: T → T) : Prop :=
   ∀ in1, .input 0 ⟨ T, in1 ⟩ ∈ t → .output 0 ⟨ T, g (f (in1)) ⟩ ∈ t
 
+def gcompf_P_simp {T} (t: Trace Nat)(f g: T → T) : Prop :=
+  count_in t = count_out t
+
 def gcompf_wf_P {T} (f g: T → T) (z: Nat) :=
    ∀ (s: Graphiti.Module.State ℕ (List T × List T × Trace Nat)), @gcompfHistWeight _ f g s = z
-   → (∃ t, @reachable _ _  (Module.state_transition (NatModule.gcompfHist T f g)) t s)
-   → ∃ s' t0, (@gcompfHistWeight _ f g s' = 0) ∧  @star _ _ (Module.state_transition (NatModule.gcompfHist T f g)) s t0 s' ∧ ∀ io n, (IOEvent.input io n) ∉ t0
+   → (∃ t, @reachable _ _  (state_transition (NatModule.gcompfHist T f g)) t s)
+   → ∃ s' t0, (@gcompfHistWeight _ f g s' = 0) ∧  @star _ _ (state_transition (NatModule.gcompfHist T f g)) s t0 s' ∧ ∀ io n, (IOEvent.input io n) ∉ t0
 
 
 
@@ -55,9 +70,10 @@ s.module = NatModule.gcompfHist T f g := by
   rcases s2 with ⟨ s2_state, s2_mod ⟩; simp at s2_module; subst s2_module; simp at s_mod
   exact s_mod
 
-theorem reachable_and_star_imp_reachable {T} {f g: T → T}
-(s1 s2: State ℕ (List T × List T × Trace Nat))
-(t t0: Trace ℕ)
+
+theorem reachable_and_star_imp_reachable {T} (f g: T → T)
+{s1 s2: State ℕ (List T × List T × Trace Nat)}
+{t t0: Trace ℕ}
 (h_reach: @reachable _ _  (state_transition (NatModule.gcompfHist T f g)) t s1)
 (h_star: @star _ _ (state_transition (NatModule.gcompfHist T f g)) s1 t0 s2):
 @reachable _ _  (state_transition (NatModule.gcompfHist T f g)) (t ++ t0) s2 := by
@@ -108,9 +124,6 @@ theorem gcompf_nonzerow_imp_nonempty {T} {f g: T → T}:
   simp [gcompfHistWeight, s1empty, s2empty] at weight_is_positive
 
 
-
-
-
 theorem bigger_ind_imp_smaller {T} {f g: T → T} (n: ℕ)(h: ∀ (y : ℕ), WellFoundedRelation.rel y (n + 1) → @gcompf_wf_P T f g  y):
 ∀ (y : ℕ), WellFoundedRelation.rel y (n) → @gcompf_wf_P T f g y := by
   intro y assum
@@ -122,7 +135,13 @@ theorem bigger_ind_imp_smaller {T} {f g: T → T} (n: ℕ)(h: ∀ (y : ℕ), Wel
   simp at *
   exact Nat.le_of_succ_le sizeofn
 
-theorem gcompf_with_step_decreases {T} {f g :T → T} (s1: List T) (hist: Trace ℕ) (head: T) (tail: List T)  (n: ℕ) (h_in : @gcompfHistWeight T f g { state := (s1, head :: tail, hist), module := NatModule.gcompfHist T f g } = n + 1) :
+theorem gcompf_with_empt_step_remains {T} {f g :T → T}  (hist: Trace ℕ) (head: T) (tail1 tail2: List T)  (n: ℕ) (h_in : @gcompfHistWeight T f g { state := (head :: tail1, tail2, hist), module := NatModule.gcompfHist T f g } = n) :
+@gcompfHistWeight T f g { state := ([],  tail2 ++ g head :: (List.map g tail1), hist), module := NatModule.gcompfHist T f g } = n:= by
+  simp [gcompfHistWeight] at ⊢ h_in
+  rw [←h_in]
+  exact Nat.add_comm tail2.length (tail1.length + 1)
+
+theorem gcompf_with_out_step_decreases {T}  {s1: List T} {hist: Trace ℕ} {head: T} {tail: List T}  {n: ℕ} (f g :T → T) (h_in : @gcompfHistWeight T f g { state := (s1, head :: tail, hist), module := NatModule.gcompfHist T f g } = n + 1) :
 @gcompfHistWeight T f g { state := ([], tail ++ List.map g s1, IOEvent.output 0 ⟨T, head⟩ :: hist), module := NatModule.gcompfHist T f g } = n:= by
   simp [gcompfHistWeight] at ⊢ h_in
   rw [Nat.add_comm]
@@ -158,14 +177,51 @@ theorem gcompf_ind_wf {T} {f g: T → T} : ∀ z, @gcompf_wf_P T f g z := by
         cases s1 <;> simp at s1_nonempty; try rename_i head tail
         cases s2 with
         | nil =>
-          have iH := iHn_ { state := (head :: tail, [], hist), module := NatModule.gcompfHist T f g }
-          sorry
-        | cons => sorry
+          have step2 := @gcompf_output_spec T f g ⟨[], List.map g tail, hist  ⟩ (g head)
+          have full_step := @star.trans_star _ _ (state_transition (NatModule.gcompfHist T f g)) _ _ _ _ _ (@star.plus_one _ _ (state_transition (NatModule.gcompfHist T f g))  _ _ _ step1) (@star.plus_one _ _ (state_transition (NatModule.gcompfHist T f g))  _ _ _ step2); clear step1 step2; simp at full_step
+          have weight1 := @gcompf_with_empt_step_remains T f g hist head tail [] (n+1) weight_is_nonzero
+          have weight2 := gcompf_with_out_step_decreases f g weight1; clear weight1; simp at weight2
+          have news_reachable := reachable_and_star_imp_reachable f g s_is_reachable full_step; simp at news_reachable
+          have iH := iHn_ { state := ([], (List.map g tail).append [] ++ List.map g [],IOEvent.output 0 ⟨T, g head⟩ :: hist), module := NatModule.gcompfHist T f g }; simp at iH
+          have iH_ := iH weight2 ( t0 ++ [IOEvent.output 0 ⟨ T, g head ⟩]); clear iHn_; simp at *
+          have iH__ := iH_ news_reachable; clear iH iH_
+          repeat rcases iH__; rename_i s1 prop
+          repeat rcases prop;
+          rename_i s1_is_zero prop
+          exists s1
+          constructor
+          exact s1_is_zero
+          cases prop; rename_i x prop
+          exists [IOEvent.output 0 ⟨ T, g head ⟩] ++ x
+          constructor
+          exact @star.trans_star _ _ (state_transition (NatModule.gcompfHist T f g)) _ _ _ _ _ full_step prop.left
+          simp; exact prop.right
+        | cons h t =>
+          have step2 := @gcompf_output_spec T f g ⟨[], t ++ List.map g (head :: tail), hist  ⟩ h
+          have full_step := @star.trans_star _ _ (state_transition (NatModule.gcompfHist T f g)) _ _ _ _ _ (@star.plus_one _ _ (state_transition (NatModule.gcompfHist T f g))  _ _ _ step1) (@star.plus_one _ _ (state_transition (NatModule.gcompfHist T f g))  _ _ _ step2); clear step1 step2; simp at full_step
+          have weight1 := @gcompf_with_empt_step_remains T f g hist head tail (h:: t) (n+1) weight_is_nonzero
+          have weight2 := gcompf_with_out_step_decreases f g weight1; clear weight1 weight_is_nonzero; simp at weight2
+          have news_reachable := reachable_and_star_imp_reachable f g s_is_reachable full_step; simp at news_reachable
+          have iH := iHn_ { state := ([], t ++ g head :: List.map g tail, IOEvent.output 0 ⟨T, h⟩ :: hist),module := NatModule.gcompfHist T f g } ; simp at iH
+          have iH_ := iH weight2 ( t0 ++ [IOEvent.output 0 ⟨ T, h ⟩]); clear iHn_; simp at *
+          have iH__ := iH_ news_reachable; clear iH
+          repeat rcases iH__; rename_i s1 prop
+          repeat rcases prop;
+          rename_i s1_is_zero prop
+          exists s1
+          constructor
+          exact s1_is_zero
+          cases prop; rename_i x prop
+          exists [IOEvent.output 0 ⟨ T, h ⟩] ++ x
+          constructor
+          exact @star.trans_star _ _ (state_transition (NatModule.gcompfHist T f g)) _ _ _ _ _ full_step prop.left
+          simp; exact prop.right
+
       | inr s2_nonempty =>
         cases s2 <;> simp at s2_nonempty; try rename_i head tail
         have step2 := @gcompf_output_spec T f g ⟨[],  tail ++ List.map g s1, hist⟩ head ; simp at step2
         have total_step := @star.trans_star _ _ (state_transition (NatModule.gcompfHist T f g)) _ _ _ _ _ (@star.plus_one _ _ (state_transition (NatModule.gcompfHist T f g))  _ _ _ step1) (@star.plus_one _ _ (state_transition (NatModule.gcompfHist T f g))  _ _ _ step2); clear step1 step2 s2_nonempty; simp at total_step
-        have s'_size := @gcompf_with_step_decreases T f g s1 hist head tail n weight_is_nonzero
+        have s'_size := gcompf_with_out_step_decreases f g weight_is_nonzero
         have s'_reachable := (@reachable_and_star_imp_reachable T  f g { state := (s1, head :: tail, hist), module := NatModule.gcompfHist T f g } { state := ([], tail ++ List.map g s1, IOEvent.output 0 ⟨T, head⟩ :: hist), module := NatModule.gcompfHist T f g } t0 [IOEvent.output 0 ⟨T, head⟩] s_is_reachable total_step)
         have iHn := iHn_ { state := ([], tail ++ List.map g s1, IOEvent.output 0 ⟨T, head⟩ :: hist), module := NatModule.gcompfHist T f g } s'_size (t0 ++ [IOEvent.output 0 ⟨T, head⟩]) s'_reachable; clear s'_reachable s'_size weight_is_nonzero s_is_reachable
         rcases iHn with ⟨s', s'_is_zero, t1, s_empty_stars_s'⟩
@@ -179,12 +235,36 @@ theorem gcompf_ind_wf {T} {f g: T → T} : ∀ z, @gcompf_wf_P T f g z := by
 
 
 
+theorem gcompf_weight_eq_num_of_vals {T}
+(f g: T → T)
+{n: ℕ}
+{t: Trace ℕ}
+{s: State ℕ ((List T) × ((List T) × (Trace Nat)))}
+(h_zero: gcompfHistWeight f g s = n )
+(reach: @reachable _ _  (state_transition (NatModule.gcompfHist T f g)) t s )
+: count_in t = n + count_out t  := by
+  simp [reachable] at reach
+  rcases reach with ⟨ s1, trace ⟩
+  sorry
+
+theorem gcompf_eq_sum {T}
+(f g: T → T)
+{t: Trace ℕ}
+{s: State ℕ ((List T) × ((List T) × (Trace Nat)))}
+(h_zero: gcompfHistWeight f g s = 0 )
+(reach: @reachable _ _  (state_transition (NatModule.gcompfHist T f g)) t s )
+: count_in t = count_out t  := by
+  have num_with_zero := gcompf_weight_eq_num_of_vals f g h_zero reach
+
+  sorry
+
+
 
 -- MAIN PROOF: where the magic happens
 
 theorem gcompf_wellness_implies_liveness {T} (f g: T → T) (t : Trace ℕ)
 (h_steps: @behaviour _ _ (state_transition (NatModule.gcompfHist T f g)) t) :
-∃ t', gcompf_P (t ++ t') (f) (g) ∧ @behaviour _ _ (state_transition (NatModule.gcompfHist T f g)) (t ++ t') := by
+∃ t', gcompf_P_simp (t ++ t') (f) (g) ∧ @behaviour _ _ (state_transition (NatModule.gcompfHist T f g)) (t ++ t') := by
   have iH := @gcompf_ind_wf T f g; simp [gcompf_wf_P] at iH
   simp [behaviour] at h_steps
   rcases h_steps with ⟨s1, s1_inits , s2, s1_stars_s2⟩
@@ -195,14 +275,11 @@ theorem gcompf_wellness_implies_liveness {T} (f g: T → T) (t : Trace ℕ)
   exists t0
   have s1_stars_s3 := @star.trans_star _ _ (state_transition (NatModule.gcompfHist T f g)) _ _ _ _ _ s1_stars_s2 s2_stars_s3
   constructor
-  . simp [gcompf_P]
-    intro in1 in1_in_t_or_t0
-    have s1_module :=  s1_inits
-    rcases s1_module with ⟨ temp, s1_mod ⟩; clear temp
-    sorry
-    --have io_val := star_and_in_imp_out in1 s1_mod s1_stars_s3 s3_weights_zero
-    --simp at io_val
-    --exact io_val in1_in_t_or_t0
+  . have sum := @gcompf_eq_sum T f g
+    simp [reachable] at sum
+    have sum_ := sum s3_weights_zero _ s1_inits s1_stars_s3
+    simp [gcompf_P_simp]
+    exact sum_
   . simp [behaviour]
     exists s1
     constructor; exact s1_inits
