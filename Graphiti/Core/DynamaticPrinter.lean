@@ -124,7 +124,7 @@ def formatOptions : List (String × String) → String
 def inferTypeInPortMap (t : TypeUF) (p : PortMap String (InternalPort String)) (sn : String × Nat) : Except String (PortMap String TypeExpr) :=
   p.foldlM (λ st k v => do
       let tc ← toTypeConstraint sn k.name
-      let concr ← ofOption' "could not find concr" <| t.findConcr tc
+      let concr := t.findConcr tc |>.getD (.var 1000) -- TODO: better handling of not finding a concretization
       return st.cons k concr
     ) ∅
 

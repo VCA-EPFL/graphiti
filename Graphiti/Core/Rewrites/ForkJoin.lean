@@ -20,7 +20,7 @@ def matcher : Pattern String (String × Nat) 2 := fun g => do
        unless "join" == typ.1 do return none
 
        let (.some p) := followOutput g inst "out1" | return none
-       unless "fork" == p.typ.1 do return none
+       unless "fork2" == p.typ.1 do return none
 
        return some ([inst, p.inst], #v[typ.2, p.typ.2])
     ) none | MonadExceptOf.throw RewriteError.done

@@ -44,7 +44,7 @@ def dynamatic_types : AssocList String String :=
   , ("constantNat", "Constant")
   , ("constantBool", "Constant")
   , ("initBool", "Init")
-  , ("tagger_untagger_val", "TaggerUntagger")
+  , ("tag_untagger_val", "TaggerUntagger")
   , ("load", "Operator")
   ].toAssocList
 
@@ -57,6 +57,6 @@ def graphitiToDynamatic (s : String) : Option String :=
   match dynamatic_types.find? s with
   | some s' => some s'
   | none =>
-    if graphitiPrefix.isPrefixOf s then some (s.drop graphitiPrefix.length) else none
+    if graphitiPrefix.isPrefixOf s then some (s.drop graphitiPrefix.length) else some ("__unknown__"++s)
 
 end Graphiti

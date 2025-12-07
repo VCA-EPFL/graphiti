@@ -70,6 +70,110 @@ def rewrite : Rewrite String (String × Nat) where
 
 end Constant
 
+namespace ConstantNat
+
+def extract_type (typ : String × Nat) : RewriteResultSL (Vector Nat 1) := do
+  unless typ.1 == "constantNat" do throw .done
+  return #v[typ.2]
+
+def match_node := Graphiti.match_node extract_type
+
+def matcher : Pattern String (String × Nat) 1 := fun g => do
+  throw (.error s!"{decl_name%}: matcher not implemented")
+
+variable (T : Vector Nat 1)
+variable (M : Nat)
+
+def lhs : ExprHigh String (String × Nat) := [graph|
+    i [type = "io"];
+    o [type = "io"];
+
+    const [type = "constantNat", arg = $(T[0])];
+
+    i -> const [to="in1"];
+    const -> o [from="out1"];
+  ]
+
+def lhs_extract := (lhs T).extract ["const"] |>.get rfl
+theorem double_check_empty_snd : (lhs_extract T).snd = ExprHigh.mk ∅ ∅ := by rfl
+def lhsLower := (lhs_extract T).fst.lower.get rfl
+
+def rhs : ExprHigh String (String × Nat) := [graph|
+    i [type = "io"];
+    o [type = "io"];
+
+    const [type = "pure", arg = $(M+1)];
+
+    i -> const [to="in1"];
+    const -> o [from="out1"];
+  ]
+
+def rhsLower := (rhs M).lower.get rfl
+def findRhs mod := (rhs 0).modules.find? mod |>.map Prod.fst
+
+def rewrite : Rewrite String (String × Nat) where
+  abstractions := []
+  params := 1
+  pattern := matcher
+  rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
+  name := .some "pure-constant-nat"
+  transformedNodes := [findRhs "const" |>.get rfl]
+  fresh_types := 1
+
+end ConstantNat
+
+namespace ConstantBool
+
+def extract_type (typ : String × Nat) : RewriteResultSL (Vector Nat 1) := do
+  unless typ.1 == "constantBool" do throw .done
+  return #v[typ.2]
+
+def match_node := Graphiti.match_node extract_type
+
+def matcher : Pattern String (String × Nat) 1 := fun g => do
+  throw (.error s!"{decl_name%}: matcher not implemented")
+
+variable (T : Vector Nat 1)
+variable (M : Nat)
+
+def lhs : ExprHigh String (String × Nat) := [graph|
+    i [type = "io"];
+    o [type = "io"];
+
+    const [type = "constantBool", arg = $(T[0])];
+
+    i -> const [to="in1"];
+    const -> o [from="out1"];
+  ]
+
+def lhs_extract := (lhs T).extract ["const"] |>.get rfl
+theorem double_check_empty_snd : (lhs_extract T).snd = ExprHigh.mk ∅ ∅ := by rfl
+def lhsLower := (lhs_extract T).fst.lower.get rfl
+
+def rhs : ExprHigh String (String × Nat) := [graph|
+    i [type = "io"];
+    o [type = "io"];
+
+    const [type = "pure", arg = $(M+1)];
+
+    i -> const [to="in1"];
+    const -> o [from="out1"];
+  ]
+
+def rhsLower := (rhs M).lower.get rfl
+def findRhs mod := (rhs 0).modules.find? mod |>.map Prod.fst
+
+def rewrite : Rewrite String (String × Nat) where
+  abstractions := []
+  params := 1
+  pattern := matcher
+  rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
+  name := .some "pure-constant-nat"
+  transformedNodes := [findRhs "const" |>.get rfl]
+  fresh_types := 1
+
+end ConstantBool
+
 namespace Operator1
 
 def extract_type (typ : String × Nat) : RewriteResultSL (Vector Nat 1) := do
@@ -293,7 +397,7 @@ def rhs : ExprHigh String (String × Nat) := [graph|
     split [type = "split", arg = $(M+2)];
 
     i -> op [to="in1"];
-    op -> split [from="out1",to="in1"];
+    op -> split [from="out1", to="in1"];
     split -> o1 [from="out1"];
     split -> o2 [from="out2"];
   ]
@@ -322,6 +426,16 @@ def specialisedPureRewrites {n} (p : Pattern String (String × Nat) n) :=
           let (s :: _, t) ← p g | throw RewriteError.done
           Constant.match_node s g
     }
+  , { ConstantNat.rewrite with
+        pattern := fun g => do
+          let (s :: _, t) ← p g | throw RewriteError.done
+          ConstantNat.match_node s g
+    }
+  , { ConstantBool.rewrite with
+        pattern := fun g => do
+          let (s :: _, t) ← p g | throw RewriteError.done
+          ConstantBool.match_node s g
+    }
   , { Operator1.rewrite with
         pattern := fun g => do
           let (s :: _, t) ← p g | throw RewriteError.done
@@ -346,6 +460,8 @@ def specialisedPureRewrites {n} (p : Pattern String (String × Nat) n) :=
 
 def singleNodePureRewrites (s : String) :=
   [ {Constant.rewrite with pattern := Constant.match_node s }
+  , {ConstantNat.rewrite with pattern := ConstantNat.match_node s }
+  , {ConstantBool.rewrite with pattern := ConstantBool.match_node s }
   , {Operator1.rewrite with pattern := Operator1.match_node s }
   , {Operator2.rewrite with pattern := Operator2.match_node s }
   , {Operator3.rewrite with pattern := Operator3.match_node s }

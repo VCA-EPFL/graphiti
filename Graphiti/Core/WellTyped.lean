@@ -188,7 +188,9 @@ def findConcrTE'' (t : TypeUF) (c : Nat) : Option TypeExpr' := do
 
 def findConcrTE' (t : TypeUF) (c : TypeConstraint) : Option TypeExpr' := findConcrTE'' t (t.insert c).1
 
-partial def toTypeExpr (t : TypeUF) (e : TypeExpr') : Option TypeExpr :=
+def toTypeExpr' (t : TypeUF) (e : TypeExpr') : Nat → Option TypeExpr
+| 0 => none
+| n+1 =>
   match e with
   | .nat => .some .nat
   | .bool => .some .bool
@@ -196,9 +198,11 @@ partial def toTypeExpr (t : TypeUF) (e : TypeExpr') : Option TypeExpr :=
   | .unit => .some .unit
   | .var n => .some (.var n)
   | .pair n1 n2 => do
-    let n1Concr ← findConcrTE'' t n1 >>= toTypeExpr t
-    let n2Concr ← findConcrTE'' t n2 >>= toTypeExpr t
+    let n1Concr ← findConcrTE'' t n1 >>= fun x => toTypeExpr' t x n
+    let n2Concr ← findConcrTE'' t n2 >>= fun x => toTypeExpr' t x n
     .some <| .pair n1Concr n2Concr
+
+def toTypeExpr (t : TypeUF) (e : TypeExpr') : Option TypeExpr := toTypeExpr' t e 1000
 
 def findConcr' (t : TypeUF) (c : Nat) : Option TypeExpr := t.findConcrTE'' c >>= t.toTypeExpr
 def findConcr (t : TypeUF) (c : TypeConstraint) : Option TypeExpr := t.findConcrTE' c >>= t.toTypeExpr
@@ -246,7 +250,7 @@ def toTypeConstraint (sn : String × Nat) (i : String) : Except String TypeConst
     | "in5" => .ok (.uninterp "dom5" (.var sn.2))
     | "out1" => .ok (.uninterp "codom" (.var sn.2))
     | _ => .error s!"could not find port: {sn}/{i}"
-  | "tagger_untagger_val" =>
+  | "tag_untagger_val" =>
     match i with
     | "in2" | "out2" => .ok (.uninterp "snd" (.var sn.2))
     | "in1" | "out1" => .ok (.var sn.2)
@@ -276,7 +280,7 @@ def toTypeConstraint (sn : String × Nat) (i : String) : Except String TypeConst
     if "_graphiti_".isPrefixOf s then
       .ok (.uninterp i (.var sn.2))
     else
-      .error s!"could not find node: {sn.2}/{i}"
+      .error s!"could not find node: {sn}/{i}"
 
 /--
 Generates additional typing constraints for type inference for each of the types.

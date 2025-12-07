@@ -41,6 +41,7 @@ structure RuntimeEntry where
   matched_subgraph : List String
   renamed_input_nodes : AssocList String (Option String)
   new_output_nodes : List String
+  fresh_types : Nat
   debug : Option String := .none
   name : Option String := .none
   deriving Repr, Inhabited, DecidableEq
@@ -65,6 +66,7 @@ instance : Lean.ToJson RuntimeEntry where
       , ("matched_subgraph", Lean.toJson r.matched_subgraph)
       , ("renamed_input_nodes", Lean.Json.mkObj <| r.renamed_input_nodes.toList.map (λ a => (a.1, Lean.toJson a.2)))
       , ("new_output_nodes", Lean.toJson r.new_output_nodes)
+      , ("fresh_types", Lean.toJson r.fresh_types)
       , ("debug", Lean.toJson r.debug)
       ]
 
@@ -246,7 +248,7 @@ however, currently the low-level expression language does not remember any names
   let sub' ← ofOption (.error "could not extract base information") <| sub.mapM (λ a => g.modules.find? a)
   let g_lower := canon <| ExprLow.comm_bases sub'.reverse g_lower
 
-  addRuntimeEntry <| RuntimeEntry.mk EntryType.rewrite g default sub default .nil .none rewrite.name
+  addRuntimeEntry <| RuntimeEntry.mk EntryType.rewrite g default sub default .nil current_state.fresh_type .none rewrite.name
   updRuntimeEntry λ rw => {rw with debug := (.some <| (toString <| repr e_sub) ++ "\n\n" ++ ((toString <| repr def_rewrite.input_expr)))}
 
   -- beq is an α-equivalence check that returns a mapping to rename one expression into the other.  This mapping is
@@ -301,7 +303,7 @@ however, currently the low-level expression language does not remember any names
   -- Using comb_mapping to find the portMap does not work because with rewrites where there is a single module, the name
   -- won't even appear in the rewrite.
   updRuntimeEntry <| λ _ => RuntimeEntry.mk EntryType.rewrite g out sub (sub.zip renamedNodes).toAssocList
-    addedNodes (.some (toString renamedNodes ++ "\n\n" ++ toString addedNodes)) rewrite.name
+    addedNodes current_state.fresh_type (.some (toString renamedNodes ++ "\n\n" ++ toString addedNodes)) rewrite.name
   -- updRuntimeEntry λ rw => {rw with debug := (.some (toString e_output_norm))}
   EStateM.guard (.error s!"found duplicate node") out.modules.keysList.Nodup
 
@@ -354,7 +356,7 @@ def reverse_rewrite' (def_rewrite : DefiniteRewrite String (String × Nat)) (rin
   let lhs_renamed ← ofOption (.error "could not rename") <| def_rewrite.input_expr.renamePorts full_renaming
   let rhs_renamed ← ofOption (.error "could not rename") <| def_rewrite.output_expr.renamePorts full_renaming
 
-  addRuntimeEntry <| RuntimeEntry.mk EntryType.debug default default default default .nil (.some <| s!"{repr lhs_renamed}\n\n{repr rhs_renamed}\n\n{repr full_renaming}\n\n{repr rhs_renaming}\n\n{repr lhs_renaming}") s!"rev-{rinfo.name.getD "unknown"}"
+  addRuntimeEntry <| RuntimeEntry.mk EntryType.debug default default default default .nil 0 (.some <| s!"{repr lhs_renamed}\n\n{repr rhs_renamed}\n\n{repr full_renaming}\n\n{repr rhs_renaming}\n\n{repr lhs_renaming}") s!"rev-{rinfo.name.getD "unknown"}"
 
   return ({ params := 0
             pattern := λ _ => pure (rhsNodes', default),
@@ -363,15 +365,15 @@ def reverse_rewrite' (def_rewrite : DefiniteRewrite String (String × Nat)) (rin
             -- TODO: These dictate ordering of nodes quite strictly.
             transformedNodes := rhsNodes_renamed.map some ++ rhsNodes_added.map (λ _ => none),
             addedNodes := lhsNodes.drop rhsNodes_renamed.length
+            fresh_types := 0
           })
 
-/--rrrr
+/--
 Generate a reverse rewrite from a rewrite and the RuntimeEntry associated with the execution.
 -/
 def reverse_rewrite (rw : Rewrite String (String × Nat)) (rinfo : RuntimeEntry) : RewriteResult (Rewrite String (String × Nat)) := do
   let (_nodes, l) ← rw.pattern rinfo.input_graph |>.runWithState
-  let current_state ← EStateM.get
-  let def_rewrite := rw.rewrite l current_state.fresh_type
+  let def_rewrite := rw.rewrite l rinfo.fresh_types
   reverse_rewrite' def_rewrite rinfo
 
 /--

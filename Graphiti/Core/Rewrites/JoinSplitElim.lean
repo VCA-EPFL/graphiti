@@ -25,7 +25,7 @@ def identMatcher (s : String) : Pattern String (String × Nat) 2 := fun g => do
   unless next1.inputPort == "out1" do throw (.error s!"{decl_name%}: output port of split is incorrect")
   let next2 ← ofOption' (.error s!"{decl_name%}: could not find next node") <| followInput g s "in2"
   unless "split" == next2.typ.1 do
-    throw (.error s!"{decl_name%}: type of '{next2.inst}' is '{next2.typ}' instead of 'split'")
+    throw (.error s!"{decl_name%}: type of '{next2.inst}' is '{next2.typ}' instead of 'split' 2")
   unless next2.inputPort == "out2" do throw (.error s!"{decl_name%}: output port of split is incorrect")
 
   return ([s, next1.inst], #v[n.2.2, next1.typ.2])
@@ -40,8 +40,8 @@ def lhs : ExprHigh String (String × Nat) := [graph|
     i_0 [type = "io"];
     o_out [type = "io"];
 
-    split [type = "split", arg = $(T[0])];
-    join [type = "join", arg = $(T[1])];
+    split [type = "split", arg = $(T[1])];
+    join [type = "join", arg = $(T[0])];
 
     i_0 -> split [to = "in1"];
 
@@ -51,7 +51,7 @@ def lhs : ExprHigh String (String × Nat) := [graph|
     join -> o_out [from = "out1"];
   ]
 
-def lhs_extract := (lhs T).extract ["split", "join"] |>.get rfl
+def lhs_extract := (lhs T).extract ["join", "split"] |>.get rfl
 theorem double_check_empty_snd : (lhs_extract T).snd = ExprHigh.mk ∅ ∅ := by rfl
 def lhsLower := (lhs_extract T).fst.lower.get rfl
 

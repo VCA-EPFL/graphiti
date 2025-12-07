@@ -20,7 +20,7 @@ def matcher : Pattern String (String × Nat) 2 := fun g => do
        unless "pure" == typ.1 do return none
 
        let (.some p) := followOutput g inst "out1" | return none
-       unless "fork" == p.typ.1 do return none
+       unless "fork2" == p.typ.1 do return none
 
        return some ([inst, p.inst], #v[typ.2, p.typ.2])
     ) none | MonadExceptOf.throw RewriteError.done
@@ -32,7 +32,7 @@ def lhs : ExprHigh String (String × Nat) := [graph|
     o2 [type = "io"];
 
     pure [type = "pure", arg = $(T[0])];
-    fork [type = "fork", arg = $(T[1])];
+    fork [type = "fork2", arg = $(T[1])];
 
     i -> pure [to="in1"];
     pure -> fork [from="out1",to="in1"];
@@ -49,7 +49,7 @@ def rhs : ExprHigh String (String × Nat) := [graph|
     o1 [type = "io"];
     o2 [type = "io"];
 
-    fork [type = "fork", arg = $(M+1)];
+    fork [type = "fork2", arg = $(M+1)];
     pure1 [type = "pure", arg = $(M+2)];
     pure2 [type = "pure", arg = $(M+3)];
 

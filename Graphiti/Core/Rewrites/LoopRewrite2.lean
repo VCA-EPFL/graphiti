@@ -79,7 +79,7 @@ def rhs : ExprHigh String (String × Nat) := [graph|
     split_bool [type = "split", arg = $(M+6)];
     join_tag [type = "join", arg = $(M+7)];
     join_bool [type = "join", arg = $(M+8)];
-    mod [type = "pure", arg = $(M+9)];
+    mod [type = "pure", arg = $(T[4])];
 
     i_in -> tagger [to="in2"];
     tagger -> o_out [from="out2"];
@@ -99,21 +99,21 @@ def rhs : ExprHigh String (String × Nat) := [graph|
     branch -> tagger [from="out2", to="in1"];
   ]
 
-def rhs_extract := (rhs M).extract ["merge", "branch", "tag_split", "mod", "tagger", "split_tag", "split_bool", "join_tag", "join_bool"] |>.get rfl
-def rhsLower := (rhs_extract M).fst.lower.get rfl
-def findRhs mod := (rhs_extract 0).fst.modules.find? mod |>.map Prod.fst
+def rhs_extract := (rhs T M).extract ["merge", "branch", "tag_split", "mod", "tagger", "split_tag", "split_bool", "join_tag", "join_bool"] |>.get rfl
+def rhsLower := (rhs_extract T M).fst.lower.get rfl
+def findRhs mod := (rhs_extract #v[0, 0, 0, 0, 0, 0] 0).fst.modules.find? mod |>.map Prod.fst
 
 def rewrite : Rewrite String (String × Nat) :=
   {
     params := 6
     pattern := matcher,
-    rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
+    rewrite := λ l n => ⟨lhsLower l, rhsLower l n⟩
     name := .some "loop-rewrite"
     transformedNodes := [ findRhs "merge" |>.get rfl, .none, findRhs "branch" |>.get rfl
                         , findRhs "tag_split" |>.get rfl, findRhs "mod" |>.get rfl, .none]
     addedNodes := [ findRhs "tagger" |>.get rfl, findRhs "split_tag" |>.get rfl, findRhs "split_bool" |>.get rfl
                   , findRhs "join_tag" |>.get rfl, findRhs "join_bool" |>.get rfl]
-    fresh_types := 9
+    fresh_types := 8
   }
 
 end Graphiti.LoopRewrite2
