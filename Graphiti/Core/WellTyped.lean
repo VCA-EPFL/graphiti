@@ -269,12 +269,31 @@ def toTypeConstraint (sn : String × Nat) (i : String) : Except String TypeConst
   | "merge2"
   | "sink"
   | "queue" => .ok (.var sn.2)
-  | "output"
   | "constantNat"
+  | "mc"
   | "load"
-  | "input" => .ok (.concr .nat)
+  | "inputNat"
+  | "outputNat0"
+  | "outputNat1"
+  | "outputNat2"
+  | "outputNat3"
+  | "outputNat4"
+  | "outputNat5" => .ok (.concr .nat)
   | "initBool"
+  | "outputBool0"
+  | "outputBool1"
+  | "outputBool2"
+  | "outputBool3"
+  | "outputBool4"
+  | "outputBool5"
   | "constantBool" => .ok (.concr .bool)
+  | "input"
+  | "output0"
+  | "output1"
+  | "output2"
+  | "output3"
+  | "output4"
+  | "output5" => .ok (.concr .unit)
   | s =>
     -- If we don't know the type of the node, then we just return an uninterpreted function per port.
     if "_graphiti_".isPrefixOf s then
@@ -301,11 +320,15 @@ def additionalConstraints (sn : String × Nat) (t : TypeUF) : TypeUF :=
     let (_, t) := t.insert (.var sn.2)
     let (_, t) := t.insert (.uninterp "snd" (.var sn.2))
     t.union (.uninterp "fst" (.var sn.2)) (.concr .tag)
-  | "output"
   | "constantNat"
-  | "input" => t.union (.var sn.2) (.concr .nat)
+  | "load"
+  | "mc"
+  | "inputNat"
+  | "outputNat" => t.union (.var sn.2) (.concr .nat)
   | "initBool"
   | "constantBool" => t.union (.var sn.2) (.concr .bool)
+  /- | "output"
+   - | "input" -/
   | _ => t
 
 namespace ExprLow

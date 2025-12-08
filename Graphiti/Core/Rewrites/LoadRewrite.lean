@@ -20,7 +20,7 @@ def matcher : Pattern String (String × Nat) 2 := fun g => do
        unless typ.1 == "load" do return none
 
        let (.some mc) := followOutput g inst "out2" | return none
-       unless "operator1" == mc.typ.1 do return none
+       unless "mc" == mc.typ.1 do return none
 
        let (.some load) := followOutput g mc.inst "out1" | return none
        unless load.inst = inst do return none
@@ -34,7 +34,7 @@ def lhs : ExprHigh String (String × Nat) := [graph|
     o_out [type = "io"];
 
     load [type = "load", arg = $(T[0])];
-    mc [type = "operator1", arg = $(T[1])];
+    mc [type = "mc", arg = $(T[1])];
 
     i_in -> load [to = "in2"];
     load -> o_out [from = "out1"];

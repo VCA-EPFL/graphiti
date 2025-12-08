@@ -15,7 +15,7 @@ def matcher : Pattern String (String × Nat) 1 := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
       if s.isSome then return s
 
-      unless "fork" == typ.1 do return none
+      unless "fork6" == typ.1 do return none
 
       return some ([inst], #v[typ.2])
     ) none | throw .done

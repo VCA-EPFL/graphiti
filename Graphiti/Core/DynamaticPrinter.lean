@@ -145,7 +145,7 @@ def dynamaticString (a: ExprHigh String (String × Nat)) (t : TypeUF) (m : Assoc
     a.modules.foldlM
       (λ s k v => do
         -- search for the type of the passed node in interfaceTypes
-        let typeName ← ofOption' s!"could not convert graphiti to dynamatic name for {k}/{v.2.1}" <| graphitiToDynamatic v.2.1
+        let typeName := graphitiToDynamatic v.2.1 |>.1
         match m.find? k with
         | some input_fmt =>
           -- If the node is found to be coming from the input,

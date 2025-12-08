@@ -168,8 +168,8 @@ def writeLogFile (parsed : CmdArgs) (st : RewriteState) := do
 
 def runRewriter {α} (parsed : CmdArgs) (g : α) (st : RewriteState) (r : RewriteResult α) : IO (α × RewriteState) :=
   match r.run st with
-  | .ok a st' => writeLogFile parsed st' *> pure (a, st')
-  | .error .done st' => writeLogFile parsed st' *> pure (g, st')
+  | .ok a st' => pure (a, st')
+  | .error .done st' => pure (g, st')
   | .error p st' => do
     IO.eprintln p
     writeLogFile parsed st'
@@ -177,7 +177,7 @@ def runRewriter {α} (parsed : CmdArgs) (g : α) (st : RewriteState) (r : Rewrit
 
 def runRewriter' {α} (parsed : CmdArgs) (st : RewriteState) (r : RewriteResult α) : IO (α × RewriteState) :=
   match r.run st with
-  | .ok a st' => writeLogFile parsed st' *> pure (a, st')
+  | .ok a st' => pure (a, st')
   | .error p st' => do
     IO.eprintln p
     writeLogFile parsed st'
@@ -200,13 +200,12 @@ def rewriteGraph (parsed : CmdArgs) (g : ExprHigh String (String × Nat)) (st : 
       -- addRuntimeEntry <| {RuntimeEntry.debugEntry (toString rewrittenExprHigh) with name := "debug4"}
       -- pureGeneration rewrittenExprHigh <| toPattern LoopRewrite.boxLoopBody
       return rewrittenExprHigh
-  let (rewrittenExprHigh, st) ← eggPureGenerator 100 parsed BranchPureMuxLeft.matchPreAndPost rewrittenExprHigh st <* writeLogFile parsed st
+  let (rewrittenExprHigh, st) ← eggPureGenerator 100 parsed BranchPureMuxLeft.matchPreAndPost rewrittenExprHigh st
   let (_, st) ← runRewriter' parsed st <| addRuntimeEntry <| {RuntimeEntry.debugEntry (toString rewrittenExprHigh) with name := "debug5"}
-  writeLogFile parsed st
-  let (rewrittenExprHigh, st) ← eggPureGenerator 100 parsed BranchPureMuxRight.matchPreAndPost rewrittenExprHigh st <* writeLogFile parsed st
+  let (rewrittenExprHigh, st) ← eggPureGenerator 100 parsed BranchPureMuxRight.matchPreAndPost rewrittenExprHigh st
   let (rewrittenExprHigh, st) ← runRewriter parsed rewrittenExprHigh st <| withUndo <| rewrite_loop [BranchPureMuxLeft.rewrite, BranchPureMuxRight.rewrite, BranchMuxToPure.rewrite] rewrittenExprHigh
   let (rewrittenExprHigh, st) ← runRewriter parsed rewrittenExprHigh st <| withUndo <| pureGeneration rewrittenExprHigh <| toPattern (n := 0) LoopRewrite.boxLoopBody
-  let (rewrittenExprHigh, st) ← eggPureGenerator 100 parsed LoopRewrite.boxLoopBodyOther rewrittenExprHigh st <* writeLogFile parsed st
+  let (rewrittenExprHigh, st) ← eggPureGenerator 100 parsed LoopRewrite.boxLoopBodyOther rewrittenExprHigh st
   let (rewrittenExprHigh, st) ← runRewriter parsed rewrittenExprHigh st (LoopRewrite2.rewrite.run rewrittenExprHigh)
   return (rewrittenExprHigh, st, st)
 
@@ -222,7 +221,7 @@ def rewriteGraphAbs (parsed : CmdArgs) (g : ExprHigh String (String × Nat)) (st
 
   let (g, st) ← runRewriter parsed g st <| pureGeneration g <| toPattern (n := 0) LoopRewrite.boxLoopBody
 
-  let (g, st) ← eggPureGenerator 100 parsed LoopRewrite.boxLoopBodyOther' g st <* writeLogFile parsed st
+  let (g, st) ← eggPureGenerator 100 parsed LoopRewrite.boxLoopBodyOther' g st
 
   let .some subexpr@(.base pmap typ) := g.lower | throw <| .userError s!"{decl_name%}: failed to lower graph"
 
@@ -263,6 +262,8 @@ def main (args : List String) : IO Unit := do
     let (g', _, st') ← (if !parsed.fast then rewriteGraph else rewriteGraphAbs) parsed rewrittenExprHigh st
     let (g', st') ← if parsed.reverse then runRewriter' parsed st' <| reverseRewrites g' else pure (g', st')
     rewrittenExprHigh := g'; st := st'
+
+  writeLogFile parsed st
 
   let .some g' := rewrittenExprHigh.renameModules name_mapping
     | throw <| .userError s!"{decl_name%}: failed to undo name_mapping"

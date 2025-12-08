@@ -243,6 +243,9 @@ def translateSize' : String → Except String String
 def translateSize (s : String) : Except String String :=
   translateSize' (s.takeWhile (·.isDigit))
 
+def toSizeInfo (l : List Parser.DotAttr) (k : String) :=
+  toNat? <$> parseIOSizes l k
+
 /--
 Parse a dot expression that comes from Dynamatic.  It returns the graph
 expression, as well as a list of additional attributes that should be bypassed
@@ -278,10 +281,6 @@ def dotToExprHigh (d : Parser.DotGraph) : Except String (ExprHigh String String 
 
       if typVal = "Constant" then
         let constVal ← keyArg l "value" |> Parser.hexParser.run
-        if keyStartsWith l "out" "out1:1" then
-          typVal := s!"constantBool"
-        else
-          typVal := s!"constantNat"
         current_extra_args ← addOpt current_extra_args "value"
 
       if typVal = "Operator" then
@@ -295,29 +294,13 @@ def dotToExprHigh (d : Parser.DotGraph) : Except String (ExprHigh String String 
         current_extra_args ← addOpt current_extra_args "constants"
         current_extra_args ← add current_extra_args "op"
 
-        if splitAndSearch l "op" "mc_load_op" then
-          typVal := s!"load"
-        else
-          let sizesIn ← parseIOSizes l "in" |>.mapM translateSize
-          let sizesOut ← parseIOSizes l "out" |>.mapM translateSize
-          typVal := s!"operator{keyArgNumbers l "in"}"
-
-      if typVal = "MC" then
-        let sizesIn ← parseIOSizes l "in" |>.mapM translateSize
-        let sizesOut ← parseIOSizes l "out" |>.filter (·.trim.endsWith "*e" |> not) |>.mapM translateSize
-        typVal := s!"operator{keyArgNumbers l "in"}"
+      if typVal == "MC" then
         current_extra_args ← addOpt current_extra_args "memory"
         current_extra_args ← addOpt current_extra_args "bbcount"
         current_extra_args ← addOpt current_extra_args "ldcount"
         current_extra_args ← addOpt current_extra_args "stcount"
 
-      if typVal == "Fork" then
-        typVal := s!"fork{keyArgNumbers l "out"}"
-      if typVal == "Merge" then
-        typVal := s!"merge{keyArgNumbers l "in"}"
-
-      unless "merge".isPrefixOf typVal || "fork".isPrefixOf typVal || "constant".isPrefixOf typVal || "operator".isPrefixOf typVal do
-        typVal := dynamaticToGraphiti typVal
+      typVal := dynamaticToGraphiti typVal (toSizeInfo l "in") (toSizeInfo l "out")
 
       let cluster := l.find? (·.key = "cluster") |>.getD ⟨"cluster", "false"⟩
       let .ok clusterB := Parser.parseBool.run cluster.value.trim
