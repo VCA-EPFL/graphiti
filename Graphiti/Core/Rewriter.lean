@@ -265,8 +265,6 @@ however, currently the low-level expression language does not remember any names
   let (ext_mapping, int_mapping) ← liftError <| def_rewrite.input_expr.weak_beq e_sub
 
   let comb_mapping := ext_mapping.append int_mapping |>.filterId
-  -- EStateM.guard (.error "input mapping not invertible") <| comb_mapping.input.invertible
-  -- EStateM.guard (.error "output mapping not invertible") <| comb_mapping.output.invertible
 
   updRuntimeEntry λ rw => {rw with debug := (.some (toString ext_mapping))}
 
@@ -295,7 +293,6 @@ however, currently the low-level expression language does not remember any names
   -- Finally we do the actual replacement.
   let (rewritten, b) := g_lower.force_replace (canon e_sub_input) e_sub_output
 
-  -- throw (.error s!"mods :: {repr sub'}rhs :: {repr g_lower}\n\ndep :: {repr (canon e_sub_input)}")
   EStateM.guard (.error s!"rewrite: subexpression not found in the graph: {repr g_lower}\n\n{repr (canon e_sub_input)}") b
 
   let out ← rewritten |> ExprLow.higher_correct PortMapping.hashPortMapping
@@ -320,6 +317,7 @@ however, currently the low-level expression language does not remember any names
       debug := (.some (toString renamedNodes ++ "\n\n" ++ toString addedNodes))
       name := rewrite.name
     }
+
   -- updRuntimeEntry λ rw => {rw with debug := (.some (toString e_output_norm))}
   EStateM.guard (.error s!"found duplicate node") out.modules.keysList.Nodup
 
