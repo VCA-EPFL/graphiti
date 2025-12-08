@@ -260,7 +260,7 @@ def main (args : List String) : IO Unit := do
 
   if !parsed.parseOnly then
     let (g', _, st') ← (if !parsed.fast then rewriteGraph else rewriteGraphAbs) parsed rewrittenExprHigh st
-    let (g', st') ← if parsed.reverse then runRewriter' parsed st' <| reverseRewrites g' else pure (g', st')
+    let (g', st') ← if parsed.reverse then runRewriter parsed g' st' <| reverseRewrites g' else pure (g', st')
     rewrittenExprHigh := g'; st := st'
 
   writeLogFile parsed st

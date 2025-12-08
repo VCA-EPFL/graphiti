@@ -59,7 +59,6 @@ def findRhs mod := (rhs_extract 0).1.modules.find? mod |>.map Prod.fst
 
 def rewrite : Rewrite String (String × Nat) :=
   { params := 2
-    abstractions := [],
     pattern := matcher,
     rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
     name := "pure-sink"

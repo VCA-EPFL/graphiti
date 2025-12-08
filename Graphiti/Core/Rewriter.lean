@@ -39,6 +39,7 @@ structure RuntimeEntry where
   input_graph : ExprHigh String (String × Nat)
   output_graph : ExprHigh String (String × Nat)
   matched_subgraph : List String
+  matched_subgraph_types : List Nat
   renamed_input_nodes : AssocList String (Option String)
   new_output_nodes : List String
   fresh_types : Nat
@@ -64,6 +65,7 @@ instance : Lean.ToJson RuntimeEntry where
       , ("input_graph", toString <| repr r.input_graph)
       , ("output_graph", toString <| repr r.output_graph)
       , ("matched_subgraph", Lean.toJson r.matched_subgraph)
+      , ("matched_subgraph_types", Lean.toJson r.matched_subgraph_types)
       , ("renamed_input_nodes", Lean.Json.mkObj <| r.renamed_input_nodes.toList.map (λ a => (a.1, Lean.toJson a.2)))
       , ("new_output_nodes", Lean.toJson r.new_output_nodes)
       , ("fresh_types", Lean.toJson r.fresh_types)
@@ -230,10 +232,11 @@ however, currently the low-level expression language does not remember any names
   let current_state ← EStateM.get
   let fresh_prefix := s!"rw_{current_state.fresh_prefix}_"
 
-  addRuntimeEntry <| RuntimeEntry.mk EntryType.rewrite g default default default .nil current_state.fresh_type .none rewrite.name
-
   -- Pattern match on the graph and extract the first list of nodes that correspond to the first subgraph.
   let (sub, types) ← rewrite.pattern g |>.runWithState
+
+  addRuntimeEntry <| RuntimeEntry.mk EntryType.debug g default default default default .nil current_state.fresh_type .none rewrite.name
+
   let def_rewrite := rewrite.rewrite types current_state.fresh_type
   incrFreshType rewrite.fresh_types
 
@@ -250,7 +253,11 @@ however, currently the low-level expression language does not remember any names
   let sub' ← ofOption (.error "could not extract base information") <| sub.mapM (λ a => g.modules.find? a)
   let g_lower := canon <| ExprLow.comm_bases sub'.reverse g_lower
 
-  updRuntimeEntry λ rw => {rw with debug := (.some <| (toString <| repr e_sub) ++ "\n\n" ++ ((toString <| repr def_rewrite.input_expr)))}
+  updRuntimeEntry λ rw => { rw with
+      matched_subgraph := sub
+      matched_subgraph_types := types.toList
+      debug := (.some <| (toString <| repr e_sub) ++ "\n\n" ++ ((toString <| repr def_rewrite.input_expr)))
+    }
 
   -- beq is an α-equivalence check that returns a mapping to rename one expression into the other.  This mapping is
   -- split into the external mapping and internal mapping.
@@ -301,10 +308,18 @@ however, currently the low-level expression language does not remember any names
     |>.map (renamePortMapping · e_output_norm)
     |>.map PortMapping.hashPortMapping
 
-  -- Using comb_mapping to find the portMap does not work because with rewrites where there is a single module, the name
-  -- won't even appear in the rewrite.
-  updRuntimeEntry <| λ _ => RuntimeEntry.mk EntryType.rewrite g out sub (sub.zip renamedNodes).toAssocList
-    addedNodes current_state.fresh_type (.some (toString renamedNodes ++ "\n\n" ++ toString addedNodes)) rewrite.name
+  updRuntimeEntry <| λ _ => {
+      type := EntryType.rewrite
+      input_graph := g
+      output_graph := out
+      matched_subgraph := sub
+      matched_subgraph_types := types.toList
+      renamed_input_nodes := (sub.zip renamedNodes).toAssocList
+      new_output_nodes := addedNodes
+      fresh_types := current_state.fresh_type
+      debug := (.some (toString renamedNodes ++ "\n\n" ++ toString addedNodes))
+      name := rewrite.name
+    }
   -- updRuntimeEntry λ rw => {rw with debug := (.some (toString e_output_norm))}
   EStateM.guard (.error s!"found duplicate node") out.modules.keysList.Nodup
 
@@ -357,7 +372,7 @@ def reverse_rewrite' (def_rewrite : DefiniteRewrite String (String × Nat)) (rin
   let lhs_renamed ← ofOption (.error "could not rename") <| def_rewrite.input_expr.renamePorts full_renaming
   let rhs_renamed ← ofOption (.error "could not rename") <| def_rewrite.output_expr.renamePorts full_renaming
 
-  addRuntimeEntry <| RuntimeEntry.mk EntryType.debug default default default default .nil 0 (.some <| s!"{repr lhs_renamed}\n\n{repr rhs_renamed}\n\n{repr full_renaming}\n\n{repr rhs_renaming}\n\n{repr lhs_renaming}") s!"rev-{rinfo.name.getD "unknown"}"
+  addRuntimeEntry <| RuntimeEntry.mk EntryType.debug default default default default default .nil 0 (.some <| s!"{repr lhs_renamed}\n\n{repr rhs_renamed}\n\n{repr full_renaming}\n\n{repr rhs_renaming}\n\n{repr lhs_renaming}") s!"rev-{rinfo.name.getD "unknown"}"
 
   return ({ params := 0
             pattern := λ _ => pure (rhsNodes', default),
@@ -373,9 +388,11 @@ def reverse_rewrite' (def_rewrite : DefiniteRewrite String (String × Nat)) (rin
 Generate a reverse rewrite from a rewrite and the RuntimeEntry associated with the execution.
 -/
 def reverse_rewrite (rw : Rewrite String (String × Nat)) (rinfo : RuntimeEntry) : RewriteResult (Rewrite String (String × Nat)) := do
-  let (_nodes, l) ← rw.pattern rinfo.input_graph |>.runWithState
-  let def_rewrite := rw.rewrite l rinfo.fresh_types
-  reverse_rewrite' def_rewrite rinfo
+  /- let (_nodes, l) ← rw.pattern rinfo.input_graph |>.runWithState -/
+  if h : rinfo.matched_subgraph_types.toArray.size = rw.params then
+    let def_rewrite := rw.rewrite (Vector.mk rinfo.matched_subgraph_types.toArray h) rinfo.fresh_types
+    reverse_rewrite' def_rewrite rinfo
+  else throw <| .error s!"{rw.name}: size does not match {rinfo.matched_subgraph_types.toArray.size} != {rw.params}"
 
 /--
 Abstract a subgraph into a separate node.  One can imagine that the node type is then a node in the environment which is
