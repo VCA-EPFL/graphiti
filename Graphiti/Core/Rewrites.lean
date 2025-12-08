@@ -93,35 +93,41 @@ def rewrite_index :=
 def reverse_rewrite_with_index (rinfo : RuntimeEntry) : RewriteResult (Rewrite String (String × Nat)) := do
   let rw ← do
     let name ← ofOption (.error s!"{decl_name%}: no rinfo report") rinfo.name
-    match name with
-    | "join-split-elim" =>
-      let s ← ofOption (.error s!"{decl_name%}: 'join-split-elim' reverse rewrite generation failed") rinfo.matched_subgraph[0]?
-      return JoinSplitElim.targetedRewrite s
-    | "join-comm" =>
-      let s ← ofOption (.error s!"{decl_name%}: 'join-comm' reverse rewrite generation failed") rinfo.matched_subgraph[0]?
-      return JoinComm.targetedRewrite s
-    | "join-assoc-right" =>
-      let s ← ofOption (.error s!"{decl_name%}: 'join-assoc-right' reverse rewrite generation failed") rinfo.matched_subgraph[1]?
-      return JoinAssocR.targetedRewrite s
-    | "join-assoc-left" =>
-      let s ← ofOption (.error s!"{decl_name%}: 'join-assoc-left' reverse rewrite generation failed") rinfo.matched_subgraph[1]?
-      return JoinAssocL.targetedRewrite s
-    | "pure-fork" =>
-      let s ← ofOption (.error s!"{decl_name%}: 'pure-fork' reverse rewrite generation failed") rinfo.matched_subgraph[0]?
-      return {PureRewrites.Fork.rewrite with pattern := PureRewrites.Fork.match_node s}
-    | "pure-operator3" =>
-      let s ← ofOption (.error s!"{decl_name%}: 'pure-operator3' reverse rewrite generation failed") rinfo.matched_subgraph[0]?
-      return {PureRewrites.Operator3.rewrite with pattern := PureRewrites.Operator3.match_node s}
-    | "pure-operator2" =>
-      let s ← ofOption (.error s!"{decl_name%}: 'pure-operator2' reverse rewrite generation failed") rinfo.matched_subgraph[0]?
-      return {PureRewrites.Operator2.rewrite with pattern := PureRewrites.Operator2.match_node s}
-    | "pure-operator1" =>
-      let s ← ofOption (.error s!"{decl_name%}: 'pure-operator1' reverse rewrite generation failed") rinfo.matched_subgraph[0]?
-      return {PureRewrites.Operator1.rewrite with pattern := PureRewrites.Operator1.match_node s}
-    | "pure-constant" =>
-      let s ← ofOption (.error s!"{decl_name%}: 'constant' reverse rewrite generation failed") rinfo.matched_subgraph[0]?
-      return {PureRewrites.Constant.rewrite with pattern := PureRewrites.Constant.match_node s}
-    | s => ofOption (.error s!"{decl_name%}: '{s}' reverse rewrite generation failed") <| rewrite_index.find? name
+    (match name with
+     | "join-split-elim" => do
+       let s ← ofOption (.error s!"{decl_name%}: 'join-split-elim' reverse rewrite generation failed") rinfo.matched_subgraph[0]?
+       return JoinSplitElim.targetedRewrite s
+     | "join-comm" => do
+       let s ← ofOption (.error s!"{decl_name%}: 'join-comm' reverse rewrite generation failed") rinfo.matched_subgraph[0]?
+       return JoinComm.targetedRewrite s
+     | "join-assoc-right" => do
+       let s ← ofOption (.error s!"{decl_name%}: 'join-assoc-right' reverse rewrite generation failed") rinfo.matched_subgraph[1]?
+       return JoinAssocR.targetedRewrite s
+     | "join-assoc-left" => do
+       let s ← ofOption (.error s!"{decl_name%}: 'join-assoc-left' reverse rewrite generation failed") rinfo.matched_subgraph[1]?
+       return JoinAssocL.targetedRewrite s
+     | "pure-fork" => do
+       let s ← ofOption (.error s!"{decl_name%}: 'pure-fork' reverse rewrite generation failed") rinfo.matched_subgraph[0]?
+       return {PureRewrites.Fork.rewrite with pattern := PureRewrites.Fork.match_node s}
+     | "pure-operator3" => do
+       let s ← ofOption (.error s!"{decl_name%}: 'pure-operator3' reverse rewrite generation failed") rinfo.matched_subgraph[0]?
+       return {PureRewrites.Operator3.rewrite with pattern := PureRewrites.Operator3.match_node s}
+     | "pure-operator2" => do
+       let s ← ofOption (.error s!"{decl_name%}: 'pure-operator2' reverse rewrite generation failed") rinfo.matched_subgraph[0]?
+       return {PureRewrites.Operator2.rewrite with pattern := PureRewrites.Operator2.match_node s}
+     | "pure-operator1" => do
+       let s ← ofOption (.error s!"{decl_name%}: 'pure-operator1' reverse rewrite generation failed") rinfo.matched_subgraph[0]?
+       return {PureRewrites.Operator1.rewrite with pattern := PureRewrites.Operator1.match_node s}
+     | "pure-constant" => do
+       let s ← ofOption (.error s!"{decl_name%}: 'pure-constant' reverse rewrite generation failed") rinfo.matched_subgraph[0]?
+       return {PureRewrites.Constant.rewrite with pattern := PureRewrites.Constant.match_node s}
+     | "pure-constant-nat" => do
+       let s ← ofOption (.error s!"{decl_name%}: 'pure-constant-nat' reverse rewrite generation failed") rinfo.matched_subgraph[0]?
+       return {PureRewrites.ConstantNat.rewrite with pattern := PureRewrites.ConstantNat.match_node s}
+     | "pure-constant-bool" => do
+       let s ← ofOption (.error s!"{decl_name%}: 'pure-constant-bool' reverse rewrite generation failed") rinfo.matched_subgraph[0]?
+       return {PureRewrites.ConstantBool.rewrite with pattern := PureRewrites.ConstantBool.match_node s}
+     | s => ofOption (.error s!"{decl_name%}: '{s}' reverse rewrite generation failed") <| rewrite_index.find? name)
   reverse_rewrite rw rinfo
 
 /--
