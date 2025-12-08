@@ -47,7 +47,7 @@ def lhs : ExprHigh String (String × Nat) := [graph|
 
 #eval lhs.lower |>.get! |>.infer_equalities ⟨∅, ∅⟩ |>.map (·.ufMap) |>.map (·.checkEquiv! 8 6 |>.snd)
 #eval lhs.lower |>.get! |>.infer_equalities ⟨∅, ∅⟩ |>.map (fun x => x.typeMap |>.toList.map (λ y => (y.fst, x.ufMap.root! y.snd)))
-#eval lhs.lower |>.get! |>.infer_equalities ⟨∅, ∅⟩ |>.map (fun x => x.findConcr (Graphiti.ExprLow.TypeConstraint.var 4))
+#eval lhs.lower |>.get! |>.infer_equalities ⟨∅, ∅⟩ |>.map (fun x => x.findConcr (Graphiti.TypeConstraint.var 4))
 #eval lhs.lower |>.get! |>.infer_types
 
 end Graphiti.ExprLow.Test
