@@ -7,9 +7,10 @@ Authors: Maï-Linh Cordonnier, Lorenzo Padrini
 import Graphiti.Core.ModuleLemmas
 import Graphiti.Core.StateTransition
 import Graphiti.Projects.Liveness.ComposedModuleHist
+import Graphiti.Projects.Liveness.ComposedModule
 import Graphiti.Projects.Liveness.StateTransitionLiveness
 import Graphiti.Core.Trace
-
+import Graphiti.Projects.Liveness.ModuleHistory
 
 open Graphiti
 open Graphiti.Module
@@ -263,9 +264,7 @@ theorem lemma_step {T}
       rw [assum]
       ac_rfl
     . rename_i prop
-      exfalso
-      simp at *
-      sorry
+      rw [PortMap.rw_rule_execution (by simp [drunfold, prop]; rfl)] at trans; simp at *
   | output trans TpeEq =>
     rename_i ip st s1fst Tpe
     rcases s1 with ⟨ ⟨ st11, st12, st1hist ⟩, mod1 ⟩; rcases st with ⟨ s1, s2, s1hist ⟩ ; simp at *; subst_vars
@@ -282,7 +281,7 @@ theorem lemma_step {T}
     . rename_i prop
       exfalso
       simp at *
-      sorry
+      rw [PortMap.rw_rule_execution (by simp [drunfold, prop]; rfl)] at trans; simp at *
   | internal trans TpeEq =>
     rename_i ip st
     rcases s1 with ⟨ ⟨ st11, st12, st1hist ⟩, mod1 ⟩; rcases st with ⟨ s1, s2, s1hist ⟩ ; simp at *; subst_vars
@@ -361,8 +360,147 @@ theorem gcompf_weight_eq_num_of_vals {T}
 
 
 
+theorem gcomfhist_steps_gcompfhistfun {T}
+(f g: T → T)
+{t1: Trace ℕ}
+{s1 s2: State ℕ ((List T) × ((List T) × (Trace Nat)))}:
+@StateTransition.step _ _  (state_transition (NatModule.gcompfHist T f g)) s1 t1 s2
+→ s2.module = (NatModule.gcompfHist T f g)
+ →  @StateTransition.step _ _  (state_transition (History.generate_history (NatModule.gcompf T f g))) ⟨⟨s1.state.2.2.reverse, s1.state.1, s1.state.2.1 ⟩  ,(History.generate_history (NatModule.gcompf T f g))⟩ t1 ⟨⟨s2.state.2.2.reverse, s2.state.1, s2.state.2.1 ⟩  ,(History.generate_history (NatModule.gcompf T f g))⟩   := by
+  intro step s1mod
+  cases step with
+  | input =>
+    rename_i ip st2 modFun Tpe stTrans TpeEq
+    rcases Tpe with ⟨G, x⟩; rcases TpeEq with ⟨ eq1, eq2 ⟩ ; rcases s1 with ⟨ ⟨ s11, s12, s13⟩, mod1 ⟩; simp; subst_vars
+    rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
+    split  at stTrans
+    . simp at *
+      subst_vars
+      constructor <;> try rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
+      . simp at *
+        constructor <;> try exact rfl
+        simp
+      . simp [History.generate_history, NatModule.gcompfHist] at *
+        constructor
+    . exfalso
+      rename_i prop
+      rw [PortMap.rw_rule_execution (by simp [drunfold, prop]; rfl)] at stTrans; simp at *
+  | output =>
+    rename_i ip st2 modFun Tpe stTrans TpeEq
+    rcases Tpe with ⟨G, x⟩; rcases TpeEq with ⟨ eq1, eq2 ⟩ ; rcases s1 with ⟨ ⟨ s11, s12, s13⟩, mod1 ⟩; simp; subst_vars
+    rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
+    split  at stTrans
+    . simp at *
+      rename_i prop
+      subst_vars; simp at stTrans
+      rcases stTrans with ⟨ eq1, eq2, eq3 ⟩ ; cases s12; simp at eq2; rename_i head tail
+      rcases st2 with ⟨ s21, s22, s23 ⟩; simp at eq1 eq2 eq3; rcases eq2 with ⟨ eq21, eq22 ⟩
+      subst_vars
+      constructor <;> try rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
+      . simp at *
+        constructor <;> try exact rfl
+        simp
+      . simp [History.generate_history, NatModule.gcompfHist] at *
+        constructor
+    . exfalso
+      rename_i prop
+      rw [PortMap.rw_rule_execution (by simp [drunfold, prop]; rfl)] at stTrans; simp at *
+  | internal =>
+    rename_i relI s2 s2Mod relApp
+    rcases s1 with ⟨ ⟨ s11, s12, s13⟩, mod1 ⟩ ; rcases s2 with ⟨ s21, s22, s23 ⟩
+    simp at *; subst_vars
+    cases s2Mod
+    rcases relApp with ⟨ eq1, eq2, eq3 ⟩
+    simp
+    constructor <;> try rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
+    constructor
+    simp
+    rename_i relIEmpt; cases relIEmpt
 
 
+
+
+theorem gcomfhist_stars_gcompfhistfun {T}
+(f g: T → T)
+{t: Trace ℕ}
+{s s': State ℕ ((List T) × ((List T) × (Trace Nat)))}:
+@star _ _  (state_transition (NatModule.gcompfHist T f g)) s t s'
+→ s.module = (NatModule.gcompfHist T f g)
+→  @star _ _  (state_transition (History.generate_history (NatModule.gcompf T f g))) ⟨⟨s.state.2.2.reverse, s.state.1, s.state.2.1 ⟩  ,(History.generate_history (NatModule.gcompf T f g))⟩ t ⟨⟨s'.state.2.2.reverse, s'.state.1, s'.state.2.1 ⟩  ,(History.generate_history (NatModule.gcompf T f g))⟩   := by
+  intro s_stars_s' s'_module
+  induction s_stars_s' with
+  | refl s'' => apply @star.refl _ _ (state_transition (History.generate_history (NatModule.gcompf T f g)))
+  | step s'' s''' s'''' t1 t2 s''_steps_s''' s'''_stars_s'''' iH =>
+    have trans_mod := (step_preserve_mod (NatModule.gcompfHist T f g) s''_steps_s''');
+    rcases s'' with ⟨ s'', mod' ⟩; simp at *; subst_vars
+    have iH_ := iH trans_mod
+    have conv_step := gcomfhist_steps_gcompfhistfun f g s''_steps_s''' trans_mod
+    exact @star.step _ _ (state_transition (History.generate_history (NatModule.gcompf T f g))) _ _ _ _ _ conv_step iH_
+
+
+
+
+
+theorem gcomfhist_equiv_gcompfhistfun {T}
+(f g: T → T)
+{t: Trace ℕ}
+{s: State ℕ ((List T) × ((List T) × (Trace Nat)))}:
+@reachable _ _  (state_transition (NatModule.gcompfHist T f g)) t s
+ →  @reachable _ _  (state_transition (History.generate_history (NatModule.gcompf T f g))) t ⟨⟨s.state.2.2.reverse, s.state.1, s.state.2.1 ⟩  ,(History.generate_history (NatModule.gcompf T f g))⟩  := by
+  simp [reachable]
+  intro x init_x x_stars_s; exists ⟨ ⟨ [],[], []⟩, (History.generate_history (NatModule.gcompf T f g)) ⟩ ;
+  constructor
+  constructor
+  constructor
+  simp [init_state, History.generate_history, NatModule.gcompf]; simp
+  simp [init_state, History.generate_history, NatModule.gcompf]
+  rcases init_x with ⟨x_hists, xmod⟩
+  simp [init_state, History.generate_history, NatModule.gcompfHist] at x_hists
+  rcases x; simp at x_hists; subst_vars
+  have final := gcomfhist_stars_gcompfhistfun f g x_stars_s; simp at final; exact final
+
+theorem count_in_append (t1 t2 : Trace ℕ) :
+    count_in (t1 ++ t2) = count_in t1 + count_in t2 := by
+  induction t1 with
+  | nil => simp [count_in]
+  | cons =>
+    rename_i head tail iH
+    simp [count_in]
+    cases head <;> simp [count_in, iH, Nat.add_assoc]
+
+
+theorem count_in_reversible
+{t: Trace ℕ}:
+count_in t = count_in t.reverse := by
+  induction t
+  simp
+  rename_i head tail iH
+  simp [List.reverse_cons, count_in]
+  rw [count_in_append]
+  simp [count_in]
+  cases head <;> (simp; rw [iH]; try exact Nat.add_comm 1 (count_in tail.reverse))
+
+theorem count_out_append (t1 t2 : Trace ℕ) :
+    count_out (t1 ++ t2) = count_out t1 + count_out t2 := by
+  induction t1 with
+  | nil => simp [count_out]
+  | cons =>
+    rename_i head tail iH
+    simp [count_in]
+    cases head <;> simp [count_out, iH, Nat.add_assoc]
+
+
+theorem count_out_reversible
+{t: Trace ℕ}:
+count_out t = count_out t.reverse := by
+  induction t
+  simp
+  rename_i head tail iH
+  simp [List.reverse_cons, count_in]
+  rw [count_out_append]
+  simp [count_out]
+  cases head <;> (simp; rw [iH]; try exact Nat.add_comm 1 (count_in tail.reverse))
+  exact Nat.add_comm 1 (count_out tail.reverse)
 
 theorem gcompf_eq_sum {T}
 (f g: T → T)
@@ -373,7 +511,12 @@ theorem gcompf_eq_sum {T}
 : count_in t = count_out t  := by
   have num_with_zero := gcompf_weight_eq_num_of_vals f g h_zero reach
   simp at num_with_zero
-  sorry
+  have gcompf_eq := gcomfhist_equiv_gcompfhistfun f g reach; simp at gcompf_eq
+  have final_eq := History.generate_history_correct1 { state := (s.state.snd.snd.reverse, s.state.fst, s.state.snd.fst), module := History.generate_history (NatModule.gcompf T f g) } gcompf_eq
+  simp at final_eq
+  subst final_eq
+  rw [count_out_reversible]; rw [count_in_reversible]
+  simp at *; exact num_with_zero
 
 -- MAIN PROOF: where the magic happens
 

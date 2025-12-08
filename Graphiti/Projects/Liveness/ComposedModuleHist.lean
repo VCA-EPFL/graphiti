@@ -21,4 +21,6 @@ namespace Graphiti.NatModule
 
 -- def gfmodule : NatModule (List Nat) := gcompf Nat (fun a => a + 1) (fun a => a + 1)
 
+
+
 end Graphiti.NatModule
