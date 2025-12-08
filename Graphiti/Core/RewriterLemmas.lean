@@ -248,7 +248,7 @@ theorem run'_implies_wt_lhs {b} {ε_global : FinEnv String (String × Nat)}
   dsimp [RewriteResultSL.runWithState] at Hpattern
   cases Hpattern
   cases ‹EStateM.get _ = _›
-  rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+  rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
   have wi_wf : ExprLow.well_formed ε_global.toEnv wi = true := by
     apply ExprLow.refines_comm_connections'_well_formed2
     · apply ExprLow.replacement_well_formed2; rotate_left 1
@@ -338,7 +338,7 @@ theorem run'_implies_wf_lhs {b} {ε_global : FinEnv String (String × Nat)}
   dsimp [RewriteResultSL.runWithState] at Hpattern
   cases Hpattern
   cases ‹EStateM.get _ = _›
-  rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+  rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
   have wi_wf : ExprLow.well_formed ε_global.toEnv wi = true := by
     apply ExprLow.refines_comm_connections'_well_formed2
     · apply ExprLow.replacement_well_formed2; rotate_left 1
@@ -416,7 +416,7 @@ theorem run'_refines {b} {ε_global : FinEnv String (String × Nat)}
   dsimp [RewriteResultSL.runWithState] at Hpattern
   cases Hpattern
   cases ‹EStateM.get _ = _›
-  rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+  rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
   have wi_wf : ExprLow.well_formed ε_global.toEnv wi = true := by
     apply ExprLow.refines_comm_connections'_well_formed2
     · apply ExprLow.replacement_well_formed2; rotate_left 1
@@ -577,7 +577,7 @@ theorem run'_preserves_well_formed {b} {ε_global : FinEnv String (String × Nat
   dsimp [RewriteResultSL.runWithState] at Hpattern
   cases Hpattern
   cases ‹EStateM.get _ = _›
-  rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+  rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
   have rw_output_wf : ExprLow.well_formed (ε_global ++ vrw.ε_ext).toEnv (rw.rewrite types st.fresh_type).output_expr = true := by
     apply ExprLow.refines_subset_well_formed
     apply FinEnv.independent_subset_of_union
@@ -677,7 +677,7 @@ theorem run'_preserves_well_typed {b} {ε_global : FinEnv String (String × Nat)
   dsimp [RewriteResultSL.runWithState] at Hpattern
   cases Hpattern
   cases ‹EStateM.get _ = _›
-  rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+  rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
   have rw_output_wf : ExprLow.well_formed (ε_global ++ vrw.ε_ext).toEnv (rw.rewrite types st.fresh_type).output_expr = true := by
     apply ExprLow.refines_subset_well_formed
     apply FinEnv.independent_subset_of_union
