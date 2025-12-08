@@ -230,6 +230,8 @@ however, currently the low-level expression language does not remember any names
   let current_state ← EStateM.get
   let fresh_prefix := s!"rw_{current_state.fresh_prefix}_"
 
+  addRuntimeEntry <| RuntimeEntry.mk EntryType.rewrite g default default default .nil current_state.fresh_type .none rewrite.name
+
   -- Pattern match on the graph and extract the first list of nodes that correspond to the first subgraph.
   let (sub, types) ← rewrite.pattern g |>.runWithState
   let def_rewrite := rewrite.rewrite types current_state.fresh_type
@@ -248,7 +250,6 @@ however, currently the low-level expression language does not remember any names
   let sub' ← ofOption (.error "could not extract base information") <| sub.mapM (λ a => g.modules.find? a)
   let g_lower := canon <| ExprLow.comm_bases sub'.reverse g_lower
 
-  addRuntimeEntry <| RuntimeEntry.mk EntryType.rewrite g default sub default .nil current_state.fresh_type .none rewrite.name
   updRuntimeEntry λ rw => {rw with debug := (.some <| (toString <| repr e_sub) ++ "\n\n" ++ ((toString <| repr def_rewrite.input_expr)))}
 
   -- beq is an α-equivalence check that returns a mapping to rename one expression into the other.  This mapping is

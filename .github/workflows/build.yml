@@ -71,6 +71,9 @@ jobs:
           lake exe graphiti benchmarks/post-processed/gemm.dot -o out.dot --oracle $(pwd)/bin/graphiti_oracle --reverse
 
       - name: test gsum_many example
-        continue-on-error: true
         run: |
           lake exe graphiti benchmarks/post-processed/gsum_many.dot -o out.dot --oracle $(pwd)/bin/graphiti_oracle --reverse
+
+      - name: test img_avg example
+        run: |
+          lake exe graphiti benchmarks/post-processed/img_avg.dot -o out.dot --oracle $(pwd)/bin/graphiti_oracle --reverse
