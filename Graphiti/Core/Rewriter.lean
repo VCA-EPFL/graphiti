@@ -248,10 +248,10 @@ however, currently the low-level expression language does not remember any names
 
   -- g_lower is the fully lowered graph with the sub expression that is to be replaced rearranged so that it can be
   -- pattern matched.
-  let canon := ExprLow.comm_connections'_fast g₁.connections
+  let canon := ExprLow.comm_connections' g₁.connections
   let g_lower ← ofOption (.error "failed lowering of the graph: graph is empty") g.lower
   let sub' ← ofOption (.error "could not extract base information") <| sub.mapM (λ a => g.modules.find? a)
-  let g_lower := canon <| ExprLow.comm_bases_fast sub'.reverse g_lower
+  let g_lower := canon <| ExprLow.comm_bases sub'.reverse g_lower
 
   updRuntimeEntry λ rw => { rw with
       matched_subgraph := sub
@@ -415,15 +415,15 @@ framework should be enough.
 
   -- g_lower is the fully lowered graph with the sub expression that is to be replaced rearranged so that it can be
   -- pattern matched.
-  let canon := ExprLow.comm_connections'_fast g₁.connections
+  let canon := ExprLow.comm_connections' g₁.connections
   let g_lower ← ofOption (.error "failed lowering of the graph: graph is empty") g.lower
   let sub' ← ofOption (.error "could not extract base information") <| sub.mapM (λ a => g.modules.find? a)
-  let g_lower := canon <| ExprLow.comm_bases_fast sub' g_lower
+  let g_lower := canon <| ExprLow.comm_bases sub' g_lower
 
   -- Here we have to make sure that the context contains a renamed version of e_sub to show equivalence to the
   -- abstracted version, because the abstracted version has `.top` IO ports.  These are needed because of the matcher
   -- that comes in the second phase.
-  let g₁_lc := canon <| ExprLow.comm_bases_fast sub' g₁_l
+  let g₁_lc := canon <| ExprLow.comm_bases sub' g₁_l
   let portMapping := g₁_lc.build_interface.toIdentityPortMapping'
   let (abstracted', b) := g_lower.force_abstract g₁_lc portMapping abstraction.typ
   EStateM.guard (.error s!"abstraction: subexpression not found in the graph: {repr g₁_l}\n\n{repr g₁_lc}") b

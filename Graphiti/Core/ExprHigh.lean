@@ -239,7 +239,7 @@ def higherSSS : ExprLow Ident Typ → Option (ExprHigh Ident Typ)
   return ⟨ e₁'.1.append e₂'.1, e₁'.2.append e₂'.2 ⟩
 
 def higher_correct (e : ExprLow Ident Typ) : Option (ExprHigh Ident Typ) :=
-  higher_correct_connections compute_hash (comm_bases_only_conn (get_all_products e) e)
+  higher_correct_connections compute_hash (comm_bases (get_all_products e) e)
 
 end LowerToHigher
 

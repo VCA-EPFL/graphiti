@@ -518,14 +518,8 @@ def comm_connection_inv (e : ExprLow Ident Typ) := fix_point_opt comm_connection
 
 def comm_base (binst : PortMapping Ident) (btyp : Typ) e := fix_point_opt (comm_base_ binst btyp) e 10000
 
-def comm_connections' {Ident} [DecidableEq Ident] (conn : List (Connection Ident)) (e : ExprLow Ident Typ): ExprLow Ident Typ :=
-  conn.foldr comm_connection' e
-
 def comm_connections {Ident} [DecidableEq Ident] (conn : List (Connection Ident)) (e : ExprLow Ident Typ): ExprLow Ident Typ :=
   conn.foldr comm_connection e
-
-def comm_bases {Ident} [DecidableEq Ident] (bases : List (PortMapping Ident × Typ)) (e : ExprLow Ident Typ): ExprLow Ident Typ :=
-  bases.foldr (Function.uncurry ExprLow.comm_base) e
 
 def getPortMaps {α β} : ExprLow α β → List (PortMapping α)
 | .base inst typ => [inst]
@@ -576,7 +570,7 @@ def comm_base_fast {Ident Typ} [DecidableEq Ident] [DecidableEq Typ]
   | .connect c e => .connect c <| comm_base_fast binst btyp e n
   | e => e
 
-def comm_bases_fast {Ident Typ} [DecidableEq Ident] [DecidableEq Typ]
+def comm_bases_fast
     (bases : List (PortMapping Ident × Typ)) (e : ExprLow Ident Typ) : ExprLow Ident Typ :=
   bases.foldr (Function.uncurry (fun a b c => ExprLow.comm_base_fast a b c 10000000)) e
 
@@ -607,9 +601,17 @@ def comm_connection'_fast (conn : Connection Ident) (e_strt : ExprLow Ident Typ)
     .product (comm_connection'_fast conn e₁ n) (comm_connection'_fast conn e₂ n)
   | e => e
 
-def comm_connections'_fast {Ident Typ} [DecidableEq Ident] [DecidableEq Typ]
+def comm_connections'_fast
     (conn : List (Connection Ident)) (e : ExprLow Ident Typ) : ExprLow Ident Typ :=
   conn.foldr (fun a b => ExprLow.comm_connection'_fast a b 10000000) e
+
+@[implemented_by comm_connections'_fast]
+def comm_connections' (conn : List (Connection Ident)) (e : ExprLow Ident Typ): ExprLow Ident Typ :=
+  conn.foldr comm_connection' e
+
+@[implemented_by comm_bases_fast]
+def comm_bases (bases : List (PortMapping Ident × Typ)) (e : ExprLow Ident Typ): ExprLow Ident Typ :=
+  bases.foldr (Function.uncurry ExprLow.comm_base) e
 
 end ExprLow
 end Graphiti
