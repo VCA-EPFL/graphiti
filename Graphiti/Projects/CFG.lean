@@ -110,6 +110,17 @@ end Denotation
 
 namespace Example
 
+/- gcd(x2, x1) {
+ -     7:  nop
+ -     6:  if (x1 !=s 0) goto 5 else goto 2
+ -     5:  x3 = x2 %s x1
+ -     4:  x2 = x1
+ -     3:  x1 = x3
+ -         goto 6
+ -     2:  x4 = x2
+ -     1:  return x4
+ - } -/
+
 def gcd : ExprHigh String (String × Nat) := [graph|
     context [type = "inputContext", arg = 0];
 
