@@ -135,7 +135,7 @@ def rewriteWithEgg {n} (eggCmd := "graphiti_oracle") (p : Pattern String (String
   let .some constructed := JSLang.construct 10000 succ first (⟨last, default, default, default⟩)
     | throw (.userError s!"{decl_name%}: could not construct")
 
-  IO.eprintln (toSExpr constructed)
+  /- IO.eprintln (toSExpr constructed) -/
   let out ← runCommandWithStdin eggCmd #[] (toSExpr constructed)
   IO.ofExcept <| parseRewrites out.stdout
 

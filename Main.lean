@@ -31,6 +31,20 @@ deriving Inhabited
 
 def CmdArgs.empty : CmdArgs := {}
 
+def new_section {α} (title : String) (r : RewriteState) (f : IO (α × RewriteState)) : IO (α × RewriteState) := do
+  IO.print title
+  (← IO.getStdout).flush
+  timeit " took" do
+    let (g', r') ← f
+    let rws := (r'.1.filter (λ x => x.type == .rewrite)).length - (r.1.filter (λ x => x.type == .rewrite)).length
+    if rws == 1 then
+      IO.print s!" {rws} rewrite"
+      (← IO.getStdout).flush
+    else if rws > 2 then
+      IO.print s!" {rws} rewrites"
+      (← IO.getStdout).flush
+    return (g', r')
+
 /--
 Split short options up into multiple options: i.e. '-ol' will become '-o -l'.
 -/
@@ -140,7 +154,7 @@ def eggPureGenerator {n} (fuel : Nat) (parsed : CmdArgs) (p : Pattern String (St
   | fuel+1 =>
     let jsRw ← rewriteWithEgg (eggCmd := parsed.graphitiOracle) p g
     if jsRw.length = 0 then return (g, st)
-    IO.eprintln (repr jsRw)
+    /- IO.eprintln (repr jsRw) -/
     match pureGenerator fuel g jsRw |>.run st with
     | .ok g' st' => eggPureGenerator fuel parsed p g' st'
     | .error e st' =>
@@ -183,9 +197,10 @@ def runRewriter' {α} (parsed : CmdArgs) (st : RewriteState) (r : RewriteResult 
     writeLogFile parsed st'
     IO.Process.exit 1
 
-def rewriteGraph (parsed : CmdArgs) (g : ExprHigh String (String × Nat)) (st : RewriteState)
+def rewriteGraph (status : Std.Mutex String) (parsed : CmdArgs) (g : ExprHigh String (String × Nat)) (st : RewriteState)
     : IO (ExprHigh String (String × Nat) × RewriteState × RewriteState) := do
-  let (rewrittenExprHigh, st) ← runRewriter parsed g st <| do
+  /- status.atomically λ x => do x.set "normalising the loop" -/
+  let (rewrittenExprHigh, st) ← new_section "1. Normalising IO ports for the loop." st <| runRewriter parsed g st do
     let rewrittenExprHigh ← normaliseLoop g
     withUndo <| do
       -- let l ← errorIfDone "could not match if-statement" <| BranchPureMuxLeft.matchAllNodes rewrittenExprHigh
@@ -200,16 +215,18 @@ def rewriteGraph (parsed : CmdArgs) (g : ExprHigh String (String × Nat)) (st : 
       -- addRuntimeEntry <| {RuntimeEntry.debugEntry (toString rewrittenExprHigh) with name := "debug4"}
       -- pureGeneration rewrittenExprHigh <| toPattern LoopRewrite.boxLoopBody
       return rewrittenExprHigh
-  let (rewrittenExprHigh, st) ← eggPureGenerator 100 parsed BranchPureMuxLeft.matchPreAndPost rewrittenExprHigh st
-  let (_, st) ← runRewriter' parsed st <| addRuntimeEntry <| {RuntimeEntry.debugEntry (toString rewrittenExprHigh) with name := "debug5"}
-  let (rewrittenExprHigh, st) ← eggPureGenerator 100 parsed BranchPureMuxRight.matchPreAndPost rewrittenExprHigh st
-  let (rewrittenExprHigh, st) ← runRewriter parsed rewrittenExprHigh st <| withUndo <| rewrite_loop [BranchPureMuxLeft.rewrite, BranchPureMuxRight.rewrite, BranchMuxToPure.rewrite] rewrittenExprHigh
-  let (rewrittenExprHigh, st) ← runRewriter parsed rewrittenExprHigh st <| withUndo <| pureGeneration rewrittenExprHigh <| toPattern (n := 0) LoopRewrite.boxLoopBody
-  let (rewrittenExprHigh, st) ← eggPureGenerator 100 parsed LoopRewrite.boxLoopBodyOther rewrittenExprHigh st
-  let (rewrittenExprHigh, st) ← runRewriter parsed rewrittenExprHigh st (LoopRewrite2.rewrite.run rewrittenExprHigh)
+  let (rewrittenExprHigh, st) ← new_section "2. Generating a pure node for the loop body." st do
+    let (rewrittenExprHigh, st) ← eggPureGenerator 100 parsed BranchPureMuxLeft.matchPreAndPost rewrittenExprHigh st
+    let (_, st) ← runRewriter' parsed st <| addRuntimeEntry <| {RuntimeEntry.debugEntry (toString rewrittenExprHigh) with name := "debug5"}
+    let (rewrittenExprHigh, st) ← eggPureGenerator 100 parsed BranchPureMuxRight.matchPreAndPost rewrittenExprHigh st
+    let (rewrittenExprHigh, st) ← runRewriter parsed rewrittenExprHigh st <| withUndo <| rewrite_loop [BranchPureMuxLeft.rewrite, BranchPureMuxRight.rewrite, BranchMuxToPure.rewrite] rewrittenExprHigh
+    let (rewrittenExprHigh, st) ← runRewriter parsed rewrittenExprHigh st <| withUndo <| pureGeneration rewrittenExprHigh <| toPattern (n := 0) LoopRewrite.boxLoopBody
+    eggPureGenerator 100 parsed LoopRewrite.boxLoopBodyOther rewrittenExprHigh st
+  let (rewrittenExprHigh, st) ← new_section "3. Applying the loop rewrite." st <|
+    runRewriter parsed rewrittenExprHigh st (LoopRewrite2.rewrite.run rewrittenExprHigh)
   return (rewrittenExprHigh, st, st)
 
-def rewriteGraphAbs (parsed : CmdArgs) (g : ExprHigh String (String × Nat)) (st : RewriteState)
+def rewriteGraphAbs (status : Std.Mutex String) (parsed : CmdArgs) (g : ExprHigh String (String × Nat)) (st : RewriteState)
     : IO (ExprHigh String (String × Nat) × RewriteState × RewriteState) := do
   let (g, st) ← runRewriter parsed g st (normaliseLoop g)
 
@@ -236,7 +253,20 @@ def rewriteGraphAbs (parsed : CmdArgs) (g : ExprHigh String (String × Nat)) (st
 
   return (g, st_final, st)
 
-def main (args : List String) : IO Unit := do
+def print_animation : Fin 4 → String
+| 0 => "[-]" | 1 => "[\\]" | 2 => "[|]" | 3 => "[/]"
+
+def print_msg (n : Fin 4) (current_status : Std.Mutex String) (prev : String) : IO String := do
+  let current_message ← current_status.atomically λ x => x.get
+  let mut prev' := prev
+  unless current_message == prev do
+    IO.println s!"\r[🗸] {prev}"
+    prev' := current_message
+  IO.print s!"\r{print_animation n} {current_message}"
+  (← IO.getStdout).flush
+  return prev'
+
+def main (args : List String) : IO Unit := timeit "Total: " do
   let parsed ←
     try IO.ofExcept <| parseArgs <| args.flatMap preprocess
     catch
@@ -250,6 +280,17 @@ def main (args : List String) : IO Unit := do
     IO.print helpText
     IO.Process.exit 0
 
+  let (current_status : Std.Mutex String) ← Std.Mutex.new "starting"
+
+  /- let (t : Task (Except IO.Error Unit)) ← IO.asTask (prio := Task.Priority.dedicated) do
+   -   let mut current_message ← current_status.atomically λ x => x.get
+   -   let mut n : Fin 4 := 0
+   -   while ! (← IO.checkCanceled) do
+   -     current_message ← print_msg n current_status current_message
+   -     IO.sleep 250
+   -     n := n + 1
+   -   IO.println s!"\r[🗸] {current_message}\ndone" -/
+
   let fileContents ← IO.FS.readFile parsed.inputFile.get!
   let (exprHigh, assoc, name_mapping) ← IO.ofExcept fileContents.toExprHigh
 
@@ -259,8 +300,9 @@ def main (args : List String) : IO Unit := do
   let mut st : RewriteState := default
 
   if !parsed.parseOnly then
-    let (g', _, st') ← (if !parsed.fast then rewriteGraph else rewriteGraphAbs) parsed rewrittenExprHigh st
-    let (g', st') ← if parsed.reverse then runRewriter parsed g' st' <| reverseRewrites g' else pure (g', st')
+    let (g', _, st') ← (if !parsed.fast then rewriteGraph else rewriteGraphAbs) current_status parsed rewrittenExprHigh st
+    let (g', st') ← new_section "4. Reconstructing graph from pure." st' <|
+      if parsed.reverse then runRewriter parsed g' st' <| reverseRewrites g' else pure (g', st')
     rewrittenExprHigh := g'; st := st'
 
   writeLogFile parsed st
