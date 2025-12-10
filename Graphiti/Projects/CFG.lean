@@ -10,6 +10,7 @@ import Graphiti.Core.ExprHigh
 import Graphiti.Core.AssocList.Basic
 import Graphiti.Core.TypeExpr
 import Graphiti.Core.Environment
+import Graphiti.Core.ExprHighElaborator
 
 open Batteries (AssocList)
 
@@ -106,5 +107,73 @@ def moduleGen (f : Context → Option Context) : StringModule (Option Context) :
   }
 
 end Denotation
+
+namespace Example
+
+def gcd : ExprHigh String (String × Nat) := [graph|
+    context [type = "inputContext", arg = 0];
+
+    merge [type = "merge", arg = 0];
+    l6rd [type = "rd", arg = 0];
+    l6const [type = "constant", arg = 0];
+    l6neq [type = "mod", arg = 0];
+    l6cont [type = "fork2", arg = 0];
+    l6 [type = "if", arg = 0];  -- if (x1 !=s 0) goto 5 else goto 2
+    l5cont [type = "fork3", arg = 0];
+    l5rdx2 [type = "rd", arg = 2];
+    l5rdx1 [type = "rd", arg = 1];
+    l5mod [type = "mod", arg = 0];
+    l5 [type = "upd", arg = 3]; -- x3 = x2 %s x1
+    l4cont [type = "fork2", arg = 0];
+    l4rd [type = "rd", arg = 1];
+    l4 [type = "upd", arg = 2]; -- x2 = x1
+    l3cont [type = "fork2", arg = 0];
+    l3rd [type = "rd", arg = 3];
+    l3 [type = "upd", arg = 1]; -- x1 = x3; goto 6
+
+    l1cont [type = "fork2", arg = 0];
+    l1rdx2 [type = "rd", arg=2];
+    l1 [type = "outputVal", arg=0]; -- return x2
+
+    -- CFG
+    context -> merge [from="O", to="I1"];
+    merge -> l6cont [from="O", to="I"];
+    l6 -> l5cont [from="true", to="I"];
+    l6 -> l1cont [from="false", to="I"];
+
+    l5 -> l4cont [from="O", to="I"];
+    l4 -> l3cont [from="O", to="I"];
+    l3 -> merge [from="O", to="I2"];
+
+    -- DATA
+    l6cont -> l6rd [from="O2", to="I"];
+    l6cont -> l6 [from="O1", to="I"];
+    l6rd -> l6neq [from="O", to="I1"];
+    l6const -> l6neq [from="O", to="I2"];
+    l6neq -> l6 [from="O", to="cond"];
+
+    l5cont -> l5rdx2 [from="O3", to="I"];
+    l5cont -> l5rdx1 [from="O2", to="I"];
+    l5cont -> l5 [from="O1", to="I"];
+    l5rdx2 -> l5mod [from="O", to="I1"];
+    l5rdx1 -> l5mod [from="O", to="I2"];
+    l5mod -> l5 [from="O", to="val"];
+
+    l4cont -> l4rd [from="O2", to="I"];
+    l4cont -> l4 [from="O1", to="I"];
+    l4rd -> l4 [from="O", to="val"];
+
+    l3cont -> l3rd [from="O2", to="I"];
+    l3cont -> l3 [from="O1", to="I"];
+    l3rd -> l3 [from="O", to="val"];
+
+    l1cont -> l1 [from="O1", to="I"];
+    l1cont -> l1rdx2 [from="O2", to="I"];
+    l1rdx2 -> l1 [from="O", to="val"];
+  ]
+
+#eval IO.println <| toString gcd
+
+end Example
 
 end Graphiti.CombModule
