@@ -784,6 +784,55 @@ def findClosedRegion' (succ : Std.HashMap String (Array String)) (startN endN : 
           let nextNodes' := nextNodes.filter (· ∉ visited')
           go w visited' (nextNodes'.union q)
 
+def defaultMatcher.impl (pat g : ExprHigh String (String × Nat)) (fuel : Nat) (visited worklist : List (String × String)) (state : List String × List Nat)
+    : Option (List String × List Nat × List (String × String) × List (String × String)) :=
+  match fuel with
+  | 0 => some (state.1, state.2, visited, worklist)
+  | fuel'+1 =>
+    match worklist with
+    | [] => some (state.1, state.2, visited, worklist)
+    | curr :: worklist' => do
+      let visited' := visited.cons curr
+      let (curr1_inst, curr1_typ) ← pat.modules.find? curr.1
+      let (curr2_inst, curr2_typ) ← g.modules.find? curr.2
+      unless curr1_typ.1 == curr2_typ.1 do .none
+      let state' := (state.1.cons curr.2, state.2.cons curr2_typ.2)
+      let worklist' ← curr1_inst.input.toList.foldlM (λ wl a => do
+          if a.2.inst.isTop then return wl
+          let nn ← followInput pat curr.1 a.1.name
+          let nn' ← followInput g curr.2 a.1.name
+          let new_wl_el := (nn.inst, nn'.inst)
+          return if new_wl_el ∈ visited' || new_wl_el ∈ wl then wl else wl.cons new_wl_el
+        ) worklist'
+      let worklist' ← curr1_inst.output.toList.foldlM (λ wl a => do
+          if a.2.inst.isTop then return wl
+          let nn ← followOutput pat curr.1 a.1.name
+          let nn' ← followOutput g curr.2 a.1.name
+          let new_wl_el := (nn.inst, nn'.inst)
+          return if new_wl_el ∈ visited' || new_wl_el ∈ wl then wl else wl.cons new_wl_el
+        ) worklist'
+      defaultMatcher.impl pat g fuel' visited' worklist' state'
+
+def defaultMatcher.inside (pat g : ExprHigh String (String × Nat)) (m : String) : Option (List String × Vector Nat pat.modules.length) := do
+  let m_pat ← pat.modules.keysList.head?
+  let (i, t, visited, _) ← defaultMatcher.impl pat g (g.modules.length+1) [] [(m_pat, m)] ([], [])
+  let it_map := (i.zip t).toAssocList
+  let (i, t) ← pat.modules.toList.foldlM (λ s a => do
+      let g_name ← visited.toAssocList.find? a.1
+      let g_type ← it_map.find? g_name
+      return (s.1.concat g_name, s.2.concat g_type)
+    ) ([], [])
+  if h : t.toArray.size = pat.modules.length then
+    return (i, Vector.mk t.toArray h)
+  else .none
+
+def defaultMatcher (pat : ExprHigh String (String × Nat)) : Pattern String (String × Nat) pat.modules.length := fun g => do
+  let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
+       if s.isSome then return s
+       return defaultMatcher.inside pat g inst
+    ) none | MonadExceptOf.throw RewriteError.done
+  return list
+
 /--
 Find all nodes in between two nodes by performing a DFS that checks that one has
 never reached an output node.
