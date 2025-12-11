@@ -133,6 +133,10 @@ def bijectivePortRenaming {α} [DecidableEq α] (l : AssocList α α) (i : α) :
     map.find? i |>.getD i
   else i
 
+def bijectivePortRenaming_assume_invertible {α} [DecidableEq α] (l : AssocList α α) (i : α) : α :=
+  let map := l.filterId.append l.inverse.filterId
+  map.find? i |>.getD i
+
 @[simp] def mapKey' {α β δ} (f : α → β → δ) : AssocList α β → AssocList δ β
   | nil        => nil
   | cons k v t => cons (f k v) v (mapKey' f t)

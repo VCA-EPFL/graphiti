@@ -147,21 +147,33 @@ def pureGenerator' (n : Nat) (g : ExprHigh String (String × Nat)) : List JSLang
 
 def pureGenerator n g js := withUndo <| pureGenerator' n g js (js.length + 1)
 
+def getLastRewrite (st : RewriteState) : Option RuntimeEntry :=
+  st.1.reverse.find? (λ x => x.type == .rewrite)
+
+def writeLogFile (parsed : CmdArgs) (st : RewriteState) := do
+  match parsed.logFile with
+  | .some lfile =>
+    (IO.FS.writeFile lfile <| toString <| Lean.toJson st.1)
+     /- *> (IO.FS.writeFile "out_err.dot" <| toString <| (getLastRewrite st).get!.output_graph) -/
+  | .none =>
+    if parsed.logStdout then IO.println <| Lean.toJson st.1
+
 def eggPureGenerator {n} (fuel : Nat) (parsed : CmdArgs) (p : Pattern String (String × Nat) n) (g : ExprHigh String (String × Nat)) (st : RewriteState)
   : IO (ExprHigh String (String × Nat) × RewriteState) := do
   match fuel with
-  | 0 => throw <| .userError s!"{decl_name%}: no fuel"
+  | 0 =>
+    writeLogFile parsed st
+    throw <| .userError s!"{decl_name%}: no fuel"
   | fuel+1 =>
-    let jsRw ← rewriteWithEgg (eggCmd := parsed.graphitiOracle) p g
+    let jsRw ←
+      try rewriteWithEgg (eggCmd := parsed.graphitiOracle) p g
+      catch | e => writeLogFile parsed st *> throw e
     if jsRw.length = 0 then return (g, st)
     /- IO.eprintln (repr jsRw) -/
     match pureGenerator fuel g jsRw |>.run st with
     | .ok g' st' => eggPureGenerator fuel parsed p g' st'
     | .error e st' =>
-      match parsed.logFile with
-      | .some lfile => IO.FS.writeFile lfile <| toString <| Lean.toJson st'.1
-      | .none =>
-        if parsed.logStdout then IO.println <| Lean.toJson st'.1
+      writeLogFile parsed st'
       IO.eprintln e
       IO.Process.exit 1
 
@@ -173,12 +185,6 @@ def renameAssoc (g : ExprHigh String (String × Nat)) (assoc : AssocList String 
     | _ => x)
 
 def renameAssocAll assoc (rlist : RuntimeTrace) (g : ExprHigh String (String × Nat)) := rlist.foldl (renameAssoc g) assoc
-
-def writeLogFile (parsed : CmdArgs) (st : RewriteState) := do
-  match parsed.logFile with
-  | .some lfile => IO.FS.writeFile lfile <| toString <| Lean.toJson st.1
-  | .none =>
-    if parsed.logStdout then IO.println <| Lean.toJson st.1
 
 def runRewriter {α} (parsed : CmdArgs) (g : α) (st : RewriteState) (r : RewriteResult α) : IO (α × RewriteState) :=
   match r.run st with

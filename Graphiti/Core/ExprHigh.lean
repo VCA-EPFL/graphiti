@@ -278,11 +278,24 @@ def renamePorts f (g : ExprHigh Ident Typ) (p : PortMapping Ident) := do
   let g_lower ← g.lower
   g_lower.renamePorts p >>= ExprLow.higher_correct f
 
+def renamePorts_fast (g : ExprHigh Ident Typ) (p : PortMapping Ident) :=
+  let f := p.input.bijectivePortRenaming_assume_invertible
+  let h := p.output.bijectivePortRenaming_assume_invertible
+  ExprHigh.mk
+    (g.modules.mapVal (λ k v => (PortMapping.mk (v.1.input.mapVal (λ _ v => f v)) (v.1.output.mapVal (λ _ v => h v)), v.2)))
+    (g.connections.map (λ ⟨o, i⟩ => ⟨h o, f i⟩))
+
 def normaliseNames {α} [DecidableEq α] (e : ExprHigh String α) : Option (ExprHigh String α) :=
   let renameMap := e.modules.toList.map (λ (x, (inst, typ)) =>
     inst.mapKeys (λ keyPort bodyPort => if bodyPort.inst.isTop then bodyPort else ⟨.internal x, keyPort.name⟩))
       |> PortMapping.combinePortMapping
   e.renamePorts (λ x => PortMapping.getInstanceName x |>.getD default) renameMap
+
+def normaliseNames_fast {α} [DecidableEq α] (e : ExprHigh String α) : Option (ExprHigh String α) :=
+  let renameMap := e.modules.toList.map (λ (x, (inst, typ)) =>
+    inst.mapKeys (λ keyPort bodyPort => if bodyPort.inst.isTop then bodyPort else ⟨.internal x, keyPort.name⟩))
+      |> PortMapping.combinePortMapping
+  e.renamePorts_fast renameMap
 
 def renameModules {α} [DecidableEq α] (e : ExprHigh String α) (map : Batteries.AssocList String String) :=
   let newModules := e.modules.mapKey (λ k => map.find? k |>.getD k)
@@ -292,7 +305,7 @@ instance {α} [ToString α] [DecidableEq α] [Repr α] : ToString (ExprHigh Stri
   toString a :=
     -- let instances :=
     --   a.modules.foldl (λ s inst mod => s ++ s!"\n {inst} [mod = \"{mod}\"];") ""
-    match a.normaliseNames with
+    match a.normaliseNames_fast with
     | some a =>
       let (io_decl, io_conn) := a.modules.foldl (λ (sdecl, sio) inst (pmap, typ) =>
         let sdecl := (pmap.input ++ pmap.output).foldl (λ sdecl k v =>

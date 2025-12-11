@@ -62,8 +62,8 @@ instance : Lean.ToJson RuntimeEntry where
     Lean.Json.mkObj
       [ ("type", Lean.Format.pretty <| repr r.type)
       , ("name", Lean.toJson r.name)
-      , ("input_graph", toString <| repr r.input_graph)
-      , ("output_graph", toString <| repr r.output_graph)
+      , ("input_graph", toString <| r.input_graph)
+      , ("output_graph", toString <| r.output_graph)
       , ("matched_subgraph", Lean.toJson r.matched_subgraph)
       , ("matched_subgraph_types", Lean.toJson r.matched_subgraph_types)
       , ("renamed_input_nodes", Lean.Json.mkObj <| r.renamed_input_nodes.toList.map (λ a => (a.1, Lean.toJson a.2)))

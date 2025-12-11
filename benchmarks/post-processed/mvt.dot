@@ -49,7 +49,7 @@ Digraph G {
         "phi_n0" [type = "Mux", bbID= 3, in = "in1?:1 in2:32 in3:32 ", out = "out1:32", delay=0.366, tagged=false, taggers_num=0, tagger_id=-1];
         "phiC_3" [type = "Mux", bbID= 3, in = "in1?:1 in2:0 in3:0 ", out = "out1:0", delay=0.166, tagged=false, taggers_num=0, tagger_id=-1];
         "branch_1" [type = "Branch", bbID= 3,  in = "in1:32 in2?:1", out = "out1+:32 out2-:32", tagged=false, taggers_num=0, tagger_id=-1];
-        "phi_n23" [type = "init Bool false", bbID= 3, in = "in1:1 ", out = "out1:1", delay=0.366, tagged=false, taggers_num=0, tagger_id=-1];
+        "phi_n23" [type = "Init", bbID= 3, in = "in1:1 ", out = "out1:1", delay=0.366, tagged=false, taggers_num=0, tagger_id=-1];
         "branch_2" [type = "Branch", bbID= 3,  in = "in1:32 in2?:1", out = "out1+:32 out2-:32", tagged=false, taggers_num=0, tagger_id=-1];
         "branch_9" [type = "Branch", bbID= 3,  in = "in1:32 in2?:1", out = "out1+:32 out2-:32", tagged=false, taggers_num=0, tagger_id=-1];
         "branchC_12" [type = "Branch", bbID= 3,  in = "in1:0 in2?:1", out = "out1+:0 out2-:0", tagged=false, taggers_num=0, tagger_id=-1];
