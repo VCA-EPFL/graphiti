@@ -9,6 +9,7 @@ module
 public import Lean.Data.Json
 
 public import Graphiti.Core.ExprHigh
+public import Graphiti.Core.WellTyped
 
 @[expose] public section
 
@@ -305,6 +306,11 @@ however, currently the low-level expression language does not remember any names
     |>.map (renamePortMapping · e_output_norm)
     |>.map PortMapping.hashPortMapping
 
+  /- updRuntimeEntry λ rw => {rw with output_graph := out} -/
+
+  /- let uf ← liftError <| out.infer_equalities ⟨∅, ∅⟩
+   - unless uf.check do throw (.error s!"failed in {rewrite.name}\n{uf}") -/
+
   updRuntimeEntry <| λ _ => {
       type := EntryType.rewrite
       input_graph := g
@@ -322,6 +328,7 @@ however, currently the low-level expression language does not remember any names
   EStateM.guard (.error s!"found duplicate node") out.modules.keysList.Nodup
 
   updFreshPrefix
+
   return out
 
 def generateRenaming (l : List (PortMapping String)) (e : ExprLow String (String × Nat)) : Option (PortMapping String) :=

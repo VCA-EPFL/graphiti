@@ -300,10 +300,10 @@ def main (args : List String) : IO Unit := timeit "Total: " do
   let fileContents ← IO.FS.readFile parsed.inputFile.get!
   let (exprHigh, assoc, name_mapping) ← IO.ofExcept fileContents.toExprHigh
 
-  let exprHigh ← IO.ofExcept <| to_typed_exprhigh exprHigh
+  let (exprHigh, m) ← IO.ofExcept <| to_typed_exprhigh exprHigh
 
   let mut rewrittenExprHigh := exprHigh
-  let mut st : RewriteState := default
+  let mut st : RewriteState := {(default : RewriteState) with fresh_type := m}
 
   if !parsed.parseOnly then
     let (g', _, st') ← (if !parsed.fast then rewriteGraph else rewriteGraphAbs) current_status parsed rewrittenExprHigh st
@@ -320,6 +320,7 @@ def main (args : List String) : IO Unit := timeit "Total: " do
   /- IO.println (repr (renameAssocAll assoc st.1 rewrittenExprHigh)) -/
 
   let uf ← IO.ofExcept <| rewrittenExprHigh.infer_equalities ⟨∅, ∅⟩
+  /- IO.println s!"{uf}" -/
 
   let l ← IO.ofExcept <|
     if parsed.noDynamaticDot then

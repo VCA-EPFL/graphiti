@@ -60,6 +60,8 @@ def rewrite_index :=
     , PureRewrites.Operator1.rewrite
     , PureRewrites.Operator2.rewrite
     , PureRewrites.Operator3.rewrite
+    , PureRewrites.CondOperator1.rewrite
+    , PureRewrites.CondOperator2.rewrite
     , PureRewrites.Fork.rewrite
     , LoadRewrite.rewrite
     , JoinQueueLeftRewrite.rewrite

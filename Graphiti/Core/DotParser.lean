@@ -319,11 +319,11 @@ def dotToExprHigh (d : Parser.DotGraph) : Except String (ExprHigh String String 
 
   return (⟨ maps'.instTypeMap.toList.toAssocList, conns ⟩, assoc)
 
-def to_typed_exprhigh (s : ExprHigh String String) : Except String (ExprHigh String (String × Nat)) := do
+def to_typed_exprhigh (s : ExprHigh String String) : Except String (ExprHigh String (String × Nat) × Nat) := do
   let mods ← s.modules.foldlM (fun st k v => do
     let typ ← v.2.splitOn.head?.toExcept s!"could not find type: {k}"
     return (st.1.cons k (v.1, (typ, st.2)), st.2+1)) (∅, 0)
-  return {s with modules := mods.1}
+  return ({s with modules := mods.1}, mods.2)
 
 end Graphiti
 

@@ -37,6 +37,11 @@ def toBlueSpec : TypeExpr → String
 | .pair left right =>
   s!"Tuple2#({toBlueSpec left}, {toBlueSpec right})"
 
+def containsVar? : TypeExpr → Bool
+| .var _ => true
+| .pair l r => l.containsVar? || r.containsVar?
+| _ => false
+
 end TypeExpr
 
 inductive ValExpr where
@@ -172,7 +177,7 @@ def getSize: TypeExpr → Int
   | TypeExpr.tag => 0
   | TypeExpr.bool => 1
   | TypeExpr.unit => 0
-  | TypeExpr.var n => 0
+  | TypeExpr.var n => -n
   | TypeExpr.pair left right =>
     let l := getSize left
     let r :=  getSize right

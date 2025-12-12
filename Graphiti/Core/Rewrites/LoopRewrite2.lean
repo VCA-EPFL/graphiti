@@ -72,7 +72,7 @@ def rhs : ExprHigh String (String × Nat) := [graph|
     o_out [type = "io"];
 
     tagger [type = "tag_untagger_val", arg = $(M+1)];
-    merge [type = "merge", arg = $(M+2)];
+    merge [type = "merge2", arg = $(M+2)];
     branch [type = "branch", arg = $(M+3)];
     tag_split [type = "split", arg = $(M+4)];
     split_tag [type = "split", arg = $(M+5)];
