@@ -93,7 +93,7 @@ def rhs : ExprHigh String (String × Nat) := [graph|
     branch -> splitF [from = "out2", to = "in1"];
   ]
 
-def rhs_extract := (rhs M).extract ["join", "branch", "splitT", "splitF"] |>.get rfl
+def rhs_extract := (rhs M).extract ["branch", "join", "splitT", "splitF"] |>.get rfl
 def rhsLower := (rhs_extract M).fst.lower.get rfl
 def findRhs mod := (rhs_extract 0).fst.modules.find? mod |>.map Prod.fst
 
@@ -103,8 +103,8 @@ def rewrite : Rewrite String (String × Nat) :=
     pattern := matcher,
     rewrite := λ l n => ⟨ lhsLower l, rhsLower n ⟩
     name := .some "combine-branch"
-    transformedNodes := [.none, .none, .none]
-    addedNodes := [ findRhs "join" |>.get rfl, findRhs "branch" |>.get rfl
+    transformedNodes := [findRhs "branch", .none, .none]
+    addedNodes := [ findRhs "join" |>.get rfl
                   , findRhs "splitT" |>.get rfl, findRhs "splitF" |>.get rfl
                   ]
     fresh_types := 4

@@ -106,7 +106,7 @@ def rhs : ExprHigh String (String × Nat) := [graph|
     split -> b2_o [from="out2"];
   ]
 
-def rhs_extract := (rhs M).extract ["joinT", "joinF", "mux", "split"] |>.get rfl
+def rhs_extract := (rhs M).extract ["mux", "joinT", "joinF", "split"] |>.get rfl
 def rhsLower := (rhs_extract M).fst.lower.get rfl
 def findRhs mod := (rhs_extract 0).fst.modules.find? mod |>.map Prod.fst
 
@@ -116,9 +116,9 @@ def rewrite : Rewrite String (String × Nat) :=
     pattern := matcher,
     rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
     name := .some "combine-mux"
-    transformedNodes := [.none, .none, .none]
+    transformedNodes := [findRhs "mux", .none, .none]
     addedNodes := [ findRhs "joinT" |>.get rfl, findRhs "joinF" |>.get rfl
-                  , findRhs "mux" |>.get rfl, findRhs "split" |>.get rfl
+                  , findRhs "split" |>.get rfl
                   ]
     fresh_types := 4
   }

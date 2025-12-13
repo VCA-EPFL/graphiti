@@ -299,7 +299,7 @@ def normaliseNames_fast {α} [DecidableEq α] (e : ExprHigh String α) : Option 
 
 def renameModules {α} [DecidableEq α] (e : ExprHigh String α) (map : Batteries.AssocList String String) :=
   let newModules := e.modules.mapKey (λ k => map.find? k |>.getD k)
-  {e with modules := newModules}.normaliseNames
+  {e with modules := newModules}.normaliseNames_fast
 
 instance {α} [ToString α] [DecidableEq α] [Repr α] : ToString (ExprHigh String α) where
   toString a :=

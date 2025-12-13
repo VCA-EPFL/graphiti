@@ -99,7 +99,7 @@ def rhs : ExprHigh String (String × Nat) := [graph|
     branch -> tagger [from="out2", to="in1"];
   ]
 
-def rhs_extract := (rhs T M).extract ["merge", "branch", "tag_split", "mod", "tagger", "split_tag", "split_bool", "join_tag", "join_bool"] |>.get rfl
+def rhs_extract := (rhs T M).extract ["branch", "tag_split", "mod", "merge", "tagger", "split_tag", "split_bool", "join_tag", "join_bool"] |>.get rfl
 def rhsLower := (rhs_extract T M).fst.lower.get rfl
 def findRhs mod := (rhs_extract #v[0, 0, 0, 0, 0, 0] 0).fst.modules.find? mod |>.map Prod.fst
 
@@ -109,9 +109,9 @@ def rewrite : Rewrite String (String × Nat) :=
     pattern := matcher,
     rewrite := λ l n => ⟨lhsLower l, rhsLower l n⟩
     name := .some "loop-rewrite"
-    transformedNodes := [ findRhs "merge" |>.get rfl, .none, findRhs "branch" |>.get rfl
+    transformedNodes := [ .none, .none, findRhs "branch" |>.get rfl
                         , findRhs "tag_split" |>.get rfl, findRhs "mod" |>.get rfl, .none]
-    addedNodes := [ findRhs "tagger" |>.get rfl, findRhs "split_tag" |>.get rfl, findRhs "split_bool" |>.get rfl
+    addedNodes := [ findRhs "merge" |>.get rfl, findRhs "tagger" |>.get rfl, findRhs "split_tag" |>.get rfl, findRhs "split_bool" |>.get rfl
                   , findRhs "join_tag" |>.get rfl, findRhs "join_bool" |>.get rfl]
     fresh_types := 8
   }

@@ -1,7 +1,9 @@
 import pydot
+import networkx as nx
 import re
 from collections import defaultdict
 import sys
+import subprocess
 
 unquoted_fields = {
     "stcount", "bbcount", "ldcount", "bbID", "delay", "tagged", "taggers_num", "tagger_id"
@@ -158,6 +160,56 @@ def rebuild_graph_ordered(original_graph, connection_remap):
 
     return new_graph
 
+def find_bbID(node, graph):
+    PROPERTY_KEY = 'bbID'
+    start_node = node
+
+    for node in nx.dfs_preorder_nodes(graph, source=start_node):
+
+        node_attributes = graph.nodes[node]
+        attr = node_attributes.get(PROPERTY_KEY)
+
+        if attr is not None: return attr
+
+def find_all_bbID(nx_graph):
+    for node_id, data in nx_graph.nodes(data=True):
+        attr = data.get('bbID')
+        if attr is None:
+            data['bbID'] = find_bbID(node_id, nx_graph)
+
+def find_tagger_or_untagger(node, graph):
+    start_node = node
+    prev_node = node
+
+    # If we have a tagger, we just set tagged to false and move on.
+    node_attr = graph.nodes[node]
+    node_type = node_attr.get('type')
+    if node_type == "\"TaggerUntagger\"":
+        node_attr['tagged'] = False
+        return
+
+    # For any other node, we check if we are in the tagger or outside of it.
+    for node in nx.dfs_preorder_nodes(graph, source=start_node):
+        node_attr = graph.nodes[node]
+        # If we hit the tagger, we have to check how we hit it.  If it is to in1 then we are inside the tagger,
+        # otherwise we are outside.
+        if node_attr["type"] == "\"TaggerUntagger\"":
+            return graph[prev_node][node]["to"] == "\"in1\""
+
+        prev_node = node
+
+    # If we never hit the tagger, then we are outside.
+    return False
+
+def add_tagger_info(nx_graph):
+    for node_id, data in nx_graph.nodes(data=True):
+        attr = data.get('tagger_id')
+        if attr is None:
+            data['tagger_id'] = -1
+        is_tagged = find_tagger_or_untagger(node_id, nx_graph)
+        data['tagged'] = "true" if is_tagged else "false"
+        data['taggers_num'] = 1 if is_tagged else 0
+
 def process_dot(input_path, output_path):
     graphs = pydot.graph_from_dot_file(input_path)
     if not graphs:
@@ -166,8 +218,13 @@ def process_dot(input_path, output_path):
 
     connection_remap = recombine_mc_nodes(graph)
     final_graph = rebuild_graph_ordered(graph, connection_remap)
+    nx_graph = nx.DiGraph(nx.drawing.nx_pydot.from_pydot(final_graph))
+    find_all_bbID(nx_graph)
+    add_tagger_info(nx_graph)
+    final_graph = nx.drawing.nx_pydot.to_pydot(nx_graph)
     final_graph.set_strict(False)
     final_graph.write_raw(output_path)
+    result = subprocess.run(['sed', '-i', 's/tagger_id="-1"/tagger_id=-1/g', output_path])
 
 if __name__ == "__main__":
     process_dot(sys.argv[1], sys.argv[2])

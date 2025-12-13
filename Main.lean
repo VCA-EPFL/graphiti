@@ -177,14 +177,15 @@ def eggPureGenerator {n} (fuel : Nat) (parsed : CmdArgs) (p : Pattern String (St
       IO.eprintln e
       IO.Process.exit 1
 
-def renameAssoc (g : ExprHigh String (String × Nat)) (assoc : AssocList String (AssocList String String)) (r : RuntimeEntry) : AssocList String (AssocList String String) :=
-  assoc.mapKey (λ x =>
-    if x ∈ g.modules.toList.map Prod.fst then x else
-    match r.renamed_input_nodes.find? x with
-    | .some (.some x') => x'
-    | _ => x)
+def renameAssoc {α} (assoc : AssocList String α) (r : RuntimeEntry) : AssocList String α :=
+  if r.type == .rewrite then
+    assoc.mapKey (λ x =>
+      match r.renamed_input_nodes.find? x with
+      | .some (.some x') => x'
+      | _ => x)
+  else assoc
 
-def renameAssocAll assoc (rlist : RuntimeTrace) (g : ExprHigh String (String × Nat)) := rlist.foldl (renameAssoc g) assoc
+def renameAssocAll {α} assoc (rlist : RuntimeTrace) := rlist.foldl (@renameAssoc α) assoc
 
 def runRewriter {α} (parsed : CmdArgs) (g : α) (st : RewriteState) (r : RewriteResult α) : IO (α × RewriteState) :=
   match r.run st with
@@ -312,8 +313,9 @@ def main (args : List String) : IO Unit := timeit "Total: " do
     rewrittenExprHigh := g'; st := st'
 
   writeLogFile parsed st
+  let name_mapping' := renameAssocAll name_mapping st.1
 
-  let .some g' := rewrittenExprHigh.renameModules name_mapping
+  let .some g' := rewrittenExprHigh.renameModules name_mapping'
     | throw <| .userError s!"{decl_name%}: failed to undo name_mapping"
   rewrittenExprHigh := g'
 
@@ -327,7 +329,7 @@ def main (args : List String) : IO Unit := timeit "Total: " do
       if parsed.blueSpecDot
       then pure rewrittenExprHigh.toBlueSpec
       else pure (toString rewrittenExprHigh)
-    else dynamaticString rewrittenExprHigh uf (renameAssocAll assoc st.1 rewrittenExprHigh)
+    else dynamaticString rewrittenExprHigh uf assoc
 
   match parsed.outputFile with
   | some ofile => IO.FS.writeFile ofile l
