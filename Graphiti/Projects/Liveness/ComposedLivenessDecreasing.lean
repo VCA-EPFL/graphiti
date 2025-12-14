@@ -518,11 +518,15 @@ theorem gcompf_eq_sum {T}
   rw [count_out_reversible]; rw [count_in_reversible]
   simp at *; exact num_with_zero
 
+
+
+
+
 -- MAIN PROOF: where the magic happens
 
-theorem gcompf_wellness_implies_liveness {T} (f g: T → T) (t : Trace ℕ)
+theorem gcompf_wellness_implies_liveness_simp {T} (f g: T → T) (t : Trace ℕ)
 (h_steps: @behaviour _ _ (state_transition (NatModule.gcompfHist T f g)) t) :
-∃ t', gcompf_P_simp (t ++ t') (f) (g) ∧ @behaviour _ _ (state_transition (NatModule.gcompfHist T f g)) (t ++ t') := by
+∃ t', gcompf_P_simp (t ++ t') (f) (g) ∧ @behaviour _ _ (state_transition (NatModule.gcompfHist T f g)) (t ++ t')  := by
   have iH := @gcompf_ind_wf T f g; simp [gcompf_wf_P] at iH
   simp [behaviour] at h_steps
   rcases h_steps with ⟨s1, s1_inits , s2, s1_stars_s2⟩
@@ -538,6 +542,136 @@ theorem gcompf_wellness_implies_liveness {T} (f g: T → T) (t : Trace ℕ)
     have sum_ := sum s3_weights_zero _ s1_inits s1_stars_s3
     simp [gcompf_P_simp]
     exact sum_
+  . simp [behaviour]
+    exists s1
+    constructor; exact s1_inits
+    exists s3
+
+theorem gcompf_in_eq_out_plus_n_step {T}
+(f g: T → T)
+{t: Trace ℕ}
+{s1 s2: State ℕ ((List T) × ((List T) × (Trace Nat)))}
+(h_mod: s1.module = NatModule.gcompfHist T f g)
+(reach: @StateTransition.step _ _  (state_transition (NatModule.gcompfHist T f g)) s1 t s2):
+(∀ in1,  .input 0 ⟨ T, in1 ⟩ ∈ s1.state.2.2 → .output 0 ⟨ T, g (f (in1)) ⟩ ∈ s1.state.2.2 ∨ f in1 ∈ s1.state.fst ∨ g (f in1) ∈ s1.state.snd.fst)
+→  ∀ in2, .input 0 ⟨ T, in2 ⟩ ∈ s2.state.2.2 → .output 0 ⟨ T, g (f (in2)) ⟩ ∈ s2.state.2.2 ∨ f in2 ∈ s2.state.fst ∨ g (f in2) ∈ s2.state.snd.fst:= by
+  intro iH in2 assum
+  cases reach with
+  | input =>
+    rename_i ip st2 modFun Tpe stTrans TpeEq
+    rcases Tpe with ⟨G, x⟩; rcases TpeEq with ⟨ eq1, eq2 ⟩ ; rcases s1 with ⟨ ⟨ s11, s12, s13⟩, mod1 ⟩; simp; subst_vars
+    rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
+    split  at stTrans
+    . simp at *
+      subst_vars
+      simp at ⊢ assum
+      grind
+    . exfalso
+      rename_i prop
+      rw [PortMap.rw_rule_execution (by simp [drunfold, prop]; rfl)] at stTrans; simp at *
+  | output =>
+    rename_i ip st2 modFun Tpe stTrans TpeEq
+    rcases Tpe with ⟨G, x⟩; rcases TpeEq with ⟨ eq1, eq2 ⟩ ; rcases s1 with ⟨ ⟨ s11, s12, s13⟩, mod1 ⟩; simp; subst_vars
+    rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
+    split  at stTrans
+    . simp at *
+      subst_vars
+      simp at stTrans
+      grind
+    . exfalso
+      rename_i prop
+      rw [PortMap.rw_rule_execution (by simp [drunfold, prop]; rfl)] at stTrans; simp at *
+  | internal =>
+    rename_i relI s2 s2Mod relApp
+    rcases s1 with ⟨ ⟨ s11, s12, s13⟩, mod1 ⟩ ; rcases s2 with ⟨ s21, s22, s23 ⟩
+    simp at *; subst_vars
+    cases s2Mod <;> try grind
+    rename_i fals; cases fals
+
+
+
+
+
+
+theorem gcompf_in_eq_out_plus_n_rec {T}
+(f g: T → T)
+{t: Trace ℕ}
+{s1 s2: State ℕ ((List T) × ((List T) × (Trace Nat)))}
+(h_mod: s1.module = NatModule.gcompfHist T f g)
+(reach: @star _ _  (state_transition (NatModule.gcompfHist T f g)) s1 t s2 )
+:
+(∀ in1,  .input 0 ⟨ T, in1 ⟩ ∈ s1.state.2.2 → .output 0 ⟨ T, g (f (in1)) ⟩ ∈ s1.state.2.2 ∨ f in1 ∈ s1.state.fst ∨ g (f in1) ∈ s1.state.snd.fst)
+→  ∀ in2, .input 0 ⟨ T, in2 ⟩ ∈ s2.state.2.2 → .output 0 ⟨ T, g (f (in2)) ⟩ ∈ s2.state.2.2 ∨ f in2 ∈ s2.state.fst ∨ g (f in2) ∈ s2.state.snd.fst := by
+  induction reach with
+  | refl =>
+    intro assum
+    subst_vars
+    exact assum
+  | step =>
+    rename_i s3 s4 s5 l1 l2 s3_steps_s4 s4_stars_s5 iH
+    have s4_mod := step_preserve_mod (NatModule.gcompfHist T f g) s3_steps_s4
+    rcases s3 with ⟨ s3, mod3 ⟩; rcases s4 with ⟨ s4, mod4 ⟩; simp at *; subst_vars
+    simp at iH; intro assum ;
+    have do_step := @gcompf_in_eq_out_plus_n_step T f g l1 { state := s3, module := NatModule.gcompfHist T f g } { state := s4, module := NatModule.gcompfHist T f g };
+    grind
+
+
+theorem gcompf_in_eq_out_plus_n {T}
+(f g: T → T)
+(n : ℕ )
+{t: Trace ℕ}
+{s: State ℕ ((List T) × ((List T) × (Trace Nat)))}
+(h_zero: gcompfHistWeight f g s = n )
+(reach: @reachable _ _  (state_transition (NatModule.gcompfHist T f g)) t s )
+: ∃ (si: List T), ∀ in1, .input 0 ⟨ T, in1 ⟩ ∈ s.state.2.2 → .output 0 ⟨ T, g (f (in1)) ⟩ ∈ s.state.2.2 ∨ ((f in1 ∈ si ∨ g (f in1) ∈ si) ∧ si.length = n)  := by
+  simp [reachable] at reach
+  rcases reach with ⟨s1, ⟨s1_inits, s1_mod⟩ , s1_stars_s ⟩
+  simp [NatModule.gcompfHist] at s1_inits
+  have hist_is_zero : (gcompfHistWeight f g s1 = 0) := by simp [gcompfHistWeight, s1_inits]
+  have rec_prop := gcompf_in_eq_out_plus_n_rec f g s1_mod s1_stars_s
+  exists (s.state.1 ++ s.state.2.1); rcases s1 with ⟨ s1, mod1 ⟩; simp at *; subst_vars
+  simp [gcompfHistWeight]; grind
+
+
+
+theorem gcompf_in_eq_out {T}
+(f g: T → T)
+{t: Trace ℕ}
+{s: State ℕ ((List T) × ((List T) × (Trace Nat)))}
+(h_zero: gcompfHistWeight f g s = 0 )
+(h_count: count_in t = count_out t)
+(reach: @reachable _ _  (state_transition (NatModule.gcompfHist T f g)) t s )
+: ∀ in1, .input 0 ⟨ T, in1 ⟩ ∈ t → .output 0 ⟨ T, g (f (in1)) ⟩ ∈ t  := by
+  intro in1 assum
+  have gen_case := gcompf_in_eq_out_plus_n f g 0 h_zero reach; rcases gen_case with ⟨ set, prop ⟩; have prop_ := prop in1
+  have histfun_conv := gcomfhist_equiv_gcompfhistfun f g reach
+  have histfun_porp := History.generate_history_correct1 { state := (List.reverse s.state.snd.snd, s.state.fst, s.state.snd.fst), module := History.generate_history (NatModule.gcompf T f g) } histfun_conv
+  subst histfun_porp; simp at *
+  have prop:= prop_ assum; rcases prop with ⟨p1⟩; exact p1
+  rename_i a; rcases a <;> try grind
+
+
+
+theorem gcompf_wellness_implies_liveness {T} (f g: T → T) (t : Trace ℕ)
+(h_steps: @behaviour _ _ (state_transition (NatModule.gcompfHist T f g)) t) :
+∃ t', gcompf_P (t ++ t') (f) (g) ∧ @behaviour _ _ (state_transition (NatModule.gcompfHist T f g)) (t ++ t') := by
+  have iH := @gcompf_ind_wf T f g; simp [gcompf_wf_P] at iH
+  simp [behaviour] at h_steps
+  rcases h_steps with ⟨s1, s1_inits , s2, s1_stars_s2⟩
+  have iH_ := iH (@gcompfHistWeight T f g s2) s2; simp [reachable] at iH_;
+  clear iH
+  have iH := iH_ t s1 s1_inits s1_stars_s2
+  rcases iH with ⟨ s3, s3_weights_zero, t0, s2_stars_s3, input_notin_t0⟩
+  exists t0
+  have s1_stars_s3 := @star.trans_star _ _ (state_transition (NatModule.gcompfHist T f g)) _ _ _ _ _ s1_stars_s2 s2_stars_s3
+  constructor
+  . have sum := @gcompf_eq_sum T f g
+    simp [reachable] at sum
+    have sum_ := sum s3_weights_zero _ s1_inits s1_stars_s3
+    simp [gcompf_P]
+    intro in1 in1_in_list
+    have lemm := gcompf_in_eq_out f g s3_weights_zero sum_; simp [reachable] at lemm
+    have lemm_ := lemm s1 s1_inits s1_stars_s3 in1 in1_in_list; exact lemm_
   . simp [behaviour]
     exists s1
     constructor; exact s1_inits
