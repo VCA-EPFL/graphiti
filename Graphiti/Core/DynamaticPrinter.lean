@@ -126,7 +126,7 @@ def inferTypeInPortMap (t : TypeUF) (p : PortMap String (InternalPort String)) (
       let tc ← toTypeConstraint sn k.name
       let concr ← ofOption' s!"could not find type of {sn}/{k.name}" <| t.findConcr tc -- |>.getD (.var 1000) -- TODO: better handling of not finding a concretization
       if concr.containsVar? then throw s!"var in type {sn}/{k.name}: {concr}"
-      return st.cons k concr
+      return st.concat k concr
     ) ∅
 
 def inferTypeInPortMapping (t : TypeUF) (p : PortMapping String) (sn : String × Nat) : Except String (PortMap String TypeExpr × PortMap String TypeExpr) := do
@@ -152,18 +152,19 @@ def dynamaticString (a: ExprHigh String (String × Nat)) (t : TypeUF) (m : Assoc
           -- If the node is found to be coming from the input,
           -- retrieve its attributes from what we saved and bypass it
           -- without looking for it in interfaceTypes
-          return s ++ s!"\"n_{k}\" [type = \"{typeName}\"{formatOptions input_fmt.toList}];\n"
+          return s ++ s!"\"{k}\" [type = \"{typeName}\"{formatOptions input_fmt.toList}];\n"
         | none =>
-          let typs ← inferTypeInPortMapping t v.1 v.2
+          let typs ← inferTypeInPortMapping t v.1.canonPortMapping v.2
           -- If this is a new node, then we sue `fmt` to correctly add the right
           -- arguments from what is given in interfaceTypes.  We should never be generating constructs like MC, so
           -- this shouldn't be a problem.
           return s ++ s!"\"n_{k}\" [type = \"{typeName}\", in = \"{toPortList typs.1}\", out = \"{toPortList typs.2}\"];\n"
       ) ""
+  let frmat (i : InstIdent String) := if m.contains (toString i) then (toString i) else "n_" ++ toString i
   let connections :=
     a.connections.foldl
       (λ s => λ | ⟨ oport, iport ⟩ =>
-                    s ++ s!"\n  \"n_{oport.inst}\" -> \"n_{iport.inst}\" "
+                    s ++ s!"\n  \"{frmat oport.inst}\" -> \"{frmat iport.inst}\" "
                     ++ s!"[from = \"{oport.name}\","
                     ++ s!" to = \"{removeLetter 'p' iport.name}\" "
                     ++ "];") ""

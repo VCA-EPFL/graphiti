@@ -21,7 +21,7 @@ Digraph G {
         "phiC_1" [type = "Mux", bbID= 2, in = "in1?:1 in2:0 in3:0 ", out = "out1:0", delay=0.166, tagged=false, taggers_num=0, tagger_id=-1];
         "phi_n12" [type = "Merge", bbID= 2, in = "in1:1 in2:1 ", out = "out1:1", delay=0.366, tagged=false, taggers_num=0, tagger_id=-1];
         "branchC_6" [type = "Branch", bbID= 2,  in = "in1:0 in2?:1", out = "out1+:0 out2-:0", tagged=false, taggers_num=0, tagger_id=-1];
-        "cst_10" [type = "Constant", bbID= 2, in = "in1:0", out = "out1:1", value = "0x00000000", tagged=false, taggers_num=0, tagger_id=-1];
+        "cst_10" [type = "Sink", bbID= 2, in = "in1:0", tagged=false, taggers_num=0, tagger_id=-1];
         "fork_0" [type = "Fork", bbID= 2, in = "in1:32", out = "out1:32 out2:32 out3:32 ", tagged=false, taggers_num=0, tagger_id=-1];
         "forkC_8" [type = "Fork", bbID= 2, in = "in1:0", out = "out1:0 out2:0 out3:0 out4:0 out5:0 out6:0 out7:0 out8:0 ", tagged=false, taggers_num=0, tagger_id=-1];
         "fork_10" [type = "Fork", bbID= 2, in = "in1:1", out = "out1:1 out2:1 ", tagged=false, taggers_num=0, tagger_id=-1];

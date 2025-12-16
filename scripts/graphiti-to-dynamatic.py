@@ -194,7 +194,7 @@ def find_tagger_or_untagger(node, graph):
         # If we hit the tagger, we have to check how we hit it.  If it is to in1 then we are inside the tagger,
         # otherwise we are outside.
         if node_attr["type"] == "\"TaggerUntagger\"":
-            return graph[prev_node][node]["to"] == "\"in1\""
+            return graph[prev_node][node][0]["to"] == "\"in1\""
 
         prev_node = node
 
@@ -210,7 +210,200 @@ def add_tagger_info(nx_graph):
         data['tagged'] = "true" if is_tagged else "false"
         data['taggers_num'] = 1 if is_tagged else 0
 
-def process_dot(input_path, output_path):
+def first_bitwidth(s):
+    return s.split()[0].split(':')[1]
+
+def translate_tagger(nx_graph, tag_num):
+    # Find the tagger node:
+    tagger_node = None
+    tagger_data = None
+    for node, data in nx_graph.nodes(data=True):
+        if data["type"] == "\"TaggerUntagger\"":
+            tagger_node = node
+            tagger_data = data
+            break
+    else: return
+
+    tagger_bitwidth = first_bitwidth(tagger_data["in"])
+    tagger_bbID = tagger_data["bbID"]
+
+    in_edges = nx_graph.in_edges(tagger_node, data=True)
+    out_edges = nx_graph.out_edges(tagger_node, data=True)
+
+    edge_in1 = [(x[0], x[2]["from"]) for x in in_edges if x[2]["to"] == "\"in1\""][0]
+    edge_in2 = [(x[0], x[2]["from"]) for x in in_edges if x[2]["to"] == "\"in2\""][0]
+    edge_out1 = [(x[1], x[2]["to"]) for x in out_edges if x[2]["from"] == "\"out1\""][0]
+    edge_out2 = [(x[1], x[2]["to"]) for x in out_edges if x[2]["from"] == "\"out2\""][0]
+
+    nx_graph.add_node("new_aligner_branch_0", **{
+        "type": '"Aligner_Branch"',
+        "bbID": tagger_bbID,
+        "in": f"in1:{tagger_bitwidth} in2?:32",
+        "out": " ".join([f"out{x+1}:{tagger_bitwidth}" for x in range(tag_num)]),
+        "delay": 0.672,
+        "tagged": "false",
+        "taggers_num": 0,
+        "tagger_id": 0,
+    })
+    nx_graph.add_node("new_aligner_mux_0", **{
+        "type": '"Aligner_Mux"',
+        "bbID": tagger_bbID,
+        "in": f"in1?:32 " + " ".join([f"in{x+2}:{tagger_bitwidth}" for x in range(tag_num)]),
+        "out": f"out1:{tagger_bitwidth}",
+        "delay": 3.637,
+        "tagged": "false",
+        "taggers_num": 0,
+        "tagger_id": 0,
+    })
+    nx_graph.add_node("new_un_tagger_0", **{
+        "type": '"Un_Tagger"',
+        "bbID": tagger_bbID,
+        "in": f"in1:{tagger_bitwidth}",
+        "out": f"out1:{tagger_bitwidth} out2:{tagger_bitwidth}",
+        "tagged": "false",
+        "taggers_num": 0,
+        "tagger_id": 0,
+    })
+    nx_graph.add_node("new_free_tags_fifo_0", **{
+        "type": '"Free_Tags_Fifo"',
+        "bbID": tagger_bbID,
+        "in": "in1:32",
+        "out": "out1:32",
+        "tagged": "false",
+        "taggers_num": 0,
+        "tagger_id": -1,
+    })
+    nx_graph.add_node("new_tagger_0", **{
+        "type": '"Tagger"',
+        "bbID": tagger_bbID,
+        "in": f"in1:{tagger_bitwidth} in2:{tagger_bitwidth}",
+        "out": f"out1:{tagger_bitwidth}",
+        "delay": 0.672,
+        "tagged": "false",
+        "taggers_num": 0,
+        "tagger_id": -1,
+    })
+    nx_graph.add_node("new_fork_1", **{
+        "type": '"Fork"',
+        "bbID": tagger_bbID,
+        "in": f"in1:{tagger_bitwidth}",
+        "out": f"out1:{tagger_bitwidth} out2:{tagger_bitwidth}",
+        "tagged": "true",
+        "taggers_num": 0,
+        "tagger_id": -1,
+    })
+    nx_graph.add_node("new_fork_2", **{
+        "type": '"Fork"',
+        "bbID": tagger_bbID,
+        "in": f"in1:{tagger_bitwidth}",
+        "out": f"out1:{tagger_bitwidth} out2:{tagger_bitwidth}",
+        "tagged": "true",
+        "taggers_num": 0,
+        "tagger_id": -1,
+    })
+
+    nx_graph.add_edge("new_fork_1", "new_aligner_branch_0", **{"from": '"out1"', "to": '"in1"'})
+    nx_graph.add_edge("new_fork_1", "new_aligner_branch_0", **{"from": '"out2"', "to": '"in2"'})
+    nx_graph.add_edge("new_aligner_mux_0", "new_un_tagger_0", **{"from": '"out1"', "to": '"in1"'})
+    nx_graph.add_edge("new_fork_2", "new_aligner_mux_0", **{"from": '"out2"', "to": '"in1"'})
+    nx_graph.add_edge("new_un_tagger_0", "new_free_tags_fifo_0", **{"from": '"out1"', "to": '"in1"'})
+    nx_graph.add_edge("new_un_tagger_0", edge_out2[0], **{"from": '"out2"', "to": edge_out2[1]})
+    nx_graph.add_edge("new_free_tags_fifo_0", "new_tagger_0", **{"from": '"out1"', "to": '"in1"'})
+    nx_graph.add_edge(edge_in2[0], "new_tagger_0", **{"from": edge_in2[1], "to": '"in2"' })
+    nx_graph.add_edge("new_tagger_0", "new_fork_2", **{"from": '"out1"', "to": '"in1"' })
+    nx_graph.add_edge("new_fork_2", edge_out1[0], **{"from": '"out1"', "to": edge_out1[1] })
+    nx_graph.add_edge(edge_in1[0], "new_fork_1", **{"from": edge_in1[1], "to": '"in1"' })
+
+    for x in range(tag_num):
+        nx_graph.add_edge("new_aligner_branch_0", "new_aligner_mux_0", **{"from": f'"out{x+1}"', "to": f'"in{x+2}"'})
+
+    nx_graph.remove_node(tagger_node)
+
+def get_sizes(data, inout):
+    [x.split(":")[1] for x in data[inout].split()]
+
+def get_size_0(data, inout):
+    if data[inout].split()[0].split(":")[1] == "0":
+        return (f'"{inout}1"', f'"{inout}2"', data[inout].split()[1].split(":")[1])
+    elif data[inout].split()[1].split(":")[1] == "0":
+        return (f'"{inout}2"', f'"{inout}1"', data[inout].split()[0].split(":")[1])
+    else:
+        return None
+
+def concat0_to_sink(nx_graph):
+    for node, data in list(nx_graph.nodes(data=True)):
+        if data["type"] == "\"Concat\"":
+            size_0 = get_size_0(data, "in")
+            if size_0 is not None:
+                nx_graph.add_node(node + "_sink", **{
+                    "type": '"Sink"',
+                    "in": "in1:0",
+                    "bbID": data["bbID"],
+                    "tagged": data["tagged"],
+                    "taggers_num": data["taggers_num"],
+                    "tagger_id": data["tagger_id"],
+                })
+                in_edges = nx_graph.in_edges(node, data=True)
+                out_edges = nx_graph.out_edges(node, data=True)
+
+                edge_to_sink = [(x[0], x[2]["from"]) for x in in_edges if x[2]["to"] == size_0[0]][0]
+                edge_in = [(x[0], x[2]["from"]) for x in in_edges if x[2]["to"] == size_0[1]][0]
+                edge_out = [(x[1], x[2]["to"]) for x in out_edges if x[2]["from"] == "\"out1\""][0]
+
+                nx_graph.add_edge(edge_in[0], edge_out[0], **{"from": edge_in[1], "to": edge_out[1]})
+                nx_graph.add_edge(edge_to_sink[0], node+"_sink", **{"from": edge_to_sink[1], "to": '"in1"'})
+                nx_graph.remove_node(node)
+
+def split0_to_fork(nx_graph):
+    for node, data in list(nx_graph.nodes(data=True)):
+        if data["type"] == "\"Split\"":
+            size_0 = get_size_0(data, "out")
+            if size_0 is not None:
+                nx_graph.add_node(node + "_fork", **{
+                    "type": '"Fork"',
+                    "in": f"in1:{size_0[2]}",
+                    "out": f"out1:{size_0[2]} out2:{size_0[2]}",
+                    "bbID": data["bbID"],
+                    "tagged": data["tagged"],
+                    "taggers_num": data["taggers_num"],
+                    "tagger_id": data["tagger_id"],
+                })
+                in_edges = nx_graph.in_edges(node, data=True)
+                out_edges = nx_graph.out_edges(node, data=True)
+
+                edge_in1 = [(x[0], x[2]["from"]) for x in in_edges if x[2]["to"] == '"in1"'][0]
+                edge_out1 = [(x[1], x[2]["to"]) for x in out_edges if x[2]["from"] == "\"out1\""][0]
+                edge_out2 = [(x[1], x[2]["to"]) for x in out_edges if x[2]["from"] == "\"out2\""][0]
+
+                nx_graph.add_edge(edge_in1[0], node+"_fork", **{"from": edge_in1[1], "to": '"in1"'})
+                nx_graph.add_edge(node+"_fork", edge_out1[0], **{"from": '"out1"', "to": edge_out1[1]})
+                nx_graph.add_edge(node+"_fork", edge_out2[0], **{"from": '"out2"', "to": edge_out2[1]})
+                nx_graph.remove_node(node)
+
+def remove_MC_tags(nx_graph):
+    exit_node = None
+    for node, data in nx_graph.nodes(data=True):
+        if data["type"] == '"Exit"':
+            exit_node = node
+            break
+    else:
+        print("Exit node not found")
+        return
+
+    count = 0
+    for node, data in nx_graph.nodes(data=True):
+        if data["type"] == '"MC"':
+            data.pop("tagged", None)
+            data["bbID"] = 0
+            data.pop("taggers_num", None)
+            data.pop("tagger_id", None)
+            exit_port = data["out"].strip('"').strip().split()[-1].split(":")[0]
+            edge = nx_graph[node].get(exit_node, [None])[0]
+            if edge is not None: nx_graph.remove_edge(node, exit_node)
+            nx_graph.add_edge(node, exit_node, **{"from": f'"{exit_port}"', "to": f'"in{count+1}"'})
+            count = count + 1
+
+def process_dot(tag_num, input_path, output_path):
     graphs = pydot.graph_from_dot_file(input_path)
     if not graphs:
         raise ValueError("Could not parse DOT file.")
@@ -218,13 +411,22 @@ def process_dot(input_path, output_path):
 
     connection_remap = recombine_mc_nodes(graph)
     final_graph = rebuild_graph_ordered(graph, connection_remap)
-    nx_graph = nx.DiGraph(nx.drawing.nx_pydot.from_pydot(final_graph))
+    nx_graph = nx.MultiDiGraph(nx.drawing.nx_pydot.from_pydot(final_graph))
     find_all_bbID(nx_graph)
     add_tagger_info(nx_graph)
+    translate_tagger(nx_graph, tag_num)
+    concat0_to_sink(nx_graph)
+    split0_to_fork(nx_graph)
+    remove_MC_tags(nx_graph)
+    nx.relabel_nodes(nx_graph, lambda x: f'"{x}"' if x[0] != '"' else x, copy=False)
     final_graph = nx.drawing.nx_pydot.to_pydot(nx_graph)
     final_graph.set_strict(False)
+    # These are left over from using a MultiDiGraph
+    for edge in final_graph.get_edges():
+        if 'key' in edge.obj_dict.get('attributes', {}):
+            del edge.obj_dict['attributes']['key']
     final_graph.write_raw(output_path)
     result = subprocess.run(['sed', '-i', 's/tagger_id="-1"/tagger_id=-1/g', output_path])
 
 if __name__ == "__main__":
-    process_dot(sys.argv[1], sys.argv[2])
+    process_dot(int(sys.argv[1]), sys.argv[2], sys.argv[3])

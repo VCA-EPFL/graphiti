@@ -35,6 +35,10 @@ inductive EntryType where
 | marker (s : String)
 deriving Repr, Inhabited, DecidableEq
 
+def EntryType.startMarker? (entry : EntryType) : Bool := entry == .marker "rev-start"
+
+def EntryType.stopMarker? (entry : EntryType) : Bool := entry == .marker "rev-stop"
+
 structure RuntimeEntry where
   type : EntryType
   input_graph : ExprHigh String (String × Nat)
@@ -54,9 +58,9 @@ def RuntimeEntry.marker (s : String) : RuntimeEntry :=
 def RuntimeEntry.debugEntry (s : String) : RuntimeEntry :=
   {(default : RuntimeEntry) with type := .debug, debug := .some s }
 
-def RuntimeEntry.startMarker? (entry : RuntimeEntry) : Bool := entry.type == .marker "rev-start"
+def RuntimeEntry.startMarker? (entry : RuntimeEntry) : Bool := entry.type.startMarker?
 
-def RuntimeEntry.stopMarker? (entry : RuntimeEntry) : Bool := entry.type == .marker "rev-stop"
+def RuntimeEntry.stopMarker? (entry : RuntimeEntry) : Bool := entry.type.stopMarker?
 
 instance : Lean.ToJson RuntimeEntry where
   toJson r :=

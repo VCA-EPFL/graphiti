@@ -177,15 +177,20 @@ def eggPureGenerator {n} (fuel : Nat) (parsed : CmdArgs) (p : Pattern String (St
       IO.eprintln e
       IO.Process.exit 1
 
-def renameAssoc {α} (assoc : AssocList String α) (r : RuntimeEntry) : AssocList String α :=
-  if r.type == .rewrite then
-    assoc.mapKey (λ x =>
+def renameAssoc {α} (assoc : AssocList String α × Bool) (r : RuntimeEntry) : AssocList String α × Bool :=
+  if r.type == .rewrite && assoc.2 then
+    (assoc.1.mapKey (λ x =>
       match r.renamed_input_nodes.find? x with
       | .some (.some x') => x'
-      | _ => x)
-  else assoc
+      | _ => x), assoc.2)
+  else if r.type.stopMarker? then
+    (assoc.1, false)
+  else if r.type.startMarker? then
+    (assoc.1, true)
+  else
+    assoc
 
-def renameAssocAll {α} assoc (rlist : RuntimeTrace) := rlist.foldl (@renameAssoc α) assoc
+def renameAssocAll {α} assoc (rlist : RuntimeTrace) := rlist.foldl (@renameAssoc α) (assoc, true) |>.1
 
 def runRewriter {α} (parsed : CmdArgs) (g : α) (st : RewriteState) (r : RewriteResult α) : IO (α × RewriteState) :=
   match r.run st with
