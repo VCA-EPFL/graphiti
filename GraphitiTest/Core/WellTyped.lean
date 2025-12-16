@@ -39,15 +39,22 @@ def lhs : ExprHigh String (String × Nat) := [graph|
     branch -> queue_out [from="out2", to="in1"];
   ]
 
+#guard_msgs(drop info) in
 #eval lhs.lower |>.get!
 
+#guard_msgs(drop info) in
 #eval lhs.lower |>.get! |> (fun x => match (x : ExprLow String (String × Nat)) with | .connect _ e => e | _ => x) |>.findInputInst ⟨.internal "queue_out", "in1"⟩
 
+#guard_msgs(drop info) in
 #eval lhs.lower |>.get! |>.infer_equalities ⟨∅, ∅⟩ |>.map (·.typeMap)
 
+#guard_msgs(drop info) in
 #eval lhs.lower |>.get! |>.infer_equalities ⟨∅, ∅⟩ |>.map (·.ufMap) |>.map (·.checkEquiv! 8 6 |>.snd)
+#guard_msgs(drop info) in
 #eval lhs.lower |>.get! |>.infer_equalities ⟨∅, ∅⟩ |>.map (fun x => x.typeMap |>.toList.map (λ y => (y.fst, x.ufMap.root! y.snd)))
+#guard_msgs(drop info) in
 #eval lhs.lower |>.get! |>.infer_equalities ⟨∅, ∅⟩ |>.map (fun x => x.findConcr (Graphiti.TypeConstraint.var 4))
+#guard_msgs(drop info) in
 #eval lhs.lower |>.get! |>.infer_types
 
 end Graphiti.ExprLow.Test
