@@ -180,7 +180,6 @@ macro "case_transition " ct:term ", " i:term ", " ht:term : tactic =>
 --   intro a n p
 --   case_transition H : a, n, ‹_›
 --   simp at H
---   sorry
 
 -- TODO: Currently needs the lhs of the refinement to be passed as parameter `t`, however, it could be deduced from the
 -- goal.

@@ -42,23 +42,6 @@ variable (ε : Env Ident Typ)
 
 abbrev EType (e : ExprLow Ident Typ) := HVector (get_types ε) e.ident_list
 
-@[drunfold] def build_moduleD
-    : (e : ExprLow Ident Typ) → Option (Module Ident (EType ε e))
-| .base i e =>
-  match h : ε e with
-  | some mod =>
-    have H : mod.1 = get_types ε e := by
-      simp_all [get_types]
-    some ((H ▸ mod.2).liftD)
-  | none => none
-| .connect c e' => do
-  let e ← e'.build_moduleD
-  return e.connect' c.output c.input
-| .product a b => do
-  let a ← a.build_moduleD;
-  let b ← b.build_moduleD;
-  return a.productD b
-
 theorem filterId_empty {α} [DecidableEq α] : PortMapping.filterId (Ident := α) ∅ = ∅ := by rfl
 
 @[drunfold] def build_module'
@@ -3066,12 +3049,6 @@ theorem subset_well_typed {ε : Env Ident Typ} {e : ExprLow Ident Typ} (ε' : En
     intro hs ht
     cases ht; constructor <;> solve_by_elim
 
-theorem build_module_connect_foldr {α} {ε : Env Ident Typ} {acc accb} {l : List α} {f : α → Connection Ident}:
-  (ExprLow.build_module' ε acc) = .some accb →
-  ExprLow.build_module' ε (List.foldr (λ i acc => acc.connect (f i)) acc l)
-  = List.foldr (λ i acc => ⟨acc.1, acc.2.connect' (f i).output (f i).input⟩) (ExprLow.build_module ε acc) l := by
-    sorry
-
 axiom AssocList.bijectivePortRenaming_inverse {α} [DecidableEq α] {i : AssocList α α} {x} :
   i.invertible → i.bijectivePortRenaming x ∈ i.keysList → x ∈ i.valsList
 
@@ -3149,29 +3126,6 @@ theorem build_module_interface_build_module_interface' {ε} {e : ExprLow Ident T
         have hx1 : x ∈ e1.valsList.1 := by grind [build_module_interface'_unique, well_formed_product]
         have hx1 : x ∈ e2.valsList.1 := by grind [build_module_interface'_unique, well_formed_product]
         grind
-
-theorem well_typed_well_typed' {ε} {e : ExprLow Ident Typ} :
-  e.well_formed ε →
-  e.well_typed ε →
-  e.well_typed' ε := by
-  -- induction e with
-  -- | base inst typ =>
-  --   intro hwf hwt; dsimp [well_typed', build_module_interface', well_typed'', well_formed] at *
-  --   split at hwf
-  --   rename_i _ _ heq; rw [heq]; constructor; simp [Option.map]; rfl
-  --   contradiction
-  -- | product e1 e2 he1 he2 =>
-  --   intro hwf; intro hwt
-  --   dsimp [well_typed', build_module_interface', well_typed'', well_formed] at *
-  --   simp at hwf; dsimp [well_typed] at hwt
-  --   specialize he1 hwf.1 hwt.1
-  --   specialize he2 hwf.2 hwt.2
-  --   obtain ⟨mi1, hb1, hwt1⟩ := he1
-  --   obtain ⟨mi2, hb2, hwt2⟩ := he2
-  --   rw [hb1, hb2]
-  --   dsimp; constructor
-  --   and_intros; rfl;
-  all_goals sorry
 
 end ExprLowFoldL
 

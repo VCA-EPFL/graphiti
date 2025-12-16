@@ -285,9 +285,6 @@ theorem append_find_right_disjoint {α β} [DecidableEq α] {a b : AssocList α 
       solve_by_elim
     · solve_by_elim [disjoint_cons_left]
 
--- @[simp] theorem erase_map_comm {α β γ} [DecidableEq α] {a : AssocList α β} ident (f : α → β → γ) :
---   (a.erase ident).mapVal f = (a.mapVal f).erase ident := by sorry
-
 @[simp, drcompute] theorem eraseAllP_cons {α β} [DecidableEq α] {a : AssocList α β} {p : α → β → Bool} {ident val} :
   (a.cons ident val).eraseAllP p = if p ident val then a.eraseAllP p else (a.eraseAllP p).cons ident val := by simpa
 
@@ -505,7 +502,6 @@ These are needed because ExprLow currently only checks equality and uniqueness a
 
 -- axiom filderId_Nodup {α} [DecidableEq α] (p : AssocList α α) : p.keysList.Nodup → p.filterId.keysList.Nodup
 
--- theorem filterId_EqExt {α} [DecidableEq α] (p : AssocList α α) := sorry
 
 theorem mapVal_mapKey {α β γ σ} {f : α → γ} {g : β → σ} {m : AssocList α β}:
   (m.mapKey f).mapVal (λ _ => g) = (m.mapVal (λ _ => g)).mapKey f := by

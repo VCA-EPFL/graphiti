@@ -134,12 +134,6 @@ theorem MatchInterface_symmetric {I S} {imod : Module Ident I} (smod : Module Id
     · rw[a]
     · rw[b]
 
--- theorem MatchInterface_Disjoint {I J S K} {imod : Module Ident I} {smod : Module Ident S} {imod' : Module Ident J} {smod' : Module Ident K}
---   [MatchInterface imod smod]
---   [MatchInterface imod' smod'] :
---   Disjoint imod imod' →
---   Disjoint smod smod' := by sorry
-
 instance MatchInterface_connect {I S} {o i} {imod : Module Ident I} {smod : Module Ident S}
          [mm : MatchInterface imod smod]
          : MatchInterface (imod.connect' o i) (smod.connect' o i) := by
@@ -1797,43 +1791,6 @@ theorem foldl_acc_plist_2 (acc : TModule Ident) (l : List α) (f : Type _ → α
 @[simp] abbrev foldr_int {α} := dep_foldr (α := α) (β := acc_int)
 @[simp] abbrev foldr_io {α} := dep_foldr (α := α) (β := @acc_io Ident)
 @[simp] abbrev foldr_init {α} := dep_foldr (α := α) (β := acc_init)
-
-theorem foldr_acc_plist_2 (acc : TModule Ident) (l : List α) (f : α → Type _ → Type _)
-  (g_inputs : (i : α) → (acc : Σ S, acc_io S) → (acc_io (f i acc.1)))
-  (g_outputs : (i : α) → (acc : Σ S, acc_io S) → (acc_io (f i acc.1)))
-  (g_internals : (i : α) → (acc : Σ S, acc_int S) → (acc_int (f i acc.1)))
-  (g_init_state : (i : α) → (acc : Σ S, acc_init S) → (acc_init (f i acc.1)))
-  :
-    dep_foldr acc l f
-      (λ i acc =>
-        {
-          inputs := g_inputs i ⟨acc.1, acc.2.inputs⟩
-          outputs := g_outputs i ⟨acc.1, acc.2.outputs⟩
-          internals := g_internals i ⟨acc.1, acc.2.internals⟩
-          init_state := g_init_state i ⟨acc.1, acc.2.init_state⟩
-        }
-      )
-  =
-    ⟨
-      List.foldr f acc.1 l,
-      {
-        -- FIXME: For a foldr, the cast should probably be inside of the fold in
-        -- some way, which means that `f` must be casting maybe?
-        inputs := dep_foldr_β.mp (foldr_io ⟨acc.1, acc.2.inputs⟩ l f g_inputs).2
-        outputs := dep_foldr_β.mp (foldr_io ⟨acc.1, acc.2.outputs⟩ l f g_outputs).2
-        internals := dep_foldr_β.mp (foldr_int ⟨acc.1, acc.2.internals⟩ l f g_internals).2
-        init_state := dep_foldr_β.mp (foldr_init ⟨acc.1, acc.2.init_state⟩ l f g_init_state).2
-      }
-    ⟩ := by
-      induction l with
-      | nil => rfl
-      | cons hd tl HR =>
-        dsimp at ⊢ HR; rw [HR]; dsimp; congr
-        -- FIXME: This is false
-        · simp; sorry
-        · sorry
-        · sorry
-        · sorry
 
 variable [DecidableEq Ident]
 

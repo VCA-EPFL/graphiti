@@ -173,24 +173,6 @@ def named_product {S S'} (mod1 : Module Ident S) (mod2: Module Ident S') (str : 
   }
 
 @[drunfold]
-def productD {α} {l₁ l₂ : List α} {f} (mod1 : Module Ident (HVector f l₁)) (mod2: Module Ident (HVector f l₂)) : Module Ident (HVector f (l₁ ++ l₂)) :=
-  {
-    inputs := (mod1.inputs.mapVal (λ _ => liftLD)).append (mod2.inputs.mapVal (λ _ => liftRD)),
-    outputs := (mod1.outputs.mapVal (λ _ => liftLD)).append (mod2.outputs.mapVal (λ _ => liftRD)),
-    internals := mod1.internals.map liftLD' ++ mod2.internals.map liftRD'
-    init_state := sorry -- TODO
-  }
-
-@[drunfold]
-def liftD {α} {e : α} {f} (mod : Module Ident (f e)) : Module Ident (HVector f [e]) :=
-  {
-    inputs := mod.inputs.mapVal λ _ => liftSingle,
-    outputs := mod.outputs.mapVal λ _ => liftSingle,
-    internals := mod.internals.map liftSingle'
-    init_state := sorry -- TODO
-  }
-
-@[drunfold]
 def mapInputPorts {S} (mod : Module Ident S) (f : InternalPort Ident → InternalPort Ident) : Module Ident S :=
   { mod with inputs := mod.inputs.mapKey f }
 

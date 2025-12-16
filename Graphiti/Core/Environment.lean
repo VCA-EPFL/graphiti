@@ -147,23 +147,6 @@ namespace FinEnv
 @[simp]
 def toEnv {Ident Typ} [DecidableEq Typ] (ε : FinEnv Ident Typ) : Env Ident Typ := ε.find?
 
-theorem exists_fresh {Ident} {ε : FinEnv Ident (String × String)} {a : List String}
-  : ∃ (b : List String), a.length = b.length ∧ (∀ a' b', (a', b') ∈ a.zip b → ¬ ε.contains (a', b')) ∧ (a.zip b).Nodup := by sorry
-
-noncomputable def select_fresh' {Ident} (ε : FinEnv Ident (String × String)) (a : List String) : List String :=
-  Exists.choose (@exists_fresh Ident ε a)
-
-theorem select_fresh'_spec {Ident} {ε : FinEnv Ident (String × String)} {a : List String} :
-  a.length = (select_fresh' ε a).length ∧ (∀ a' b', (a', b') ∈ a.zip (select_fresh' ε a) → ¬ ε.contains (a', b')) ∧ (a.zip (select_fresh' ε a)).Nodup :=
-  Exists.choose_spec exists_fresh
-
-noncomputable def select_fresh {Ident} (ε : FinEnv Ident (String × String)) (a : List String) : List (String × String) :=
-  a.zip (select_fresh' ε a)
-
-theorem select_fresh_spec {Ident} {ε : FinEnv Ident (String × String)} {a : List String} :
-  a.length = (select_fresh ε a).length ∧ (∀ a' b', (a', b') ∈ select_fresh ε a → ¬ ε.contains (a', b')) ∧ (select_fresh ε a).Nodup := by
-  grind [select_fresh, select_fresh'_spec]
-
 def max_type {Ident} (f : FinEnv Ident (String × Nat)) : Option Nat :=
   f.keysList.map Prod.snd |>.max?
 
