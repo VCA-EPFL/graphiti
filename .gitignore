@@ -13,3 +13,6 @@ examples/*.sched
 examples/build_dir
 examples/testbench-dynamic
 examples/testbench-static
+
+.vscode/
+*.data
