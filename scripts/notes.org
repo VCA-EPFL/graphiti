@@ -1,0 +1,3 @@
+- GCD example cannot be converted in its current state due to the fact that the inner loop might not execute, which leads to a different DFG where there is an additional exit on the branch of the inner loop.
+- When compiling the GCD, the default version works, however, substituting ~b~ with a constant 100 leads to a weird error in simulation.
+- When turning the loop into a ~do while~ loop, the dynamatic compiler crashes.

@@ -1,178 +1,74 @@
 import pydot
+import networkx as nx
 import sys
+import subprocess
+import re
+import graphiti_conv as gc
+import argparse
+import logging
 
-def is_valid_node_name(name):
-    name = name.strip('"')
-    if "\\n" in name:
-        return False
-    if all(c in "\\nrt" for c in name):
-        return False
-    return True
+log = logging.getLogger(__name__)
 
-def split_mc_nodes(graph):
-    unquoted_fields = {
-        "stcount", "bbcount", "ldcount", "bbID", "delay",
-        "tagged", "taggers_num", "tagger_id"
-    }
+# def set_one_fork(nx_graph, mux_id):
 
-    connection_map = {}
+def rearrange_forks(nx_graph, mux_id):
+    mux_data = nx_graph.nodes[mux_id]
 
-    for parent in [graph] + graph.get_subgraphs():
-        original_nodes = parent.get_nodes()
-        new_nodes = []
+    fork_of_mux, _, fork_of_mux_data = gc.get_input_and_check(nx_graph, mux_id, "in1", "Fork")
+    init_merge, _, init_merge_data = gc.get_input_and_check(nx_graph, fork_of_mux, "in1", "Init")
+    branch, _, branch_data = gc.get_input_and_check(nx_graph, init_merge, "in1", "Branch")
+    fork_of_branch, _, fork_of_branch_data = gc.get_input_and_check(nx_graph, branch, "in2", "Fork")
 
-        for node in original_nodes:
-            node_name = node.get_name().strip('"')
-            attrs = node.get_attributes()
-            node_type = attrs.get("type") or attrs.get('"type"')
-            node_type = node_type.strip('" ') if node_type else ""
+    fork_of_mux_num = len(gc.get_data(fork_of_mux_data, "out").split())
+    fork_of_branch_num = len(gc.get_data(fork_of_branch_data, "out").split())
 
-            if not is_valid_node_name(node_name):
-                continue
+    if fork_of_mux_num != fork_of_branch_num + 1:
+        raise Exception(f'fork sizes mismatch: {fork_of_mux}({fork_of_mux_num}) and {fork_of_branch}({fork_of_branch_num})')
 
-            if node_type != "MC":
-                new_nodes.append(node)
-                continue
+def add_init_node(nx_graph, mux_id):
+    mux_data = nx_graph.nodes[mux_id]
 
-            in_field = attrs.get("in") or attrs.get('"in"')
-            out_field = attrs.get("out") or attrs.get('"out"')
-            if not in_field or not out_field:
-                new_nodes.append(node)
-                continue
+    fork_of_mux, _, fork_of_mux_data = gc.get_input_and_check(nx_graph, mux_id, "in1", "Fork")
+    init_merge, _, init_merge_data = gc.get_input_and_check(nx_graph, fork_of_mux, "in1", "Merge")
 
-            raw_inputs = in_field.strip('"').split()
-            raw_outputs = out_field.strip('"').split()
+    to_sink, to_sink_port = gc.get_input(nx_graph, init_merge, "in2")
+    to_sink_data = nx_graph.nodes[to_sink]
 
-            l_inputs = [inp for inp in raw_inputs if 'l' in inp]
-            non_l_inputs = [inp for inp in raw_inputs if 'l' not in inp]
+    # Turn the Merge into an Init node
+    init_merge_data["type"] = '"Init"'
+    init_merge_data["in"] = '"in1:1"'
 
-            l_outputs = [outp for outp in raw_outputs if 'l' in outp]
-            non_l_outputs = [outp for outp in raw_outputs if 'l' not in outp]
+    # Sink the other input into the Init
+    nx_graph.remove_edge(to_sink, init_merge)
 
-            if len(l_inputs) <= 1:
-                new_nodes.append(node)
-                continue
+    nx_graph.add_node(f'sink_{init_merge}', **{
+        "type": '"Sink"',
+        "in": "in1:1",
+        "bbID": 0,
+    })
 
-            print(f"Splitting MC node: {node_name}")
+    nx_graph.add_edge(to_sink, f'sink_{init_merge}', **{'from': to_sink_port, 'to': '"in1"'})
 
-            inherited_attrs = {
-                k: v.strip('"') for k, v in attrs.items()
-                if k.strip('"') not in {"in", "out", "ldcount"}
-            }
+def split_mc(nx_graph):
+    pass
 
-            for i, l_input in enumerate(l_inputs):
-                new_node_name_raw = f"{node_name}_{chr(97 + i)}"
-                new_node_name_quoted = f'"{new_node_name_raw}"'
-                new_node = pydot.Node(new_node_name_quoted)
-                new_node.set("type", "MC")
+def process_dot(input_path, output_path, mux_id):
+    nx_graph = gc.parse_dot(input_path)
 
-                combined_inputs = non_l_inputs + [l_input] if i == 0 else [l_input]
+    # Find the correct mux, rearrange the forks and insert the Init component
+    if mux_id is not None:
+        add_init_node(nx_graph, mux_id)
+        rearrange_forks(nx_graph, mux_id)
 
-                new_in_parts = []
-                for idx, val in enumerate(combined_inputs):
-                    port = val.split(":")[1]
-                    port_label = f"in{idx + 1}"
-                    new_in_parts.append(f"{port_label}:{port}")
-                    connection_map[(node_name, val.split(":")[0])] = (new_node_name_raw, port_label)
+    # Split up MCs
+    split_mc(nx_graph)
 
-                combined_outputs = []
-                if i == 0:
-                    combined_outputs += non_l_outputs
-                if i < len(l_outputs):
-                    combined_outputs.append(l_outputs[i])
-
-                new_out_parts = []
-                for idx, val in enumerate(combined_outputs):
-                    port = val.split(":")[1]
-                    port_label = f"out{idx + 1}"
-                    new_out_parts.append(f"{port_label}:{port}")
-                    connection_map[(node_name, val.split(":")[0])] = (new_node_name_raw, port_label)
-
-                new_node.set("in", f'"{" ".join(new_in_parts)}"')
-                new_node.set("out", f'"{" ".join(new_out_parts)}"')
-
-                for k, v in inherited_attrs.items():
-                    k_clean = k.strip('"')
-                    if k_clean in unquoted_fields:
-                        new_node.set(k, v)
-                    else:
-                        decoded_val = bytes(v, "utf-8").decode("unicode_escape")
-                        new_node.set(k, f'"{decoded_val}"')
-
-                new_node.set("ldcount", "1")
-
-                new_nodes.append(new_node)
-
-            default_target = (f"{node_name}_a", None)
-            for val in raw_inputs:
-                port = val.split(":")[0]
-                if (node_name, port) not in connection_map:
-                    connection_map[(node_name, port)] = default_target
-            for val in raw_outputs:
-                port = val.split(":")[0]
-                if (node_name, port) not in connection_map:
-                    connection_map[(node_name, port)] = default_target
-
-        for old_node in parent.get_nodes()[:]:
-            parent.del_node(old_node.get_name())
-        for new_node in new_nodes:
-            parent.add_node(new_node)
-
-    return connection_map
-
-
-def rebuild_graph_ordered(original_graph, connection_map):
-    new_graph = pydot.Dot(graph_type=original_graph.get_type())
-
-    for k, v in original_graph.get_attributes().items():
-        new_graph.set(k, v)
-
-    for subgraph in original_graph.get_subgraphs():
-        clean_subgraph = pydot.Subgraph(graph_name=subgraph.get_name())
-        for attr_key, attr_val in subgraph.get_attributes().items():
-            clean_subgraph.set(attr_key, attr_val)
-
-        for node in subgraph.get_nodes():
-            if is_valid_node_name(node.get_name()):
-                clean_subgraph.add_node(node)
-
-        new_graph.add_subgraph(clean_subgraph)
-
-    for node in original_graph.get_nodes():
-        if is_valid_node_name(node.get_name()):
-            new_graph.add_node(node)
-
-    for edge in original_graph.get_edges():
-        src = edge.get_source().strip('"')
-        dst = edge.get_destination().strip('"')
-        attrs = edge.get_attributes()
-
-        src_port = attrs.get("from", "").strip('"')
-        dst_port = attrs.get("to", "").strip('"')
-
-        new_src, new_src_port = connection_map.get((src, src_port), (src, src_port))
-        new_dst, new_dst_port = connection_map.get((dst, dst_port), (dst, dst_port))
-
-        if new_src_port:
-            attrs["from"] = f'"{new_src_port}"'
-        if new_dst_port:
-            attrs["to"] = f'"{new_dst_port}"'
-
-        new_edge = pydot.Edge(f'"{new_src}"', f'"{new_dst}"', **attrs)
-        new_graph.add_edge(new_edge)
-
-    return new_graph
-
-
-def process_dot(input_path, output_path):
-    graphs = pydot.graph_from_dot_file(input_path)
-    if not graphs:
-        raise ValueError("Could not parse DOT file.")
-    original = graphs[0]
-
-    connection_map = split_mc_nodes(original)
-    final_graph = rebuild_graph_ordered(original, connection_map)
-    final_graph.write_raw(output_path)
+    gc.write_dot(output_path, nx_graph)
 
 if __name__ == "__main__":
-    process_dot(sys.argv[1], sys.argv[2])
+    parser = argparse.ArgumentParser(description='Convert a Dynamatic graph into a graph ready for Graphiti.')
+    parser.add_argument('input', help='input graph from Dynamatic')
+    parser.add_argument('--output', '-o', help='path for output graph')
+    parser.add_argument('--mux_id', '-m', help='ID for mux node at the head of loop')
+    args = parser.parse_args()
+    process_dot(args.input, args.output, args.mux_id)
