@@ -31,9 +31,8 @@ def find_tagger_or_untagger(node, graph):
 
     # If we have a tagger, we just set tagged to false and move on.
     node_attr = graph.nodes[node]
-    node_type = node_attr.get('type')
-    if node_type == "\"TaggerUntagger\"":
-        node_attr['tagged'] = False
+    if gc.get_data(node_attr, 'type') == "TaggerUntagger":
+        node_attr['tagged'] = "false"
         return
 
     # For any other node, we check if we are in the tagger or outside of it.
@@ -41,7 +40,7 @@ def find_tagger_or_untagger(node, graph):
         node_attr = graph.nodes[node]
         # If we hit the tagger, we have to check how we hit it.  If it is to in1 then we are inside the tagger,
         # otherwise we are outside.
-        if node_attr["type"] == "\"TaggerUntagger\"":
+        if gc.get_data(node_attr, 'type') == "TaggerUntagger":
             return graph[prev_node][node][0]["to"] == "\"in1\""
 
         prev_node = node
@@ -60,101 +59,101 @@ def add_tagger_info(nx_graph):
 
 def translate_tagger(nx_graph, tag_num):
     # Find the tagger node:
-    t = gc.find_node_of_type(nx_graph, "TaggerUntagger")
-    if t is None: return
-    tagger_node, tagger_data = t
+    ts = list(gc.find_nodes_of_type(nx_graph, "TaggerUntagger"))
+    count = 0
+    for tagger_node, tagger_data in ts:
+        tagger_bitwidth = gc.first_bitwidth(tagger_data["in"])
+        tagger_bbID = tagger_data["bbID"]
 
-    tagger_bitwidth = gc.first_bitwidth(tagger_data["in"])
-    tagger_bbID = tagger_data["bbID"]
+        edge_in1 = gc.get_input(nx_graph, tagger_node, "in1")
+        edge_in2 = gc.get_input(nx_graph, tagger_node, "in2")
+        edge_out1 = gc.get_output(nx_graph, tagger_node, "out1")
+        edge_out2 = gc.get_output(nx_graph, tagger_node, "out2")
 
-    edge_in1 = gc.get_input(nx_graph, tagger_node, "in1")
-    edge_in2 = gc.get_input(nx_graph, tagger_node, "in2")
-    edge_out1 = gc.get_output(nx_graph, tagger_node, "out1")
-    edge_out2 = gc.get_output(nx_graph, tagger_node, "out2")
+        nx_graph.add_node(f"new_aligner_branch_{count}", **{
+            "type": '"Aligner_Branch"',
+            "bbID": tagger_bbID,
+            "in": f"in1:{tagger_bitwidth} in2?:32",
+            "out": " ".join([f"out{x+1}:{tagger_bitwidth}" for x in range(tag_num)]),
+            "delay": 0.672,
+            "tagged": "false",
+            "taggers_num": 0,
+            "tagger_id": 0,
+        })
+        nx_graph.add_node(f"new_aligner_mux_{count}", **{
+            "type": '"Aligner_Mux"',
+            "bbID": tagger_bbID,
+            "in": f"in1?:32 " + " ".join([f"in{x+2}:{tagger_bitwidth}" for x in range(tag_num)]),
+            "out": f"out1:{tagger_bitwidth}",
+            "delay": 3.637,
+            "tagged": "false",
+            "taggers_num": 0,
+            "tagger_id": 0,
+        })
+        nx_graph.add_node(f"new_un_tagger_{count}", **{
+            "type": '"Un_Tagger"',
+            "bbID": tagger_bbID,
+            "in": f"in1:{tagger_bitwidth}",
+            "out": f"out1:{tagger_bitwidth} out2:{tagger_bitwidth}",
+            "tagged": "false",
+            "taggers_num": 0,
+            "tagger_id": 0,
+        })
+        nx_graph.add_node(f"new_free_tags_fifo_{count}", **{
+            "type": '"Free_Tags_Fifo"',
+            "bbID": tagger_bbID,
+            "in": "in1:32",
+            "out": "out1:32",
+            "tagged": "false",
+            "taggers_num": 0,
+            "tagger_id": -1,
+        })
+        nx_graph.add_node(f"new_tagger_{count}", **{
+            "type": '"Tagger"',
+            "bbID": tagger_bbID,
+            "in": f"in1:{tagger_bitwidth} in2:{tagger_bitwidth}",
+            "out": f"out1:{tagger_bitwidth}",
+            "delay": 0.672,
+            "tagged": "false",
+            "taggers_num": 0,
+            "tagger_id": -1,
+        })
+        nx_graph.add_node(f"new_fork_{count}_1", **{
+            "type": '"Fork"',
+            "bbID": tagger_bbID,
+            "in": f"in1:{tagger_bitwidth}",
+            "out": f"out1:{tagger_bitwidth} out2:{tagger_bitwidth}",
+            "tagged": "true",
+            "taggers_num": 0,
+            "tagger_id": -1,
+        })
+        nx_graph.add_node(f"new_fork_{count}_2", **{
+            "type": '"Fork"',
+            "bbID": tagger_bbID,
+            "in": f"in1:{tagger_bitwidth}",
+            "out": f"out1:{tagger_bitwidth} out2:{tagger_bitwidth}",
+            "tagged": "true",
+            "taggers_num": 0,
+            "tagger_id": -1,
+        })
 
-    nx_graph.add_node("new_aligner_branch_0", **{
-        "type": '"Aligner_Branch"',
-        "bbID": tagger_bbID,
-        "in": f"in1:{tagger_bitwidth} in2?:32",
-        "out": " ".join([f"out{x+1}:{tagger_bitwidth}" for x in range(tag_num)]),
-        "delay": 0.672,
-        "tagged": "false",
-        "taggers_num": 0,
-        "tagger_id": 0,
-    })
-    nx_graph.add_node("new_aligner_mux_0", **{
-        "type": '"Aligner_Mux"',
-        "bbID": tagger_bbID,
-        "in": f"in1?:32 " + " ".join([f"in{x+2}:{tagger_bitwidth}" for x in range(tag_num)]),
-        "out": f"out1:{tagger_bitwidth}",
-        "delay": 3.637,
-        "tagged": "false",
-        "taggers_num": 0,
-        "tagger_id": 0,
-    })
-    nx_graph.add_node("new_un_tagger_0", **{
-        "type": '"Un_Tagger"',
-        "bbID": tagger_bbID,
-        "in": f"in1:{tagger_bitwidth}",
-        "out": f"out1:{tagger_bitwidth} out2:{tagger_bitwidth}",
-        "tagged": "false",
-        "taggers_num": 0,
-        "tagger_id": 0,
-    })
-    nx_graph.add_node("new_free_tags_fifo_0", **{
-        "type": '"Free_Tags_Fifo"',
-        "bbID": tagger_bbID,
-        "in": "in1:32",
-        "out": "out1:32",
-        "tagged": "false",
-        "taggers_num": 0,
-        "tagger_id": -1,
-    })
-    nx_graph.add_node("new_tagger_0", **{
-        "type": '"Tagger"',
-        "bbID": tagger_bbID,
-        "in": f"in1:{tagger_bitwidth} in2:{tagger_bitwidth}",
-        "out": f"out1:{tagger_bitwidth}",
-        "delay": 0.672,
-        "tagged": "false",
-        "taggers_num": 0,
-        "tagger_id": -1,
-    })
-    nx_graph.add_node("new_fork_1", **{
-        "type": '"Fork"',
-        "bbID": tagger_bbID,
-        "in": f"in1:{tagger_bitwidth}",
-        "out": f"out1:{tagger_bitwidth} out2:{tagger_bitwidth}",
-        "tagged": "true",
-        "taggers_num": 0,
-        "tagger_id": -1,
-    })
-    nx_graph.add_node("new_fork_2", **{
-        "type": '"Fork"',
-        "bbID": tagger_bbID,
-        "in": f"in1:{tagger_bitwidth}",
-        "out": f"out1:{tagger_bitwidth} out2:{tagger_bitwidth}",
-        "tagged": "true",
-        "taggers_num": 0,
-        "tagger_id": -1,
-    })
+        nx_graph.add_edge(f"new_fork_{count}_1", f"new_aligner_branch_{count}", **{"from": '"out1"', "to": '"in1"'})
+        nx_graph.add_edge(f"new_fork_{count}_1", f"new_aligner_branch_{count}", **{"from": '"out2"', "to": '"in2"'})
+        nx_graph.add_edge(f"new_aligner_mux_{count}", f"new_un_tagger_{count}", **{"from": '"out1"', "to": '"in1"'})
+        nx_graph.add_edge(f"new_fork_{count}_2", f"new_aligner_mux_{count}", **{"from": '"out2"', "to": '"in1"'})
+        nx_graph.add_edge(f"new_un_tagger_{count}", f"new_free_tags_fifo_{count}", **{"from": '"out1"', "to": '"in1"'})
+        nx_graph.add_edge(f"new_un_tagger_{count}", edge_out2[0], **{"from": '"out2"', "to": edge_out2[1]})
+        nx_graph.add_edge(f"new_free_tags_fifo_{count}", f"new_tagger_{count}", **{"from": '"out1"', "to": '"in1"'})
+        nx_graph.add_edge(edge_in2[0], f"new_tagger_{count}", **{"from": edge_in2[1], "to": '"in2"' })
+        nx_graph.add_edge(f"new_tagger_{count}", f"new_fork_{count}_2", **{"from": '"out1"', "to": '"in1"' })
+        nx_graph.add_edge(f"new_fork_{count}_2", edge_out1[0], **{"from": '"out1"', "to": edge_out1[1] })
+        nx_graph.add_edge(edge_in1[0], f"new_fork_{count}_1", **{"from": edge_in1[1], "to": '"in1"' })
 
-    nx_graph.add_edge("new_fork_1", "new_aligner_branch_0", **{"from": '"out1"', "to": '"in1"'})
-    nx_graph.add_edge("new_fork_1", "new_aligner_branch_0", **{"from": '"out2"', "to": '"in2"'})
-    nx_graph.add_edge("new_aligner_mux_0", "new_un_tagger_0", **{"from": '"out1"', "to": '"in1"'})
-    nx_graph.add_edge("new_fork_2", "new_aligner_mux_0", **{"from": '"out2"', "to": '"in1"'})
-    nx_graph.add_edge("new_un_tagger_0", "new_free_tags_fifo_0", **{"from": '"out1"', "to": '"in1"'})
-    nx_graph.add_edge("new_un_tagger_0", edge_out2[0], **{"from": '"out2"', "to": edge_out2[1]})
-    nx_graph.add_edge("new_free_tags_fifo_0", "new_tagger_0", **{"from": '"out1"', "to": '"in1"'})
-    nx_graph.add_edge(edge_in2[0], "new_tagger_0", **{"from": edge_in2[1], "to": '"in2"' })
-    nx_graph.add_edge("new_tagger_0", "new_fork_2", **{"from": '"out1"', "to": '"in1"' })
-    nx_graph.add_edge("new_fork_2", edge_out1[0], **{"from": '"out1"', "to": edge_out1[1] })
-    nx_graph.add_edge(edge_in1[0], "new_fork_1", **{"from": edge_in1[1], "to": '"in1"' })
+        for x in range(tag_num):
+            nx_graph.add_edge(f"new_aligner_branch_{count}", f"new_aligner_mux_{count}", **{"from": f'"out{x+1}"', "to": f'"in{x+2}"'})
 
-    for x in range(tag_num):
-        nx_graph.add_edge("new_aligner_branch_0", "new_aligner_mux_0", **{"from": f'"out{x+1}"', "to": f'"in{x+2}"'})
-
-    nx_graph.remove_node(tagger_node)
+        nx_graph.remove_node(tagger_node)
+        count += 1
 
 def concat0_to_sink(nx_graph):
     for node, data in list(nx_graph.nodes(data=True)):
@@ -239,22 +238,22 @@ def fix_port_names(nx_graph):
             data['out'] = f'out1+:{size} out2-:{size}'
 
 def to_cntrl_merge(nx_graph):
-    t = gc.find_node_of_type(nx_graph, "TaggerUntagger")
-    if t is None: return
-    mid, _, mdata = gc.get_output_and_check(nx_graph, t[0], "out1", "Merge")
-    mdata["type"] = '"CntrlMerge"'
-    mdata["out"] = gc.get_data(mdata, "out") + " out2?:1"
-    mdata["delay"] = "0.366"
-    nx_graph.add_node(mid + "_sink", **{
-        "type": '"Sink"',
-        "in": "in1:1",
-        "bbID": "0",
-        "tagged": "false",
-        "taggers_num": "0",
-        "tagger_id": "0",
-    })
+    ts = list(gc.find_nodes_of_type(nx_graph, "TaggerUntagger"))
+    for t in ts:
+        mid, _, mdata = gc.get_output_and_check(nx_graph, t[0], "out1", "Merge")
+        mdata["type"] = '"CntrlMerge"'
+        mdata["out"] = gc.get_data(mdata, "out") + " out2?:1"
+        mdata["delay"] = "0.366"
+        nx_graph.add_node(mid + "_sink", **{
+            "type": '"Sink"',
+            "in": "in1:1",
+            "bbID": "0",
+            "tagged": "false",
+            "taggers_num": "0",
+            "tagger_id": "0",
+        })
 
-    nx_graph.add_edge(mid, mid+"_sink", **{'from': '"out2"', 'to': '"in1"'})
+        nx_graph.add_edge(mid, mid+"_sink", **{'from': '"out2"', 'to': '"in1"'})
 
 def combine_mc_shards(nx_graph):
     for node, data in list(nx_graph.nodes(data=True)):

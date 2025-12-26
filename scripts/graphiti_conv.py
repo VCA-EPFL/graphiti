@@ -85,3 +85,6 @@ def get_size_0(data, inout):
 
 def get_data(node_data, key):
     return node_data[key].strip('"').strip()
+
+def get_data_default(node_data, key, default):
+    return node_data.get(key, default).strip('"').strip()

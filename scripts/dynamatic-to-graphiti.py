@@ -85,8 +85,8 @@ def add_init_node(nx_graph, mux_id):
 
 def split_mc(nx_graph):
     for mc, mc_data in gc.find_nodes_of_type(nx_graph, "MC"):
-        ldcount = int(gc.get_data(mc_data, "ldcount"))
-        stcount = int(gc.get_data(mc_data, "stcount"))
+        ldcount = int(gc.get_data_default(mc_data, "ldcount", "0"))
+        stcount = int(gc.get_data_default(mc_data, "stcount", "0"))
         if ldcount > 1 and stcount == 0:
             mc_data['graphiti_metadata'] = json.dumps({
                 'in': gc.get_data(mc_data, 'in'),
@@ -116,16 +116,16 @@ def split_mc(nx_graph):
 def remove_load_mc_connections_to_exit(nx_graph):
     exit_node = gc.find_node_of_type(nx_graph, "Exit")[0]
     for node, data in list(nx_graph.nodes(data=True)):
-        if gc.get_data(data, "type") == 'MC' and int(gc.get_data(data, "stcount")) == 0:
+        if gc.get_data(data, "type") == 'MC' and int(gc.get_data_default(data, "stcount", "0")) == 0:
             exit_port = gc.get_data(data, "out").split()[-1].split(":")[0]
             edge = nx_graph[node].get(exit_node, [None])[0]
             if edge is not None: nx_graph.remove_edge(node, exit_node)
 
-def process_dot(input_path, output_path, mux_id):
+def process_dot(input_path, output_path, mux_ids):
     nx_graph = gc.parse_dot(input_path)
 
     # Find the correct mux, rearrange the forks and insert the Init component
-    if mux_id is not None:
+    for mux_id in mux_ids:
         fork_mux, fork_branch = add_init_node(nx_graph, mux_id)
         rearrange_forks(nx_graph, mux_id, fork_mux, fork_branch)
 
@@ -139,6 +139,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Convert a Dynamatic graph into a graph ready for Graphiti.')
     parser.add_argument('input', help='input graph from Dynamatic')
     parser.add_argument('--output', '-o', help='path for output graph')
-    parser.add_argument('--mux_id', '-m', help='ID for mux node at the head of loop')
+    parser.add_argument('--mux-ids', '-m', nargs='*', help='ID for mux node at the head of loop')
     args = parser.parse_args()
-    process_dot(args.input, args.output, args.mux_id)
+    process_dot(args.input, args.output, args.mux_ids)
