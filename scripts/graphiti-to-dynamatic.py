@@ -5,6 +5,8 @@ from collections import defaultdict
 import sys
 import subprocess
 import graphiti_conv as gc
+import argparse
+import json
 
 def find_bbID(node, graph):
     PROPERTY_KEY = 'bbID'
@@ -205,15 +207,9 @@ def split0_to_fork(nx_graph):
                 nx_graph.remove_node(node)
 
 def remove_MC_and_sink_tags(nx_graph):
-    exit_node = None
-    for node, data in nx_graph.nodes(data=True):
-        if data["type"] == '"Exit"':
-            exit_node = node
-            break
-    else:
-        print("Exit node not found")
-        return
-
+    t = gc.find_node_of_type(nx_graph, "Exit")
+    if t is None: return
+    exit_node, exit_data = t
     count = 0
     for node, data in nx_graph.nodes(data=True):
         if data["type"] == '"MC"':
@@ -225,22 +221,79 @@ def remove_MC_and_sink_tags(nx_graph):
             edge = nx_graph[node].get(exit_node, [None])[0]
             if edge is not None: nx_graph.remove_edge(node, exit_node)
             nx_graph.add_edge(node, exit_node, **{"from": f'"{exit_port}"', "to": f'"in{count+1}"'})
-            count = count + 1
+            count += 1
         if data["type"] == '"Sink"':
             data.pop("tagged", None)
             data["bbID"] = 0
             data.pop("taggers_num", None)
             data.pop("tagger_id", None)
 
+    exit_data["in"] = ' '.join([f'in{x+1}:0*e' for x in range(0, count)] + [f'in{count+1}:32'])
+    exit_data["out"] = '"out1:32"'
+
+def fix_port_names(nx_graph):
+    for node, data in nx_graph.nodes(data=True):
+        if gc.get_data(data, "type") == 'Branch':
+            size = gc.get_data(data, "out").split()[0].split(':')[1]
+            data['in'] = f'in1:{size} in2?:1'
+            data['out'] = f'out1+:{size} out2-:{size}'
+
+def to_cntrl_merge(nx_graph):
+    t = gc.find_node_of_type(nx_graph, "TaggerUntagger")
+    if t is None: return
+    mid, _, mdata = gc.get_output_and_check(nx_graph, t[0], "out1", "Merge")
+    mdata["type"] = '"CntrlMerge"'
+    mdata["out"] = gc.get_data(mdata, "out") + " out2?:1"
+    mdata["delay"] = "0.366"
+    nx_graph.add_node(mid + "_sink", **{
+        "type": '"Sink"',
+        "in": "in1:1",
+        "bbID": "0",
+        "tagged": "false",
+        "taggers_num": "0",
+        "tagger_id": "0",
+    })
+
+    nx_graph.add_edge(mid, mid+"_sink", **{'from': '"out2"', 'to': '"in1"'})
+
+def combine_mc_shards(nx_graph):
+    for node, data in list(nx_graph.nodes(data=True)):
+        if gc.get_data(data, 'type') == 'MC' and 'graphiti_metadata' in data:
+            # We basically have json inside of a json string
+            meta = json.loads(json.loads(data['graphiti_metadata']))
+            if 'parent_mc' in meta:
+                nid, inP = gc.get_output(nx_graph, node, 'out1')
+                _, outP = gc.get_input(nx_graph, node, 'in1')
+                nx_graph.add_edge(meta['parent_mc'], nid, **{'from': f'"out{meta['shard_num']+1}"', 'to': inP})
+                nx_graph.add_edge(nid, meta['parent_mc'], **{'from': outP, 'to': f'"in{meta['shard_num']+1}"'})
+                nx_graph.remove_node(node)
+            elif 'in' in meta:
+                data['in'] = meta['in']
+                data['out'] = meta['out']
+
+def remove_graphiti_metadata(nx_graph):
+    for node, data in nx_graph.nodes(data=True):
+        if 'graphiti_metadata' in data:
+            del data['graphiti_metadata']
+
 def process_dot(tag_num, input_path, output_path):
     nx_graph = gc.parse_dot(input_path)
     find_all_bbID(nx_graph)
+    to_cntrl_merge(nx_graph)
+    combine_mc_shards(nx_graph)
     add_tagger_info(nx_graph)
     translate_tagger(nx_graph, tag_num)
     concat0_to_sink(nx_graph)
     split0_to_fork(nx_graph)
     remove_MC_and_sink_tags(nx_graph)
+    fix_port_names(nx_graph)
+    remove_graphiti_metadata(nx_graph)
     gc.write_dot(output_path, nx_graph)
 
 if __name__ == "__main__":
-    process_dot(int(sys.argv[1]), sys.argv[2], sys.argv[3])
+    parser = argparse.ArgumentParser(description='Convert a Graphiti graph back into a graph ready for Dynamatic.')
+    parser.add_argument('input', help='input graph from Graphiti')
+    parser.add_argument('--output', '-o', help='path for output graph')
+    parser.add_argument('--tags', '-t', help='number of tags to allocate')
+    args = parser.parse_args()
+    process_dot(int(args.tags), args.input, args.output)

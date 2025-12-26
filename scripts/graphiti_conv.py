@@ -38,28 +38,8 @@ def get_input(nx_graph, node_id, port_id):
     return [(x[0], x[2]["from"]) for x in in_edges if x[2]["to"].strip('"') == port_id][0]
 
 def get_output(nx_graph, node_id, port_id):
-    in_edges = nx_graph.out_edges(node_id, data=True)
+    out_edges = nx_graph.out_edges(node_id, data=True)
     return [(x[1], x[2]["to"]) for x in out_edges if x[2]["from"].strip('"') == port_id][0]
-
-def find_node_of_type(nx_graph, node_type):
-    for node, data in nx_graph.nodes(data=True):
-        if data["type"].strip('"') == node_type:
-            return (node, data)
-    else: return None
-
-def first_bitwidth(s):
-    return s.split()[0].split(':')[1]
-
-def get_sizes(data, inout):
-    [x.split(":")[1] for x in data[inout].split()]
-
-def get_size_0(data, inout):
-    if data[inout].split()[0].split(":")[1] == "0":
-        return (f'"{inout}1"', f'"{inout}2"', data[inout].split()[1].split(":")[1])
-    elif data[inout].split()[1].split(":")[1] == "0":
-        return (f'"{inout}2"', f'"{inout}1"', data[inout].split()[0].split(":")[1])
-    else:
-        return None
 
 def get_input_and_check(nx_graph, node_id, inp, typ):
     prev_node = get_input(nx_graph, node_id, inp)
@@ -78,6 +58,30 @@ def get_output_and_check(nx_graph, node_id, out, typ):
         raise Exception(f'could not find {typ} for {node_id}/{out}')
 
     return (next_node[0], next_node[1], next_node_data)
+
+def find_nodes_of_type(nx_graph, node_type):
+    ret = []
+    for node, data in nx_graph.nodes(data=True):
+        if get_data(data, "type") == node_type:
+            ret += [(node, data)]
+    return ret
+
+def find_node_of_type(nx_graph, node_type):
+    return find_nodes_of_type(nx_graph, node_type)[0]
+
+def first_bitwidth(s):
+    return s.split()[0].split(':')[1]
+
+def get_sizes(data, inout):
+    [x.split(":")[1] for x in data[inout].split()]
+
+def get_size_0(data, inout):
+    if data[inout].split()[0].split(":")[1] == "0":
+        return (f'"{inout}1"', f'"{inout}2"', data[inout].split()[1].split(":")[1])
+    elif data[inout].split()[1].split(":")[1] == "0":
+        return (f'"{inout}2"', f'"{inout}1"', data[inout].split()[0].split(":")[1])
+    else:
+        return None
 
 def get_data(node_data, key):
     return node_data[key].strip('"').strip()

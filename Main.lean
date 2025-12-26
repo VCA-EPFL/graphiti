@@ -232,6 +232,8 @@ def rewriteGraph (status : Std.Mutex String) (parsed : CmdArgs) (g : ExprHigh St
     let (_, st) ← runRewriter' parsed st <| addRuntimeEntry <| {RuntimeEntry.debugEntry (toString rewrittenExprHigh) with name := "debug5"}
     let (rewrittenExprHigh, st) ← eggPureGenerator 100 parsed BranchPureMuxRight.matchPreAndPost rewrittenExprHigh st
     let (rewrittenExprHigh, st) ← runRewriter parsed rewrittenExprHigh st <| withUndo <| rewrite_loop [BranchPureMuxLeft.rewrite, BranchPureMuxRight.rewrite, BranchMuxToPure.rewrite] rewrittenExprHigh
+    /- let graph ← IO.ofExcept (toPattern (n := 0) LoopRewrite.boxLoopBody rewrittenExprHigh)
+     - IO.print graph.1 -/
     let (rewrittenExprHigh, st) ← runRewriter parsed rewrittenExprHigh st <| withUndo <| pureGeneration rewrittenExprHigh <| toPattern (n := 0) LoopRewrite.boxLoopBody
     eggPureGenerator 100 parsed LoopRewrite.boxLoopBodyOther rewrittenExprHigh st
   let (rewrittenExprHigh, st) ← new_section "3. Applying the loop rewrite." st <|
