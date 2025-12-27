@@ -2,3 +2,4 @@
 - When compiling the GCD, the default version works, however, substituting ~b~ with a constant 100 leads to a weird error in simulation. (Maybe this was because buffering was not happening).
 - When turning the loop into a ~do while~ loop, the dynamatic compiler crashes.
 - For MVT ~cst_16~ has the wrong type
+- Undefined behaviour means dynamatic cannot be recompiled
