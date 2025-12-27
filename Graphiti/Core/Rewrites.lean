@@ -48,7 +48,7 @@ namespace Graphiti
 
 def rewrite_index :=
   rewrites_to_map
-    [ LoopRewrite2.rewrite
+    [ LoopRewrite2.rewrite .none
     , CombineBranch.rewrite
     , CombineMux.rewrite
     , JoinSplitLoopCond.rewrite

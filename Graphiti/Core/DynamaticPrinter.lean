@@ -109,16 +109,18 @@ def translateTypes  (key : String) : Option String × String × String × List (
 def removeLetter (ch : Char) (s : String) : String :=
   String.mk (s.toList.filter (λ c => c ≠ ch))
 
+#check String
+
 -- Function became messy...
-def formatOptions : List (String × String) → String
+def formatOptions (isMC : Bool) : List (String × String) → String
 | x :: l => l.foldl
     (λ s (sl, sr) =>
       let v1 := if sl = "in" then removeLetter 'p' sr else sr
-      let v1_ := if sl = "bbID" || sl = "bbcount" || sl = "ldcount" || sl = "stcount" || sl = "II" || sl = "latency" || sl = "delay" || sl = "tagger_id" || sl = "taggers_num" || sl = "tagged" || sl = "offset" || sl = "portId"  then s!"{v1}" else s!"\"{v1}\""
-      s ++ s!", {sl} = {v1_}")
+      let v1_ := if sl = "bbID" || sl = "bbcount" || sl = "ldcount" || sl = "stcount" || sl = "II" || sl = "latency" || sl = "delay" || sl = "tagger_id" || sl = "taggers_num" || sl = "tagged" || sl = "offset" || sl = "portId"  then s!"{v1}" else s!"\"{v1.replace "\"" "\\\""}\""
+      if (sl == "in" || sl == "out") && !isMC then s else s ++ s!", {sl} = {v1_}")
     (let v2 := if x.1 = "in" then (removeLetter 'p' x.2) else x.2
      let v2_ := if x.1= "bbID" ||  x.1 = "bbcount" ||  x.1 = "ldcount" ||  x.1 = "stcount" || x.1 = "II" || x.1 = "latency" || x.1 = "delay" || x.1 = "tagger_id" || x.1 = "taggers_num" || x.1 = "tagged" || x.1 = "offset" || x.1 = "portId" then s!"{v2}" else s!"\"{v2}\""
-     s!", {x.1}={v2_}")
+     if (x.1 == "in" || x.1 == "out") && !isMC then "" else s!", {x.1}={v2_}")
 | [] => ""
 
 def inferTypeInPortMap (t : TypeUF) (p : PortMap String (InternalPort String)) (sn : String × Nat) : Except String (PortMap String TypeExpr) :=
@@ -149,10 +151,13 @@ def dynamaticString (a: ExprHigh String (String × Nat)) (t : TypeUF) (m : Assoc
         let typeName := graphitiToDynamatic v.2.1 |>.1
         match m.find? k with
         | some input_fmt =>
+          let shouldNotInfer := (v.2.1 == "mc" || graphitiPrefix.isPrefixOf v.2.1)
+          let typs ← if shouldNotInfer then pure (∅, ∅) else inferTypeInPortMapping t v.1.canonPortMapping v.2
           -- If the node is found to be coming from the input,
           -- retrieve its attributes from what we saved and bypass it
           -- without looking for it in interfaceTypes
-          return s ++ s!"\"{k}\" [type = \"{typeName}\"{formatOptions input_fmt.toList}];\n"
+          let formatInOut := if shouldNotInfer then "" else s!", in = \"{toPortList typs.1}\", out = \"{toPortList typs.2}\""
+          return s ++ s!"\"{k}\" [type = \"{typeName}\"{formatOptions shouldNotInfer input_fmt.toList}{formatInOut}];\n"
         | none =>
           let typs ← inferTypeInPortMapping t v.1.canonPortMapping v.2
           -- If this is a new node, then we sue `fmt` to correctly add the right

@@ -11,10 +11,10 @@ namespace Graphiti.LoopRewrite2
 
 open StringModule
 
-def matcher : Pattern String (String × Nat) 6 := fun g => do
+def matcher (initNode : Option String) : Pattern String (String × Nat) 6 := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
        if s.isSome then return s
-       unless typ.1 = "initBool" do return none
+       unless (match initNode with | .some initNode' => inst == initNode' | .none => typ.1 == "initBool") do return none
 
        let (.some mux) := followOutput g inst "out1" | return none
        unless "mux" == mux.typ.1 do return none
@@ -103,10 +103,10 @@ def rhs_extract := (rhs T M).extract ["branch", "tag_split", "mod", "merge", "ta
 def rhsLower := (rhs_extract T M).fst.lower.get rfl
 def findRhs mod := (rhs_extract #v[0, 0, 0, 0, 0, 0] 0).fst.modules.find? mod |>.map Prod.fst
 
-def rewrite : Rewrite String (String × Nat) :=
+def rewrite (initNode : Option String) : Rewrite String (String × Nat) :=
   {
     params := 6
-    pattern := matcher,
+    pattern := matcher initNode,
     rewrite := λ l n => ⟨lhsLower l, rhsLower l n⟩
     name := .some "loop-rewrite"
     transformedNodes := [ .none, .none, findRhs "branch" |>.get rfl

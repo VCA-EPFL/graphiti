@@ -259,6 +259,7 @@ def dotToExprHigh (d : Parser.DotGraph) : Except String (ExprHigh String String 
       let mut current_extra_args : AssocList String String := ∅
 
       current_extra_args ← addOpt current_extra_args "bbID"
+      current_extra_args ← addOpt current_extra_args "graphiti_metadata"
 
       let some typ := l.find? (·.key = "type")
         | throw s!"{s}: could not find instance type"

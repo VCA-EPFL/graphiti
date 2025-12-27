@@ -11,10 +11,10 @@ namespace Graphiti.LoopRewrite
 
 open StringModule
 
-def boxLoopBody (g : ExprHigh String (String × Nat)) : RewriteResultSL (List String × List (Connection String)) := do
+def boxLoopBody (initNode : Option String) (g : ExprHigh String (String × Nat)) : RewriteResultSL (List String × List (Connection String)) := do
  let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
       if s.isSome then return s
-      unless typ.1 = "initBool" do return none
+      unless (match initNode with | .some initNode' => inst == initNode' | .none => typ.1 == "initBool") do return none
 
       let (.some mux) := followOutput g inst "out1" | return none
       unless "mux" == mux.typ.1 && mux.inputPort = "in1" do return none
@@ -40,10 +40,10 @@ def boxLoopBody (g : ExprHigh String (String × Nat)) : RewriteResultSL (List St
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
-def boxLoopBodyOther : Pattern String (String × Nat) 0 := fun g => do
+def boxLoopBodyOther (initNode : Option String) : Pattern String (String × Nat) 0 := fun g => do
  let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
       if s.isSome then return s
-      unless typ.1 == "initBool" do return none
+      unless (match initNode with | .some initNode' => inst == initNode' | .none => typ.1 == "initBool") do return none
 
       let (.some mux) := followOutput g inst "out1" | return none
       unless "mux" == mux.typ.1 && mux.inputPort = "in1" do return none
@@ -75,9 +75,9 @@ def boxLoopBodyOther' : Pattern String (String × Nat) 0 := fun g => do
   let (.cons out _ .nil) := g.modules.filter (λ _ (p, _) => p.output.any (λ a b => b.inst.isTop)) | throw .done
   return ([inp, out], #v[])
 
-def nonPureMatcher {n} : Pattern String (String × Nat) n := Graphiti.nonPureMatcher <| toPattern boxLoopBody
+def nonPureMatcher {n} (initNode : String) : Pattern String (String × Nat) n := Graphiti.nonPureMatcher <| toPattern (boxLoopBody initNode)
 
-def nonPureForkMatcher {n} : Pattern String (String × Nat) n := Graphiti.nonPureForkMatcher <| toPattern boxLoopBody
+def nonPureForkMatcher {n} (initNode : String) : Pattern String (String × Nat) n := Graphiti.nonPureForkMatcher <| toPattern (boxLoopBody initNode)
 
 def matcher : Pattern String (String × Nat) 8 := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
