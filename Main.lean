@@ -27,10 +27,11 @@ structure CmdArgs where
   noDynamaticDot : Bool := false
   blueSpecDot : Bool := false
   parseOnly : Bool := false
-  graphitiOracle : String := "graphiti_oracle"
+  graphitiOracle : Option String := .none
   fast : Bool := false
   reverse : Bool := true
   help : Bool := false
+  graphitiDir := "."
 deriving Inhabited, Repr
 
 def CmdArgs.empty : CmdArgs := {}
@@ -215,7 +216,7 @@ def eggPureGenerator {n} (fuel : Nat) (parsed : CmdArgs) (p : Pattern String (St
     throw <| .userError s!"{decl_name%}: no fuel"
   | fuel+1 =>
     let jsRw ←
-      try rewriteWithEgg (eggCmd := parsed.graphitiOracle) p g
+      try rewriteWithEgg (eggCmd := parsed.graphitiOracle.getD (s!"{parsed.graphitiDir}/bin/graphiti_oracle")) p g
       catch | e => writeLogFile parsed st *> throw e
     if jsRw.length = 0 then return (g, st)
     /- IO.eprintln (repr jsRw) -/
@@ -336,6 +337,7 @@ def print_msg (n : Fin 4) (prev : String) : IO String := do
   return prev'
 
 def main (args : List String) : IO Unit := timeit "Total: " do
+  let graphiti_dir ← IO.getEnv "GRAPHITI_REPO" |>.map (·.getD ".")
   let parsed ←
     try IO.ofExcept <| parseArgs <| args.flatMap preprocess
     catch
@@ -344,6 +346,8 @@ def main (args : List String) : IO Unit := timeit "Total: " do
       IO.print helpText
       IO.Process.exit 1
     | e => throw e
+
+  let parsed := {parsed with graphitiDir := graphiti_dir}
 
   if parsed.help then
     IO.print helpText
@@ -366,7 +370,7 @@ def main (args : List String) : IO Unit := timeit "Total: " do
         let _ ← IO.Process.run {
             cmd := parsed.pythonInterpreter.splitOn.head!,
             args := parsed.pythonInterpreter.splitOn.tail!.toArray
-                    ++ #["./scripts/dynamatic-to-graphiti.py", "--output", toString fn, "--mux-ids"]
+                    ++ #["--project", graphiti_dir, s!"{graphiti_dir}/scripts/dynamatic-to-graphiti.py", "--output", toString fn, "--mux-ids"]
                     ++ parsed.mids.toArray
                     ++ #["--", toString parsed.inputFile.get!]
           }
@@ -413,7 +417,7 @@ def main (args : List String) : IO Unit := timeit "Total: " do
         let _ ← IO.Process.run {
             cmd := parsed.pythonInterpreter.splitOn.head!,
             args := parsed.pythonInterpreter.splitOn.tail!.toArray
-                    ++ #[ "./scripts/graphiti-to-dynamatic.py", "--output", toString ofile, "--tags"
+                    ++ #[ "--project", graphiti_dir, s!"{graphiti_dir}/scripts/graphiti-to-dynamatic.py", "--output", toString ofile, "--tags"
                         , toString parsed.tagNums, toString fn
                         ]
           }
