@@ -131,7 +131,7 @@ def rearrange_forks_with_mux(nx_graph):
                 nx_graph.add_node(f'{node}_branch', **{
                     "type": '"Fork"',
                     "in": f"in1:{size}",
-                    "out": ' '.join([f'out{x}:{size}' for x in range(0, len(branches))]),
+                    "out": ' '.join([f'out{x+1}:{size}' for x in range(0, len(branches))]),
                     "bbID": gc.get_data(data, 'bbID'),
                     "tagged": gc.get_data(data, 'tagged'),
                     "taggers_num": gc.get_data(data, 'taggers_num'),
@@ -140,7 +140,7 @@ def rearrange_forks_with_mux(nx_graph):
                 nx_graph.add_node(f'{node}_mux', **{
                     "type": '"Fork"',
                     "in": f"in1:{size}",
-                    "out": ' '.join([f'out{x}:{size}' for x in range(0, len(muxes))]),
+                    "out": ' '.join([f'out{x+1}:{size}' for x in range(0, len(muxes))]),
                     "bbID": gc.get_data(data, 'bbID'),
                     "tagged": gc.get_data(data, 'tagged'),
                     "taggers_num": gc.get_data(data, 'taggers_num'),
