@@ -121,6 +121,50 @@ def remove_load_mc_connections_to_exit(nx_graph):
             edge = nx_graph[node].get(exit_node, [None])[0]
             if edge is not None: nx_graph.remove_edge(node, exit_node)
 
+def rearrange_forks_with_mux(nx_graph):
+    for node, data in list(nx_graph.nodes(data=True)):
+        if gc.get_data(data, 'type') == 'Fork':
+            branches = [(out[1], out[2]['to']) for out in nx_graph.out_edges(node, data=True) if gc.get_data(nx_graph.nodes[out[1]], 'type') == 'Branch']
+            muxes = [(out[1], out[2]['to']) for out in nx_graph.out_edges(node, data=True) if gc.get_data(nx_graph.nodes[out[1]], 'type') == 'Mux']
+            size = gc.get_data(data, "out").split()[0].split(':')[1]
+            if len(branches) > 0 and len(muxes) > 0 and len(branches) + len(muxes) == len(nx_graph.out_edges(node, data=True)) and size == '1':
+                nx_graph.add_node(f'{node}_branch', **{
+                    "type": '"Fork"',
+                    "in": f"in1:{size}",
+                    "out": ' '.join([f'out{x}:{size}' for x in range(0, len(branches))]),
+                    "bbID": gc.get_data(data, 'bbID'),
+                    "tagged": gc.get_data(data, 'tagged'),
+                    "taggers_num": gc.get_data(data, 'taggers_num'),
+                    "tagger_id": gc.get_data(data, 'tagger_id'),
+                })
+                nx_graph.add_node(f'{node}_mux', **{
+                    "type": '"Fork"',
+                    "in": f"in1:{size}",
+                    "out": ' '.join([f'out{x}:{size}' for x in range(0, len(muxes))]),
+                    "bbID": gc.get_data(data, 'bbID'),
+                    "tagged": gc.get_data(data, 'tagged'),
+                    "taggers_num": gc.get_data(data, 'taggers_num'),
+                    "tagger_id": gc.get_data(data, 'tagger_id'),
+                })
+                nx_graph.add_node(f'{node}_top', **{
+                    "type": '"Fork"',
+                    "in": f"in1:{size}",
+                    "out": f'out1:{size} out2:{size}',
+                    "bbID": gc.get_data(data, 'bbID'),
+                    "tagged": gc.get_data(data, 'tagged'),
+                    "taggers_num": gc.get_data(data, 'taggers_num'),
+                    "tagger_id": gc.get_data(data, 'tagger_id'),
+                })
+                for idx, (nid, port) in enumerate(branches):
+                    nx_graph.add_edge(f'{node}_branch', nid, **{'from': f'"out{idx+1}"', 'to': port})
+                for idx, (nid, port) in enumerate(muxes):
+                    nx_graph.add_edge(f'{node}_mux', nid, **{'from': f'"out{idx+1}"', 'to': port})
+                nx_graph.add_edge(f'{node}_top', f'{node}_mux', **{'from': f'"out2"', 'to': '"in1"'})
+                nx_graph.add_edge(f'{node}_top', f'{node}_branch', **{'from': f'"out1"', 'to': '"in1"'})
+                nid, port = gc.get_input(nx_graph, node, 'in1')
+                nx_graph.add_edge(nid, f'{node}_top', **{'from': port, 'to': '"in1"'})
+                nx_graph.remove_node(node)
+
 def process_dot(input_path, output_path, mux_ids):
     nx_graph = gc.parse_dot(input_path)
 
@@ -132,6 +176,8 @@ def process_dot(input_path, output_path, mux_ids):
     # Split up MCs
     remove_load_mc_connections_to_exit(nx_graph)
     split_mc(nx_graph)
+
+    rearrange_forks_with_mux(nx_graph)
 
     gc.write_dot(output_path, nx_graph)
 
