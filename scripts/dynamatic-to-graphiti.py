@@ -127,25 +127,11 @@ def rearrange_forks_with_mux(nx_graph):
             branches = [(out[1], out[2]['to']) for out in nx_graph.out_edges(node, data=True) if gc.get_data(nx_graph.nodes[out[1]], 'type') == 'Branch']
             muxes = [(out[1], out[2]['to']) for out in nx_graph.out_edges(node, data=True) if gc.get_data(nx_graph.nodes[out[1]], 'type') == 'Mux']
             size = gc.get_data(data, "out").split()[0].split(':')[1]
+
+            # This matches a dataflow if-statement
             if len(branches) > 0 and len(muxes) > 0 and len(branches) + len(muxes) == len(nx_graph.out_edges(node, data=True)) and size == '1':
-                nx_graph.add_node(f'{node}_branch', **{
-                    "type": '"Fork"',
-                    "in": f"in1:{size}",
-                    "out": ' '.join([f'out{x+1}:{size}' for x in range(0, len(branches))]),
-                    "bbID": gc.get_data(data, 'bbID'),
-                    "tagged": gc.get_data(data, 'tagged'),
-                    "taggers_num": gc.get_data(data, 'taggers_num'),
-                    "tagger_id": gc.get_data(data, 'tagger_id'),
-                })
-                nx_graph.add_node(f'{node}_mux', **{
-                    "type": '"Fork"',
-                    "in": f"in1:{size}",
-                    "out": ' '.join([f'out{x+1}:{size}' for x in range(0, len(muxes))]),
-                    "bbID": gc.get_data(data, 'bbID'),
-                    "tagged": gc.get_data(data, 'tagged'),
-                    "taggers_num": gc.get_data(data, 'taggers_num'),
-                    "tagger_id": gc.get_data(data, 'tagger_id'),
-                })
+
+                # Add a fork that feeds a tree of branches(out1) and a tree of muxes(out2)
                 nx_graph.add_node(f'{node}_top', **{
                     "type": '"Fork"',
                     "in": f"in1:{size}",
@@ -155,12 +141,39 @@ def rearrange_forks_with_mux(nx_graph):
                     "taggers_num": gc.get_data(data, 'taggers_num'),
                     "tagger_id": gc.get_data(data, 'tagger_id'),
                 })
-                for idx, (nid, port) in enumerate(branches):
-                    nx_graph.add_edge(f'{node}_branch', nid, **{'from': f'"out{idx+1}"', 'to': port})
-                for idx, (nid, port) in enumerate(muxes):
-                    nx_graph.add_edge(f'{node}_mux', nid, **{'from': f'"out{idx+1}"', 'to': port})
-                nx_graph.add_edge(f'{node}_top', f'{node}_mux', **{'from': f'"out2"', 'to': '"in1"'})
-                nx_graph.add_edge(f'{node}_top', f'{node}_branch', **{'from': f'"out1"', 'to': '"in1"'})
+
+                if len(branches) > 1:
+                    nx_graph.add_node(f'{node}_branch', **{
+                        "type": '"Fork"',
+                        "in": f"in1:{size}",
+                        "out": ' '.join([f'out{x+1}:{size}' for x in range(0, len(branches))]),
+                        "bbID": gc.get_data(data, 'bbID'),
+                        "tagged": gc.get_data(data, 'tagged'),
+                        "taggers_num": gc.get_data(data, 'taggers_num'),
+                        "tagger_id": gc.get_data(data, 'tagger_id'),
+                    })
+                    for idx, (nid, port) in enumerate(branches):
+                        nx_graph.add_edge(f'{node}_branch', nid, **{'from': f'"out{idx+1}"', 'to': port})
+                    nx_graph.add_edge(f'{node}_top', f'{node}_branch', **{'from': f'"out1"', 'to': '"in1"'})
+                else:
+                    nx_graph.add_edge(f'{node}_top', branches[0][0], **{'from': f'"out1"', 'to': branches[0][1]})
+
+                if len(muxes) > 1:
+                    nx_graph.add_node(f'{node}_mux', **{
+                        "type": '"Fork"',
+                        "in": f"in1:{size}",
+                        "out": ' '.join([f'out{x+1}:{size}' for x in range(0, len(muxes))]),
+                        "bbID": gc.get_data(data, 'bbID'),
+                        "tagged": gc.get_data(data, 'tagged'),
+                        "taggers_num": gc.get_data(data, 'taggers_num'),
+                        "tagger_id": gc.get_data(data, 'tagger_id'),
+                    })
+                    for idx, (nid, port) in enumerate(muxes):
+                        nx_graph.add_edge(f'{node}_mux', nid, **{'from': f'"out{idx+1}"', 'to': port})
+                    nx_graph.add_edge(f'{node}_top', f'{node}_mux', **{'from': f'"out2"', 'to': '"in1"'})
+                else:
+                    nx_graph.add_edge(f'{node}_top', muxes[0][0], **{'from': f'"out2"', 'to': muxes[0][1]})
+
                 nid, port = gc.get_input(nx_graph, node, 'in1')
                 nx_graph.add_edge(nid, f'{node}_top', **{'from': port, 'to': '"in1"'})
                 nx_graph.remove_node(node)

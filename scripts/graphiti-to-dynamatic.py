@@ -31,7 +31,7 @@ def find_tagger_or_untagger(node, graph):
 
     # If we have a tagger, we just set tagged to false and move on.
     node_attr = graph.nodes[node]
-    if gc.get_data(node_attr, 'type') == "TaggerUntagger" or gc.get_data(node_attr, 'type') == "Entry":
+    if gc.get_data(node_attr, 'type') == "TaggerUntagger" or gc.get_data(node_attr, 'type') == "Entry" or gc.get_data(node_attr, 'type') == "Exit":
         return False
 
     # For any other node, we check if we are in the tagger or outside of it.
@@ -42,7 +42,17 @@ def find_tagger_or_untagger(node, graph):
         if gc.get_data(node_attr, 'type') == "TaggerUntagger":
             return graph[prev_node][node][0]["to"] == "\"in1\""
 
-        if gc.get_data(node_attr, 'type') == "Entry" or gc.get_data(node_attr, 'type') == "Exit":
+        if gc.get_data(node_attr, 'type') == "Exit":
+            return False
+
+        prev_node = node
+
+    prev_node = node
+    for node in nx.dfs_preorder_nodes(graph.reverse(), source=start_node):
+        if gc.get_data(node_attr, 'type') == "TaggerUntagger":
+            return graph[prev_node][node][0]["from"] == "\"out1\""
+
+        if gc.get_data(node_attr, 'type') == "Entry":
             return False
 
         prev_node = node
