@@ -1,5 +1,4 @@
 benchmark,cycle count df_io,cycle count df_ooo,cycle count graphiti,cycle count vericert,clock period df_io,clock period df_ooo,clock period graphiti,clock period vericert,execution time df_io,execution time df_ooo,execution time graphiti,execution time vericert,mult 1,mult 2,luts 1,luts 2,luts 3,ff df_io,ff df_ooo,ff graphiti,ff vericert,dsps
-img-avg,1722,634,750,4123,6.4,7.14,7.4,4.878,11.1,4.5,5.5,20.111994,,,1415,1644,2127,1320,1214,1531,922,5
 gsum-many,68523,36636,37430,118096,7.91,7.8,7.5,4.811,541.8,287.4,281.9,568.159856,,,2835,3454,3793,3256,3638,3781,1283,22
 gsum-single,6703,9234,9334,18798,6.9,9,9.1,4.747,46.3,83,85.6,89.234106,,,2736,2286,3361,3142,2974,3512,1281,22
 gemm,68825,8278,8698,252913,6.75,7.86,8.2,4.03,464.8,65.1,71.7,1019.23939,,,3214,5363,5661,2693,3840,5131,1505,11
