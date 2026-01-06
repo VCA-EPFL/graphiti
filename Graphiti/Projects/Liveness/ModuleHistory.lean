@@ -51,7 +51,10 @@ theorem generate_history_correct1_base {m : Module Ident S} {t : Trace Ident} :
       simp [generate_history] at relInt
       rcases relInt with ⟨ r', relInt', h_rel ⟩
       rw [← h_rel] at h_step
-      sorry
+      rcases h_step with ⟨ rel12, hist12 ⟩
+      simp at hist12
+      rw [hist12]
+      exact ih
 
 theorem generate_history_correct1_star {m : Module Ident S} {t1 t2 : Trace Ident} :
   ∀ s1 s2,
