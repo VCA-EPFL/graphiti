@@ -30,15 +30,7 @@ theorem generate_history_correct1_base {m : Module Ident S} {t : Trace Ident} :
     simp at *; subst_vars
     cases h_step --<;> try rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
     case input _ ip a b c d =>
-      -- rw [PortMap.rw_rule_execution (by simp [drunfold, generate_history]; rfl)] at *
-      -- simp [List.getD, Option.map, Option.getD, generate_history, List.find?] at d
-      -- cases d
-      -- simp [generate_history] at d
-
-      subst_vars
-      simp at *
-
-      rw [PortMap.rw_rule_execution (by simp [drunfold, generate_history]; rfl)] at d
+      rw [PortMap.rw_rule_execution (by simp [generate_history]; rfl)] at *
 
       sorry
 
