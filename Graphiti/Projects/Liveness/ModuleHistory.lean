@@ -46,8 +46,7 @@ theorem generate_history_correct1_base {m : Module Ident S} {t : Trace Ident} :
 
     case output => sorry
     case internal _ r relInt h_step =>
-      simp at *
-      -- rcases s1' with ⟨ ⟨ st1hist, st1 ⟩, mod1 ⟩; rcases new_s with ⟨ stnew, s1hist ⟩ ; simp at *; subst_vars
+      simp at ih
       simp [generate_history] at relInt
       rcases relInt with ⟨ r', relInt', h_rel ⟩
       rw [← h_rel] at h_step
@@ -56,49 +55,11 @@ theorem generate_history_correct1_base {m : Module Ident S} {t : Trace Ident} :
       rw [hist12]
       exact ih
 
-theorem generate_history_correct1_star {m : Module Ident S} {t1 t2 : Trace Ident} :
-  ∀ s1 s2,
-  @reachable _ _ (Module.state_transition (generate_history m)) t1 s1
-  → @star _ _ (Module.state_transition (generate_history m)) s1 t2 s2
-  → s1.module = (generate_history m)
-  → s1.state.1 = t1
-  → s2.state.1 = t1++t2
-  := by
-    intros s1 s2 h_reach_s1 h_s1_star_s2 h_mod h_hist_s1
-    induction h_s1_star_s2
-    case refl s3 =>
-      simp; exact h_hist_s1
-    case step s3 s4 s5 t3 t4 h_step h_star ih =>
-
-
-      sorry
-
 theorem generate_history_correct1 {m : Module Ident S} {t : Trace Ident} :
   ∀ s', @reachable _ _ (Module.state_transition (generate_history m)) t s' → s'.state.1 = t := by
   intros s_end h_reach
-  have h_reach_end := h_reach
-  obtain ⟨ s_init, ⟨ h_init, h_mod ⟩, h_star ⟩ := h_reach
-  have h_reach_start : @reachable _ _ (Module.state_transition (generate_history m)) [] s_init := by
-    unfold reachable
-    exists s_init
-    apply And.intro
-    . unfold StateTransition.init
-      apply And.intro
-      . assumption
-      . assumption
-    . apply @star.refl _ _ (Module.state_transition (generate_history m))
-
-  simp [ Module.state_transition] at h_init;
+  have ⟨ s_init, ⟨ h_init, h_mod ⟩, h_star ⟩ := h_reach
   have ⟨ h_init_state, h_empty_hist ⟩ := h_init
-
-  -- have h_rec := generate_history_correct1_star _ _ h_reach_start h_star h_mod
-  -- apply h_rec
-  -- exact h_empty_hist
-
-  -- induction h_star
-  -- . assumption
-  -- case step s1 s2 s3 t1 t2 t3 h_step s_star ih =>
-  --   sorry
 
   have h_rec := generate_history_correct1_base s_init s_end h_star h_mod
   rw [h_empty_hist] at h_rec
@@ -107,6 +68,33 @@ theorem generate_history_correct1 {m : Module Ident S} {t : Trace Ident} :
 
 theorem generate_history_correct2 {m : Module Ident S} {s} {t : Trace Ident} :
   @reachable _ _ (Module.state_transition m) t s →
-  ∃ s', @reachable _ _ (Module.state_transition (generate_history m)) t s' ∧ s'.state.2 = s.state := by sorry
+  ∃ s', @reachable _ _ (Module.state_transition (generate_history m)) t s' ∧ s'.state.2 = s.state := by
+  intro h_reach
+  have ⟨ s_init, ⟨ h_init, h_mod ⟩, h_star ⟩ := h_reach
+  rcases s_init with ⟨ st_init, mod_init ⟩;
+
+  let s'_mod := generate_history m
+  let s'_state : (Trace Ident × S) := (t, s.state) -- now need to prove real_s' is reachable
+  exists { state := s'_state, module := s'_mod }
+  apply And.intro
+  case left =>
+    unfold reachable
+    let st_init' : (Trace Ident × S) := ([], st_init)
+    exists { state := st_init', module := s'_mod }
+    apply And.intro
+    case left =>
+      simp [StateTransition.init, Module.state_transition]
+      apply And.intro
+      case left =>
+        simp [generate_history]
+        constructor
+        . assumption
+        . constructor
+      . constructor
+    case right =>
+      sorry
+  . constructor
+
+
 
 end Graphiti.History
