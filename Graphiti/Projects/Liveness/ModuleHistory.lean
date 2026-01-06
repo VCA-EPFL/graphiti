@@ -30,11 +30,26 @@ theorem generate_history_correct1_base {m : Module Ident S} {t : Trace Ident} :
     simp at *; subst_vars
     cases h_step --<;> try rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
     case input _ ip a b c d =>
-      rw [PortMap.rw_rule_execution (by simp [generate_history]; rfl)] at *
+      rw [← List.append_assoc]
+      have h: st1hist ++ [IOEvent.input ip b] = st2hist := by
+        rw [PortMap.rw_rule_execution (by simp [generate_history]; rfl)] at *
+        simp [PortMap.getIO] at d
+        -- rw [Batteries.AssocList.find?_mapVal] at d
 
-      sorry
+        sorry
+      rw [h]
+      simp at *
+      assumption
 
-      -- intros h_mod
+
+      -- rw [Batteries.AssocList.find?_mapVal] at d
+
+      -- conv at d =>
+      --   fun
+      --   fun
+      --   fun
+        -- tactic =>
+          -- rewrite [(Batteries.AssocList.find?_mapVal)]
 
     case output => sorry
     case internal _ r relInt h_step =>
