@@ -75,8 +75,8 @@ open Stream
 open VerilogExport
 
 def not_m : NatModule D :=
-  { inputs := [(0, ⟨ D, λ s tt s' => more_defined s tt ∧ s' = not (delay false tt) ⟩)].toAssocList,
-    outputs := [(0, ⟨ D, λ s tt s' => s = s' ∧ s = tt⟩)].toAssocList
+  { inputs := [(0, ⟨ D, λ s tt s' => more_defined s tt ∧ s' = tt ⟩)].toAssocList,
+    outputs := [(0, ⟨ D, λ s tt s' => s = s' ∧ not (delay false s) = tt⟩)].toAssocList
     init_state := λ s => s = default
   }
 
