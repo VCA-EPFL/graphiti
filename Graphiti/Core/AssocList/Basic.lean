@@ -9,6 +9,7 @@ module
 public import Batteries.Data.AssocList
 
 public meta import Graphiti.Core.Simp
+public import Lean.Data.Json.FromToJson.Extra
 
 @[expose] public section
 
@@ -144,5 +145,9 @@ def bijectivePortRenaming_assume_invertible {α} [DecidableEq α] (l : AssocList
 def squash {α β} [DecidableEq α] (l : AssocList α β) : AssocList α β → AssocList α β
 | nil => l
 | cons k v t => if l.contains k then squash l t else cons k v (squash l t)
+
+instance {α β} [ToString α] [Lean.ToJson β] : Lean.ToJson (AssocList α β) where
+  toJson r :=
+    Lean.toJson <| Std.TreeMap.ofList (r.mapKey toString).toList
 
 end Batteries.AssocList

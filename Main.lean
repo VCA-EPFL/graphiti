@@ -10,6 +10,7 @@ import Graphiti.Core.Rewriter
 import Graphiti.Core.DynamaticPrinter
 import Graphiti.Core.Rewrites
 import Graphiti.Core.JSLang
+import Graphiti.Core.BluespecPrinter
 
 open Batteries (AssocList)
 
@@ -400,15 +401,15 @@ def main (args : List String) : IO Unit := timeit "Total: " do
   let uf ← IO.ofExcept <| rewrittenExprHigh.infer_equalities ⟨∅, ∅⟩
 
   let l ← IO.ofExcept <|
-    if parsed.noDynamaticDot then
+    if parsed.noDynamaticDot || parsed.blueSpecDot then
       if parsed.blueSpecDot
-      then pure rewrittenExprHigh.toBlueSpec
+      then pure (rewrittenExprHigh.toBlueSpec uf assoc)
       else pure (toString rewrittenExprHigh)
     else dynamaticString rewrittenExprHigh uf assoc
 
   match parsed.outputFile with
   | some ofile =>
-    if parsed.noPython || parsed.noDynamaticDot then
+    if parsed.noPython || parsed.noDynamaticDot || parsed.blueSpecDot then
       IO.FS.writeFile ofile l
     else
       IO.FS.withTempFile λ handle fn => do

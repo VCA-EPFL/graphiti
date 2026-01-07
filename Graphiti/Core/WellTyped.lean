@@ -370,6 +370,19 @@ def toTypeConstraint (sn : String × Nat) (i : String) : Except String TypeConst
     else
       .error s!"could not find node: {sn}/{i}"
 
+def TypeUF.inferTypeInPortMap (t : TypeUF) (p : PortMap String (InternalPort String)) (sn : String × Nat) : Except String (PortMap String TypeExpr) :=
+  p.foldlM (λ st k v => do
+      let tc ← toTypeConstraint sn k.name
+      let concr ← ofOption' s!"could not find type of {sn}/{k.name}" <| t.findConcr tc -- |>.getD (.var 1000) -- TODO: better handling of not finding a concretization
+      if concr.containsVar? then throw s!"var in type {sn}/{k.name}: {concr}"
+      return st.concat k concr
+    ) ∅
+
+def TypeUF.inferTypeInPortMapping (t : TypeUF) (p : PortMapping String) (sn : String × Nat) : Except String (PortMap String TypeExpr × PortMap String TypeExpr) := do
+  let inp ← inferTypeInPortMap t p.input sn
+  let out ← inferTypeInPortMap t p.output sn
+  return (inp, out)
+
 /--
 Generates additional typing constraints for type inference for each of the types.
 -/
@@ -400,6 +413,9 @@ def additionalConstraints (sn : String × Nat) (t : TypeUF) : TypeUF :=
    - | "input" -/
   | _ => t
 
+def addPortConstraint (sn : String × Nat) (s : String) (constr : TypeConstraint) (t : TypeUF) : TypeUF :=
+  t.union constr (.uninterp s (.var sn.2))
+
 namespace ExprLow
 
 def infer_equalities (e : ExprLow String (String × Nat)) (t : TypeUF) : Except String TypeUF :=
@@ -412,7 +428,11 @@ def infer_equalities (e : ExprLow String (String × Nat)) (t : TypeUF) : Except 
       | some ⟨_, inpV⟩, some ⟨_, outV⟩ => do
         let tinp ← toTypeConstraint inp.2 inpV
         let tout ← toTypeConstraint out.2 outV
-        let eq := additionalConstraints inp.2 t |> additionalConstraints out.2 |>.union tinp tout
+        let eq := additionalConstraints inp.2 t
+          |> additionalConstraints out.2
+          /- |> addPortConstraint inp.2 inpV tinp
+           - |> addPortConstraint out.2 outV tout -/
+          |>.union tinp tout
         if eq.check then
           e.infer_equalities eq
         else

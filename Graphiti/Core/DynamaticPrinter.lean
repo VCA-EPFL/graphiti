@@ -1,7 +1,7 @@
 /-
-Copyright (c) 2024 VCA Lab, EPFL. All rights reserved.
+Copyright (c) 2024-2026 VCA Lab, EPFL. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Yann Herklotz
+Authors: Yann Herklotz, Thomas Bourgeat
 -/
 
 module
@@ -109,8 +109,6 @@ def translateTypes  (key : String) : Option String × String × String × List (
 def removeLetter (ch : Char) (s : String) : String :=
   String.mk (s.toList.filter (λ c => c ≠ ch))
 
-#check String
-
 -- Function became messy...
 def formatOptions (isMC : Bool) : List (String × String) → String
 | x :: l => l.foldl
@@ -122,19 +120,6 @@ def formatOptions (isMC : Bool) : List (String × String) → String
      let v2_ := if x.1= "bbID" ||  x.1 = "bbcount" ||  x.1 = "ldcount" ||  x.1 = "stcount" || x.1 = "II" || x.1 = "latency" || x.1 = "delay" || x.1 = "tagger_id" || x.1 = "taggers_num" || x.1 = "tagged" || x.1 = "offset" || x.1 = "portId" then s!"{v2}" else s!"\"{v2}\""
      if (x.1 == "in" || x.1 == "out") && !isMC then "" else s!", {x.1}={v2_}")
 | [] => ""
-
-def inferTypeInPortMap (t : TypeUF) (p : PortMap String (InternalPort String)) (sn : String × Nat) : Except String (PortMap String TypeExpr) :=
-  p.foldlM (λ st k v => do
-      let tc ← toTypeConstraint sn k.name
-      let concr ← ofOption' s!"could not find type of {sn}/{k.name}" <| t.findConcr tc -- |>.getD (.var 1000) -- TODO: better handling of not finding a concretization
-      if concr.containsVar? then throw s!"var in type {sn}/{k.name}: {concr}"
-      return st.concat k concr
-    ) ∅
-
-def inferTypeInPortMapping (t : TypeUF) (p : PortMapping String) (sn : String × Nat) : Except String (PortMap String TypeExpr × PortMap String TypeExpr) := do
-  let inp ← inferTypeInPortMap t p.input sn
-  let out ← inferTypeInPortMap t p.output sn
-  return (inp, out)
 
 def toPortList (typs : PortMap String TypeExpr) : String :=
   typs.foldl (λ s k v => s ++ s!"{removeLetter 'p' k.name}:{TypeExpr.Parser.getSize v} ") ""
@@ -152,14 +137,14 @@ def dynamaticString (a: ExprHigh String (String × Nat)) (t : TypeUF) (m : Assoc
         match m.find? k with
         | some input_fmt =>
           let shouldNotInfer := (v.2.1 == "mc" || graphitiPrefix.isPrefixOf v.2.1)
-          let typs ← if shouldNotInfer then pure (∅, ∅) else inferTypeInPortMapping t v.1.canonPortMapping v.2
+          let typs ← if shouldNotInfer then pure (∅, ∅) else t.inferTypeInPortMapping v.1.canonPortMapping v.2
           -- If the node is found to be coming from the input,
           -- retrieve its attributes from what we saved and bypass it
           -- without looking for it in interfaceTypes
           let formatInOut := if shouldNotInfer then "" else s!", in = \"{toPortList typs.1}\", out = \"{toPortList typs.2}\""
           return s ++ s!"\"{k}\" [type = \"{typeName}\"{formatOptions shouldNotInfer input_fmt.toList}{formatInOut}];\n"
         | none =>
-          let typs ← inferTypeInPortMapping t v.1.canonPortMapping v.2
+          let typs ← t.inferTypeInPortMapping v.1.canonPortMapping v.2
           -- If this is a new node, then we sue `fmt` to correctly add the right
           -- arguments from what is given in interfaceTypes.  We should never be generating constructs like MC, so
           -- this shouldn't be a problem.
