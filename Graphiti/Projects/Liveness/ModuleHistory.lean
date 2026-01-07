@@ -28,30 +28,38 @@ theorem generate_history_correct1_base {m : Module Ident S} {t : Trace Ident} :
   case step s1' s2' s3' t1 t2 h_step h_star ih =>
     rcases s1' with ⟨ ⟨ st1hist, st1 ⟩, mod1 ⟩; rcases s2' with ⟨ ⟨ st2hist, st2 ⟩, mod2 ⟩; rcases s3' with ⟨ ⟨ st3hist, st3 ⟩, mod3 ⟩;
     simp at *; subst_vars
-    cases h_step --<;> try rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
+    cases h_step
     case input _ ip a b c d =>
       rw [← List.append_assoc]
+      generalize h1 : (Batteries.AssocList.find? ip m.inputs) = og_inputs at *
       have h: st1hist ++ [IOEvent.input ip b] = st2hist := by
         rw [PortMap.rw_rule_execution (by simp [generate_history]; rfl)] at *
         simp [PortMap.getIO] at d
-        -- rw [Batteries.AssocList.find?_mapVal] at d
-
-        sorry
+        rw [PortMap.rw_rule_execution (by rw [Batteries.AssocList.find?_mapVal, h1])] at *
+        rw [PortMap.rw_rule_execution (by simp [Option.map, Option.getD]; rfl)] at *
+        cases h_og : (Batteries.AssocList.find? ip m.inputs) <;> try subst_eqs; rw [PortMap.rw_rule_execution (by rw [h_og])] at *; simp at d
+        case some x =>
+          have ⟨ _, rell ⟩ := d
+          grind
       rw [h]
       simp at *
       assumption
 
-
-      -- rw [Batteries.AssocList.find?_mapVal] at d
-
-      -- conv at d =>
-      --   fun
-      --   fun
-      --   fun
-        -- tactic =>
-          -- rewrite [(Batteries.AssocList.find?_mapVal)]
-
-    case output => sorry
+    case output _ ip a b c d =>
+      rw [← List.append_assoc]
+      generalize h1 : (Batteries.AssocList.find? ip m.outputs) = og_outputs at *
+      have h: st1hist ++ [IOEvent.output ip b] = st2hist := by
+        rw [PortMap.rw_rule_execution (by simp [generate_history]; rfl)] at *
+        simp [PortMap.getIO] at d
+        rw [PortMap.rw_rule_execution (by rw [Batteries.AssocList.find?_mapVal, h1])] at *
+        rw [PortMap.rw_rule_execution (by simp [Option.map, Option.getD]; rfl)] at *
+        cases h_og : (Batteries.AssocList.find? ip m.outputs) <;> try subst_eqs; rw [PortMap.rw_rule_execution (by rw [h_og])] at *; simp at d
+        case some x =>
+          have ⟨ _, rell ⟩ := d
+          grind
+      rw [h]
+      simp at *
+      assumption
     case internal _ r relInt h_step =>
       simp at ih
       simp [generate_history] at relInt
