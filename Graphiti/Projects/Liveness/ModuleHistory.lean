@@ -20,7 +20,7 @@ def generate_history (m : Module Ident S) : Module Ident (Trace Ident × S) :=
   }
 
 theorem generate_history_correct1_base {m : Module Ident S} {t : Trace Ident} :
-  ∀ s1 s2, @star _ _ (Module.state_transition (generate_history m)) s1 t s2 → s1.module = (generate_history m) → s2.state.1 = s1.state.1 ++ t := by
+∀ s1 s2, @star _ _ (Module.state_transition (generate_history m)) s1 t s2 → s1.module = (generate_history m) → s2.state.1 = s1.state.1 ++ t := by
   intros s1 s2 h_star h_mod
   induction h_star
   case refl s =>
@@ -77,9 +77,12 @@ theorem generate_history_correct1 {m : Module Ident S} {t : Trace Ident} :
   have ⟨ h_init_state, h_empty_hist ⟩ := h_init
 
   have h_rec := generate_history_correct1_base s_init s_end h_star h_mod
-  rw [h_empty_hist] at h_rec
-  simp at h_rec
+  simp [h_empty_hist] at h_rec
   exact h_rec
+
+
+theorem generate_history_correct2_base {m : Module Ident S} {s2} {t : Trace Ident} :
+  ∀ s1 (s1': Module.State Ident (Trace Ident × S)), @star _ _ (Module.state_transition m) s1 t s2 ∧ s1'.state.2 = s1.state → ∃(s2': Module.State Ident (Trace Ident × S)), @star _ _ (Module.state_transition (generate_history m)) s1' t s2' ∧ s2'.state.2 = s2.state := by sorry
 
 theorem generate_history_correct2 {m : Module Ident S} {s} {t : Trace Ident} :
   @reachable _ _ (Module.state_transition m) t s →
@@ -89,15 +92,15 @@ theorem generate_history_correct2 {m : Module Ident S} {s} {t : Trace Ident} :
   rcases s_init with ⟨ st_init, mod_init ⟩;
 
   let s'_mod := generate_history m
-  let s'_state : (Trace Ident × S) := (t, s.state) -- now need to prove real_s' is reachable
-  exists { state := s'_state, module := s'_mod }
+  let s'_state : (Trace Ident × S) := (t, s.state)
+  exists { state := s'_state, module := s'_mod } -- real_s'
   apply And.intro
-  case left =>
+  case left => -- real_s' is reachable
     unfold reachable
     let st_init' : (Trace Ident × S) := ([], st_init)
     exists { state := st_init', module := s'_mod }
     apply And.intro
-    case left =>
+    case left => -- init'
       simp [StateTransition.init, Module.state_transition]
       apply And.intro
       case left =>
@@ -106,8 +109,30 @@ theorem generate_history_correct2 {m : Module Ident S} {s} {t : Trace Ident} :
         . assumption
         . constructor
       . constructor
-    case right =>
-      sorry
+    case right => -- star to s'
+      generalize h1 : ({ state := st_init, module := mod_init } : Module.State _ _) = s_init_full at *
+      generalize h2 : ({ state := st_init', module := s'_mod } : Module.State _ _) = s_init'_full at *
+      generalize h3 : ({ state := s'_state, module := s'_mod } : Module.State _ _) = s'_full at *
+      simp [s'_state, st_init'] at *
+      have hh: ∃(s2': Module.State Ident (Trace Ident × S)), @star _ _ (Module.state_transition (generate_history m)) s_init'_full t s2' ∧ s2'.state.2 = s.state := by
+        have a : s_init'_full.state.snd = s_init_full.state := by simp [← h2, st_init', ← h1]
+        have _h := And.intro h_star a
+        exact @generate_history_correct2_base _ _ _ m s t s_init_full s_init'_full (_h)
+
+      obtain ⟨s_witness, h_path, h_state_match⟩ := hh
+      have h_eq : s_witness = s'_full := by -- { state := (t, s.state), module := s'_mod } = s_witness
+
+        have h_wit_mod := @Module.steps_preserve_mod _ _ _ s'_mod s_init'_full t s_witness h_path
+        have h_wit_hist := @generate_history_correct1_base _ _ _ m t s_init'_full s_witness h_path (by simp [← h2, s'_mod])
+        simp [← h2] at h_wit_hist
+        simp [← h3]
+        cases s_witness
+        case mk _ s_wit_stt s_wit_mod =>
+          grind
+
+      rw [← h_eq]
+      exact h_path
+
   . constructor
 
 
