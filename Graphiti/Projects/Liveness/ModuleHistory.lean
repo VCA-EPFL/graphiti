@@ -81,8 +81,72 @@ theorem generate_history_correct1 {m : Module Ident S} {t : Trace Ident} :
   exact h_rec
 
 
-theorem generate_history_correct2_base {m : Module Ident S} {s2} {t : Trace Ident} :
-  ∀ s1 (s1': Module.State Ident (Trace Ident × S)), @star _ _ (Module.state_transition m) s1 t s2 ∧ s1'.state.2 = s1.state → ∃(s2': Module.State Ident (Trace Ident × S)), @star _ _ (Module.state_transition (generate_history m)) s1' t s2' ∧ s2'.state.2 = s2.state := by sorry
+theorem generate_history_correct2_step {m : Module Ident S} {s2} {t : Trace Ident} :
+  ∀ s1 (s1': Module.State Ident (Trace Ident × S)),
+  @StateTransition.step _ _ (Module.state_transition m) s1 t s2
+  → s1'.state.2 = s1.state
+  → s1.module = m
+  → s1'.module = generate_history m
+  → ∃(s2': Module.State Ident (Trace Ident × S)),
+  @StateTransition.step _ _ (Module.state_transition (generate_history m)) s1' t s2' ∧ s2'.state.2 = s2.state := by
+    intros s1 s1' h_step h_s1 h_mod1 h_mod1'
+    cases h_step
+    case input _ ip s' type_i i h_step b =>
+
+      sorry
+    case output _ ip s' v v' a b =>
+      sorry
+    case internal r s' a b =>
+      sorry
+
+
+theorem generate_history_correct2_star {m : Module Ident S} {s2} {t : Trace Ident} :
+  ∀ s1, @star _ _ (Module.state_transition m) s1 t s2
+  → s1.module = m
+  → ∀(h : Trace Ident) (s1': Module.State Ident (Trace Ident × S)),
+  s1'.state = (h, s1.state) ∧ s1'.module = generate_history m
+  → ∃(s2': Module.State Ident (Trace Ident × S)),
+  @star _ _ (Module.state_transition (generate_history m)) s1' t s2' ∧ s2'.state.2 = s2.state := by
+    intros s1 h_star --h_mod1 s1' h_s1 h_mod1'
+    induction h_star
+    case refl _ s =>
+      intros h_mod1 hist s1' h
+      have ⟨ h_s1, h_mod ⟩ := h
+      exists s1'
+      apply And.intro
+      . apply @star.refl _ _ (Module.state_transition (generate_history m))
+      . grind
+    case step _ s_1 s_2 s_3 t1 t2 h_step h_star ih =>
+      intros h_mod1 hist1 s1' h
+      rcases h with ⟨ h_s1, h_mod1' ⟩
+      have h_mod2 : s_2.module = m := by
+        have temp := (@Module.step_preserve_mod _ _ _ m s_1 t1 s_2 h_step)
+        rw [h_mod1] at temp
+        exact temp
+      simp [h_mod2] at ih
+
+      specialize ih (hist1 ++ t1) ({state := (hist1 ++ t1, s_2.state), module := (generate_history m)}: Module.State _ _)
+      simp at ih
+      obtain ⟨ s3', proof ⟩ := ih
+      have h_step' : @StateTransition.step _ _ (Module.state_transition (generate_history m)) s1' t1  { state := (hist1 ++ t1, s_2.state), module := generate_history m } := by
+        cases h_step
+        case input ip s_2 type_i i h_rel h_i =>
+          sorry
+        case output ip s_2 type_i i h_rel h_i =>
+          sorry
+        case internal r s_2 rel h_rel =>
+          sorry
+      generalize hs2' : ({ state := (hist1 ++ t1, s_2.state), module := generate_history m } : Module.State _ _) = s2' at *
+      have h_end : @star _ _ (Module.state_transition (generate_history m)) s1' (t1 ++ t2) s3' := by
+        have ⟨ ha, hb ⟩ := proof
+        apply @star.step _ _ (Module.state_transition (generate_history m)) s1' s2' s3' t1 t2
+        exact h_step'
+        exact ha
+      exists s3'
+      apply And.intro
+      . exact h_end
+      . exact proof.right
+
 
 theorem generate_history_correct2 {m : Module Ident S} {s} {t : Trace Ident} :
   @reachable _ _ (Module.state_transition m) t s →
@@ -116,8 +180,22 @@ theorem generate_history_correct2 {m : Module Ident S} {s} {t : Trace Ident} :
       simp [s'_state, st_init'] at *
       have hh: ∃(s2': Module.State Ident (Trace Ident × S)), @star _ _ (Module.state_transition (generate_history m)) s_init'_full t s2' ∧ s2'.state.2 = s.state := by
         have a : s_init'_full.state.snd = s_init_full.state := by simp [← h2, st_init', ← h1]
-        have _h := And.intro h_star a
-        exact @generate_history_correct2_base _ _ _ m s t s_init_full s_init'_full (_h)
+        have b := @generate_history_correct2_star _ _ _ m s t s_init_full h_star h_mod -- s_init'_full h_star a h_mod (by simp [← h2, s'_mod])
+
+        specialize b [] s_init'_full
+        simp [← h2, ← h1, s'_mod] at b
+        rw [h2] at b
+        exact b
+        /-
+        have h_eq : witness = s_init'_full := by -- witness = { state := ([], st_init), module := s'_mod }
+          simp [← h2]
+
+          sorry
+        -- have c :
+        simp [h_eq, a] at proof
+        simp [← h2, s'_mod] at proof ⊢
+        exact proof
+        -/
 
       obtain ⟨s_witness, h_path, h_state_match⟩ := hh
       have h_eq : s_witness = s'_full := by -- { state := (t, s.state), module := s'_mod } = s_witness
