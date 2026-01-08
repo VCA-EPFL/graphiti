@@ -41,7 +41,7 @@ set ylabel "(b) Rel. cycle count"
 set size 0.5,0.4
 set origin 0,0.6
 
-plot sample [x=0:16:1] '+' us (x/2-0.5):(26/(int(x)%4!=1)) with filledcurves x1 fc rgb "#EEEEEE" notitle, \
+plot sample [x=0:14:1] '+' us (x/2-0.5):(26/(int(x)%4!=1)) with filledcurves x1 fc rgb "#EEEEEE" notitle, \
      'raw_results.csv' every ::1 using 0:($3/$2):($0-myWidth2/2.):($0+myWidth2/2.):(myOffset):($3/$2):xtic(1) with boxxyerror notitle fs pattern 1, \
      '' every ::1 using 0:($4/$2):($0+(myWidth2)-myWidth2/2.):($0+(myWidth2)+myWidth2/2.):(myOffset):($4/$2):xtic(1) with boxxyerror notitle fs pattern 2, \
      '' every ::1 using 0:($5/$2):($0-(myWidth2)-myWidth2/2.):($0-(myWidth2)+myWidth2/2.):(myOffset):($5/$2):xtic(1) with boxxyerror notitle
@@ -61,7 +61,7 @@ set origin 0.5,0.6
 unset arrow
 # set arrow 1 front from graph 0, first 10 to graph 1, first 10 nohead ls -1 linecolor "#e41a1c" dashtype 2
 
-plot sample [x=0:16:1] '+' us (x/2-0.5):(26/(int(x)%4!=1)) with filledcurves x1 fc rgb "#EEEEEE" notitle, \
+plot sample [x=0:14:1] '+' us (x/2-0.5):(26/(int(x)%4!=1)) with filledcurves x1 fc rgb "#EEEEEE" notitle, \
      'raw_results.csv' every ::1 using 0:($7):($0+0.5*(myWidth3)-myWidth3/2.):($0+0.5*(myWidth3)+myWidth3/2.):(0):($7):xtic(1) with boxxyerror title "DF-OoO" fs pattern 1,\
      '' every ::1 using 0:($8):($0+1.5*(myWidth3)-myWidth3/2.):($0+1.5*(myWidth3)+myWidth3/2.):(0):($8):xtic(1) with boxxyerror title "Graphiti" fs pattern 2,\
 '' every ::1 using 0:($9):($0-1.5*(myWidth3)-myWidth3/2.):($0-1.5*(myWidth3)+myWidth3/2.):(0):($9):xtic(1) with boxxyerror title "Vericert",\
@@ -84,7 +84,7 @@ set ytics (0.1, 0.240224886796, 0.577079962364, 1.38628968631, 3.33021282962, 8)
 
 set xtics scale 0 rotate by -90
 
-plot sample [x=0:16:1] '+' us (x/2-0.5):(26/(int(x)%4!=1)) with filledcurves x1 fc rgb "#EEEEEE" notitle, \
+plot sample [x=0:14:1] '+' us (x/2-0.5):(26/(int(x)%4!=1)) with filledcurves x1 fc rgb "#EEEEEE" notitle, \
      'raw_results.csv' every ::1 using 0:($11/$10):($0-myWidth2/2.):($0+myWidth2/2.):(myOffset):($11/$10):xtic(1) with boxxyerror notitle fs pattern 1, \
      '' every ::1 using 0:($12/$10):($0+(myWidth2)-myWidth2/2.):($0+(myWidth2)+myWidth2/2.):(myOffset):($12/$10):xtic(1) with boxxyerror notitle fs pattern 2, \
      '' every ::1 using 0:($13/$10):($0-(myWidth2)-myWidth2/2.):($0-(myWidth2)+myWidth2/2.):(myOffset):($13/$10):xtic(1) with boxxyerror notitle
@@ -101,7 +101,7 @@ set ytics (0.3, 0.546169260909, 0.994336205202, 1.81025290096, 3.2956816299, 6)
 
 set xtics scale 0 rotate by -90
 
-plot sample [x=0:16:1] '+' us (x/2-0.5):(26/(int(x)%4!=1)) with filledcurves x1 fc rgb "#EEEEEE" notitle, \
+plot sample [x=0:14:1] '+' us (x/2-0.5):(26/(int(x)%4!=1)) with filledcurves x1 fc rgb "#EEEEEE" notitle, \
      'raw_results.csv' every ::1 using 0:($20/$19):($0-myWidth2/2.):($0+myWidth2/2.):(myOffset):($20/$19):xtic(1) with boxxyerror notitle fs pattern 1,\
      '' every ::1 using 0:($21/$19):($0+(myWidth2)-myWidth2/2.):($0+(myWidth2)+myWidth2/2.):(myOffset):($21/$19):xtic(1) with boxxyerror notitle fs pattern 2, \
      '' every ::1 using 0:($22/$19):($0-(myWidth2)-myWidth2/2.):($0-(myWidth2)+myWidth2/2.):(myOffset):($22/$19):xtic(1) with boxxyerror notitle
