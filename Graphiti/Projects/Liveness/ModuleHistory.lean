@@ -81,24 +81,6 @@ theorem generate_history_correct1 {m : Module Ident S} {t : Trace Ident} :
   exact h_rec
 
 
-theorem generate_history_correct2_step {m : Module Ident S} {s2} {t : Trace Ident} :
-  ∀ s1 (s1': Module.State Ident (Trace Ident × S)),
-  @StateTransition.step _ _ (Module.state_transition m) s1 t s2
-  → s1'.state.2 = s1.state
-  → s1.module = m
-  → s1'.module = generate_history m
-  → ∃(s2': Module.State Ident (Trace Ident × S)),
-  @StateTransition.step _ _ (Module.state_transition (generate_history m)) s1' t s2' ∧ s2'.state.2 = s2.state := by
-    intros s1 s1' h_step h_s1 h_mod1 h_mod1'
-    cases h_step
-    case input _ ip s' type_i i h_step b =>
-
-      sorry
-    case output _ ip s' v v' a b =>
-      sorry
-    case internal r s' a b =>
-      sorry
-
 
 theorem generate_history_correct2_star {m : Module Ident S} {s2} {t : Trace Ident} :
   ∀ s1, @star _ _ (Module.state_transition m) s1 t s2
@@ -131,10 +113,55 @@ theorem generate_history_correct2_star {m : Module Ident S} {s2} {t : Trace Iden
       have h_step' : @StateTransition.step _ _ (Module.state_transition (generate_history m)) s1' t1  { state := (hist1 ++ t1, s_2.state), module := generate_history m } := by
         cases h_step
         case input ip s_2 type_i i h_rel h_i =>
-          sorry
+          simp at *
+          -- generalize hs2' : ({ state := (hist1 ++ [IOEvent.input ip i], s_2), module := generate_history m } : Module.State _ _) = s2' at *
+          unfold StateTransition.step
+          rw (occs := .pos [1]) [generate_history]
+          simp [Module.state_transition]
+          rw [← h_mod1']
+
+          refine @Module.step.input _ _ (Trace Ident × S) s1' ip (hist1 ++ [IOEvent.input ip i], s_2) (v := cast ?h_type type_i) i ?h_rel' ?h_i'
+          case h_type =>
+            rw [h_mod1', h_mod1]
+            simp [generate_history]
+            unfold PortMap.getIO
+            rw [Batteries.AssocList.find?_mapVal]
+            simp [Function.comp]
+            generalize h_look: (List.find? (fun x => x.fst == ip) m.inputs.toList) = lookup at *
+            cases lookup <;> try simp
+
+          case h_i' =>
+            simp [h_i]
+            simp [h_mod1', h_mod1, generate_history]
+            unfold PortMap.getIO
+            rw [Batteries.AssocList.find?_mapVal]
+            simp [Function.comp]
+            generalize h_look: (List.find? (fun x => x.fst == ip) m.inputs.toList) = lookup at *
+            cases lookup <;> try simp
+
+          case h_rel' =>
+            rw [PortMap.rw_rule_execution (by rw [h_mod1'])]
+            simp [generate_history]
+            unfold PortMap.getIO
+            rw [PortMap.rw_rule_execution (by rw [Batteries.AssocList.find?_mapVal])]
+            /-
+            conv at h_rel =>
+              tactic =>
+                unfold PortMap.getIO
+                rw [PortMap.rw_rule_execution (by rw [h_mod1])]
+            -/
+            -- cases h_og : ((Batteries.AssocList.find? ip m.inputs): Option ((T : Type) × (S → T → S → Prop)))
+
+            sorry
+
         case output ip s_2 type_i i h_rel h_i =>
           sorry
         case internal r s_2 rel h_rel =>
+          simp
+          unfold StateTransition.step
+          rw (occs := .pos [1]) [generate_history]
+          simp [Module.state_transition]
+          
           sorry
       generalize hs2' : ({ state := (hist1 ++ t1, s_2.state), module := generate_history m } : Module.State _ _) = s2' at *
       have h_end : @star _ _ (Module.state_transition (generate_history m)) s1' (t1 ++ t2) s3' := by
