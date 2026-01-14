@@ -12,7 +12,7 @@ namespace Graphiti.ReduceSplitJoin
 open StringModule
 
 def extractFirstWordAfterJoin (s : String) : String :=
-  match s.drop 5 |>.splitOn " " with
+  match s.drop 5 |>.copy |>.splitOn " " with
   | []      => ""
   | x :: _  => x
 

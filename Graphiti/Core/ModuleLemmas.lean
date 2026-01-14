@@ -258,11 +258,11 @@ instance MatchInterface_product_associative {I S J} {imod : Module Ident I} {smo
     · cases hsmod : smod.inputs.find? ident
       · cases hjmod : jmod.inputs.find? ident
         · repeat1 ((try rw [AssocList.find?_mapVal]); rw [AssocList.append_find_right])
-          any_goals simp [*, AssocList.find?_mapVal, -AssocList.find?_eq]
+          any_goals simp only [*, AssocList.find?_mapVal]; dsimp
           repeat1 ((try rw [AssocList.find?_mapVal]); rw [AssocList.append_find_right])
           all_goals simp [*, AssocList.find?_mapVal, -AssocList.find?_eq]
         · repeat1 ((try rw [AssocList.find?_mapVal]); rw [AssocList.append_find_right])
-          any_goals simp [*, AssocList.find?_mapVal, -AssocList.find?_eq]
+          any_goals simp only [*, AssocList.find?_mapVal]
           rfl
           repeat1 ((try rw [AssocList.find?_mapVal]); rw [AssocList.append_find_right])
           all_goals simp [*, AssocList.find?_mapVal, -AssocList.find?_eq]
@@ -292,11 +292,11 @@ instance MatchInterface_product_associative {I S J} {imod : Module Ident I} {smo
     · cases hsmod : smod.outputs.find? ident
       · cases hjmod : jmod.outputs.find? ident
         · repeat1 ((try rw [AssocList.find?_mapVal]); rw [AssocList.append_find_right])
-          any_goals simp [*, AssocList.find?_mapVal, -AssocList.find?_eq]
+          any_goals simp only [*, AssocList.find?_mapVal]; dsimp
           repeat1 ((try rw [AssocList.find?_mapVal]); rw [AssocList.append_find_right])
           all_goals simp [*, AssocList.find?_mapVal, -AssocList.find?_eq]
         · repeat1 ((try rw [AssocList.find?_mapVal]); rw [AssocList.append_find_right])
-          any_goals simp [*, AssocList.find?_mapVal, -AssocList.find?_eq]
+          any_goals simp only [*, AssocList.find?_mapVal]; dsimp
           rfl
           repeat1 ((try rw [AssocList.find?_mapVal]); rw [AssocList.append_find_right])
           all_goals simp [*, AssocList.find?_mapVal, -AssocList.find?_eq]

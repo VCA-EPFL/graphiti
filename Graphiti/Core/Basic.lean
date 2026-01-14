@@ -20,7 +20,7 @@ namespace Graphiti
 attribute [drnat] OfNat.ofNat instOfNatNat
 
 attribute [drcompute]
-  Option.some_bind Option.bind_some
+  Option.bind_some
   AssocList.foldl_eq AssocList.findEntryP?_eq
   List.partition_eq_filter_filter List.mem_cons List.not_mem_nil or_false not_or
   Bool.decide_and decide_not Batteries.AssocList.toList List.reverse_cons List.reverse_nil
@@ -248,7 +248,7 @@ def canonPortMapping (i : PortMapping String) : PortMapping String :=
   ⟩
 
 def hashPortMapping (i : PortMapping String) : String :=
-  hash (canonPortMapping i) |>.toBitVec |>.toHex |>.take 8
+  hash (canonPortMapping i) |>.toBitVec |>.toHex |>.take 8 |>.copy
 
 def generateRenamingPortMap (p1 p2 : PortMap String (InternalPort String)) : Option (PortMap String (InternalPort String)) :=
   p1.foldlM (λ pm k v => do

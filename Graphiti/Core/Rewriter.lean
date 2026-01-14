@@ -855,7 +855,7 @@ def findClosedRegion {Ident} (g : ExprHigh String Ident) (startN endN : String) 
 
 def extractType (s : String) : String :=
   let parts := s.splitOn " "
-  parts.tail.foldl (λ a b => a ++ " " ++ b) "" |>.drop 1
+  parts.tail.foldl (λ a b => a ++ " " ++ b) "" |>.drop 1 |>.copy
 
 def match_node {n : Nat} (extract_type : (String × Nat) → RewriteResultSL (Vector Nat n)) (nn : String) (g : ExprHigh String (String × Nat))
     : RewriteResultSL (List String × Vector Nat n) := do

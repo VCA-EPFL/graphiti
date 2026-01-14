@@ -92,7 +92,7 @@ def graphitiToDynamatic (s : String) : String × List (Option Nat) × List (Opti
   match dynamatic_types.find? s with
   | some s' => s'
   | none =>
-    if graphitiPrefix.isPrefixOf s then (s.drop graphitiPrefix.length, [], []) else ("__unknown__"++s, [], [])
+    if graphitiPrefix.isPrefixOf s then (s.drop graphitiPrefix.length |>.copy, [], []) else ("__unknown__"++s, [], [])
 
 def fromDynamaticPorts {α} (pref : String) (l : List α) : PortMap String α :=
   l.foldl (λ st a => (st.1.cons ↑s!"{pref}{st.2}" a, st.2+1)) (∅, 1) |>.1

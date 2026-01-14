@@ -241,7 +241,7 @@ def translateSize' : String → Except String String
 | s => .error s!"Could not parse size: {s}"
 
 def translateSize (s : String) : Except String String :=
-  translateSize' (s.takeWhile (·.isDigit))
+  translateSize' (s.takeWhile (·.isDigit) |>.copy)
 
 def toSizeInfo (l : List Parser.DotAttr) (k : String) :=
   toNat? <$> parseIOSizes l k
