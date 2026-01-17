@@ -19,6 +19,15 @@ def generate_history (m : Module Ident S) : Module Ident (Trace Ident × S) :=
     internals := m.internals.map (λ rule => λ s s' => rule s.2 s'.2 ∧ s.1 = s'.1)
   }
 
+def match_interface (m : Module Ident S) : MatchInterface m (generate_history m) := by
+  rw [MatchInterface_simpler_iff]; intro ident; and_intros
+  · dsimp [generate_history]
+    rw [Batteries.AssocList.find?_mapVal, Batteries.AssocList.find?_mapVal,Batteries.AssocList.find?_mapVal]
+    cases hin : Batteries.AssocList.find? ident m.inputs <;> rfl
+  · dsimp [generate_history]
+    rw [Batteries.AssocList.find?_mapVal, Batteries.AssocList.find?_mapVal,Batteries.AssocList.find?_mapVal]
+    cases hin : Batteries.AssocList.find? ident m.outputs <;> rfl
+
 theorem generate_history_correct1_base {m : Module Ident S} {t : Trace Ident} :
 ∀ s1 s2, @star _ _ (Module.state_transition (generate_history m)) s1 t s2 → s1.module = (generate_history m) → s2.state.1 = s1.state.1 ++ t := by
   intros s1 s2 h_star h_mod
@@ -81,7 +90,6 @@ theorem generate_history_correct1 {m : Module Ident S} {t : Trace Ident} :
   exact h_rec
 
 
-
 theorem generate_history_correct2_star {m : Module Ident S} {s2} {t : Trace Ident} :
   ∀ s1, @star _ _ (Module.state_transition m) s1 t s2
   → s1.module = m
@@ -110,59 +118,65 @@ theorem generate_history_correct2_star {m : Module Ident S} {s2} {t : Trace Iden
       specialize ih (hist1 ++ t1) ({state := (hist1 ++ t1, s_2.state), module := (generate_history m)}: Module.State _ _)
       simp at ih
       obtain ⟨ s3', proof ⟩ := ih
-      have h_step' : @StateTransition.step _ _ (Module.state_transition (generate_history m)) s1' t1  { state := (hist1 ++ t1, s_2.state), module := generate_history m } := by
+      have h_step' : @StateTransition.step _ _ (Module.state_transition (generate_history m)) s1' t1  { state := (hist1 ++ t1, s_2.state), module := s1'.module } := by
         cases h_step
         case input ip s_2 type_i i h_rel h_i =>
-          simp at *
-          -- generalize hs2' : ({ state := (hist1 ++ [IOEvent.input ip i], s_2), module := generate_history m } : Module.State _ _) = s2' at *
-          unfold StateTransition.step
-          rw (occs := .pos [1]) [generate_history]
-          simp [Module.state_transition]
-          rw [← h_mod1']
-
-          refine @Module.step.input _ _ (Trace Ident × S) s1' ip (hist1 ++ [IOEvent.input ip i], s_2) (v := cast ?h_type type_i) i ?h_rel' ?h_i'
-          case h_type =>
-            rw [h_mod1', h_mod1]
-            simp [generate_history]
-            unfold PortMap.getIO
-            rw [Batteries.AssocList.find?_mapVal]
-            simp [Function.comp]
-            generalize h_look: (List.find? (fun x => x.fst == ip) m.inputs.toList) = lookup at *
-            cases lookup <;> try simp
-
-          case h_i' =>
-            simp [h_i]
-            simp [h_mod1', h_mod1, generate_history]
-            unfold PortMap.getIO
-            rw [Batteries.AssocList.find?_mapVal]
-            simp [Function.comp]
-            generalize h_look: (List.find? (fun x => x.fst == ip) m.inputs.toList) = lookup at *
-            cases lookup <;> try simp
-
-          case h_rel' =>
-            rw [PortMap.rw_rule_execution (by rw [h_mod1'])]
-            simp [generate_history]
-            unfold PortMap.getIO
-            rw [PortMap.rw_rule_execution (by rw [Batteries.AssocList.find?_mapVal])]
-            /-
-            conv at h_rel =>
-              tactic =>
-                unfold PortMap.getIO
-                rw [PortMap.rw_rule_execution (by rw [h_mod1])]
-            -/
-            -- cases h_og : ((Batteries.AssocList.find? ip m.inputs): Option ((T : Type) × (S → T → S → Prop)))
-
-            sorry
-
+          cases hip_avail : s_1.module.inputs.find? ip with
+          | none =>
+            unfold PortMap.getIO at h_rel; rw [PortMap.rw_rule_execution (by rw [hip_avail])] at h_rel
+            contradiction
+          | some ipval =>
+            unfold PortMap.getIO at h_rel; rw [PortMap.rw_rule_execution (by rw [hip_avail])] at h_rel; dsimp at h_rel
+            unfold StateTransition.step
+            unfold Module.state_transition
+            obtain ⟨s_1_s, s_1_m⟩ := s_1
+            obtain ⟨s1'_s, s1'_m⟩ := s1'
+            subst_vars
+            apply Module.step.input (v := ((match_interface s_1_m).input_types ip).mp type_i)
+            unfold PortMap.getIO; rw [PortMap.rw_rule_execution
+              (by
+                unfold generate_history
+                rewrite [Batteries.AssocList.find?_mapVal]
+                rewrite [hip_avail]
+                dsimp)]
+            and_intros
+            simp [*]; simp [-Batteries.AssocList.find?_eq]; rw [hip_avail]; rfl
+            simp; apply (match_interface s_1_m).input_types ip
         case output ip s_2 type_i i h_rel h_i =>
-          sorry
+          cases hip_avail : s_1.module.outputs.find? ip with
+          | none =>
+            unfold PortMap.getIO at h_rel; rw [PortMap.rw_rule_execution (by rw [hip_avail])] at h_rel
+            contradiction
+          | some ipval =>
+            unfold PortMap.getIO at h_rel; rw [PortMap.rw_rule_execution (by rw [hip_avail])] at h_rel; dsimp at h_rel
+            unfold StateTransition.step
+            unfold Module.state_transition
+            obtain ⟨s_1_s, s_1_m⟩ := s_1
+            obtain ⟨s1'_s, s1'_m⟩ := s1'
+            subst_vars
+            apply Module.step.output (v := ((match_interface s_1_m).output_types ip).mp type_i)
+            unfold PortMap.getIO; rw [PortMap.rw_rule_execution
+              (by
+                unfold generate_history
+                rewrite [Batteries.AssocList.find?_mapVal]
+                rewrite [hip_avail]
+                dsimp)]
+            and_intros
+            simp [*]; simp [-Batteries.AssocList.find?_eq]; rw [hip_avail]; rfl
+            simp; apply (match_interface s_1_m).output_types ip
         case internal r s_2 rel h_rel =>
           simp
           unfold StateTransition.step
           rw (occs := .pos [1]) [generate_history]
           simp [Module.state_transition]
-          
-          sorry
+          obtain ⟨s_1_s, s_1_m⟩ := s_1
+          obtain ⟨s1'_s, s1'_m⟩ := s1'
+          dsimp at *; subst_vars
+          constructor; dsimp
+          unfold generate_history; dsimp
+          apply List.mem_map_of_mem; assumption; grind
+      have h_step' : @StateTransition.step _ _ (Module.state_transition (generate_history m)) s1' t1  { state := (hist1 ++ t1, s_2.state), module := generate_history m } := by
+        rw [←h_mod1']; assumption
       generalize hs2' : ({ state := (hist1 ++ t1, s_2.state), module := generate_history m } : Module.State _ _) = s2' at *
       have h_end : @star _ _ (Module.state_transition (generate_history m)) s1' (t1 ++ t2) s3' := by
         have ⟨ ha, hb ⟩ := proof
@@ -239,7 +253,5 @@ theorem generate_history_correct2 {m : Module Ident S} {s} {t : Trace Ident} :
       exact h_path
 
   . constructor
-
-
 
 end Graphiti.History
