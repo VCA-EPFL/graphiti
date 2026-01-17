@@ -18,7 +18,7 @@ These are notations, which allow you to have nicer syntax when you write
 theorems.  We don't have to use them though, so below I've just left it as
 normal function syntax.
 -/
-notation:45 s " -[ " t:45 " ]-> " s':44 => StateTransition.step s t s'
+notation:45 s " -[" t:45 "]-> " s':44 => StateTransition.step s t s'
 
 section Behaviour
 
@@ -29,7 +29,7 @@ inductive star : State → List Event → State → Prop where
   | refl : ∀ s1, star s1 [] s1
   | step : ∀ s1 s2 s3 e1 e2, trans.step s1 e1 s2 → star s2 e2 s3 → star s1 (e1 ++ e2) s3
 
-notation:45 s " -[ " t:45 " ]*> " s':44 => star s t s'
+notation:45 s " -[" t:45 "]*> " s':44 => star s t s'
 
 def behaviour (l : List Event) : Prop :=
   ∃ s s', trans.init s ∧ star s l s'
