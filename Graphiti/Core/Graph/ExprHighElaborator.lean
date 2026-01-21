@@ -9,8 +9,8 @@ module
 public import Lean
 public import Qq
 
-public meta import Graphiti.Core.ExprHigh
-public import Graphiti.Core.Component
+public meta import Graphiti.Core.Graph.ExprHigh
+public import Graphiti.Core.Graph.Module
 
 @[expose] public meta section
 

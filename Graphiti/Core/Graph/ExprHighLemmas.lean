@@ -6,10 +6,10 @@ Authors: Yann Herklotz
 
 module
 
-public import Graphiti.Core.Module
-public import Graphiti.Core.ExprHigh
-public import Graphiti.Core.ExprLowLemmas
-public import Graphiti.Core.ExprHighElaborator
+public import Graphiti.Core.Graph.Module
+public import Graphiti.Core.Graph.ExprHigh
+public import Graphiti.Core.Graph.ExprLowLemmas
+public import Graphiti.Core.Graph.ExprHighElaborator
 
 @[expose] public section
 

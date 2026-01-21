@@ -7,8 +7,7 @@ Authors: Yann Herklotz
 module
 
 public import Lean
-public import Graphiti.Core.ExprLow
-public import Graphiti.Core.TypeExpr
+public import Graphiti.Core.Graph.ExprLow
 
 @[expose] public section
 

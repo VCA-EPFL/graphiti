@@ -6,7 +6,7 @@ Authors: Yann Herklotz
 
 module
 
-public import Graphiti.Core.Module
+public import Graphiti.Core.Graph.Module
 public import Graphiti.Core.AssocList.Bijective
 
 public import Mathlib.Tactic.Convert

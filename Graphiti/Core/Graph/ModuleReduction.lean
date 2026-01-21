@@ -8,10 +8,12 @@ module
 
 public import Lean
 
+public import Mathlib.Tactic.FinCases
+
 public import Graphiti.Core.Tactic
-public import Graphiti.Core.Module
 public import Graphiti.Core.AssocList
-public import Graphiti.Core.ExprHighLemmas
+public import Graphiti.Core.Graph.Module
+public import Graphiti.Core.Graph.ExprHighLemmas
 
 @[expose] public section
 
@@ -161,76 +163,11 @@ def renamePorts' {S : Type _} (m : Module Ident S) (p : PortMapping Ident) : Mod
 
 def SigmaSnd {a b} := @Sigma.snd a b
 
-@[drnorm] theorem renamePorts_getIO_inputs_neq {S : Type _} {m m' : Module Ident S} {i p} :
-  ¬ p.input.containsVal i →
-  ((m.renamePorts' p).product' m').inputs.getIO i = m'.inputs.getIO i := sorry
-
 @[drnorm] theorem cons_internals_getIO_inputs {S : Type _} {m : Module Ident S} {i p} :
   (m.cons_internals p).inputs.getIO i = m.inputs.getIO i := rfl
 
 @[drnorm] theorem cons_internals_getIO_outputs {S : Type _} {m : Module Ident S} {i p} :
   (m.cons_internals p).outputs.getIO i = m.outputs.getIO i := rfl
-
--- @[drnorm] theorem liftLM_getIO_inputs {S S' : Type _} {m : Module Ident S} {i} :
---   (m.liftLM (S' := S')).inputs.getIO i = Module.liftL (m.inputs.getIO i) := sorry
-
--- @[drnorm] theorem liftRM_getIO_inputs {S S' : Type _} {m : Module Ident S} {i} :
---   (m.liftRM (S' := S')).inputs.getIO i = Module.liftR (m.inputs.getIO i) := sorry
-
--- @[drnorm] theorem liftLM_getIO_outputs {S S' : Type _} {m : Module Ident S} {i} :
---   (m.liftLM (S' := S')).outputs.getIO i = Module.liftL (m.outputs.getIO i) := sorry
-
--- @[drnorm] theorem liftRM_getIO_outputs {S S' : Type _} {m : Module Ident S} {i} :
---   (m.liftRM (S' := S')).outputs.getIO i = Module.liftR (m.outputs.getIO i) := sorry
-
-@[drnorm] theorem renamePorts_getIO_outputs_neq {S : Type _} {m m' : Module Ident S} {i p} :
-  ¬ p.output.containsVal i →
-  ((m.renamePorts' p).product' m').outputs.getIO i = m'.outputs.getIO i := sorry
-
-@[drnorm] theorem renamePorts_getIO_inputs_eq {S : Type _} {m m' : Module Ident S} {i p} :
-  p.input.containsVal i →
-  ((m.renamePorts' p).product' m').inputs.getIO i = (m.renamePorts' p).inputs.getIO i := sorry
-
-@[drnorm] theorem renamePorts_getIO_outputs_eq {S : Type _} {m m' : Module Ident S} {i p} :
-  p.output.containsVal i →
-  ((m.renamePorts' p).product' m').outputs.getIO i = (m.renamePorts' p).outputs.getIO i := sorry
-
-@[drnorm] theorem renamePorts_getIO_inputs_eq_base {S : Type _} {m : Module Ident S} {i p} :
-  p.input.containsVal i →
-  (m.renamePorts' p).inputs.getIO i = m.inputs.getIO i := sorry
-
-@[drnorm] theorem renamePorts_getIO_outputs_eq_base {S : Type _} {m : Module Ident S} {i p} :
-  p.input.containsVal i →
-  (m.renamePorts' p).outputs.getIO i = m.outputs.getIO i := sorry
-
-@[drnorm] theorem renamePorts_renamePorts' {S : Type _} {m : Module Ident S} {p} :
-  m.renamePorts p = m.renamePorts' p := by sorry
-
-@[drnorm] theorem renamePorts'_erase_input_ncontains {S : Type _} {m : Module Ident S} {i p} :
-  ¬ p.input.containsVal i →
-  (m.renamePorts' p).erase_input i = m.renamePorts' p := by sorry
-
-@[drnorm] theorem renamePorts'_erase_input {S : Type _} {m : Module Ident S} {i p} :
-  (m.renamePorts' p).erase_input i = m.renamePorts' (Module.erase_inputP p i) := by sorry
-
-@[drnorm] theorem renamePorts'_erase_output_ncontains {S : Type _} {m : Module Ident S} {o p} :
-  ¬ p.output.containsVal o →
-  (m.renamePorts' p).erase_output o = m.renamePorts' p := by sorry
-
-@[drnorm] theorem renamePorts'_erase_output {S : Type _} {m : Module Ident S} {o p} :
-  (m.renamePorts' p).erase_output o = m.renamePorts' (Module.erase_outputP p o) := by sorry
-
-@[drnorm] theorem erase_output_product {S : Type _} {m m' : Module Ident S} {o} :
-  (m.product' m').erase_output o = (m.erase_output o).product' (m'.erase_output o) := by sorry
-
-@[drnorm] theorem erase_input_product {S : Type _} {m m' : Module Ident S} {o} :
-  (m.product' m').erase_input o = (m.erase_input o).product' (m'.erase_input o) := by sorry
-
-@[drnorm] theorem renamePorts'_liftLM {S S' : Type _} {m : Module Ident S} {p} :
-  (m.renamePorts' p).liftLM (S' := S') = m.liftLM.renamePorts' p := by sorry
-
-@[drnorm] theorem renamePorts'_liftRM {S S' : Type _} {m : Module Ident S} {p} :
-  (m.renamePorts' p).liftRM (S' := S') = m.liftRM.renamePorts' p := by sorry
 
 end Graphiti.Module
 

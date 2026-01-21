@@ -1,15 +1,16 @@
 /-
-Copyright (c) 2024-2025 VCA Lab, EPFL. All rights reserved.
+Copyright (c) 2024-2026 VCA Lab, EPFL. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
 module
 
-public import Graphiti.Core.ExprHighLemmas
 public import Graphiti.Core.Rewriter
-public import Graphiti.Core.Environment
-public import Graphiti.Core.WellTyped
+
+public import Graphiti.Core.Graph.ExprHighLemmas
+public import Graphiti.Core.Graph.Environment
+public import Graphiti.Core.Graph.WellTyped
 
 @[expose] public section
 
@@ -17,15 +18,17 @@ open Batteries (AssocList)
 
 namespace Graphiti
 
+variable (env_well_formed : Env String (String × Nat) → Prop)
+
 structure WellFormedEnv (ε : FinEnv String (String × Nat)) (max_type : Nat) : Prop where
-  h_wf : ε.toEnv.well_formed
+  h_wf : env_well_formed ε.toEnv
   max_is_max : ε.max_typeD <= max_type
 
 class Environment {n} (lhs : Vector Nat n → ExprLow String (String × Nat)) where
   ε : FinEnv String (String × Nat)
   max_type : Nat
   types : Vector Nat n
-  h_wf : WellFormedEnv ε max_type
+  h_wf : WellFormedEnv env_well_formed ε max_type
   h_lhs_wt : (lhs types).well_typed ε.toEnv
   h_lhs_wf : (lhs types).well_formed ε.toEnv
 
@@ -33,7 +36,7 @@ theorem EStateM.bind_eq_ok {ε σ α β} {x : EStateM ε σ α} {f : α → ESta
   x.bind f s = .ok v s' →
   ∃ (x_int : α) (s_int : σ),
     x s = .ok x_int s_int ∧ f x_int s_int = .ok v s' := by
-  unfold EStateM.bind; split <;> tauto
+  unfold EStateM.bind; split <;> grind
 
 theorem ofOption_eq_ok {ε σ α} {e : ε} {o : Option α} {o' : α} {s s' : σ} :
   ofOption e o s = EStateM.Result.ok o' s' →
@@ -140,7 +143,7 @@ theorem refines_higher_correct {Ident Typ} [DecidableEq Ident] [DecidableEq Typ]
 
 structure VerifiedRewrite (rewrite : DefiniteRewrite String (String × Nat)) (ε : FinEnv String (String × Nat)) where
   ε_ext : FinEnv String (String × Nat)
-  ε_ext_wf : ε_ext.toEnv.well_formed
+  ε_ext_wf : env_well_formed ε_ext.toEnv
   ε_independent : Env.independent ε_ext.toEnv ε.toEnv
   rhs_wf : rewrite.output_expr.well_formed ε_ext.toEnv
   rhs_wt : rewrite.output_expr.well_typed ε_ext.toEnv
@@ -359,7 +362,7 @@ theorem run'_refines {b} {ε_global : FinEnv String (String × Nat)}
   {st _st'}
   {rw : Rewrite String (String × Nat)}
   {elems types}
-  {vrw : VerifiedRewrite (rw.rewrite types st.fresh_type) ε_global}:
+  {vrw : VerifiedRewrite env_well_formed (rw.rewrite types st.fresh_type) ε_global}:
   rw.pattern g = .ok (elems, types) →
   g.lower = some e_g →
   e_g.well_formed ε_global.toEnv →
@@ -520,7 +523,7 @@ theorem run'_preserves_well_formed {b} {ε_global : FinEnv String (String × Nat
   {st _st'}
   {rw : Rewrite String (String × Nat)}
   {elems types}
-  {vrw : VerifiedRewrite (rw.rewrite types st.fresh_type) ε_global}:
+  {vrw : VerifiedRewrite env_well_formed (rw.rewrite types st.fresh_type) ε_global}:
   rw.pattern g = .ok (elems, types) →
   g.lower = some e_g →
   e_g.well_formed ε_global.toEnv →
@@ -620,7 +623,7 @@ theorem run'_preserves_well_typed {b} {ε_global : FinEnv String (String × Nat)
   {st _st'}
   {rw : Rewrite String (String × Nat)}
   {elems types}
-  {vrw : VerifiedRewrite (rw.rewrite types st.fresh_type) ε_global}:
+  {vrw : VerifiedRewrite env_well_formed (rw.rewrite types st.fresh_type) ε_global}:
   rw.pattern g = .ok (elems, types) →
   g.lower = some e_g →
   e_g.well_formed ε_global.toEnv →

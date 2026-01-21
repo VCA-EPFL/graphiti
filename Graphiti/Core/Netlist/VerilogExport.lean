@@ -6,8 +6,8 @@ Authors: Yann Herklotz
 
 module
 
-public import Graphiti.Core.Module
-public import Graphiti.Core.ExprHigh
+public import Graphiti.Core.Graph.Module
+public import Graphiti.Core.Graph.ExprHigh
 
 @[expose] public section
 

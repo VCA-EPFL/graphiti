@@ -1,5 +1,5 @@
 /-
-Copyright (c) 2024, 2025 VCA Lab, EPFL. All rights reserved.
+Copyright (c) 2024-2026 VCA Lab, EPFL. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
@@ -11,9 +11,7 @@ public import Qq
 
 public import Graphiti.Core.Basic
 public import Graphiti.Core.Simp
-public import Graphiti.Core.List
 public import Graphiti.Core.AssocList
-public import Graphiti.Core.HVector
 public import Graphiti.Core.Tactic
 public import Graphiti.Core.BasicLemmas
 
@@ -96,28 +94,6 @@ variable [DecidableEq Ident]
 @[drunfold] def liftR' {S S'} (x : RelInt S') : RelInt (S × S'):=
   λ (a,b) (a',b') => x b b' ∧ a = a'
 
-@[drunfold] def liftLD {α : Type _} {l₁ l₂ : List α} {f} (x : RelIO (HVector f l₁))
-    : RelIO (HVector f (l₁ ++ l₂)) :=
-  ⟨ x.1, λ a ret a' => x.2 a.left ret a'.left ∧ a.right = a'.right ⟩
-
-@[drunfold] def liftRD {α : Type _} {l₁ l₂ : List α} {f} (x : RelIO (HVector f l₂))
-    : RelIO (HVector f (l₁ ++ l₂)) :=
-  ⟨ x.1, λ a ret a' => x.2 a.right ret a'.right ∧ a.left = a'.left ⟩
-
-@[drunfold] def liftLD' {α : Type _} {l₁ l₂ : List α} {f} (x : RelInt (HVector f l₁))
-    : RelInt (HVector f (l₁ ++ l₂)) :=
-  λ a a' => x a.left a'.left ∧ a.right = a'.right
-
-@[drunfold] def liftRD' {α : Type _} {l₁ l₂ : List α} {f} (x : RelInt (HVector f l₂))
-    : RelInt (HVector f (l₁ ++ l₂)) :=
-  λ a a' => x a.right a'.right ∧ a.left = a'.left
-
-@[drunfold] def liftSingle {α} {a : α} {f} (x : RelIO (f a)) : RelIO (HVector f [a]) :=
-  ⟨ x.1, λ | .cons a .nil, t, .cons a' .nil => x.2 a t a' ⟩
-
-@[drunfold] def liftSingle' {α} {a : α} {f} (x : RelInt (f a)) : RelInt (HVector f [a]) :=
-  λ | .cons a .nil, .cons a' .nil => x a a'
-
 def EqExt {S} (m₁ m₂ : Module Ident S) : Prop :=
   m₁.inputs.EqExt m₂.inputs
   ∧ m₁.outputs.EqExt m₂.outputs
@@ -170,24 +146,6 @@ def named_product {S S'} (mod1 : Module Ident S) (mod2: Module Ident S') (str : 
     outputs := (mod1.outputs.mapVal (λ _ => liftL)).append (mod2.outputs.mapVal (λ _ => liftR)),
     internals := mod1.internals.map liftL' ++ mod2.internals.map liftR',
     init_state := λ (s, s') => mod1.init_state s ∧ mod2.init_state s',
-  }
-
-@[drunfold]
-def productD {α} {l₁ l₂ : List α} {f} (mod1 : Module Ident (HVector f l₁)) (mod2: Module Ident (HVector f l₂)) : Module Ident (HVector f (l₁ ++ l₂)) :=
-  {
-    inputs := (mod1.inputs.mapVal (λ _ => liftLD)).append (mod2.inputs.mapVal (λ _ => liftRD)),
-    outputs := (mod1.outputs.mapVal (λ _ => liftLD)).append (mod2.outputs.mapVal (λ _ => liftRD)),
-    internals := mod1.internals.map liftLD' ++ mod2.internals.map liftRD'
-    init_state := sorry -- TODO
-  }
-
-@[drunfold]
-def liftD {α} {e : α} {f} (mod : Module Ident (f e)) : Module Ident (HVector f [e]) :=
-  {
-    inputs := mod.inputs.mapVal λ _ => liftSingle,
-    outputs := mod.outputs.mapVal λ _ => liftSingle,
-    internals := mod.internals.map liftSingle'
-    init_state := sorry -- TODO
   }
 
 @[drunfold]

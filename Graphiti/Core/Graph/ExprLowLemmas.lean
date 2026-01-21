@@ -6,13 +6,13 @@ Authors: Yann Herklotz
 
 module
 
-public import Graphiti.Core.ModuleLemmas
-public import Graphiti.Core.ExprLow
-public import Graphiti.Core.Environment
-public import Graphiti.Core.WellTyped
+public import Mathlib.Data.Sigma.Basic
+public import Mathlib.Data.Option.Basic
 
-public import Mathlib.Tactic
-public import Mathlib.Data.QPF.Univariate.Basic
+public import Graphiti.Core.Graph.ModuleLemmas
+public import Graphiti.Core.Graph.ExprLow
+public import Graphiti.Core.Graph.Environment
+public import Graphiti.Core.Graph.WellTyped
 
 @[expose] public section
 
@@ -39,25 +39,6 @@ variable (ε : Env Ident Typ)
 | .base i e => [e]
 | .connect _ e => e.ident_list
 | .product a b => a.ident_list ++ b.ident_list
-
-abbrev EType (e : ExprLow Ident Typ) := HVector (get_types ε) e.ident_list
-
-@[drunfold] def build_moduleD
-    : (e : ExprLow Ident Typ) → Option (Module Ident (EType ε e))
-| .base i e =>
-  match h : ε e with
-  | some mod =>
-    have H : mod.1 = get_types ε e := by
-      simp_all [get_types]
-    some ((H ▸ mod.2).liftD)
-  | none => none
-| .connect c e' => do
-  let e ← e'.build_moduleD
-  return e.connect' c.output c.input
-| .product a b => do
-  let a ← a.build_moduleD;
-  let b ← b.build_moduleD;
-  return a.productD b
 
 theorem filterId_empty {α} [DecidableEq α] : PortMapping.filterId (Ident := α) ∅ = ∅ := by rfl
 
@@ -3174,12 +3155,6 @@ theorem well_typed_well_typed' {ε} {e : ExprLow Ident Typ} :
   all_goals sorry
 
 end ExprLowFoldL
-
-theorem well_formed_wrt_from_well_typed {α} {e : ExprLow String (String × α)} {ε : Env String (String × α)} :
-  e.well_formed ε →
-  ε.well_formed →
-  e.well_formed_wrt ε := by
-  induction e <;> (dsimp [well_formed, Env.well_formed, well_formed_wrt] at *; grind)
 
 end ExprLow
 end Graphiti

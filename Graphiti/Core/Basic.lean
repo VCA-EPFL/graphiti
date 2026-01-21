@@ -360,7 +360,7 @@ theorem reverse_cases {α} l : l = [] ∨ ∃ (l' : List α) (a : α), l = l'.co
       subst_vars
       right; exists (head :: l'), a
 
-noncomputable def List.concat_induction {α : Sort _}
+noncomputable def _root_.List.concat_induction {α : Sort _}
   {motive : List α → Prop}
   (l : List α)
   (empty : motive [])
