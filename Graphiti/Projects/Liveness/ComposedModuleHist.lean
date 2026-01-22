@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Maï-Linh Cordonnier
 -/
 
-import Graphiti.Core.Module
+import Graphiti.Core.Graph.Module
 import Graphiti.Core.AssocList.Basic
 import Graphiti.Core.Trace
 

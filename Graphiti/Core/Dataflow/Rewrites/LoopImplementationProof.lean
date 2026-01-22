@@ -1,7 +1,12 @@
-import Graphiti.Core.ExprLowLemmas
-import Graphiti.Core.Rewrites.LoopRewriteCorrect
+/-
+Copyright (c) 2025, 2026 VCA Lab, EPFL. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Martina Camaioni, Yann Herklotz
+-/
+
+import Graphiti.Core.Graph.ExprLowLemmas
+import Graphiti.Core.Dataflow.Rewrites.LoopRewriteCorrect
 import Mathlib
-import Aesop
 
 namespace Graphiti.LoopRewrite
 
@@ -16,7 +21,7 @@ open StringModule
 
 section Proof
 
-variable [e : Environment lhsLower]
+variable [e : Environment Env.well_formed lhsLower]
 
 seal T
 seal f
@@ -282,7 +287,7 @@ theorem state_relation_preserve:
       simp only [List.mem_cons, forall_eq_or_imp, zero_le] at *
       cases h1
       . and_intros
-        · trivial
+        · grind
         · cases h2
           · constructor
             unfold iterate at *
@@ -1640,7 +1645,7 @@ theorem refines_init :
 
 theorem refines : rhsGhostEvaled ⊑ lhsEvaled := ⟨inferInstance, φ, refine, refines_init⟩
 
-noncomputable def verified_rewrite : VerifiedRewrite (rewrite.rewrite e.types e.max_type) e.ε where
+noncomputable def verified_rewrite : VerifiedRewrite Env.well_formed (rewrite.rewrite e.types e.max_type) e.ε where
   ε_ext := ε_rhs_ghost
   ε_ext_wf := ε_rhs_ghost_wf
   ε_independent := Env.independent_symm ε_rhs_ghost_independent

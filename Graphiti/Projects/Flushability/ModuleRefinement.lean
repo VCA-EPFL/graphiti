@@ -1,5 +1,4 @@
-import Graphiti.Core.Module
-import Graphiti.Core.ModuleLemmas
+import Graphiti.Core.Graph.ModuleLemmas
 import Graphiti.Projects.Flushability.SimulationRelation
 import Graphiti.Projects.Flushability.Outputability
 

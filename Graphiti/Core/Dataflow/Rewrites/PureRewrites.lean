@@ -4,8 +4,13 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Graphiti.Core.Rewriter
-import Graphiti.Core.ExprHighElaborator
+module
+
+public import Graphiti.Core.Rewriter
+public import Graphiti.Core.Graph.ExprHighElaborator
+public import Graphiti.Core.Dataflow.Component
+
+@[expose] public section
 
 /-
 This file transforms every node in a datapath into a pure module with a combination of splits and joins.  This format

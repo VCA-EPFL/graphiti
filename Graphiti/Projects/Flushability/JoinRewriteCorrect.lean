@@ -10,16 +10,12 @@ import Qq
 import Mathlib.Tactic
 
 import Graphiti.Core.Simp
-import Graphiti.Core.Module
-import Graphiti.Core.ModuleReduction
-import Graphiti.Core.ExprLow
-import Graphiti.Core.Component
-import Graphiti.Core.KernelRefl
-import Graphiti.Core.Reduce
-import Graphiti.Core.List
-import Graphiti.Core.ExprHighLemmas
+import Graphiti.Core.Graph.ModuleReduction
+import Graphiti.Core.Graph.ExprLow
+import Graphiti.Core.Dataflow.Component
+import Graphiti.Core.Graph.ExprHighLemmas
 import Graphiti.Core.Tactic
-import Graphiti.Core.Rewrites.JoinRewrite
+import Graphiti.Core.Dataflow.Rewrites.JoinRewrite
 
 import Graphiti.Projects.Flushability.ModuleWellformeness
 import Graphiti.Projects.Flushability.SimulationRelation

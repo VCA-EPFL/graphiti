@@ -4,13 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Graphiti.Core.ModuleLemmas
-import Graphiti.Core.ModuleReduction
+import Graphiti.Core.Graph.ModuleLemmas
+import Graphiti.Core.Graph.ModuleReduction
 import Graphiti.Core.Simp
-import Graphiti.Core.ExprHighElaborator
+import Graphiti.Core.Graph.ExprHighElaborator
 import Graphiti.Core.AssocList.Basic
-import Graphiti.Core.TypeExpr
-import Graphiti.Core.VerilogExport
+import Graphiti.Core.Netlist.VerilogExport
 
 open Batteries (AssocList)
 

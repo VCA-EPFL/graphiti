@@ -6,8 +6,7 @@ Authors: Hamza Remmal
 
 import Mathlib.Tactic
 
-import Graphiti.Core.Module
-import Graphiti.Core.ModuleLemmas
+import Graphiti.Core.Graph.Module
 
 namespace Graphiti
 

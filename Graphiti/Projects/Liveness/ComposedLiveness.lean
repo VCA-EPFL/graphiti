@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Maï-Linh Cordonnier, Lorenzo Padrini
 -/
 
-import Graphiti.Core.ModuleLemmas
+import Graphiti.Core.Graph.ModuleLemmas
 import Graphiti.Core.StateTransition
 import Graphiti.Projects.Liveness.ComposedModule
 import Graphiti.Projects.Liveness.StateTransitionLiveness

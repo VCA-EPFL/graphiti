@@ -4,10 +4,6 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Gurvan Debaussart
 -/
 
-import Graphiti.Core.Module
-import Graphiti.Core.ModuleLemmas
-import Graphiti.Core.Component
-import Graphiti.Core.ExprLow
 import Graphiti.Projects.Noc.Lang
 
 namespace Graphiti.Projects.Noc.Buffer

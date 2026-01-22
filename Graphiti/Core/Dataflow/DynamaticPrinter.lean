@@ -7,9 +7,9 @@ Authors: Yann Herklotz, Thomas Bourgeat
 module
 
 public import Graphiti.Core.Rewriter
-public import Graphiti.Core.TypeExpr
-public import Graphiti.Core.DynamaticTypes
-public import Graphiti.Core.WellTyped
+public import Graphiti.Core.Dataflow.TypeExpr
+public import Graphiti.Core.Dataflow.DynamaticTypes
+public import Graphiti.Core.Dataflow.InferTypes
 
 public section
 

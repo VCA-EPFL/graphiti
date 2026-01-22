@@ -5,7 +5,7 @@ Authors: Thomas Bourgeat
 -/
 
 import Graphiti.Core.Rewriter
-import Graphiti.Core.ExprHighElaborator
+import Graphiti.Core.Graph.ExprHighElaborator
 
 namespace Graphiti.FusionTaggerTagger
 

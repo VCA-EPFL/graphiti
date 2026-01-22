@@ -4,13 +4,14 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Graphiti.Core.ExprHigh
-import Graphiti.Core.DotParser
+import Graphiti.Core.Graph.ExprHigh
+import Graphiti.Core.Dataflow.DotParser
+import Graphiti.Core.Dataflow.Rewrites.LoopRewrite
 import Graphiti.Core.Rewriter
-import Graphiti.Core.DynamaticPrinter
-import Graphiti.Core.Rewrites
-import Graphiti.Core.JSLang
-import Graphiti.Core.BluespecPrinter
+import Graphiti.Core.Dataflow.DynamaticPrinter
+import Graphiti.Core.Dataflow.Rewrites
+import Graphiti.Core.Dataflow.JSLang
+import Graphiti.Core.Dataflow.BluespecPrinter
 
 open Batteries (AssocList)
 

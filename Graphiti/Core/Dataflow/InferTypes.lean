@@ -10,6 +10,7 @@ public import Lean
 public import Batteries.Data.UnionFind
 public import Graphiti.Core.Graph.Environment
 public import Graphiti.Core.Graph.ExprLow
+public import Graphiti.Core.Dataflow.TypeExpr
 
 @[expose] public section
 

@@ -7,8 +7,8 @@ Authors: Yann Herklotz
 module
 
 public import Lean
-public import Graphiti.Core.ExprHigh
-public import Graphiti.Core.DynamaticTypes
+public import Graphiti.Core.Graph.ExprHigh
+public import Graphiti.Core.Dataflow.DynamaticTypes
 
 public section
 

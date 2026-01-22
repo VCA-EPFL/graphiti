@@ -4,45 +4,49 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Graphiti.Core.Rewrites.LoopRewrite
-import Graphiti.Core.Rewrites.LoopRewrite2
-import Graphiti.Core.Rewrites.CombineBranch
-import Graphiti.Core.Rewrites.CombineMux
-import Graphiti.Core.Rewrites.JoinSplitLoopCond
-import Graphiti.Core.Rewrites.JoinSplitLoopCondAlt
-import Graphiti.Core.Rewrites.ReduceSplitJoin
-import Graphiti.Core.Rewrites.PureRewrites
-import Graphiti.Core.Rewrites.LoadRewrite
-import Graphiti.Core.Rewrites.JoinQueueLeftRewrite
-import Graphiti.Core.Rewrites.JoinQueueRightRewrite
-import Graphiti.Core.Rewrites.MuxQueueRightRewrite
-import Graphiti.Core.Rewrites.PureSink
-import Graphiti.Core.Rewrites.SplitSinkLeft
-import Graphiti.Core.Rewrites.SplitSinkRight
-import Graphiti.Core.Rewrites.PureSeqComp
-import Graphiti.Core.Rewrites.PureJoinLeft
-import Graphiti.Core.Rewrites.PureJoinRight
-import Graphiti.Core.Rewrites.PureSplitRight
-import Graphiti.Core.Rewrites.PureSplitLeft
-import Graphiti.Core.Rewrites.JoinSplitElim
-import Graphiti.Core.Rewrites.JoinAssocL
-import Graphiti.Core.Rewrites.JoinAssocR
-import Graphiti.Core.Rewrites.JoinComm
-import Graphiti.Core.Rewrites.ForkPure
-import Graphiti.Core.Rewrites.ForkJoin
-import Graphiti.Core.Rewrites.JoinRewrite
-import Graphiti.Core.Rewrites.Fork3Rewrite
-import Graphiti.Core.Rewrites.Fork4Rewrite
-import Graphiti.Core.Rewrites.Fork5Rewrite
-import Graphiti.Core.Rewrites.Fork6Rewrite
-import Graphiti.Core.Rewrites.Fork7Rewrite
-import Graphiti.Core.Rewrites.Fork8Rewrite
-import Graphiti.Core.Rewrites.Fork9Rewrite
-import Graphiti.Core.Rewrites.Fork10Rewrite
-import Graphiti.Core.Rewrites.BranchMuxToPure
-import Graphiti.Core.Rewrites.BranchPureMuxLeft
-import Graphiti.Core.Rewrites.BranchPureMuxRight
+module
+
+/- public import Graphiti.Core.Dataflow.Rewrites.LoopRewrite -/
+public import Graphiti.Core.Dataflow.Rewrites.LoopRewrite2
+public import Graphiti.Core.Dataflow.Rewrites.CombineBranch
+public import Graphiti.Core.Dataflow.Rewrites.CombineMux
+public import Graphiti.Core.Dataflow.Rewrites.JoinSplitLoopCond
+public import Graphiti.Core.Dataflow.Rewrites.JoinSplitLoopCondAlt
+public import Graphiti.Core.Dataflow.Rewrites.ReduceSplitJoin
+public import Graphiti.Core.Dataflow.Rewrites.PureRewrites
+public import Graphiti.Core.Dataflow.Rewrites.LoadRewrite
+public import Graphiti.Core.Dataflow.Rewrites.JoinQueueLeftRewrite
+public import Graphiti.Core.Dataflow.Rewrites.JoinQueueRightRewrite
+public import Graphiti.Core.Dataflow.Rewrites.MuxQueueRightRewrite
+public import Graphiti.Core.Dataflow.Rewrites.PureSink
+public import Graphiti.Core.Dataflow.Rewrites.SplitSinkLeft
+public import Graphiti.Core.Dataflow.Rewrites.SplitSinkRight
+public import Graphiti.Core.Dataflow.Rewrites.PureSeqComp
+public import Graphiti.Core.Dataflow.Rewrites.PureJoinLeft
+public import Graphiti.Core.Dataflow.Rewrites.PureJoinRight
+public import Graphiti.Core.Dataflow.Rewrites.PureSplitRight
+public import Graphiti.Core.Dataflow.Rewrites.PureSplitLeft
+public import Graphiti.Core.Dataflow.Rewrites.JoinSplitElim
+public import Graphiti.Core.Dataflow.Rewrites.JoinAssocL
+public import Graphiti.Core.Dataflow.Rewrites.JoinAssocR
+public import Graphiti.Core.Dataflow.Rewrites.JoinComm
+public import Graphiti.Core.Dataflow.Rewrites.ForkPure
+public import Graphiti.Core.Dataflow.Rewrites.ForkJoin
+/- public import Graphiti.Core.Dataflow.Rewrites.JoinRewrite -/
+public import Graphiti.Core.Dataflow.Rewrites.Fork3Rewrite
+public import Graphiti.Core.Dataflow.Rewrites.Fork4Rewrite
+public import Graphiti.Core.Dataflow.Rewrites.Fork5Rewrite
+public import Graphiti.Core.Dataflow.Rewrites.Fork6Rewrite
+public import Graphiti.Core.Dataflow.Rewrites.Fork7Rewrite
+public import Graphiti.Core.Dataflow.Rewrites.Fork8Rewrite
+public import Graphiti.Core.Dataflow.Rewrites.Fork9Rewrite
+public import Graphiti.Core.Dataflow.Rewrites.Fork10Rewrite
+public import Graphiti.Core.Dataflow.Rewrites.BranchMuxToPure
+public import Graphiti.Core.Dataflow.Rewrites.BranchPureMuxLeft
+public import Graphiti.Core.Dataflow.Rewrites.BranchPureMuxRight
 -- import Graphiti.Rewrites.JoinRewriteCorrect
+
+@[expose] public section
 
 namespace Graphiti
 

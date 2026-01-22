@@ -10,7 +10,8 @@ public import Lean
 public import Qq
 
 public meta import Graphiti.Core.Graph.ExprHigh
-public import Graphiti.Core.Graph.Module
+public meta import Graphiti.Core.Graph.Module
+public meta import Batteries.Data.AssocList
 
 @[expose] public meta section
 

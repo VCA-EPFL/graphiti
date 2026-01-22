@@ -4,8 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Graphiti.Core.ExprHigh
-import Graphiti.Core.Rewrites
+module
+
+public import Graphiti.Core.Dataflow.Rewrites
+public import Graphiti.Core.Graph.ExprHigh
+
+public section
 
 open Std.Internal (Parsec)
 open Std.Internal.Parsec String

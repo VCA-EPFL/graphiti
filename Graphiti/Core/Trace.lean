@@ -6,7 +6,7 @@ Authors: Yann Herklotz
 
 module
 
-public import Graphiti.Core.ModuleLemmas
+public import Graphiti.Core.Graph.ModuleLemmas
 public import Graphiti.Core.StateTransition
 
 @[expose] public section

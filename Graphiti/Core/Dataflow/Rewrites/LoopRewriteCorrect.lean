@@ -4,11 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
--- import Graphiti.Core.Rewrites.LoopRewrite
-import Graphiti.Core.ExprLowLemmas
-import Graphiti.Core.ExprHighElaborator
-import Graphiti.Core.Component
-import Graphiti.Core.ModuleReduction
+import Graphiti.Core.Dataflow.Component
+import Graphiti.Core.Graph.ExprLowLemmas
+import Graphiti.Core.Graph.ExprHighElaborator
+import Graphiti.Core.Graph.ModuleReduction
 import Graphiti.Core.RewriterLemmas
 
 namespace Graphiti.LoopRewrite
@@ -90,7 +89,7 @@ def rhs_extract max_type := (rhs max_type).extract ["tagger", "merge", "branch",
 @[drunfold_defs]
 def rhsLower max_type := (rhs_extract max_type).fst.lower_TR.get rfl
 
-variable [e : Environment lhsLower]
+variable [e : Environment Env.well_formed lhsLower]
 
 local instance : BEq (String × Nat) := instBEqOfDecidableEq
 

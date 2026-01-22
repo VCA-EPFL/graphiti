@@ -6,11 +6,13 @@ Authors: Yann Herklotz
 
 module
 
-public import Graphiti.Core.Module
 public import Graphiti.Core.Simp
-public import Graphiti.Core.ExprHigh
 public import Graphiti.Core.AssocList.Basic
-public import Graphiti.Core.TypeExpr
+public import Graphiti.Core.Graph.Module
+public import Graphiti.Core.Graph.ExprHigh
+public import Graphiti.Core.Graph.Environment
+public import Graphiti.Core.Graph.ExprLowLemmas
+public import Graphiti.Core.Dataflow.TypeExpr
 
 @[expose] public section
 

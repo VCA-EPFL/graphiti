@@ -6,9 +6,9 @@ Authors: Gurvan Debaussart
 
 -- A bunch of random stuff which doesn't quite fit with the rest
 
-import Graphiti.Core.Module
-import Graphiti.Core.ModuleLemmas
-import Graphiti.Core.Component
+import Graphiti.Core.Graph.Module
+import Graphiti.Core.Graph.ModuleLemmas
+import Graphiti.Core.Dataflow.Component
 
 open Batteries (AssocList)
 

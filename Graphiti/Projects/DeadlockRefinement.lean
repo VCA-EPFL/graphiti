@@ -4,12 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz, Gurvan Debaussart
 -/
 
-import Graphiti.Core.Module
-import Graphiti.Core.ModuleLemmas
-import Graphiti.Core.ModuleReduction
-import Graphiti.Core.ExprLow
-import Graphiti.Core.ExprLowLemmas
-import Graphiti.Core.Component
+import Graphiti.Core.Graph.Module
+import Graphiti.Core.Graph.ModuleLemmas
+import Graphiti.Core.Graph.ModuleReduction
+import Graphiti.Core.Graph.ExprLow
+import Graphiti.Core.Graph.ExprLowLemmas
 
 open Batteries (AssocList)
 

@@ -6,7 +6,7 @@
 -- We could then try to exhibit such a specification module and try to prove the
 -- property on it, and then prove the refinement.
 
-import Graphiti.Core.ModuleLemmas
+import Graphiti.Core.Graph.ModuleLemmas
 import Graphiti.Core.StateTransition
 import Graphiti.Core.Trace
 import Graphiti.Projects.Liveness.ComposedModule

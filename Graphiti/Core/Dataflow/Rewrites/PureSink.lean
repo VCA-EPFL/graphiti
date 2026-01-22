@@ -4,8 +4,13 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Graphiti.Core.Rewriter
-import Graphiti.Core.ExprHighElaborator
+module
+
+public import Graphiti.Core.Rewriter
+public import Graphiti.Core.Graph.ExprHighElaborator
+public import Graphiti.Core.Dataflow.Component
+
+@[expose] public section
 
 namespace Graphiti.PureSink
 
