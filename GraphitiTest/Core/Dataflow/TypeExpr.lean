@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Graphiti.Core.TypeExpr
+import Graphiti.Core.Dataflow.TypeExpr
 
 namespace Graphiti.TypeExpr.Parser.Test
 

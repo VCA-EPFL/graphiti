@@ -5,7 +5,7 @@ Authors: Yann Herklotz
 -/
 
 import Graphiti.Core.RewriterLemmas
-import Graphiti.Core.Rewrites.LoopImplementationProof
+import Graphiti.Core.Dataflow.Rewrites.LoopImplementationProof
 
 open Batteries (AssocList)
 
@@ -28,7 +28,7 @@ noncomputable def LoopRewrite_Environment
     (h4 : ExprLow.well_formed ε_global.toEnv e_g = true)
     (h5 : ExprLow.well_typed ε_global.toEnv e_g)
     (h6 : Rewrite.run' g LoopRewrite.rewrite b st = EStateM.Result.ok g' _st'):
-    Environment LoopRewrite.lhsLower where
+    Environment Env.well_formed LoopRewrite.lhsLower where
   ε := ε_global
   types := types
   max_type := st.fresh_type
@@ -75,7 +75,7 @@ theorem run'_refines_applied {b} {ε_global : FinEnv String (String × Nat)}
     (h5 : e_g.well_typed ε_global.toEnv)
     (h6 : Rewrite.run' g LoopRewrite.rewrite b st = .ok g' _st') :
     [Ge| g', (ε_global ++ ((@LoopRewrite.verified_rewrite (LoopRewrite_Environment h_wf h1 h2 h3 h4 h5 h6)).ε_ext)).toEnv ] ⊑ [Ge| g, ε_global.toEnv ] :=
-  run'_refines h2 h3 h4 h5 h6
+  run'_refines Env.well_formed h2 h3 h4 h5 h6
 
 #print axioms run'_refines_applied
 

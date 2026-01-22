@@ -4,8 +4,8 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Graphiti.Core.WellTyped
-import Graphiti.Core.ExprHighElaborator
+import Graphiti.Core.Dataflow.InferTypes
+import Graphiti.Core.Graph.ExprHighElaborator
 
 namespace Graphiti.ExprLow.Test
 
