@@ -30,7 +30,7 @@ set multiplot layout 2,2
 
 unset xtics
 
-set arrow 1 front from graph 0, first myOffset to graph 1, first myOffset nohead ls -1 lc rgb "#e78ac3"
+set arrow 1 front from graph 0, first myOffset to graph 1, first myOffset nohead ls -1 lc rgb "#e78ac3" lw 5pt
 set yrange [0.1:7]
 
 set format y "%.1f"
@@ -62,13 +62,13 @@ unset arrow
 # set arrow 1 front from graph 0, first 10 to graph 1, first 10 nohead ls -1 linecolor "#e41a1c" dashtype 2
 
 plot sample [x=0:14:1] '+' us (x/2-0.5):(26/(int(x)%4!=1)) with filledcurves x1 fc rgb "#EEEEEE" notitle, \
-     'raw_results.csv' every ::1 using 0:($7):($0+0.5*(myWidth3)-myWidth3/2.):($0+0.5*(myWidth3)+myWidth3/2.):(0):($7):xtic(1) with boxxyerror title "DF-OoO" fs pattern 1,\
-     '' every ::1 using 0:($8):($0+1.5*(myWidth3)-myWidth3/2.):($0+1.5*(myWidth3)+myWidth3/2.):(0):($8):xtic(1) with boxxyerror title "Graphiti" fs pattern 2,\
-'' every ::1 using 0:($9):($0-1.5*(myWidth3)-myWidth3/2.):($0-1.5*(myWidth3)+myWidth3/2.):(0):($9):xtic(1) with boxxyerror title "Vericert",\
-     '' every ::1 using 0:($6):($0-0.5*(myWidth3)-myWidth3/2.):($0-0.5*(myWidth3)+myWidth3/2.):(0):($6):xtic(1) with boxxyerror title "DF-IO"
+     'raw_results.csv' every ::1 using 0:($7):($0+0.5*(myWidth3)-myWidth3/2.):($0+0.5*(myWidth3)+myWidth3/2.):(0):($7):xtic(1) with boxxyerror title "\\a{DF-OoO}" fs pattern 1,\
+     '' every ::1 using 0:($8):($0+1.5*(myWidth3)-myWidth3/2.):($0+1.5*(myWidth3)+myWidth3/2.):(0):($8):xtic(1) with boxxyerror title "\\b{Graphiti}" fs pattern 2,\
+'' every ::1 using 0:($9):($0-1.5*(myWidth3)-myWidth3/2.):($0-1.5*(myWidth3)+myWidth3/2.):(0):($9):xtic(1) with boxxyerror title "\\c{Vericert}",\
+     '' every ::1 using 0:($6):($0-0.5*(myWidth3)-myWidth3/2.):($0-0.5*(myWidth3)+myWidth3/2.):(0):($6):xtic(1) with boxxyerror title "\\d{DF-IO}"
 
 unset arrow
-set arrow 1 front from graph 0, first myOffset to graph 1, first myOffset nohead ls -1 lc rgb "#e78ac3"
+set arrow 1 front from graph 0, first myOffset to graph 1, first myOffset nohead ls -1 lc rgb "#e78ac3" lw 5pt
 
 unset yrange
 set ylabel "(a) Relative execution time"
