@@ -23,4 +23,4 @@ bin/graphiti_oracle:
 .PHONY: test
 test:
 	lake test
-	$(MAKE) -B -C benchmarks/dynamatic
+	$(MAKE) $(MAKEFLAGS) -B -C benchmarks/dynamatic

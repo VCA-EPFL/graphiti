@@ -15,9 +15,11 @@ open Batteries (AssocList)
 
 namespace Graphiti.CombModule
 
-@[simp] abbrev Val := Nat
-@[simp] abbrev Reg := Nat
+@[simp] abbrev Val := Int
+@[simp] abbrev Reg := Int
+@[simp] abbrev Ptrofs := Int
 @[simp] abbrev Node := Nat
+@[simp] abbrev Ident := Nat
 
 structure Context where
   memory : AssocList Reg Val
@@ -26,69 +28,262 @@ structure Context where
 def update_loc (loc: Reg) (val: Val) (c: Context) : Context :=
   ⟨c.memory.cons loc val⟩
 
-inductive Aexp where
-| lit : Val → Aexp
-| var : Reg → Aexp
-| add : Aexp → Aexp → Aexp
+abbrev CFG := ExprHigh String (String × Nat)
 
-inductive Bexp where
-| true : Bexp
-| false : Bexp
-| eq : Aexp → Aexp → Bexp
-| lt : Aexp → Aexp → Bexp
-| and : Bexp → Bexp → Bexp
-| or : Bexp → Bexp → Bexp
-| not : Bexp → Bexp
+abbrev Port := InternalPort String
 
-inductive Instr where
-| skip : Node → Instr
-| assign : Reg → Aexp → Node → Instr
-| cond : Bexp → Node → Node → Instr
-| ret : Option Reg → Instr
+inductive Comparison: Type where
+| Ceq : Comparison
+| Cne : Comparison
+| Clt : Comparison
+| Cle : Comparison
+| Cgt : Comparison
+| Cge : Comparison
+deriving Repr, DecidableEq, Lean.ToJson, Lean.FromJson, Inhabited
+
+inductive Condition: Type where
+| Ccomp (comp: Comparison)
+| Ccompu (comp: Comparison)
+| Ccompimm (comp: Comparison) (imm: Int)
+| Ccompuimm (comp: Comparison) (imm: Int)
+| Ccompl (comp: Comparison)
+| Ccomplu (comp: Comparison)
+| Ccomplimm (comp: Comparison) (imm: Int)
+| Ccompluimm (comp: Comparison) (imm: Int)
+| Ccompf (comp: Comparison)
+| Cnotcompf (comp: Comparison)
+| Ccompfs (comp: Comparison)
+| Cnotcompfs (comp: Comparison)
+deriving Repr, DecidableEq, Lean.ToJson, Lean.FromJson, Inhabited
+
+inductive Operation: Type where
+| Omove
+| Ointconst (imm: Int)
+| Olongconst (imm: Int)
+| Ofloatconst (imm: Float)
+| Osingleconst (imm: Float)
+| Oaddrsymbol (id: Ident) (ofs: Ptrofs)
+| Oaddrstack (ofs: Ptrofs)
+| Ocast8signed
+| Ocast16signed
+| Oadd
+| Oaddimm (imm: Int)
+| Oneg
+| Osub
+| Omul
+| Omulhs
+| Omulhu
+| Odiv
+| Odivu
+| Omod
+| Omodu
+| Oand
+| Oandimm (imm: Int)
+| Oor
+| Oorimm (imm: Int)
+| Oxor
+| Oxorimm (imm: Int)
+| Oshl
+| Oshlimm (imm: Int)
+| Oshr
+| Oshrimm (imm: Int)
+| Oshru
+| Oshruimm (imm: Int)
+| Oshrximm (imm: Int)
+| Omakelong
+| Olowlong
+| Ohighlong
+| Ocast32signed
+| Ocast32unsigned
+| Oaddl
+| Oaddlimm (imm: Int)
+| Onegl
+| Osubl
+| Omull
+| Omullhs
+| Omullhu
+| Odivl
+| Odivlu
+| Omodl
+| Omodlu
+| Oandl
+| Oandlimm (imm: Int)
+| Oorl
+| Oorlimm (imm: Int)
+| Oxorl
+| Oxorlimm (imm: Int)
+| Oshll
+| Oshllimm (imm: Int)
+| Oshrl
+| Oshrlimm (imm: Int)
+| Oshrlu
+| Oshrluimm (imm: Int)
+| Oshrxlimm (imm: Int)
+| Onegf
+| Oabsf
+| Oaddf
+| Osubf
+| Omulf
+| Odivf
+| Onegfs
+| Oabsfs
+| Oaddfs
+| Osubfs
+| Omulfs
+| Odivfs
+| Osingleoffloat
+| Ofloatofsingle
+| Ointoffloat
+| Ointuoffloat
+| Ofloatofint
+| Ofloatofintu
+| Ointofsingle
+| Ointuofsingle
+| Osingleofint
+| Osingleofintu
+| Olongoffloat
+| Olonguoffloat
+| Ofloatoflong
+| Ofloatoflongu
+| Olongofsingle
+| Olonguofsingle
+| Osingleoflong
+| Osingleoflongu
+| Ocmp (cond: Condition)
+| Osel (cond: Condition)
+deriving Repr, Lean.ToJson, Lean.FromJson, Inhabited
+
+inductive MemoryChunk : Type where
+| Mbool
+| Mint8signed
+| Mint8unsigned
+| Mint16signed
+| Mint16unsigned
+| Mint32
+| Mint64
+| Mfloat32
+| Mfloat64
+| Many32
+| Many64
+deriving Repr, DecidableEq, Lean.ToJson, Lean.FromJson, Inhabited
+
+inductive Addressing: Type where
+| Aindexed (ofs: Ptrofs)
+| Aglobal (id: Ident) (ofs: Ptrofs)
+| Ainstack (ofs: Ptrofs)
+deriving Repr, DecidableEq, Lean.ToJson, Lean.FromJson, Inhabited
+
+deriving instance Lean.ToJson for Sum
+deriving instance Lean.FromJson for Sum
+
+inductive Instruction: Type where
+| Inop (next : Node)
+| Iop (operation : Operation) (regs : List Reg) (dest : Reg) (next : Node)
+| Iload (chunk: MemoryChunk) (addr: Addressing) (regs: List Reg) (dest: Reg) (next: Node)
+| Istore (chunk: MemoryChunk) (addr: Addressing) (regs: List Reg) (source: Reg) (next: Node)
+| Icall (dest: Reg) (function: Sum Reg String) (args: List Reg) (next: Node)
+| Icond (cond: Condition) (regs: List Reg) (true_next: Node) (false_next: Node)
+| Ijumptable (reg: Reg) (table: List Node)
+| Ireturn (reg: Option Reg)
+deriving Repr, Lean.ToJson, Lean.FromJson, Inhabited
+
+def Code: Type := Std.TreeMap String Instruction
+deriving Repr, Lean.ToJson, Lean.FromJson, Inhabited
+
+structure Function: Type where
+  params: List Reg
+  stacksize: Nat
+  code: Code
+  entrypoint: Node
+deriving Repr, Lean.ToJson, Lean.FromJson, Inhabited
+
+def Program: Type := Std.TreeMap String Function
+deriving Repr, Lean.ToJson, Lean.FromJson, Inhabited
+
+def random := "
+{
+\"f\": {
+  \"params\": [2, 1],
+  \"entrypoint\": 10,
+  \"stacksize\": 0,
+  \"code\": {
+    \"10\": {\"Iop\": {\"dest\": 5, \"operation\": \"Omove\", \"regs\": [2], \"next\": 9}},
+    \"9\": {\"Iop\": {\"dest\": 4, \"operation\": \"Omove\", \"regs\": [1], \"next\": 8}},
+    \"8\": {\"Inop\": {\"next\": 7}},
+    \"7\": {\"Icond\": {\"cond\": {\"Ccompimm\": {\"comp\": \"Cne\", \"imm\": 0}}, \"regs\": [4], \"true_next\": 6, \"false_next\": 2}},
+    \"6\": {\"Iop\": {\"dest\": 3, \"operation\": \"Omove\", \"regs\": [4], \"next\": 5}},
+    \"5\": {\"Iop\": {\"dest\": 4, \"operation\": \"Omod\", \"regs\": [5, 4], \"next\": 4}},
+    \"4\": {\"Iop\": {\"dest\": 5, \"operation\": \"Omove\", \"regs\": [3], \"next\": 3}},
+    \"3\": {\"Inop\": {\"next\": 7}},
+    \"2\": {\"Iop\": {\"dest\": 6, \"operation\": \"Omove\", \"regs\": [5], \"next\": 1}},
+    \"1\": {\"Ireturn\": {\"reg\": 6}}
+  }
+},
+\"main\": {
+  \"params\": [],
+  \"entrypoint\": 6,
+  \"stacksize\": 0,
+  \"code\": {
+    \"6\": {\"Iop\": {\"dest\": 3, \"operation\": {\"Ointconst\": {\"imm\": 10}}, \"regs\": [], \"next\": 5}},
+    \"5\": {\"Iop\": {\"dest\": 4, \"operation\": {\"Ointconst\": {\"imm\": 12}}, \"regs\": [], \"next\": 4}},
+    \"4\": {\"Icall\": {\"dest\": 1, \"function\": {\"inr\": {\"val\": \"f\"}}, \"args\": [3, 4], \"next\": 3}},
+    \"3\": {\"Iop\": {\"dest\": 2, \"operation\": \"Omove\", \"regs\": [1], \"next\": 1}},
+    \"2\": {\"Iop\": {\"dest\": 2, \"operation\": {\"Ointconst\": {\"imm\": 0}}, \"regs\": [], \"next\": 1}},
+    \"1\": {\"Ireturn\": {\"reg\": 2}}
+  }
+}
+}
+"
+
+def prog : Function := (Lean.Json.parse random >>= Lean.fromJson? (α := Program)).toOption.get! |> (·.get! "f")
+
+#eval IO.println <| repr <| prog
+
+def isInputConnected? (graph : CFG) (inp : Port) : Option Port :=
+  graph.connections.filter (·.input == inp) |>.head? |>.map (·.output)
+
+def PortMap.generate (name label : String) (n : Nat) : PortMap String (InternalPort String) :=
+  List.range n
+  |>.map (fun i => (⟨.top, label ++ toString (i+1)⟩, ⟨.internal name, label ++ toString (i+1)⟩))
+  |>.toAssocList
+
+def PortMapping.generate (name : String) (inp out : Nat) : PortMapping String :=
+  ⟨PortMap.generate name "in" inp, PortMap.generate name "out" out⟩
+
+def connectMaybeWithMerge (graph : CFG) (out inp : Port) : CFG :=
+  match isInputConnected? graph inp with
+  | some cur_out =>
+    let m := s!"merge_{graph.modules.length}"
+    ⟨ graph.modules.cons m (PortMapping.generate m 2 1, ("merge", 0)),
+      graph.connections.filter (· != ⟨cur_out, inp⟩)
+      |>.cons ⟨⟨.internal m, "out1"⟩, inp⟩
+      |>.cons ⟨out, ⟨.internal m, "in1"⟩⟩
+      |>.cons ⟨cur_out, ⟨.internal m, "in2"⟩⟩
+     ⟩
+  | none =>
+    {graph with connections := ⟨out, inp⟩ :: graph.connections}
+
+def instrToGraph (g : CFG) (label : String) : Instruction → CFG
+| .Inop next =>
+  connectMaybeWithMerge {g with modules := g.modules.cons s!"n_{label}" (PortMapping.generate s!"n_{label}" 1 1, ("Inop", 0))}
+  ⟨.internal s!"n_{label}", "out1"⟩ ⟨.internal s!"n_{next}", "in1"⟩
+| .Iop operation regs dest next =>
+  connectMaybeWithMerge {g with modules := g.modules.cons s!"n_{label}" (PortMapping.generate s!"n_{label}" 1 1, (s!"Iop {repr operation}", 0))}
+  ⟨.internal s!"n_{label}", "out1"⟩ ⟨.internal s!"n_{next}", "in1"⟩
+| .Icond cond regs true_next false_next =>
+  connectMaybeWithMerge {g with modules := g.modules.cons s!"n_{label}" (PortMapping.generate s!"n_{label}" 1 1, ("Icond", 0))}
+  ⟨.internal s!"n_{label}", "out1"⟩ ⟨.internal s!"n_{true_next}", "in1"⟩
+  |> (connectMaybeWithMerge · ⟨.internal s!"n_{label}", "out2"⟩ ⟨.internal s!"n_{false_next}", "in1"⟩)
+| .Ireturn _ =>
+  {g with modules := g.modules.cons s!"n_{label}" (PortMapping.generate s!"n_{label}" 1 0, ("Ireturn", 0))}
+| _ => panic! "not implemented"
+
+def codeToGraph (code : Code) : ExprHigh String (String × Nat) :=
+  code.foldl instrToGraph ⟨∅, ∅⟩
+
+#eval IO.println <| codeToGraph prog.code
 
 namespace Semantics
-
-inductive Aexp.sem : Context → Aexp → Val → Prop where
-  | lit {c n} : Aexp.sem c (Aexp.lit n) n
-  | var {c y r} : c.memory.find? r = some y → Aexp.sem c (Aexp.var r) y
-  | add {c a v b v'} : Aexp.sem c a v → Aexp.sem c b v' → Aexp.sem c (Aexp.add a b) (v + v')
-
-inductive Bexp.sem : Context → Bexp → Bool → Prop where
-  | true {c} : Bexp.sem c Bexp.true Bool.true
-  | false {c} : Bexp.sem c Bexp.false Bool.false
-  | eq {c a v b v'} : Aexp.sem c a v → Aexp.sem c b v' → Bexp.sem c (Bexp.eq a b) (v = v')
-  | lt {c a v b v'} : Aexp.sem c a v → Aexp.sem c b v' → Bexp.sem c (Bexp.lt a b) (v < v')
-  | and {c a v b v'} : Bexp.sem c a v → Bexp.sem c b v' → Bexp.sem c (Bexp.and a b) (v && v')
-  | or {c a v b v'} : Bexp.sem c a v → Bexp.sem c b v' → Bexp.sem c (Bexp.or a b) (v || v')
-  | not {c a v} : Bexp.sem c a v → Bexp.sem c (Bexp.not a) (¬ v)
-
-inductive State where
-| state
-  (pc : Node)
-  (env : AssocList Node Instr)
-  (context : Context) : State
-| ret
-  (v : Option Val) : State
-
-inductive Instr.sem : State → State → Prop where
-  | skip {c n pc env} :
-    env.find? pc = .some (Instr.skip n) →
-    Instr.sem (.state pc env c) (.state n env c)
-  | assign {c e v r n pc env} :
-    env.find? pc = .some (Instr.assign r e n) →
-    Aexp.sem c e v →
-    Instr.sem (.state pc env c) (.state n env (update_loc r v c))
-  | cond_true {c b t f env pc} :
-    env.find? pc = .some (Instr.cond b t f) →
-    Bexp.sem c b true →
-    Instr.sem (.state pc env c) (.state t env c)
-  | cond_false {c b t f env pc} :
-    env.find? pc = .some (Instr.cond b t f) →
-    Bexp.sem c b false →
-    Instr.sem (.state pc env c) (.state f env c)
-  | ret {pc env c v} :
-    env.find? pc = .some (Instr.ret v) →
-    Instr.sem (.state pc env c) (.ret v)
 
 end Semantics
 
