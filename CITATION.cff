@@ -1,0 +1,41 @@
+# -*- mode: yaml -*-
+authors:
+  - family-names: Herklotz
+    given-names: Yann
+  - family-names: Elakhras
+    given-names: Ayatallah
+  - family-names: Camaioni
+    given-names: Martina
+  - family-names: Ienne
+    given-names: Paolo
+  - family-names: Josipović
+    given-names: Lana
+  - family-names: Bourgeat
+    given-names: Thomas
+cff-version: 1.2.0
+message: "If you use this software, please cite both the article from preferred-citation and the software itself."
+title: "Graphiti"
+version: ASPLOS'26
+doi: 10.5281/zenodo.17942753
+url: "https://github.com/vca-epfl/graphiti"
+year: 2026
+preferred-citation:
+  authors:
+  - family-names: Herklotz
+    given-names: Yann
+  - family-names: Elakhras
+    given-names: Ayatallah
+  - family-names: Camaioni
+    given-names: Martina
+  - family-names: Ienne
+    given-names: Paolo
+  - family-names: Josipović
+    given-names: Lana
+  - family-names: Bourgeat
+    given-names: Thomas
+  title: "Graphiti: Formally verified out-of-order execution in dataflow circuits"
+  type: inproceedings
+  doi: 10.1145/3779212.3790166
+  booktitle: Proceedings of the 31st ACM International Conference on Architectural Support for Programming Languages and Operating Systems, Volume 2
+  numpages: 17
+  year: 2026
