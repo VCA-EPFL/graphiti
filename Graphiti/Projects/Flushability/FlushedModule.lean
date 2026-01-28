@@ -46,6 +46,8 @@ def flushable (mod: Module Ident S) (s: S): Prop :=
 class Flushable (mod: Module Ident S): Prop where
  flushable: ∀ s, flushable mod s
 
+-- This is not a useful assumption, needs to be relaxed at least into a version with deterministically applying rules,
+-- i.e.: `∀ r ∈ mod.internals, r s' s ∨ (∀ s'', ¬ r s' s'')`.  This is also very restrictive though.
 def flushable.R (mod: Module Ident S) (s s' : S) :=
   ∀ r ∈ mod.internals, r s' s
 
