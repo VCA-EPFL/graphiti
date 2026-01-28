@@ -257,14 +257,14 @@ instance MatchInterface_product_associative {I S J} {imod : Module Ident I} {smo
     cases himod : imod.inputs.find? ident
     · cases hsmod : smod.inputs.find? ident
       · cases hjmod : jmod.inputs.find? ident
-        · repeat1 ((try rw [AssocList.find?_mapVal]); rw [AssocList.append_find_right])
+        · repeat ((try rw [AssocList.find?_mapVal]); rw [AssocList.append_find_right])
           any_goals simp only [*, AssocList.find?_mapVal]; dsimp
-          repeat1 ((try rw [AssocList.find?_mapVal]); rw [AssocList.append_find_right])
+          repeat ((try rw [AssocList.find?_mapVal]); rw [AssocList.append_find_right])
           all_goals simp [*, AssocList.find?_mapVal, -AssocList.find?_eq]
-        · repeat1 ((try rw [AssocList.find?_mapVal]); rw [AssocList.append_find_right])
+        · repeat ((try rw [AssocList.find?_mapVal]); rw [AssocList.append_find_right])
           any_goals simp only [*, AssocList.find?_mapVal]
           rfl
-          repeat1 ((try rw [AssocList.find?_mapVal]); rw [AssocList.append_find_right])
+          repeat ((try rw [AssocList.find?_mapVal]); rw [AssocList.append_find_right])
           all_goals simp [*, AssocList.find?_mapVal, -AssocList.find?_eq]
       · rename_i v
         conv =>
@@ -291,14 +291,14 @@ instance MatchInterface_product_associative {I S J} {imod : Module Ident I} {smo
     cases himod : imod.outputs.find? ident
     · cases hsmod : smod.outputs.find? ident
       · cases hjmod : jmod.outputs.find? ident
-        · repeat1 ((try rw [AssocList.find?_mapVal]); rw [AssocList.append_find_right])
+        · repeat ((try rw [AssocList.find?_mapVal]); rw [AssocList.append_find_right])
           any_goals simp only [*, AssocList.find?_mapVal]; dsimp
-          repeat1 ((try rw [AssocList.find?_mapVal]); rw [AssocList.append_find_right])
+          repeat ((try rw [AssocList.find?_mapVal]); rw [AssocList.append_find_right])
           all_goals simp [*, AssocList.find?_mapVal, -AssocList.find?_eq]
-        · repeat1 ((try rw [AssocList.find?_mapVal]); rw [AssocList.append_find_right])
+        · repeat ((try rw [AssocList.find?_mapVal]); rw [AssocList.append_find_right])
           any_goals simp only [*, AssocList.find?_mapVal]; dsimp
           rfl
-          repeat1 ((try rw [AssocList.find?_mapVal]); rw [AssocList.append_find_right])
+          repeat ((try rw [AssocList.find?_mapVal]); rw [AssocList.append_find_right])
           all_goals simp [*, AssocList.find?_mapVal, -AssocList.find?_eq]
       · rename_i v
         conv =>
@@ -1402,7 +1402,7 @@ theorem refines_product {J K} (imod₂ : Module Ident J) (smod₂ : Module Ident
 theorem refines_φ_product_associative {J} (jmod : Module Ident J):
     imod.product (smod.product jmod) ⊑_{fun | (i₁, i₂, i₃), ((s₁, s₂), s₃) => i₁ = s₁ ∧ i₂ = s₂ ∧ i₃ = s₃} (imod.product smod).product jmod := by
   intro (i_init, s_init, j_init) ((i_init', s_init'), j_init') hphi
-  dsimp at hphi; repeat1 cases ‹_ ∧ _›; subst_vars
+  dsimp at hphi; repeat cases ‹_ ∧ _›; subst_vars
   constructor
   · intro ident (mid_i, mid_s, mid_j) v rule
     refine ⟨((mid_i, mid_s), mid_j), ((mid_i, mid_s), mid_j), ?_, existSR.done _, ⟨rfl, rfl, rfl⟩⟩
@@ -1431,7 +1431,7 @@ theorem refines_φ_product_associative {J} (jmod : Module Ident J):
 theorem refines_φ_product_associative' {J} (jmod : Module Ident J):
     (imod.product smod).product jmod ⊑_{fun | ((i₁, i₂), i₃), (s₁, s₂, s₃) => i₁ = s₁ ∧ i₂ = s₂ ∧ i₃ = s₃} imod.product (smod.product jmod) := by
   intro ((i_init, s_init), j_init) (i_init', s_init', j_init') hphi
-  dsimp at hphi; repeat1 cases ‹_ ∧ _›; subst_vars
+  dsimp at hphi; repeat cases ‹_ ∧ _›; subst_vars
   constructor
   · intro ident ((mid_i, mid_s), mid_j) v rule
     refine ⟨(mid_i, mid_s, mid_j), (mid_i, mid_s, mid_j), ?_, existSR.done _, ⟨rfl, rfl, rfl⟩⟩
@@ -1473,7 +1473,7 @@ theorem refines_φ_product_commutative (h : Disjoint imod smod) :
   have _ := MatchInterface_product_commutative h
   (imod.product smod) ⊑_{fun | (i₁, i₂), (s₁, s₂) => i₁ = s₂ ∧ i₂ = s₁} (smod.product imod) := by
   intro _ (i_init, s_init) (i_init', s_init') hphi
-  dsimp at hphi; repeat1 cases ‹_ ∧ _›; subst_vars
+  dsimp at hphi; repeat cases ‹_ ∧ _›; subst_vars
   constructor
   · intro ident (mid_i, mid_s) v rule
     refine ⟨(mid_s, mid_i), (mid_s, mid_i), ?_, existSR.done _, ⟨rfl, rfl⟩⟩
