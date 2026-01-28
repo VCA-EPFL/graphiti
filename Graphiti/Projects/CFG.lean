@@ -365,9 +365,6 @@ def instrToGraph (g : CFG) (label : String) : Instruction → CFG
 def codeToGraph (code : Code) : ExprHigh String (String × Nat) :=
   code.foldl instrToGraph ⟨∅, ∅⟩
 
-#eval IO.FS.writeFile "random.dot" <| toString <| codeToGraph prog.code
-#eval IO.Process.run {cmd := "dot", args := #["-Tsvg", "random.dot", "-o", "random.svg"] }
-
 namespace Semantics
 
 end Semantics
