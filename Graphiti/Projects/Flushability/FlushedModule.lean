@@ -46,6 +46,29 @@ def flushable (mod: Module Ident S) (s: S): Prop :=
 class Flushable (mod: Module Ident S): Prop where
  flushable: ∀ s, flushable mod s
 
+def flushable.R (mod: Module Ident S) (s s' : S) :=
+  ∀ r ∈ mod.internals, r s' s
+
+theorem flushable_implies_Acc {mod: Module Ident S} {s}:
+  (∃ x, x ∈ mod.internals) → DeterministicInternals mod → flushable mod s → Acc (flushable.R mod) s := by
+  intro hin hdeterm hflush
+  unfold flushable flushable.R at *
+  obtain ⟨s', hflush⟩ := hflush
+  rcases hflush with ⟨h1, h2⟩
+  induction h1 with
+  | done init =>
+    unfold pf at h2; constructor; intro y hr
+    obtain ⟨x, hin⟩ := hin
+    obtain h2 := h2 _ hin y
+    obtain hr := hr _ hin
+    grind
+  | step init mid final rule hr1 hr2 hex hih =>
+    obtain hih := hih h2
+    constructor; intro y hy
+    obtain hy := hy _ hr1
+    have heq := hdeterm.internal_deterministic _ hr1 _ _ mid hy hr2; subst y
+    grind
+
 -- TODO: Add notations here
 
 end Flushability
