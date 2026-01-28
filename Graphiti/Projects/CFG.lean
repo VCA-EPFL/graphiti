@@ -16,7 +16,7 @@ open Batteries (AssocList)
 namespace Graphiti.CombModule
 
 @[simp] abbrev Val := Int
-@[simp] abbrev Reg := Int
+@[simp] abbrev Reg := Nat
 @[simp] abbrev Ptrofs := Int
 @[simp] abbrev Node := Nat
 @[simp] abbrev Ident := Nat
@@ -41,6 +41,15 @@ inductive Comparison: Type where
 | Cge : Comparison
 deriving Repr, DecidableEq, Lean.ToJson, Lean.FromJson, Inhabited
 
+instance : ToString Comparison where
+  toString
+  | .Ceq => "Ceq"
+  | .Cne => "Cne"
+  | .Clt => "Clt"
+  | .Cle => "Cle"
+  | .Cgt => "Cgt"
+  | .Cge => "Cge"
+
 inductive Condition: Type where
 | Ccomp (comp: Comparison)
 | Ccompu (comp: Comparison)
@@ -55,6 +64,14 @@ inductive Condition: Type where
 | Ccompfs (comp: Comparison)
 | Cnotcompfs (comp: Comparison)
 deriving Repr, DecidableEq, Lean.ToJson, Lean.FromJson, Inhabited
+
+instance : ToString Condition where
+  toString
+  | .Ccomp comp => s!"Ccomp {comp}"
+  | .Ccompu comp => s!"Ccompu {comp}"
+  | .Ccompimm comp _ => s!"Ccomp {comp}"
+  | .Ccompuimm comp _ => s!"Ccompu {comp}"
+  | _ => panic! "<not implemented>"
 
 inductive Operation: Type where
 | Omove
@@ -152,6 +169,12 @@ inductive Operation: Type where
 | Ocmp (cond: Condition)
 | Osel (cond: Condition)
 deriving Repr, Lean.ToJson, Lean.FromJson, Inhabited
+
+instance : ToString Operation where
+  toString
+  | .Omove => "Omove"
+  | .Omod => "Omod"
+  | _ => panic! "<not implemented>"
 
 inductive MemoryChunk : Type where
 | Mbool
@@ -263,25 +286,87 @@ def connectMaybeWithMerge (graph : CFG) (out inp : Port) : CFG :=
   | none =>
     {graph with connections := ⟨out, inp⟩ :: graph.connections}
 
+def addFork (g : CFG) (label : String) (ports : List Port) : Port × CFG :=
+  let new_mods := g.modules
+    |>.cons s!"{label}" (PortMapping.generate s!"{label}" 1 ports.length, (s!"fork{ports.length}", 0))
+  (⟨.internal s!"{label}", "in1"⟩, ((List.range ports.length).zip ports).foldl (fun st (n, r) =>
+    let n := n + 1
+    connectMaybeWithMerge st ⟨.internal s!"{label}", s!"out{n}"⟩ r
+  ) {g with modules := new_mods})
+
+def operationToGraph {α} [ToString α] (g : CFG) (label : String) (operation : α) (regs : List Reg) : Port × Port × CFG :=
+  let read_write_graph :=
+    ((List.range regs.length).zip regs).foldl (fun st (n, r) =>
+      let n := n+1
+      let mods := st.modules.cons s!"{label}_reg{n}" (PortMapping.generate s!"{label}_reg{n}" 0 1, (s!"Reg", r))
+                  |>.cons s!"{label}_read{n}" (PortMapping.generate s!"{label}_read{n}" 2 1, (s!"Read", 0))
+      {st with modules := mods}
+      |> (connectMaybeWithMerge ·
+           ⟨.internal s!"{label}_read{n}", "out1"⟩ ⟨.internal s!"{label}_op", s!"in{n}"⟩)
+      |> (connectMaybeWithMerge ·
+           ⟨.internal s!"{label}_fork", s!"out{n}"⟩ ⟨.internal s!"{label}_read{n}", s!"in1"⟩)
+      |> (connectMaybeWithMerge ·
+           ⟨.internal s!"{label}_reg{n}", s!"out1"⟩ ⟨.internal s!"{label}_read{n}", s!"in2"⟩)
+    ) g
+  let new_mods := read_write_graph.modules.cons s!"{label}_fork" (PortMapping.generate s!"{label}_fork" 1 regs.length, (s!"fork{regs.length}", 0))
+                  |>.cons s!"{label}_op" (PortMapping.generate s!"{label}_op" regs.length 1, (toString operation, 0))
+  (⟨.internal s!"{label}_fork", "in1"⟩, ⟨.internal s!"{label}_op", "out1"⟩, {read_write_graph with modules := new_mods})
+
+def operationWithImmToGraph {α β} [ToString α] [ToString β] (g : CFG) (label : String) (operation : α) (imm : β) (regs : List Reg) : Port × Port × CFG :=
+  let read_write_graph :=
+    ((List.range regs.length).zip regs).foldl (fun st (n, r) =>
+      let n := n+1
+      let mods := st.modules.cons s!"{label}_reg{n}" (PortMapping.generate s!"{label}_reg{n}" 0 1, (s!"Reg", r))
+                  |>.cons s!"{label}_read{n}" (PortMapping.generate s!"{label}_read{n}" 2 1, (s!"Read", 0))
+      {st with modules := mods}
+      |> (connectMaybeWithMerge ·
+           ⟨.internal s!"{label}_read{n}", "out1"⟩ ⟨.internal s!"{label}_op", s!"in{n}"⟩)
+      |> (connectMaybeWithMerge ·
+           ⟨.internal s!"{label}_fork", s!"out{n}"⟩ ⟨.internal s!"{label}_read{n}", s!"in1"⟩)
+      |> (connectMaybeWithMerge ·
+           ⟨.internal s!"{label}_reg{n}", s!"out1"⟩ ⟨.internal s!"{label}_read{n}", s!"in2"⟩)
+    ) g
+  let new_mods := read_write_graph.modules.cons s!"{label}_fork" (PortMapping.generate s!"{label}_fork" 1 regs.length, (s!"fork{regs.length}", 0))
+                  |>.cons s!"{label}_op" (PortMapping.generate s!"{label}_op" regs.length 1, (toString operation, 0))
+  (⟨.internal s!"{label}_fork", "in1"⟩, ⟨.internal s!"{label}_op", "out1"⟩, {read_write_graph with modules := new_mods})
+
+def writeGraph (g : CFG) (label : String) (dest : Node) : Port × Port × Port × CFG :=
+  let new_mods := g.modules
+    |>.cons s!"{label}_write" (PortMapping.generate s!"{label}_write" 3 1, (s!"Write", 0))
+    |>.cons s!"{label}_dest" (PortMapping.generate s!"{label}_dest" 0 1, (s!"Reg", dest))
+  (⟨.internal s!"{label}_write", "in1"⟩, ⟨.internal s!"{label}_write", "in3"⟩, ⟨.internal s!"{label}_write", "out1"⟩, {g with modules := new_mods}
+  |> (connectMaybeWithMerge ·
+       ⟨.internal s!"{label}_dest", s!"out1"⟩ ⟨.internal s!"{label}_write", "in2"⟩))
+
 def instrToGraph (g : CFG) (label : String) : Instruction → CFG
 | .Inop next =>
-  connectMaybeWithMerge {g with modules := g.modules.cons s!"n_{label}" (PortMapping.generate s!"n_{label}" 1 1, ("Inop", 0))}
-  ⟨.internal s!"n_{label}", "out1"⟩ ⟨.internal s!"n_{next}", "in1"⟩
+  connectMaybeWithMerge {g with modules := g.modules.cons s!"{label}" (PortMapping.generate s!"{label}" 1 1, ("Inop", 0))}
+  ⟨.internal s!"{label}", "out1"⟩ ⟨.internal s!"{next}", "in1"⟩
 | .Iop operation regs dest next =>
-  connectMaybeWithMerge {g with modules := g.modules.cons s!"n_{label}" (PortMapping.generate s!"n_{label}" 1 1, (s!"Iop {repr operation}", 0))}
-  ⟨.internal s!"n_{label}", "out1"⟩ ⟨.internal s!"n_{next}", "in1"⟩
+  let (st1, val, cfg) := operationToGraph g s!"{label}_sub" operation regs
+  let (st2, inp, out, cfg) := writeGraph cfg label dest
+  let (_, cfg) := addFork cfg label [st1, st2]
+  cfg
+  |> (connectMaybeWithMerge · val inp)
+  |> (connectMaybeWithMerge · out ⟨.internal s!"{next}", "in1"⟩)
 | .Icond cond regs true_next false_next =>
-  connectMaybeWithMerge {g with modules := g.modules.cons s!"n_{label}" (PortMapping.generate s!"n_{label}" 1 1, ("Icond", 0))}
-  ⟨.internal s!"n_{label}", "out1"⟩ ⟨.internal s!"n_{true_next}", "in1"⟩
-  |> (connectMaybeWithMerge · ⟨.internal s!"n_{label}", "out2"⟩ ⟨.internal s!"n_{false_next}", "in1"⟩)
-| .Ireturn _ =>
-  {g with modules := g.modules.cons s!"n_{label}" (PortMapping.generate s!"n_{label}" 1 0, ("Ireturn", 0))}
-| _ => panic! "not implemented"
+  let (st1, val, cfg) := operationToGraph g s!"{label}_cond" cond regs
+  let (_, cfg) := addFork cfg label [st1, ⟨.internal s!"{label}_branch", "in1"⟩]
+  {cfg with modules := g.modules.cons s!"{label}_branch" (PortMapping.generate s!"{label}_branch" 2 2, ("branch", 0))}
+  |> (connectMaybeWithMerge · ⟨.internal s!"{label}_branch", "out1"⟩ ⟨.internal s!"{true_next}", "in1"⟩)
+  |> (connectMaybeWithMerge · ⟨.internal s!"{label}_branch", "out2"⟩ ⟨.internal s!"{false_next}", "in1"⟩)
+  |> (connectMaybeWithMerge · val ⟨.internal s!"{label}_branch", "in2"⟩)
+| .Ireturn (.some reg) =>
+  {g with modules := g.modules.cons s!"{label}" (PortMapping.generate s!"{label}" 1 0, ("Ireturn", reg))}
+| .Ireturn .none =>
+  {g with modules := g.modules.cons s!"{label}" (PortMapping.generate s!"{label}" 1 0, ("Ireturn", 0))}
+| _ => panic! "<not implemented>"
 
 def codeToGraph (code : Code) : ExprHigh String (String × Nat) :=
   code.foldl instrToGraph ⟨∅, ∅⟩
 
-#eval IO.println <| codeToGraph prog.code
+#eval IO.FS.writeFile "random.dot" <| toString <| codeToGraph prog.code
+#eval IO.Process.run {cmd := "dot", args := #["-Tsvg", "random.dot", "-o", "random.svg"] }
 
 namespace Semantics
 
