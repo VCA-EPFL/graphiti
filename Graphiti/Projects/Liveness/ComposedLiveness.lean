@@ -94,29 +94,7 @@ theorem gcompf_P_concat {T}(f g: T → T):
       have h_out_t1 : IOEvent.output 0 ⟨T, g (f in1)⟩ ∈ t1 := h2 in1 h_in_t1
       exact mem_append_right t0 h_out_t1
 
-/-
-If (s_init -[t]*> s_1) (= reachable s_1) and (gcompf_P t) holds, then s_1 = ([], [])
-since all inputs in t get closed in t, and t starts from init.
-s_init = ([], []), then all inputs in t go in s_init.first, and since P t, we know outputs g(f(inputs)) ∈ t.
-for outputs to go in trace, need to flush first list into second with internal rule then use output rule, necessarily
-all inputs have to find their outputs in t so none can get stuck inside
 
-actually not always true since P is too lax : valid t = (in 1, in 1, out 1)
--/
-theorem reachable_P_implies_empty_state (T : Type) (f g : T → T) (t : Trace ℕ) (s1 : List T × List T) :
-@reachable _ _ (state_transition (NatModule.gcompf T f g)) t ⟨ s1, (NatModule.gcompf T f g) ⟩
-∧ gcompf_P t f g
-→ s1 = ([], []) := by
-  intros h
-  have ⟨ h_reachable, h_p ⟩ := h
-  cases h_reachable
-  case intro s0 h_reachable =>
-    have ⟨ h_init, h_star ⟩ := h_reachable
-    dsimp [Module.state_transition] at h_init
-    have s0_init_state_empty := h_init.left
-    dsimp [NatModule.gcompf] at s0_init_state_empty
-
-    sorry
 
 
 /-
@@ -350,15 +328,96 @@ theorem gcompf_input_transitive { T f g} (s1 s3 : List T × List T) (t t0: List 
 OUTPUTS: theorems and lemmas managing the output case of the proof
 -/
 
-theorem gcompf_output_trace_contains_output {T f g} (s1 s2 s3: List T × List T) (io: T) (t : List (IOEvent ℕ)) (h_noinp: ∀ x, IOEvent.input 0 ⟨T, x⟩ ∉ t)
-(h_input: (∀ G x n, IOEvent.input n ⟨G, x⟩  ∈ t → (n = 0) ∧ G = T)):
-@step _ _ _ ⟨ s1, (NatModule.gcompf T f g)⟩ [IOEvent.output 0 ⟨ T, io⟩]  ⟨s2, (NatModule.gcompf T f g) ⟩
-→ @star _ _ (state_transition (NatModule.gcompf T f g)) ⟨ s1, (NatModule.gcompf T f g)⟩ t ⟨s3,  (NatModule.gcompf T f g)⟩
-→ ∃ t0, t = [IOEvent.output 0 ⟨ T, io⟩] ++ t0 ∨ t = []:= by
+theorem gcompf_output_trace_contains_output {T f g} (st1 st2 st3: State _ _) (io: T) (t : List (IOEvent ℕ)) (h_noinp: ∀ x, IOEvent.input 0 ⟨T, x⟩ ∉ t)
+(h_input: (∀ G x n, IOEvent.input n ⟨G, x⟩  ∈ t → (n = 0) ∧ G = T))
+(h_output: (∀ G x n, IOEvent.output n ⟨G, x⟩  ∈ t → (n = 0) ∧ G = T))
+(h_st1: st1.module = NatModule.gcompf T f g)
+(h_st2: st2.module = NatModule.gcompf T f g)
+(h_st3: st3 = ⟨ (∅ , ∅ ), (NatModule.gcompf T f g)⟩ ):
+@step _ _ _ st1 [IOEvent.output 0 ⟨ T, io⟩]  st2
+→ @star _ _ (state_transition (NatModule.gcompf T f g)) st1 t st3
+→ ∃ t0, t = [IOEvent.output 0 ⟨ T, io⟩] ++ t0  ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) st2 t0 st3:= by
   intro s1_steps_s2 s1_stars
-  cases s1_stars <;> simp at *
-  rename_i s4 l1 l2 s1_stars_s4 s4_stars_s3
-  sorry
+  revert st2
+  induction s1_stars with
+  | refl st3 =>
+    intro st2 h_st2 s1_steps_s2
+    simp at *
+    rcases h_st3 with ⟨ eq4, eq5 ⟩
+    subst_vars
+    cases s1_steps_s2
+    try rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
+    rename_i s1Fst Eq trans
+    simp at *
+  | step  st4 st5 st6 l1 l2  st4_steps_st5 st5_stars_empty =>
+    intro st2 h_st2 s1_steps_s2
+    rcases st1 with ⟨ s1, mod1⟩; rcases st2 with ⟨ s2, mod2 ⟩; rcases st3 with ⟨ s3, mod3⟩; rcases st4 with ⟨ s4, mod4⟩; rcases st5 with ⟨ s5, mod5⟩; rcases st6 with ⟨ s6, mod6⟩
+    simp at *
+    rcases h_st3 with ⟨ eq1, eq2 ⟩
+    subst_vars
+    cases st4_steps_st5 with
+    | input s1Io Eq =>
+      rename_i ip s1Fst Tpe iH
+      rcases Tpe with ⟨G, x⟩
+      subst_vars
+      simp at *
+      have eqTpe := h_input G x ip
+      simp at eqTpe
+      rcases eqTpe with ⟨ eq1, eq2⟩
+      subst_vars
+      have contra := (h_noinp x).left
+      simp at contra
+    | output s1Io Eq  =>
+      rename_i ip s1Fst Tpe iH
+      clear iH
+      exists l2
+      simp at *
+      rcases Tpe with ⟨ G, x ⟩
+      cases s1_steps_s2
+      rename_i s4Fst eq s4Snd; rcases eq; subst_vars
+      rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
+      have out := h_output G x ip; simp at out; rcases out; subst_vars; simp at *
+      rcases s1Io with ⟨ a,b,c ⟩ ; rcases Eq with ⟨ e, f ⟩ ;rcases s2 with ⟨ s21, s22 ⟩; rcases s5 with ⟨ s51, s52 ⟩ ; subst_vars; simp at *
+      exact st5_stars_empty
+
+
+
+    | internal =>
+      rename_i Inp  int trans iH
+      simp at *
+      have iH_ := iH h_noinp h_input h_output
+      simp at *; clear iH
+      cases s1_steps_s2
+      rename_i s4Fst req s4Snd; rcases req; subst_vars
+      cases int with
+      | head =>
+        rcases s5; simp at trans; subst_vars
+        rcases trans; rename_i l1 l2 head tail
+        subst_vars
+        have empt := @gcompf_empty_spec T f g s2;
+        have s := @star.plus_one _ _ (state_transition (NatModule.gcompf T f g)) _ _ _ empt
+        have out := @gcompf_output_spec T f g (∅ , (s2.snd ++ map g s2.fst) ) io
+        have iH := iH_ ⟨ (∅ , (s2.snd ++ map g s2.fst) ), (NatModule.gcompf T f g) ⟩;
+        simp at *; clear iH_
+        have iH_ := iH out; rcases iH_ with ⟨ t0, eq, fin_s ⟩ ; clear iH
+        have fin := @star.trans_star _ _ (state_transition (NatModule.gcompf T f g)) _ _ _ _ _ s fin_s
+        exists t0
+      | tail =>
+        simp at *
+        rename_i s
+        rcases s
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -378,12 +437,17 @@ theorem gcompf_output_transitive { T f g} (s1 s2 s3 : List T × List T) (t t0: L
 → @step _ _ _ ⟨ s1, (NatModule.gcompf T f g)⟩ [IOEvent.output 0 ⟨ T, io⟩]  ⟨s3, (NatModule.gcompf T f g) ⟩
 → ∃ tn, gcompf_P (t ++ [IOEvent.output 0 ⟨T, io ⟩] ++ tn) f g ∧ @star _ _ (state_transition (NatModule.gcompf T f g)) ⟨ s3, (NatModule.gcompf T f g) ⟩  tn ⟨(∅, ∅), (NatModule.gcompf T f g )⟩ ∧ ∀ x, .input 0 ⟨T, x ⟩ ∉ tn:= by
     intro s1_reachable ⟨no_input_in_t0, s1_star_s2_with_t0⟩ P_for_t_t0 s1_stars_s3_with_em
-    have final_res := @gcompf_output_trace_contains_output T f g s1 s3 (∅, ∅) io t0 h_noinp h_input s1_stars_s3_with_em s1_star_s2_with_t0
-    rcases final_res with ⟨l1, p⟩
-    sorry
-
-
-
+    have final_res := @gcompf_output_trace_contains_output T f g  ⟨ s1, (NatModule.gcompf T f g)⟩  ⟨ s3, (NatModule.gcompf T f g)⟩  ⟨ (∅, ∅ ), (NatModule.gcompf T f g)⟩ io t0 h_noinp h_input h_output
+    simp at final_res
+    rcases (final_res s1_stars_s3_with_em s1_star_s2_with_t0) with ⟨l1, toeq, s3_stars_empty⟩
+    subst_vars
+    exists l1
+    simp at *
+    constructor
+    exact P_for_t_t0
+    constructor
+    exact s3_stars_empty
+    exact h_noinp
 
 /-
 EMPTY: theorems to prove the  empty case
@@ -512,9 +576,8 @@ theorem gcompf_reachness_empty {T f g} (t t0: List (IOEvent ℕ )) (s1 s3: (List
 
 /-- Still have to define the assumptions of the lemma -/
 theorem input_output_single_tpe {T} (t : Trace Nat):
-
-((∀ G x n, IOEvent.input n ⟨G, x⟩  ∈ t → (n = 0) ∧ G = T) ∧ (∀ G x n, IOEvent.output n ⟨G, x⟩  ∈ t → (n = 0) ∧ G = T)) := by sorry
-
+((∀ G x n, IOEvent.input n ⟨G, x⟩  ∈ t → (n = 0) ∧ G = T) ∧ (∀ G x n, IOEvent.output n ⟨G, x⟩  ∈ t → (n = 0) ∧ G = T)) := by
+  sorry
 /--
 MAIN PROOF: here lies the main proof of the liveness of a circuit
 -/
