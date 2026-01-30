@@ -652,19 +652,19 @@ theorem gcompf_in_eq_out {T}
 
 
 
-theorem gcompf_wellness_implies_liveness {T} (f g: T → T) (t : Trace ℕ)
-(h_steps: @behaviour _ _ (state_transition (NatModule.gcompfHist T f g)) t) :
-∃ t', gcompf_P (t ++ t') (f) (g) ∧ @behaviour _ _ (state_transition (NatModule.gcompfHist T f g)) (t ++ t') := by
+theorem gcompf_wellness_implies_liveness {T} (f g: T → T) (t : Trace ℕ) {s_intermediate}
+(h_steps: @reachable _ _ (state_transition (NatModule.gcompfHist T f g)) t s_intermediate) :
+∃ t' s_final, gcompf_P (t ++ t') (f) (g) ∧ @star _ _ (state_transition (NatModule.gcompfHist T f g)) s_intermediate t' s_final := by
   have iH := @gcompf_ind_wf T f g; simp [gcompf_wf_P] at iH
   simp [behaviour] at h_steps
-  rcases h_steps with ⟨s1, s1_inits , s2, s1_stars_s2⟩
-  have iH_ := iH (@gcompfHistWeight T f g s2) s2; simp [reachable] at iH_;
+  rcases h_steps with ⟨s1, s1_inits , s1_stars_s2⟩
+  have iH_ := iH (@gcompfHistWeight T f g s_intermediate) s_intermediate; simp [reachable] at iH_;
   clear iH
   have iH := iH_ t s1 s1_inits s1_stars_s2
   rcases iH with ⟨ s3, s3_weights_zero, t0, s2_stars_s3, input_notin_t0⟩
   exists t0
   have s1_stars_s3 := @star.trans_star _ _ (state_transition (NatModule.gcompfHist T f g)) _ _ _ _ _ s1_stars_s2 s2_stars_s3
-  constructor
+  constructor; constructor
   . have sum := @gcompf_eq_sum T f g
     simp [reachable] at sum
     have sum_ := sum s3_weights_zero _ s1_inits s1_stars_s3
@@ -673,6 +673,4 @@ theorem gcompf_wellness_implies_liveness {T} (f g: T → T) (t : Trace ℕ)
     have lemm := gcompf_in_eq_out f g s3_weights_zero sum_; simp [reachable] at lemm
     have lemm_ := lemm s1 s1_inits s1_stars_s3 in1 in1_in_list; exact lemm_
   . simp [behaviour]
-    exists s1
-    constructor; exact s1_inits
-    exists s3
+    assumption
