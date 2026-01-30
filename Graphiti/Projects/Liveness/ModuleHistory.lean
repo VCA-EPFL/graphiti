@@ -1,4 +1,4 @@
-import Graphiti.Core.ModuleLemmas
+import Graphiti.Core.Graph.ModuleLemmas
 import Graphiti.Core.Trace
 
 namespace Graphiti.History

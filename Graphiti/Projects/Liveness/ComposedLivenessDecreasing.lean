@@ -122,7 +122,7 @@ theorem gcompf_nonzerow_imp_nonempty {T} {f g: T → T}:
   ∀ (s: Graphiti.Module.State ℕ (List T × List T × Trace Nat)), @gcompfHistWeight _ f g s > 0
   → s.state.fst ≠ ∅ ∨ s.state.snd.fst ≠ ∅ := by
   intro s weight_is_positive
-  by_contra; rename_i state_nonempty; simp at state_nonempty; rcases state_nonempty with ⟨ s1empty, s2empty ⟩
+  by_contra; simp at this; rcases this with ⟨ s1empty, s2empty ⟩
   simp [gcompfHistWeight, s1empty, s2empty] at weight_is_positive
 
 
@@ -147,7 +147,7 @@ theorem gcompf_with_out_step_decreases {T}  {s1: List T} {hist: Trace ℕ} {head
 @gcompfHistWeight T f g { state := ([], tail ++ List.map g s1, IOEvent.output 0 ⟨T, head⟩ :: hist), module := NatModule.gcompfHist T f g } = n:= by
   simp [gcompfHistWeight] at ⊢ h_in
   rw [Nat.add_comm]
-  exact Nat.succ_inj'.mp h_in
+  exact Nat.succ_inj.mp h_in
 
 theorem gcompf_ind_wf {T} {f g: T → T} : ∀ z, @gcompf_wf_P T f g z := by
   intro z
