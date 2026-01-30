@@ -674,3 +674,9 @@ theorem gcompf_wellness_implies_liveness {T} (f g: T → T) (t : Trace ℕ) {s_i
     have lemm_ := lemm s1 s1_inits s1_stars_s3 in1 in1_in_list; exact lemm_
   . simp [behaviour]
     assumption
+
+/--
+info: 'gcompf_wellness_implies_liveness' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms gcompf_wellness_implies_liveness
