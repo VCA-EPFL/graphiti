@@ -1,0 +1,77 @@
+<div class="open-menu-button-div">
+  <button
+    type="button"
+    popovertarget="mobile-toc-popover"
+    popovertargetaction="toggle"
+    class="open-menu-button"
+    >
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 12h16"></path>
+      <path d="M4 18h16"></path>
+      <path d="M4 6h16"></path>
+    </svg>
+    <span class="toc-title">Table of contents</span>
+  </button>
+</div>
+
+<div
+  id="mobile-toc-popover"
+  popover
+  class="close-menu"
+  >
+  <button
+    type="button"
+    popovertarget="mobile-toc-popover"
+    popovertargetaction="toggle"
+    class="close-menu-button">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18 6 6 18"></path>
+      <path d="m6 6 12 12"></path>
+    </svg>
+    <span class="toc-title">Table of contents</span>
+  </button>
+  <a href="/">
+    <picture class="logo">
+      <source media="(prefers-color-scheme: dark)" srcset="/img/graphiti-logo-white.svg" />
+      <source media="(prefers-color-scheme: light)" srcset="/img/graphiti-logo.svg" />
+      <img src="/img/graphiti-logo.svg" />
+    </picture>
+  </a>
+  <div class="table-of-contents">
+    <ul>
+      {{- range site.Menus.main }}
+      <li>
+        <a href="{{ .URL }}">
+          {{ .Name }}
+        </a>
+        {{ .Page.TableOfContents }}
+      </li>
+      {{- end }}
+    </ul>
+  </div>
+</div>
+
+<nav
+  id="TOC"
+  role="doc-toc"
+  class="sidebar">
+  <a href="/">
+    <picture class="logo">
+      <source media="(prefers-color-scheme: dark)" srcset="/img/graphiti-logo-white.svg" />
+      <source media="(prefers-color-scheme: light)" srcset="/img/graphiti-logo.svg" />
+      <img src="/img/graphiti-logo.svg" />
+    </picture>
+  </a>
+  <div class="table-of-contents">
+    <ul>
+      {{- range site.Menus.main }}
+      <li>
+        <a href="{{ .URL }}">
+          {{ .Name }}
+        </a>
+        {{ .Page.TableOfContents }}
+      </li>
+      {{- end }}
+    </ul>
+  </div>
+</nav>

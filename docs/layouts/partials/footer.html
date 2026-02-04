@@ -1,0 +1,16 @@
+<nav class="sitenav">
+  <div class="sitenav-links">
+    <span class="prev-link">
+      {{ with .PrevInSection }}
+      <span class="link-label">Previous</span>
+      <a href="{{.Permalink}}" accesskey="p" rel="previous">{{.LinkTitle}}</a>
+      {{ end }}
+    </span>
+    <span class="next-link">
+      {{ with .NextInSection }}
+      <span class="link-label">Next</span>
+      <a href="{{.Permalink}}" accesskey="n" rel="next">{{.LinkTitle}}</a>
+      {{ end }}
+    </span>
+  </div>
+</nav>

@@ -1,0 +1,20 @@
+baseURL = 'https://example.org/'
+languageCode = 'en-gb'
+title = 'Graphiti Manual'
+
+sectionPagesMenu = 'main'
+
+[markup.goldmark.renderer]
+unsafe= true
+
+[markup.goldmark.extensions.passthrough]
+enable = true
+
+[markup.goldmark.extensions.passthrough.delimiters]
+block = [['\[', '\]'], ['$$', '$$']]
+inline = [['\(', '\)']]
+
+[markup.tableOfContents]
+  endLevel = 2
+  ordered = false
+  startLevel = 2

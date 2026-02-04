@@ -1,0 +1,451 @@
+@font-face {
+  font-family: 'Iosevka YMHG Web';
+  font-weight: 500;
+  font-stretch: normal;
+  font-style: normal;
+  src: url('/fonts/IosevkaYMHG-Bold.subset.woff2') format('woff2');
+  text-rendering: optimizeLegibility;
+}
+
+@font-face {
+  font-family: 'Iosevka YMHG Web';
+  font-weight: 500;
+  font-stretch: normal;
+  font-style: italic;
+  src: url('/fonts/IosevkaYMHG-BoldItalic.subset.woff2') format('woff2');
+  text-rendering: optimizeLegibility;
+}
+
+@font-face {
+  font-family: 'Iosevka YMHG Web';
+  font-weight: 700;
+  font-stretch: normal;
+  font-style: normal;
+  src: url('/fonts/IosevkaYMHG-Heavy.subset.woff2') format('woff2');
+  text-rendering: optimizeLegibility;
+}
+
+@font-face {
+  font-family: 'Iosevka YMHG Web';
+  font-weight: 700;
+  font-stretch: normal;
+  font-style: italic;
+  src: url('/fonts/IosevkaYMHG-HeavyItalic.subset.woff2') format('woff2');
+  text-rendering: optimizeLegibility;
+}
+
+/* Webfont: Luciole-Regular */@font-face {
+    font-family: 'Luciole';
+    src: url('/fonts/Luciole-Regular.woff2');
+    font-style: normal;
+    font-weight: normal;
+    text-rendering: optimizeLegibility;
+}
+
+/* Webfont: Luciole-Bold */@font-face {
+    font-family: 'Luciole';
+    src: url('/fonts/Luciole-Bold.woff2');
+    font-style: normal;
+    font-weight: bold;
+    text-rendering: optimizeLegibility;
+}
+
+/* Webfont: Luciole-Italic */@font-face {
+    font-family: 'Luciole';
+    src: url('/fonts/Luciole-Italic.woff2');
+    font-style: italic;
+    font-weight: normal;
+    text-rendering: optimizeLegibility;
+}
+
+/* Webfont: Luciole-BoldItalic */@font-face {
+    font-family: 'Luciole';
+    src: url('/fonts/Luciole-BoldItalic.woff2');
+    font-style: italic;
+    font-weight: bold;
+    text-rendering: optimizeLegibility;
+}
+
+/* 1. Use a more-intuitive box-sizing model */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* 2. Remove default margin */
+* {
+  margin: 0;
+}
+
+body {
+  /* 3. Add accessible line-height */
+  line-height: 1.5;
+  /* 4. Improve text rendering */
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 5. Improve media defaults */
+img, picture, video, canvas, svg {
+  display: block;
+  max-width: 100%;
+}
+
+/* 6. Inherit fonts for form controls */
+input, button, textarea, select {
+  font: inherit;
+}
+
+/* 7. Avoid text overflows */
+p, h1, h2, h3, h4, h5, h6 {
+  overflow-wrap: break-word;
+}
+
+/* 8. Improve line wrapping */
+p {
+  text-wrap: pretty;
+}
+h1, h2, h3, h4, h5, h6 {
+  text-wrap: balance;
+}
+
+/*
+  9. Create a root stacking context
+*/
+#root, #__next {
+  isolation: isolate;
+}
+
+:root {
+  --syntax-alert: #d20f39;
+  --syntax-annotation: #fe640b;
+  --syntax-attribute: #df8e1d;
+  --syntax-basen: #40a02b;
+  --syntax-builtin: #1e66f5;
+  --syntax-controlflow: #8839ef;
+  --syntax-char: #04a5e5;
+  --syntax-constant: #fe640b;
+  --syntax-comment: #9ca0b0;
+  --syntax-commentvar: #7c7f93;
+  --syntax-documentation: #9ca0b0;
+  --syntax-datatype: #df8e1d;
+  --syntax-decval: #40a02b;
+  --syntax-error: #d20f39;
+  --syntax-extension: #4c4f69;
+  --syntax-float: #40a02b;
+  --syntax-function: #1e66f5;
+  --syntax-import: #40a02b;
+  --syntax-information: #04a5e5;
+  --syntax-keyword: #8839ef;
+  --syntax-operator: #179299;
+  --syntax-other: #8839ef;
+  --syntax-preprocessor: #ea76cb;
+  --syntax-specialchar: #04a5e5;
+  --syntax-specialstring: #ea76cb;
+  --syntax-string: #40a02b;
+  --syntax-variable: #8839ef;
+  --syntax-verbatimstring: #40a02b;
+  --syntax-warning: #df8e1d;
+
+  --background-color: #FFFAEB;
+  --alt-background-color: #FFF5D6;
+  --text-color: black;
+  --alt-text-color: #523D00;
+  --border-color: #1b9e77;
+  --alt-border-color: #d95f02;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --syntax-alert: #f38ba8;
+    --syntax-annotation: #fab387;
+    --syntax-attribute: #f9e2af;
+    --syntax-basen: #a6e3a1;
+    --syntax-builtin: #89b4fa;
+    --syntax-controlflow: #cba6f7;
+    --syntax-char: #89dceb;
+    --syntax-constant: #fab387;
+    --syntax-comment: #6c7086;
+    --syntax-commentvar: #585b70;
+    --syntax-documentation: #6c7086;
+    --syntax-datatype: #f9e2af;
+    --syntax-decval: #a6e3a1;
+    --syntax-error: #f38ba8;
+    --syntax-extension: #cdd6f4;
+    --syntax-float: #a6e3a1;
+    --syntax-function: #89b4fa;
+    --syntax-import: #a6e3a1;
+    --syntax-information: #89dceb;
+    --syntax-keyword: #cba6f7;
+    --syntax-operator: #94e2d5;
+    --syntax-other: #cba6f7;
+    --syntax-preprocessor: #f5c2e7;
+    --syntax-specialchar: #89dceb;
+    --syntax-specialstring: #f5c2e7;
+    --syntax-string: #a6e3a1;
+    --syntax-variable: #cba6f7;
+    --syntax-verbatimstring: #a6e3a1;
+    --syntax-warning: #f9e2af;
+
+    --background-color: #161528;
+    --alt-background-color: #242343;
+    --text-color: white;
+    --alt-text-color: #9494C7;
+    --border-color: #1b9e77;
+    --alt-border-color: #d95f02;
+  }
+}
+
+/* pandoc syntax highlighting classes */
+code span.al { color: var(--syntax-alert); font-weight: bold; }                           /* alert          */
+code span.an { color: var(--syntax-annotation); font-weight: bold; font-style: italic; }  /* annotation     */
+code span.at { color: var(--syntax-attribute); }                                          /* attribute      */
+code span.bn { color: var(--syntax-basen); }                                              /* basen          */
+code span.bu { color: var(--syntax-builtin); }                                            /* builtin        */
+code span.cf { color: var(--syntax-controlflow); font-weight: bold; }                     /* controlflow    */
+code span.ch { color: var(--syntax-char); }                                               /* char           */
+code span.cn { color: var(--syntax-constant); }                                           /* constant       */
+code span.co { color: var(--syntax-comment); font-style: italic; }                        /* comment        */
+code span.cv { color: var(--syntax-commentvar); font-weight: bold; font-style: italic; }  /* commentvar     */
+code span.do { color: var(--syntax-documentation); font-style: italic; }                  /* documentation  */
+code span.dt { color: var(--syntax-datatype); }                                           /* datatype       */
+code span.dv { color: var(--syntax-decval); }                                             /* decval         */
+code span.er { color: var(--syntax-error); font-weight: bold; }                           /* error          */
+code span.ex { color: var(--syntax-extension); }                                          /* extension      */
+code span.fl { color: var(--syntax-float); }                                              /* float          */
+code span.fu { color: var(--syntax-function); }                                           /* function       */
+code span.im { color: var(--syntax-import); font-weight: bold; }                          /* import         */
+code span.in { color: var(--syntax-information); font-weight: bold; font-style: italic; } /* information    */
+code span.kw { color: var(--syntax-keyword); font-weight: bold; }                         /* keyword        */
+code span.op { color: var(--syntax-operator); }                                           /* operator       */
+code span.ot { color: var(--syntax-other); }                                              /* other          */
+code span.pp { color: var(--syntax-preprocessor); }                                       /* preprocessor   */
+code span.sc { color: var(--syntax-specialchar); }                                        /* specialchar    */
+code span.ss { color: var(--syntax-specialstring); }                                      /* specialstring  */
+code span.st { color: var(--syntax-string); }                                             /* string         */
+code span.va { color: var(--syntax-variable); }                                           /* variable       */
+code span.vs { color: var(--syntax-verbatimstring); }                                     /* verbatimstring */
+code span.wa { color: var(--syntax-warning); font-weight: bold; font-style: italic; }     /* warning        */
+
+* { border-color: var(--border-color); }
+html { color: var(--text-color); }
+body { background-color: var(--background-color); }
+a { color: var(--text-color); }
+.sidebar { background-color: var(--alt-background-color); }
+.sitenav { background-color: var(--alt-background-color); }
+.link-label { color: var(--alt-text-color); }
+.close-menu-button, .open-menu-button { color: var(--text-color); }
+/* .sourceCode { background-color: var(--alt-background-color); } */
+
+* {
+    border-width: 0;
+    border-style: solid;
+}
+
+html {
+    font-family: Luciole;
+    font-feature-settings: "kern" 1, "liga" 1, "cv05" 1, "tnum" 1;
+}
+
+p {
+  margin: 1em 0;
+  hyphens: auto;
+}
+
+h1 {
+  font-size: 2.48832rem;
+  padding-top: 2.5rem;
+  margin-bottom: 2rem;
+  line-height: 1.4;
+}
+
+h2 {
+  font-size: 1.728rem;
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+h3 {
+  font-size: 1.44rem;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+/* h2 { */
+/*     border-bottom-width: .25rem; */
+/*     border-color: var(--alt-border-color); */
+/* } */
+
+.sidebar {
+    height: 100vh;
+    width: 16rem;
+    top: 0px;
+    left: 0px;
+    position: fixed;
+    z-index: 50;
+    padding: 1rem;
+    overflow-y: auto;
+    gap: 1rem;
+    border-right-width: .25rem;
+}
+
+.content {
+    display: flex;
+    flex-direction: column;
+    margin-left: 16rem;
+    min-height: 100vh;
+}
+
+main {
+    flex: 1 1 0%;
+    margin-left: 5%;
+    margin-right: 5%;
+    max-width: 45rem;
+    margin-bottom: 2rem;
+}
+
+article {
+}
+
+.sitenav {
+    padding: 1.5rem 0;
+    border-top-width: .25rem;
+    padding-left: 4rem;
+}
+
+.sitenav-links {
+    display: flex;
+    justify-content: space-between;
+    max-width: 45rem;
+}
+
+.prev-link {
+}
+
+.next-link {
+    text-align: right;
+}
+
+.link-label {
+    display: block;
+}
+
+a {
+    text-decoration: underline;
+}
+
+.table-of-contents {
+    margin-top: 4em;
+}
+
+.table-of-contents > ul {
+    padding-left: 0px;
+    font-weight: bold;
+    list-style: none;
+}
+
+.table-of-contents > ul > li {
+    margin-top: 1rem;
+}
+
+.table-of-contents > ul > li > nav > ul > li {
+    margin-top: 0.25rem;
+}
+
+.table-of-contents > ul > li > nav > ul {
+    padding-left: 1.5rem;
+    list-style: none;
+    font-weight: normal;
+}
+
+.sidebar a, .sitenav a, .close-menu a {
+    text-decoration: none;
+}
+
+.sidebar a:hover, .sitenav a:hover, .close-menu a:hover {
+    text-decoration: underline;
+}
+
+div.sourceCode {
+    border-color: var(--alt-border-color);
+    border-width: .25rem;
+    border-radius: 0.5rem;
+    padding: .5rem 1rem;
+}
+
+.open-menu-button {
+    /* background-color: var(--background-color); */
+}
+
+.close-menu {
+    background-color: var(--alt-background-color);
+    border-right-width: .25rem;
+    min-width: 20rem;
+    min-height: 100vh;
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+    border-bottom-width: .25rem;
+}
+
+.close-menu-button, .open-menu-button {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    align-items: end;
+    width: 100%;
+    display: flex;
+    margin-bottom: 1rem;
+    cursor: pointer;
+    background-color: transparent;
+    background-image: none;
+    -webkit-appearance: button;
+    text-transform: none;
+    font-family: inherit;
+    font-feature-settings: inherit;
+    font-variation-settings: inherit;
+    letter-spacing: inherit;
+    padding: 0;
+    margin: 0;
+    font-weight: bold;
+}
+
+.open-menu-button-div {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+    border-bottom-width: .25rem;
+}
+
+.logo {
+    padding-top: 2rem;
+}
+
+.toc-title {
+    margin-left: 1rem;
+}
+
+@media (width < 768px) {
+    .sidebar {
+        display: none;
+    }
+
+    .content {
+        margin-left: 0;
+    }
+
+    main {
+        margin-left: 5%;
+        margin-right: 5%;
+    }
+}
+
+@media (width >= 768px) {
+    .open-menu-button-div {
+        display: none;
+    }
+
+    .close-menu {
+        display: none;
+    }
+}

@@ -1,6 +1,6 @@
 <picture class="logo">
-  <source media="(prefers-color-scheme: dark)" srcset="/img/graphiti-logo-white.svg" />
-  <source media="(prefers-color-scheme: light)" srcset="/img/graphiti-logo.svg" />
+  <source media="(prefers-color-scheme: dark)" srcset="/docs/static/img/graphiti-logo-white.svg" />
+  <source media="(prefers-color-scheme: light)" srcset="/docs/static/img/graphiti-logo.svg" />
   <img src="/img/graphiti-logo.svg" width="75%" />
 </picture>
 
