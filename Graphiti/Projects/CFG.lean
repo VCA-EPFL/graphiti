@@ -10,6 +10,7 @@ import Graphiti.Core.Graph.Module
 import Graphiti.Core.Graph.ExprHigh
 import Graphiti.Core.Graph.Environment
 import Graphiti.Core.Graph.ExprHighElaborator
+import Graphiti.Core.Rewriter
 
 open Batteries (AssocList)
 
@@ -345,7 +346,7 @@ def instrToGraph (g : CFG) (label : String) : Instruction → CFG
 | .Iop operation regs dest next =>
   let (st1, val, cfg) := operationToGraph g s!"{label}_sub" operation regs
   let (st2, inp, out, cfg) := writeGraph cfg label dest
-  let (_, cfg) := addFork cfg label [st1, st2]
+  let (_, cfg) := addFork cfg label [st2, st1]
   cfg
   |> (connectMaybeWithMerge · val inp)
   |> (connectMaybeWithMerge · out ⟨.internal s!"{next}", "in1"⟩)
@@ -365,9 +366,245 @@ def instrToGraph (g : CFG) (label : String) : Instruction → CFG
 def codeToGraph (code : Code) : ExprHigh String (String × Nat) :=
   code.foldl instrToGraph ⟨∅, ∅⟩
 
-namespace Semantics
+/- #eval IO.FS.writeFile "random.dot" <| toString <| codeToGraph prog.code
+ - #eval IO.Process.run {cmd := "dot", args := #["-Tsvg", "random.dot", "-o", "random.svg"] } -/
 
-end Semantics
+namespace Rewrites
+
+namespace RWNotEQ
+
+variable (T : Vector Nat 2)
+
+def lhs : ExprHigh String (String × Nat) := [graph|
+    i_ctx [type="io"];
+    i_v [type="io"];
+    o_ctx [type="io"];
+    o_v [type="io"];
+
+    write [type="Write", arg=$(0)];
+    fork [type="fork2", arg=$(0)];
+    read [type="Read", arg=$(0)];
+    w_reg [type="Reg", arg=$(T[0])];
+    r_reg [type="Reg", arg=$(T[1])];
+
+    i_v -> write [to="in3"];
+    i_ctx -> write [to="in1"];
+    fork -> o_ctx [from="out2"];
+    read -> o_v [from="out1"];
+
+    w_reg -> write [from="out1", to="in2"];
+    write -> fork [from="out1", to="in1"];
+    fork -> read [from="out1", to="in1"];
+    r_reg -> read [from="out1", to="in2"];
+  ]
+
+def lhs_extract := (lhs T).extract ["write", "fork", "read", "w_reg", "r_reg"] |>.get rfl
+theorem double_check_empty_snd : (lhs_extract T).snd = ExprHigh.mk ∅ ∅ := by rfl
+def lhsLower := (lhs_extract T).fst.lower.get rfl
+
+def rhs : ExprHigh String (String × Nat) := [graph|
+    i_ctx [type="io"];
+    i_v [type="io"];
+    o_ctx [type="io"];
+    o_v [type="io"];
+
+    write [type="Write", arg=$(0)];
+    fork [type="fork2", arg=$(0)];
+    read [type="Read", arg=$(0)];
+    w_reg [type="Reg", arg=$(T[0])];
+    r_reg [type="Reg", arg=$(T[1])];
+
+    i_ctx -> fork [to="in1"];
+    i_v -> write [to="in3"];
+    write -> o_ctx [from="out1"];
+    read -> o_v [from="out1"];
+
+    w_reg -> write [from="out1", to="in2"];
+    r_reg -> read [from="out1", to="in2"];
+    fork -> write [from="out2", to="in1"];
+    fork -> read [from="out1", to="in1"];
+  ]
+
+def rhs_extract := (rhs T).extract ["write", "fork", "w_reg"] |>.get rfl
+def rhsLower := (rhs_extract T).fst.lower.get rfl
+def findRhs mod := (rhs_extract #v[0, 0]).fst.modules.find? mod |>.map Prod.fst
+
+/- def rewrite : Rewrite String (String × Nat) where
+ -   abstractions := []
+ -   params := _
+ -   pattern := defaultMatcher (lhs #v[0, 0])
+ -   rewrite := λ l n => ⟨lhsLower #v[l[3]], rhsLower #v[l[3]]⟩
+ -   name := "RWEQ"
+ -   transformedNodes := [findRhs "write" |>.get!, findRhs "fork" |>.get!, .none, findRhs "w_reg" |>.get!, .none] -/
+
+end RWNotEQ
+
+namespace RWEQ
+
+variable (T : Vector Nat 1)
+
+def lhs : ExprHigh String (String × Nat) := [graph|
+    i_ctx [type="io"];
+    i_v [type="io"];
+    o_ctx [type="io"];
+    o_v [type="io"];
+
+    write [type="Write", arg=$(0)];
+    fork [type="fork2", arg=$(0)];
+    read [type="Read", arg=$(0)];
+    w_reg [type="Reg", arg=$(T[0])];
+    r_reg [type="Reg", arg=$(T[0])];
+
+    i_v -> write [to="in3"];
+    i_ctx -> write [to="in1"];
+    fork -> o_ctx [from="out2"];
+    read -> o_v [from="out1"];
+
+    w_reg -> write [from="out1", to="in2"];
+    write -> fork [from="out1", to="in1"];
+    fork -> read [from="out1", to="in1"];
+    r_reg -> read [from="out1", to="in2"];
+  ]
+
+def lhs_extract := (lhs T).extract ["write", "fork", "read", "w_reg", "r_reg"] |>.get rfl
+theorem double_check_empty_snd : (lhs_extract T).snd = ExprHigh.mk ∅ ∅ := by rfl
+def lhsLower := (lhs_extract T).fst.lower.get rfl
+
+def rhs : ExprHigh String (String × Nat) := [graph|
+    i_ctx [type="io"];
+    i_v [type="io"];
+    o_ctx [type="io"];
+    o_v [type="io"];
+
+    write [type="Write", arg=$(0)];
+    fork [type="fork2", arg=$(0)];
+    w_reg [type="Reg", arg=$(T[0])];
+
+    i_v -> fork [to="in1"];
+    i_ctx -> write [to="in1"];
+    write -> o_ctx [from="out1"];
+    fork -> o_v [from="out1"];
+
+    w_reg -> write [from="out1", to="in2"];
+    fork -> write [from="out2", to="in3"];
+  ]
+
+def rhs_extract := (rhs T).extract ["write", "fork", "w_reg"] |>.get rfl
+def rhsLower := (rhs_extract T).fst.lower.get rfl
+def findRhs mod := (rhs_extract #v[0]).fst.modules.find? mod |>.map Prod.fst
+
+/- def rewrite : Rewrite String (String × Nat) where
+ -   abstractions := []
+ -   params := _
+ -   pattern := defaultMatcher (lhs #v[0])
+ -   rewrite := λ l n => ⟨lhsLower #v[l[3]], rhsLower #v[l[3]]⟩
+ -   name := "RWEQ"
+ -   transformedNodes := [findRhs "write" |>.get!, findRhs "fork" |>.get!, .none, findRhs "w_reg" |>.get!, .none] -/
+
+end RWEQ
+
+namespace ForkSummary
+
+def lhs : ExprHigh String (String × Nat) := [graph|
+    i [type="io"];
+    o1 [type="io"];
+    o2 [type="io"];
+
+    fork1 [type="fork1", arg=$(0)];
+    fork2 [type="fork2", arg=$(0)];
+
+    i -> fork2 [to="in1"];
+    fork1 -> o2 [from="out1"];
+    fork2 -> o1 [from="out2"];
+
+    fork2 -> fork1 [from="out1", to="in1"];
+  ]
+
+def lhs_extract := lhs.extract ["fork1", "fork2"] |>.get rfl
+theorem double_check_empty_snd : lhs_extract.snd = ExprHigh.mk ∅ ∅ := by rfl
+def lhsLower := lhs_extract.fst.lower.get rfl
+
+def rhs : ExprHigh String (String × Nat) := [graph|
+    i [type="io"];
+    o1 [type="io"];
+    o2 [type="io"];
+
+    fork2 [type="fork2", arg=$(0)];
+
+    i -> fork2 [to="in1"];
+    fork2 -> o2 [from="out1"];
+    fork2 -> o1 [from="out2"];
+  ]
+
+def rhs_extract := rhs.extract ["fork2"] |>.get rfl
+def rhsLower := rhs_extract.fst.lower.get rfl
+def findRhs mod := rhs_extract.fst.modules.find? mod |>.map Prod.fst
+
+def rewrite : Rewrite String (String × Nat) where
+  abstractions := []
+  params := _
+  pattern := defaultMatcher lhs
+  rewrite := λ l n => ⟨lhsLower, rhsLower⟩
+  name := "fork-summary"
+  transformedNodes := [.none, findRhs "fork2" |>.get!]
+
+end ForkSummary
+
+namespace ForkAssoc
+
+def lhs : ExprHigh String (String × Nat) := [graph|
+    i [type="io"];
+    o1 [type="io"];
+    o2 [type="io"];
+    o3 [type="io"];
+
+    fork1 [type="fork2", arg=$(0)];
+    fork2 [type="fork2", arg=$(0)];
+
+    i -> fork2 [to="in1"];
+    fork1 -> o1 [from="out1"];
+    fork2 -> o2 [from="out1"];
+    fork2 -> o3 [from="out2"];
+
+    fork1 -> fork2 [from="out2", to="in1"];
+  ]
+
+def lhs_extract := lhs.extract ["fork1", "fork2"] |>.get rfl
+theorem double_check_empty_snd : lhs_extract.snd = ExprHigh.mk ∅ ∅ := by rfl
+def lhsLower := lhs_extract.fst.lower.get rfl
+
+def rhs : ExprHigh String (String × Nat) := [graph|
+    i [type="io"];
+    o1 [type="io"];
+    o2 [type="io"];
+    o3 [type="io"];
+
+    fork1 [type="fork2", arg=$(0)];
+    fork2 [type="fork2", arg=$(0)];
+
+    i -> fork2 [to="in1"];
+    fork2 -> o1 [from="out2"];
+    fork1 -> o2 [from="out1"];
+    fork2 -> o3 [from="out1"];
+
+    fork1 -> fork2 [from="out2", to="in1"];
+  ]
+
+def rhs_extract := rhs.extract ["fork1", "fork2"] |>.get rfl
+def rhsLower := rhs_extract.fst.lower.get rfl
+def findRhs mod := rhs_extract.fst.modules.find? mod |>.map Prod.fst
+
+def rewrite : Rewrite String (String × Nat) where
+  abstractions := []
+  params := _
+  pattern := defaultMatcher lhs
+  rewrite := λ l n => ⟨lhsLower, rhsLower⟩
+  name := "fork-assoc"
+  transformedNodes := [findRhs "fork1" |>.get!, findRhs "fork2" |>.get!]
+
+end ForkAssoc
+
+end Rewrites
 
 namespace Denotation
 
