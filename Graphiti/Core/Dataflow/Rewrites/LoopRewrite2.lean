@@ -36,7 +36,7 @@ def matcher (initNode : Option String) : Pattern String (String × Nat) 6 := fun
        let (.some branch) := followOutput g tag_split.inst "out1" | return none
        unless "branch" == branch.typ.1 do return none
 
-       return some ([mux.inst, condition_fork.inst, branch.inst, tag_split.inst, mod.inst, inst], #v[mux.typ.2, condition_fork.typ.2, branch.typ.2, tag_split.typ.2, mod.typ.2, typ.2])
+       return some ([mux.inst, condition_fork.inst, branch.inst, tag_split.inst, mod.inst, inst], #v[mux.typ, condition_fork.typ, branch.typ, tag_split.typ, mod.typ, typ])
 
     ) none | MonadExceptOf.throw RewriteError.done
   return list
@@ -112,13 +112,13 @@ def rewrite (initNode : Option String) : Rewrite String (String × Nat) :=
   {
     params := 6
     pattern := matcher initNode,
-    rewrite := λ l n => ⟨lhsLower l, rhsLower l n⟩
+    rewrite := λ l n => ⟨lhsLower (l.map (·.2)), rhsLower (l.map (·.2)) n.2⟩
     name := .some "loop-rewrite"
     transformedNodes := [ .none, .none, findRhs "branch" |>.get rfl
                         , findRhs "tag_split" |>.get rfl, findRhs "mod" |>.get rfl, .none]
     addedNodes := [ findRhs "merge" |>.get rfl, findRhs "tagger" |>.get rfl, findRhs "split_tag" |>.get rfl, findRhs "split_bool" |>.get rfl
                   , findRhs "join_tag" |>.get rfl, findRhs "join_bool" |>.get rfl]
-    fresh_types := 8
+    fresh_types := fun x => (x.1, x.2+8)
   }
 
 end Graphiti.LoopRewrite2

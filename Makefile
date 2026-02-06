@@ -20,7 +20,9 @@ bin/graphiti_oracle:
 	@mkdir -p bin
 	cargo install --git https://github.com/VCA-EPFL/OracleGraphiti --locked --root .
 
-.PHONY: test
-test:
+.PHONY: lake-test
 	lake test
+
+.PHONY: test
+test: lake-test
 	$(MAKE) $(MAKEFLAGS) -B -C benchmarks/dynamatic

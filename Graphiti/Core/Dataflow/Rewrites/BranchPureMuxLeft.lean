@@ -85,7 +85,7 @@ def matcherEmpty : Pattern String (String × Nat) 3 := fun g => do
        let (.some mux') := followOutput g fork.inst "out2" | return none
        unless mux'.inst == mux.inst && mux'.incomingPort == "in1" do return none
 
-       return some ([branch_inst, mux.inst, fork.inst], #v[branch_typ.2, mux.typ.2, fork.typ.2])
+       return some ([branch_inst, mux.inst, fork.inst], #v[branch_typ, mux.typ, fork.typ])
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
@@ -152,18 +152,18 @@ def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
     params := 3
     pattern := matcherEmpty,
-    rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
+    rewrite := λ l n => ⟨lhsLower (l.map (·.2)), rhsLower n.2⟩
     name := "branch-pure-mux-left"
     transformedNodes := [findRhs "branch" |>.get rfl, findRhs "mux" |>.get rfl, findRhs "fork" |>.get rfl]
     addedNodes := [findRhs "pure" |>.get rfl]
-    fresh_types := 4
+    fresh_types := fun x => (x.1, x.2+4)
   }
 
 namespace Test
 
 /-- info: true -/
 #guard_msgs in
-#eval (matcherEmpty (lhs #v[1, 2, 3])) == .ok (["branch", "mux", "fork"], #v[1, 2, 3])
+#eval (matcherEmpty (lhs #v[1, 2, 3])) == .ok (["branch", "mux", "fork"], #v[("branch", 1), ("mux", 2), ("fork2", 3)])
 
 def rhs : ExprHigh String (String × Nat) := [graph|
     i1 [type = "io"];

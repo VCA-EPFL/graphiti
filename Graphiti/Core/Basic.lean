@@ -238,30 +238,32 @@ def append (a b : PortMapping Ident) :=
 instance : Append (PortMapping Ident) := ⟨append⟩
 
 @[simp, drcompute] theorem empty_append {α} (as : PortMapping α) : ∅ ++ as = as := rfl
-@[simp, drcompute] theorem append_elements {α} (a b c d : PortMap α (InternalPort α)) : PortMapping.mk a b ++ ⟨c, d⟩ = ⟨a ++ c, b ++ d⟩ := rfl
+@[simp, drcompute] theorem append_elements {α} (a b c d : PortMap α (InternalPort α))
+        : PortMapping.mk a b ++ ⟨c, d⟩ = ⟨a ++ c, b ++ d⟩ := rfl
 @[simp, drcompute] theorem lift_append {α} (as bs : PortMapping α) : as.append bs = as ++ bs := rfl
 
 -- TODO: Why do we have to canonicalise? When are the port names actually being reordered?
-def canonPortMapping (i : PortMapping String) : PortMapping String :=
+def canonPortMapping [LE Ident] [DecidableLE Ident] (i : PortMapping Ident) : PortMapping Ident :=
   ⟨ (List.mergeSort (le := fun a b => a.1.2 ≤ b.1.2) i.input.toList).toAssocList
   , (List.mergeSort (le := fun a b => a.1.2 ≤ b.1.2) i.output.toList).toAssocList
   ⟩
 
-def hashPortMapping (i : PortMapping String) : String :=
+def hashPortMapping [Hashable Ident] [LE Ident] [DecidableLE Ident] (i : PortMapping Ident) : String :=
   hash (canonPortMapping i) |>.toBitVec |>.toHex |>.take 8 |>.copy
 
-def generateRenamingPortMap (p1 p2 : PortMap String (InternalPort String)) : Option (PortMap String (InternalPort String)) :=
+def generateRenamingPortMap [DecidableEq Ident] (p1 p2 : PortMap Ident (InternalPort Ident))
+    : Option (PortMap Ident (InternalPort Ident)) :=
   p1.foldlM (λ pm k v => do
     let v' ← p2.find? k
     pm.cons v v'
   ) ∅
 
-def generateRenamingPortMapping (p1 p2 : PortMapping String) : Option (PortMapping String) := do
+def generateRenamingPortMapping [DecidableEq Ident] (p1 p2 : PortMapping Ident) : Option (PortMapping Ident) := do
   let inp ← generateRenamingPortMap p1.input p2.input
   let out ← generateRenamingPortMap p1.output p2.output
   .some ⟨inp, out⟩
 
-def combinePortMapping (p : List (PortMapping String)) : PortMapping String := p.foldl (· ++ ·) ∅
+def combinePortMapping [Append Ident] (p : List (PortMapping Ident)) : PortMapping Ident := p.foldl (· ++ ·) ∅
 
 def filter (f : InternalPort Ident → InternalPort Ident → Bool) (a : PortMapping Ident) :=
   PortMapping.mk (a.input.filter f) (a.output.filter f)

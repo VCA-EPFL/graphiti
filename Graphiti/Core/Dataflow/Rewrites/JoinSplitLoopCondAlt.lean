@@ -38,7 +38,7 @@ def matcher : Pattern String (String × Nat) 3 := fun g => do
 
       unless ¬(genericInBranch.inst == genericInFork.inst) do return none
 
-      return ([branch.inst, inst, condFork.inst], #v[branch.typ.2, typ.2, condFork.typ.2])
+      return ([branch.inst, inst, condFork.inst], #v[branch.typ, typ, condFork.typ])
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
@@ -108,11 +108,11 @@ def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
     params := 3
     pattern := matcher,
-    rewrite := λ l n => ⟨ lhsLower l, rhsLower n ⟩
+    rewrite := λ l n => ⟨ lhsLower (l.map (·.2)), rhsLower n.2 ⟩
     name := .some "join-split-loop-cond-alt"
     transformedNodes := [findRhs "branch", findRhs "init", findRhs "condFork"]
     addedNodes := [findRhs "join" |>.get rfl, findRhs "split" |>.get rfl]
-    fresh_types := 5
+    fresh_types := fun x => (x.1, x.2+5)
   }
 
 end Graphiti.JoinSplitLoopCondAlt

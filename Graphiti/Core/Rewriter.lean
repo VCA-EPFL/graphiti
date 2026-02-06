@@ -17,6 +17,8 @@ open Batteries (AssocList)
 
 namespace Graphiti
 
+variable (Ident Typ : Type _)
+
 inductive RewriteError where
 | error (s : String)
 | done
@@ -39,56 +41,101 @@ def EntryType.startMarker? (entry : EntryType) : Bool := entry == .marker "rev-s
 
 def EntryType.stopMarker? (entry : EntryType) : Bool := entry == .marker "rev-stop"
 
+deriving instance Lean.ToJson for InstIdent
+deriving instance Lean.ToJson for InternalPort
+
+instance {Ident} [ToString Ident] [Lean.ToJson Ident] : Lean.ToJson (PortMapping Ident) where
+  toJson a :=
+    Lean.Json.mkObj [("input", Lean.toJson a.input), ("output", Lean.toJson a.output)]
+
+structure Node where
+  name : Ident
+  ports : PortMapping Ident
+  type : Typ
+deriving Repr, Inhabited, DecidableEq
+
+instance {Ident} [ToString Ident] [Lean.ToJson Ident] [Lean.ToJson Typ] : Lean.ToJson (Node Ident Typ) where
+  toJson a :=
+    Lean.Json.mkObj [("name", Lean.toJson a.name), ("ports", Lean.toJson a.ports), ("type", Lean.toJson a.type)]
+
+def Node.ofTuple {Ident Typ} (x : Ident × PortMapping Ident × Typ) : Node Ident Typ :=
+  ⟨x.1, x.2.1, x.2.2⟩
+
+def Node.ofGraph {Ident Typ} [BEq Ident] (g : ExprHigh Ident Typ) (i : Ident) : Option (Node Ident Typ) :=
+  Node.ofTuple <$> g.modules.findEntry? i
+
+def Node.ofGraphList {Ident Typ} [BEq Ident] (g : ExprHigh Ident Typ) (i : List Ident) : List (Node Ident Typ) :=
+  Node.ofGraph g <$> i |>.reduceOption
+
+def _root_.List.toVec {α} (l : List α) n : Option (Vector α n) :=
+  if h : l.toArray.size = n then
+    .some (Vector.mk l.toArray h)
+  else
+    .none
+
+def Node.ofGraphVector {Ident Typ n} [BEq Ident] (g : ExprHigh Ident Typ) (i : List Ident) : Option (Vector (Node Ident Typ) n) :=
+  Node.ofGraph g <$> i |>.reduceOption |>.toVec n
+
 structure RuntimeEntry where
   type : EntryType
-  input_graph : ExprHigh String (String × Nat)
-  output_graph : ExprHigh String (String × Nat)
-  matched_subgraph : List String
-  matched_subgraph_types : List Nat
-  renamed_input_nodes : AssocList String (Option String)
-  new_output_nodes : List String
-  fresh_types : Nat
+  input_graph : ExprHigh Ident Typ
+  output_graph : ExprHigh Ident Typ
+  matched_subgraph : List Ident
+  matched_subgraph_types : List Typ
+  renamed_input_nodes : AssocList Ident (Option Ident)
+  new_output_nodes : List Ident
+  fresh_types : Typ
   debug : Option String := .none
   name : Option String := .none
   deriving Repr, Inhabited, DecidableEq
 
-def RuntimeEntry.marker (s : String) : RuntimeEntry :=
-  {(default : RuntimeEntry) with type := .marker s}
+variable {Ident}
+variable {Typ}
+variable [Inhabited Ident]
+variable [Inhabited Typ]
 
-def RuntimeEntry.debugEntry (s : String) : RuntimeEntry :=
-  {(default : RuntimeEntry) with type := .debug, debug := .some s }
+def RuntimeEntry.marker  (s : String) : RuntimeEntry Ident Typ :=
+  {(default : RuntimeEntry Ident Typ) with type := .marker s}
 
-def RuntimeEntry.startMarker? (entry : RuntimeEntry) : Bool := entry.type.startMarker?
+def RuntimeEntry.debugEntry (s : String) : RuntimeEntry Ident Typ :=
+  {(default : RuntimeEntry Ident Typ) with type := .debug, debug := .some s }
 
-def RuntimeEntry.stopMarker? (entry : RuntimeEntry) : Bool := entry.type.stopMarker?
+def RuntimeEntry.startMarker? (entry : RuntimeEntry Ident Typ) : Bool := entry.type.startMarker?
 
-instance : Lean.ToJson RuntimeEntry where
+def RuntimeEntry.stopMarker? (entry : RuntimeEntry Ident Typ) : Bool := entry.type.stopMarker?
+
+instance [Repr Ident] [Repr Typ] [Lean.ToJson Ident] [Lean.ToJson Typ] [ToString Ident] : Lean.ToJson (RuntimeEntry Ident Typ) where
   toJson r :=
     Lean.Json.mkObj
       [ ("type", Lean.Format.pretty <| repr r.type)
       , ("name", Lean.toJson r.name)
-      , ("input_graph", toString <| r.input_graph)
-      , ("output_graph", toString <| r.output_graph)
+      , ("input_graph", toString <| repr <| r.input_graph)
+      , ("output_graph", toString <| repr <| r.output_graph)
       , ("matched_subgraph", Lean.toJson r.matched_subgraph)
       , ("matched_subgraph_types", Lean.toJson r.matched_subgraph_types)
-      , ("renamed_input_nodes", Lean.Json.mkObj <| r.renamed_input_nodes.toList.map (λ a => (a.1, Lean.toJson a.2)))
+      , ("renamed_input_nodes", Lean.Json.mkObj <| r.renamed_input_nodes.toList.map (λ a => (toString a.1, Lean.toJson a.2)))
       , ("new_output_nodes", Lean.toJson r.new_output_nodes)
       , ("fresh_types", Lean.toJson r.fresh_types)
       , ("debug", Lean.toJson r.debug)
       ]
 
-@[simp] abbrev RuntimeTrace := List RuntimeEntry
+variable (Ident Typ) in
+@[simp] abbrev RuntimeTrace := List (RuntimeEntry Ident Typ)
 
+variable (Ident Typ) in
 structure RewriteState where
-  runtime_trace : RuntimeTrace
+  runtime_trace : RuntimeTrace Ident Typ
   fresh_prefix : Nat
-  fresh_type : Nat
+  fresh_type : Typ
 deriving Repr, Inhabited, DecidableEq
 
-abbrev RewriteResult := EStateM RewriteError RewriteState
+variable (Ident Typ) in
+abbrev RewriteResult := EStateM RewriteError (RewriteState Ident Typ)
+variable (Ident Typ) in
+abbrev RewriteResult' (T : Type _ → Type _ → Type _) := EStateM RewriteError (RewriteState Ident Typ) (T Ident Typ)
 abbrev RewriteResultSL := Except RewriteError
 
-def RewriteResultSL.runWithState {α} (r : RewriteResultSL α) : RewriteResult α :=
+def RewriteResultSL.runWithState {α} (r : RewriteResultSL α) : RewriteResult Ident Typ α :=
   match r with
   | .ok res => fun st => .ok res st
   | .error err => fun st => .error err st
@@ -99,11 +146,10 @@ variable (Ident Typ)
 variable [DecidableEq Ident]
 variable [DecidableEq Typ]
 
-@[simp] abbrev Pattern n := ExprHigh Ident Typ → RewriteResultSL (List Ident × Vector Nat n)
+@[simp] abbrev Pattern (n) := ExprHigh Ident Typ → RewriteResultSL (List Ident × Vector Typ n)
 
 structure Abstraction where
-  params : Nat
-  pattern : Pattern Ident Typ params
+  pattern : Pattern Ident Typ 0
   typ : Typ
 
 structure Concretisation where
@@ -119,10 +165,10 @@ deriving Repr, Inhabited, DecidableEq
 structure Rewrite where
   params : Nat
   pattern : Pattern Ident Typ params
-  rewrite : Vector Nat params → Nat → DefiniteRewrite Ident Typ
-  transformedNodes : List (Option (PortMapping String)) := []
-  addedNodes : List (PortMapping String) := []
-  fresh_types : Nat := 0
+  rewrite : Vector Typ params → Typ → DefiniteRewrite Ident Typ
+  transformedNodes : List (Option (PortMapping Ident)) := []
+  addedNodes : List (PortMapping Ident) := []
+  fresh_types : Typ → Typ := id
   abstractions : List (Abstraction Ident Typ) := []
   name : Option String := .none
 
@@ -141,86 +187,35 @@ def errorIfDone {α σ} (s : String) (rw : EStateM RewriteError σ α) : EStateM
   | .done => throw <| .error s
   | .error s' => throw <| .error s'
 
-def generate_renaming (nameMap : AssocList String String) (fresh_prefix : String) (internals : List (InternalPort String)) :=
-  go 0 nameMap ∅ internals
-  where
-    go (n : Nat) (nameMap : AssocList String String) (p : PortMap String (InternalPort String))
-      : List (InternalPort String) → PortMap String (InternalPort String) × AssocList String String
-    | (⟨.internal inst, name⟩) :: b =>
-      match nameMap.find? inst with
-      | some inst' => go n nameMap (p.cons ⟨.internal inst, name⟩ ⟨.internal inst', name⟩) b
-      | none =>
-        let inst' := "tmp_" ++ fresh_prefix ++ toString n
-        let nameMap' := nameMap.cons inst inst'
-        go (n+1) nameMap' (p.cons ⟨.internal inst, name⟩ ⟨.internal inst', name⟩) b
-    | ⟨.top, name⟩ :: b => go n nameMap p b
-    | [] => (p, nameMap)
-
-def portmappingToNameRename' (sub : List String) (p : PortMapping String) : RewriteResult (AssocList String (Option String)) :=
-  p.input.foldlM
-    (λ | (a : AssocList String (Option String)), ⟨.internal lport, _⟩, ⟨.internal rport, _⟩ =>
-         match a.find? lport with
-         | .some x => do
-           -- if lport ∈ sub && x = .none then return a
-           -- if x = .some rport then return a
-           -- throw (.error s!"instance names don't match: {x} != {rport} for {lport}")
-           return a
-         | .none => do
-           if lport ∈ sub then return a.cons lport .none
-           return a.cons lport (.some rport)
-       | a, _, _ => pure a
-       ) ∅
-  >>= fun inps => p.output.foldlM
-    (λ | (a : AssocList String (Option String)), ⟨.internal lport, _⟩, ⟨.internal rport, _⟩ =>
-         match a.find? lport with
-         | .some x => do
-           -- if lport ∈ sub && x = .none then return a
-           -- if x = .some rport then return a
-           -- throw (.error s!"instance names don't match: {x} != {rport} for {lport}")
-           return a
-         | .none => do
-           if lport ∈ sub then return a.cons lport .none
-           return a.cons lport (.some rport)
-       | a, _, _ => pure a
-       ) inps
-
-def addRuntimeEntry (rinfo : RuntimeEntry) : RewriteResult Unit := do
+def addRuntimeEntry (rinfo : RuntimeEntry Ident Typ) : RewriteResult Ident Typ Unit := do
   let l ← EStateM.get
   EStateM.set <| ⟨l.1.concat rinfo, l.2, l.3⟩
 
-def incrFreshType (n : Nat) : RewriteResult Unit := do
+def incrFreshType (f : Typ → Typ) : RewriteResult Ident Typ Unit := do
   let l ← EStateM.get
-  EStateM.set <| ⟨l.1, l.2, l.3+n⟩
+  EStateM.set <| ⟨l.1, l.2, f l.3⟩
 
-def addRuntimeMarker (s : String) : RewriteResult Unit := do
+def addRuntimeMarker (s : String) : RewriteResult Ident Typ Unit := do
   let l ← EStateM.get
   EStateM.set <| ⟨l.1.concat (RuntimeEntry.marker s), l.2, l.3⟩
 
-def rmRuntimeEntry : RewriteResult Unit := do
+def rmRuntimeEntry : RewriteResult Ident Typ Unit := do
   let l ← EStateM.get
   EStateM.set <| ⟨l.1.dropLast, l.2, l.3⟩
 
-def updRuntimeEntry (f : RuntimeEntry → RuntimeEntry) : RewriteResult Unit := do
+def updRuntimeEntry (f : RuntimeEntry Ident Typ → RuntimeEntry Ident Typ) : RewriteResult Ident Typ Unit := do
   let l ← EStateM.get
   let last ← ofOption (.error "last element in RewriteResult not available") <| l.1.getLast?
   EStateM.set <| ⟨l.1.dropLast.concat (f last), l.2, l.3⟩
 
-def updFreshPrefix : RewriteResult Unit := do
+def updFreshPrefix : RewriteResult Ident Typ Unit := do
   let l ← EStateM.get
   EStateM.set ⟨l.1, l.2+1, l.3⟩
 
 def EStateM.guard {ε σ} (e : ε) (b : Bool) : EStateM ε σ Unit :=
   if b then pure () else EStateM.throw e
 
-def mergeRenamingMaps (rmap1 rmap2 : AssocList String (Option String)) : RewriteResult (AssocList String (Option String)) :=
-  ofOption (.error s!"{decl_name%}: conversion failed") <| rmap2.foldlM (λ st k v => do
-    let .some v := v | return st
-    let v' ← rmap1.find? v
-    let st' := st.eraseAll k
-    return st'.cons k v'
-  ) rmap1
-
-def renamePortMapping (i r : PortMapping String) : PortMapping String :=
+def renamePortMapping [DecidableEq Ident] (i r : PortMapping Ident) : PortMapping Ident :=
   (PortMapping.mk (i.input.mapVal (λ _ => r.input.bijectivePortRenaming))
                   (i.output.mapVal (λ _ => r.output.bijectivePortRenaming)))
 
@@ -231,8 +226,8 @@ then reconstructing the graph.
 In the process, all names are generated again so that they are guaranteed to be fresh.  This could be unnecessary,
 however, currently the low-level expression language does not remember any names.
 -/
-@[drunfold] def Rewrite.run' (g : ExprHigh String (String × Nat)) (rewrite : Rewrite String (String × Nat)) (norm : Bool := true)
-  : RewriteResult (ExprHigh String (String × Nat)) := do
+@[drunfold] def Rewrite.run' [DecidableEq Typ] [Repr Typ] (g : ExprHigh String Typ) (rewrite : Rewrite String Typ) (norm : Bool := true)
+  : RewriteResult' String Typ ExprHigh := do
 
   let current_state ← EStateM.get
   let fresh_prefix := s!"rw_{current_state.fresh_prefix}_"
@@ -283,7 +278,7 @@ however, currently the low-level expression language does not remember any names
   -- `norm` is a function that canonicalises the connections of the input expression given a list of connections as the
   -- ordering guide.
   -- We use def_rewrite, because we only want to normalise fresh internal names that are introduced.
-  let e_output_norm := if norm then def_rewrite.output_expr.normalisedNamesMap fresh_prefix |>.filterId else ∅
+  let e_output_norm := if norm then def_rewrite.output_expr.normalisedNamesMap (λ x => fresh_prefix ++ toString x) |>.filterId else ∅
 
   updRuntimeEntry λ rw => {rw with debug := (.some (toString e_output_norm))}
   EStateM.guard (.error "normalisation modifies IO") <| e_sub_output'.ensureIOUnmodified e_output_norm
@@ -335,12 +330,15 @@ however, currently the low-level expression language does not remember any names
 
   return out
 
-def generateRenaming (l : List (PortMapping String)) (e : ExprLow String (String × Nat)) : Option (PortMapping String) :=
+def generateRenaming [DecidableEq Ident] [Append Ident] (l : List (PortMapping Ident)) (e : ExprLow Ident Typ)
+    : Option (PortMapping Ident) :=
   (l.zip e.getPortMaps)
   |>.mapM (Function.uncurry PortMapping.generateRenamingPortMapping)
   |>.map PortMapping.combinePortMapping
 
-def reverse_rewrite' (def_rewrite : DefiniteRewrite String (String × Nat)) (rinfo : RuntimeEntry) : RewriteResult (Rewrite String (String × Nat)) := do
+def reverse_rewrite' [DecidableEq Ident] [Append Ident] [Repr Ident] [Repr Typ]
+    (def_rewrite : DefiniteRewrite Ident Typ) (rinfo : RuntimeEntry Ident Typ)
+    : RewriteResult' Ident Typ Rewrite := do
 
   -- First we get the list of PortMappings associated with the lhs in their original (unrenamed) form.
   let lhsNodes ← ofOption (.error "reverse_rewrite: nodes not found")
@@ -381,27 +379,28 @@ def reverse_rewrite' (def_rewrite : DefiniteRewrite String (String × Nat)) (rin
   let lhs_renamed ← ofOption (.error "could not rename") <| def_rewrite.input_expr.renamePorts full_renaming
   let rhs_renamed ← ofOption (.error "could not rename") <| def_rewrite.output_expr.renamePorts full_renaming
 
-  addRuntimeEntry <| RuntimeEntry.mk EntryType.debug default default default default default .nil 0 (.some <| s!"{repr lhs_renamed}\n\n{repr rhs_renamed}\n\n{repr full_renaming}\n\n{repr rhs_renaming}\n\n{repr lhs_renaming}") s!"rev-{rinfo.name.getD "unknown"}"
+  addRuntimeEntry <| RuntimeEntry.mk EntryType.debug default default default default default default default (.some <| s!"{repr lhs_renamed}\n\n{repr rhs_renamed}\n\n{repr full_renaming}\n\n{repr rhs_renaming}\n\n{repr lhs_renaming}") s!"rev-{rinfo.name.getD "unknown"}"
 
   return ({ params := 0
-            pattern := λ _ => pure (rhsNodes', default),
+            pattern := λ _ => pure default,
             rewrite := λ _ _ => ⟨rhs_renamed, lhs_renamed⟩,
             name := s!"rev-{rinfo.name.getD "unknown"}",
             -- TODO: These dictate ordering of nodes quite strictly.
             transformedNodes := rhsNodes_renamed.map some ++ rhsNodes_added.map (λ _ => none),
             addedNodes := lhsNodes.drop rhsNodes_renamed.length
-            fresh_types := 0
+            fresh_types := id
           })
 
 /--
 Generate a reverse rewrite from a rewrite and the RuntimeEntry associated with the execution.
 -/
-def reverse_rewrite (rw : Rewrite String (String × Nat)) (rinfo : RuntimeEntry) : RewriteResult (Rewrite String (String × Nat)) := do
+def reverse_rewrite [DecidableEq Ident] [Append Ident] [Repr Ident] [Repr Typ]
+    (rw : Rewrite Ident Typ) (rinfo : RuntimeEntry Ident Typ) : RewriteResult' Ident Typ Rewrite := do
   /- let (_nodes, l) ← rw.pattern rinfo.input_graph |>.runWithState -/
-  if h : rinfo.matched_subgraph_types.toArray.size = rw.params then
-    let def_rewrite := rw.rewrite (Vector.mk rinfo.matched_subgraph_types.toArray h) rinfo.fresh_types
-    reverse_rewrite' def_rewrite rinfo
-  else throw <| .error s!"{rw.name}: size does not match {rinfo.matched_subgraph_types.toArray.size} != {rw.params}"
+  let .some vec := rinfo.matched_subgraph_types.toVec rw.params
+    | throw (.error "could not transform list")
+  let def_rewrite := rw.rewrite vec rinfo.fresh_types
+  reverse_rewrite' def_rewrite rinfo
 
 /--
 Abstract a subgraph into a separate node.  One can imagine that the node type is then a node in the environment which is
@@ -410,15 +409,14 @@ referenced in the new graph.
 These two functions do not have to have any additional proofs, because the proofs that are already present in the
 framework should be enough.
 -/
-@[drunfold] def Abstraction.run (g : ExprHigh String (String × Nat))
-  (abstraction : Abstraction String (String × Nat)) (norm : Bool := false)
-  : RewriteResult (ExprHigh String (String × Nat) × Concretisation String (String × Nat)) := do
+@[drunfold] def Abstraction.run [DecidableEq Typ] [Repr Typ] (g : ExprHigh String Typ)
+  (abstraction : Abstraction String Typ) (norm : Bool := false)
+  : RewriteResult String Typ (ExprHigh String Typ × Concretisation String Typ) := do
   let current_state ← EStateM.get
   let fresh_prefix := s!"rw_{current_state.fresh_prefix}_"
 
   -- Extract a list of modules that match the pattern.
-  let (sub, _) ← abstraction.pattern g |>.runWithState
-  let sub := sub.pwFilter (· ≠ ·)
+  let (sub, types) ← abstraction.pattern g |>.runWithState
   -- Extract the subgraph that matches the pattern.
   let (g₁, _g₂) ← ofOption (.error "could not extract graph") <| g.extract sub
   -- Lower the subgraph g₁ to ExprLow
@@ -442,12 +440,10 @@ framework should be enough.
   let g₁_lcr ← ofOption (.error "renaming failed: 4") <| g₁_lc.renamePorts portMapping.inverse
 
   let mut abstracted := abstracted'
-  let mut portMap : AssocList String (Option String) := .nil
 
   if norm then
-    let norm := abstracted.normalisedNamesMap fresh_prefix
+    let norm := abstracted.normalisedNamesMap (λ x => fresh_prefix)
     abstracted ← ofOption (.error "renaming failed: 3") <| abstracted.renamePorts norm
-    portMap ← portmappingToNameRename' sub norm
   let highered ← abstracted |> ExprLow.higher_correct PortMapping.hashPortMapping |> ofOption (.error "Could not normalise names 1")
 
   updFreshPrefix
@@ -458,8 +454,9 @@ Can be used to concretise the abstract node again.  Currently it assumes that it
 checked explicitly).  In addition to that, it currently assumes that the internal signals of the concretisation are
 still fresh in the graph.
 -/
-@[drunfold] def Concretisation.run (g : ExprHigh String (String × Nat))
-  (concretisation : Concretisation String (String × Nat)) (norm : Bool := false) (debug := false) : RewriteResult (ExprHigh String (String × Nat)) := do
+@[drunfold] def Concretisation.run [DecidableEq Typ] [Repr Typ] (g : ExprHigh String Typ)
+  (concretisation : Concretisation String Typ) (norm : Bool := false) (debug := false)
+  : RewriteResult' String Typ ExprHigh := do
   let current_state ← EStateM.get
   let fresh_prefix := s!"rw_{current_state.fresh_prefix}_"
 
@@ -478,16 +475,15 @@ still fresh in the graph.
   let mut concr := concr'
   let mut portMap : AssocList String (Option String) := .nil
   if norm then
-    let norm := concr.normalisedNamesMap fresh_prefix
+    let norm := concr.normalisedNamesMap (λ x => fresh_prefix ++ toString x)
     concr ← ofOption (.error "renaming failed: 5") <| concr.renamePorts norm
-    portMap ← portmappingToNameRename' [concretisation.typ.1] norm
   let concr_g ← concr |> ExprLow.higher_correct PortMapping.hashPortMapping |> ofOption (.error "Could not normalise names 2")
 
   updFreshPrefix
   return concr_g
 
-@[drunfold] def Rewrite.run (g : ExprHigh String (String × Nat)) (rewrite : Rewrite String (String × Nat))
-  : RewriteResult (ExprHigh String (String × Nat)) := do
+@[drunfold] def Rewrite.run [DecidableEq Typ] [Repr Typ] (g : ExprHigh String Typ) (rewrite : Rewrite String Typ)
+  : RewriteResult' String Typ ExprHigh := do
   -- let (g, c, _) ← rewrite.abstractions.foldlM (λ (g', c', n) a => do
   --     let (g'', c'') ← a.run (norm := true) g'
   --     return (g'', c''::c', n+1)
@@ -497,13 +493,14 @@ still fresh in the graph.
   --   let g' ← c.run (norm := true) g
   --   return (g', n+1)) (g, 0) |>.map Prod.fst
 
-def update_state {α} (f : AssocList String (Option String) → α → RewriteResult α) (a : α) : RewriteResult α := do
+def update_state {α} (f : AssocList Ident (Option Ident) → α → RewriteResult Ident Typ α) (a : α)
+    : RewriteResult Ident Typ α := do
   let st ← get >>= λ a => ofOption (.error s!"{decl_name%}: could not get last element") a.1.getLast?
   f st.renamed_input_nodes a
 
-def rewrite_loop' {α} (f : AssocList String (Option String) → α → RewriteResult α) (a : α)
-    (orig_n : Nat) (g : ExprHigh String (String × Nat))
-    : (rewrites : List (Rewrite String (String × Nat))) → Nat → RewriteResult (Option (ExprHigh String (String × Nat) × α))
+def rewrite_loop' {α} [DecidableEq Typ] [Repr Typ] (f : AssocList String (Option String) → α → RewriteResult String Typ α) (a : α)
+    (orig_n : Nat) (g : ExprHigh String Typ)
+    : (rewrites : List (Rewrite String Typ)) → Nat → RewriteResult String Typ (Option (ExprHigh String Typ × α))
 | _, 0 | [], _ => return .none
 | r :: rs, fuel' + 1 =>
   try
@@ -519,12 +516,12 @@ Loops over the [rewrite] function, applying one rewrite exhaustively until movin
 timeout for each single rewrite as well, so that infinite loops in a single rewrite means the next one can still be
 started.
 -/
-def rewrite_loop (rewrites : List (Rewrite String (String × Nat))) (g : ExprHigh String (String × Nat)) (depth : Nat := 10000)
-    : RewriteResult (ExprHigh String (String × Nat)) := do
+def rewrite_loop [DecidableEq Typ] [Repr Typ] (rewrites : List (Rewrite String Typ)) (g : ExprHigh String Typ) (depth : Nat := 10000)
+    : RewriteResult' String Typ ExprHigh := do
   return (← rewrite_loop' (λ _ _ => pure Unit.unit) Unit.unit depth g rewrites depth).map (·.fst) |>.getD g
 
-def rewrite_fix (rewrites : List (Rewrite String (String × Nat))) (g : ExprHigh String (String × Nat)) (max_depth : Nat := 10000) (depth : Nat := 10000)
-    : RewriteResult (ExprHigh String (String × Nat)) := do
+def rewrite_fix [DecidableEq Typ] [Repr Typ] (rewrites : List (Rewrite String Typ)) (g : ExprHigh String Typ) (max_depth : Nat := 10000) (depth : Nat := 10000)
+    : RewriteResult' String Typ ExprHigh := do
   match depth with
   | 0 => throw <| .error s!"{decl_name%}: ran out of fuel"
   | depth+1 =>
@@ -532,10 +529,10 @@ def rewrite_fix (rewrites : List (Rewrite String (String × Nat))) (g : ExprHigh
     | .some (g', _) => rewrite_fix rewrites g' max_depth depth
     | .none => return g
 
-def rewrite_fix_rename {α} (g : ExprHigh String (String × Nat)) (rewrites : List (Rewrite String (String × Nat)))
-      (upd : AssocList String (Option String) → α → RewriteResult α) (a : α)
+def rewrite_fix_rename {α} [DecidableEq Typ] [Repr Typ] (g : ExprHigh String Typ) (rewrites : List (Rewrite String Typ))
+      (upd : AssocList String (Option String) → α → RewriteResult String Typ α) (a : α)
       (max_depth : Nat := 10000) (depth : Nat := 10000)
-    : RewriteResult (ExprHigh String (String × Nat) × α) := do
+    : RewriteResult String Typ (ExprHigh String Typ × α) := do
   match depth with
   | 0 => throw <| .error s!"{decl_name%}: ran out of fuel"
   | depth+1 =>
@@ -543,7 +540,7 @@ def rewrite_fix_rename {α} (g : ExprHigh String (String × Nat)) (rewrites : Li
     | .some (g', a') => rewrite_fix_rename g' rewrites upd a' max_depth depth
     | .none => return (g, a)
 
-def withUndo {α} (rw : RewriteResult α) : RewriteResult α := do
+def withUndo {α} (rw : RewriteResult Ident Typ α) : RewriteResult Ident Typ α := do
   match (addRuntimeMarker "rev-stop" *> rw) (← get) with
   | .ok a st => set st *> addRuntimeMarker "rev-start" *> pure a
   | .error .done st => set st *> addRuntimeMarker "rev-start" *> throw .done
@@ -551,13 +548,13 @@ def withUndo {α} (rw : RewriteResult α) : RewriteResult α := do
 
 section
 
-variable {Ident Typ} [DecidableEq Ident]
+variable [DecidableEq Ident]
 
 /--
 Follow an output to the next node.  A similar function could be written to
 follow the input to the previous node.
 -/
-def followOutput' (g : ExprHigh Ident Typ) (inst : Ident) (output : InternalPort Ident) : RewriteResult (NextNode Ident Typ) := do
+def followOutput' (g : ExprHigh Ident Typ) (inst : Ident) (output : InternalPort Ident) : RewriteResult' Ident Typ NextNode := do
   let (pmap, _) ← ofOption (.error "instance not in modules")
     <| g.modules.find? inst
   let localOutputName ← ofOption (.error "port not in instance portmap")
@@ -578,7 +575,7 @@ def followOutputFull (g : ExprHigh Ident Typ) (inst : Ident) (output : InternalP
 Follow an output to the next node.  A similar function could be written to
 follow the input to the previous node.
 -/
-def followInput' (g : ExprHigh Ident Typ) (inst input : Ident) : RewriteResult (NextNode Ident Typ) := do
+def followInput' (g : ExprHigh Ident Typ) (inst input : Ident) : RewriteResult' Ident Typ NextNode := do
   let (pmap, _) ← ofOption (.error "instance not in modules")
     <| g.modules.find? inst
   let localInputName ← ofOption (.error "port not in instance portmap")
@@ -634,23 +631,27 @@ def isNonPureFork {Ident α} [BEq Ident] (g : ExprHigh Ident (String × α)) (no
   | .none => false
   | .some inst => isNonPureFork' inst.2.1
 
-def nonPureMatcher {Ident n} [BEq Ident] (p : Pattern Ident (String × Nat) n) : Pattern Ident (String × Nat) n
-| g => p g |>.map λ body => (body.1.filter (isNonPure g), Vector.replicate n 0)
+def nullTypes {Ident Typ n} (p : Pattern Ident Typ n) : Pattern Ident Typ 0
+| g => (·.1, #v[]) <$> p g
 
-def nonPureForkMatcher {Ident n} [BEq Ident] (p : Pattern Ident (String × Nat) n) : Pattern Ident (String × Nat) n
-| g => p g |>.map λ body => (body.1.filter (isNonPureFork g), Vector.replicate n 0)
+def nonPureMatcher {Ident α} [BEq Ident] (p : Pattern Ident (String × α) 0) : Pattern Ident (String × α) 0
+| g => p g |>.map λ body => (body.1.filter (fun x => isNonPure g x), #v[])
 
-def toPattern {α Ident Typ n} (f : ExprHigh Ident Typ → RewriteResultSL (List Ident × α)) : Pattern Ident Typ n
-| g => f g >>= λ x => pure (x.1, Vector.replicate n 0)
+def nonPureForkMatcher {Ident α} [BEq Ident] (p : Pattern Ident (String × α) 0) : Pattern Ident (String × α) 0
+| g => p g |>.map λ body => (body.1.filter (fun x => isNonPureFork g x), #v[])
+
+def toPattern {Ident Typ} [Inhabited Typ] (f : ExprHigh Ident Typ → RewriteResultSL (List Ident))
+  : Pattern Ident Typ 0
+| g => (·, #v[]) <$> f g
 
 def Pattern.map {Ident Typ n} (f : List Ident → List Ident) (p : Pattern Ident Typ n) : Pattern Ident Typ n
-| g => p g >>= λ x => pure (f x.1, x.2)
+| g => (fun x => (f x.1, x.2)) <$> p g
 
 def Pattern.nest {Ident Typ n} [DecidableEq Ident] (a b : Pattern Ident Typ n) : Pattern Ident Typ n
 | g => a g >>= λ x => b {g with modules := g.modules.filter λ k v => k ∈ x.1}
 
-def allPattern {n} (f : String → Bool) : Pattern String (String × Nat) n
-| g => pure (g.modules.filter (λ _ (_, typ) => f typ.1) |>.toList |>.map Prod.fst, Vector.replicate n 0)
+def allPattern (f : String → Bool) : Pattern String (String × Nat) 0
+| g => pure (g.modules.filter (λ _ (_, typ) => f typ.1) |>.toList |>.map (·.1), #v[])
 
 /--
 Calculate a successor hashmap for a graph which includes a single root node and
@@ -658,7 +659,7 @@ a single leaf node which connects to all inputs and all outputs respectively.
 It's much easier to work on this successor structure than on the unstructured
 graph.
 -/
-def fullCalcSucc {Ident} (g : ExprHigh String Ident) (rootNode : String := "_root_") (leafNode : String := "_leaf_") : Option (Std.HashMap String (Array String)) := do
+def fullCalcSucc {Typ} [Inhabited Typ] (g : ExprHigh String Typ) (rootNode : String := "_root_") (leafNode : String := "_leaf_") : Option (Std.HashMap String (Array String)) := do
   let succ ← calcSucc g
   let succ := succ.map λ _ b => b.map (·.inst)
   let succ := succ.insert rootNode g.inputNodes.toArray
@@ -824,31 +825,30 @@ def defaultMatcher.impl (pat g : ExprHigh String (String × Nat)) (fuel : Nat) (
         ) worklist'
       defaultMatcher.impl pat g fuel' visited' worklist' state'
 
-def defaultMatcher.inside (pat g : ExprHigh String (String × Nat)) (m : String) : Option (List String × Vector Nat pat.modules.length) := do
+def defaultMatcher.inside (pat g : ExprHigh String (String × Nat)) (m : String) : Option (List (Node String (String × Nat))) := do
   let m_pat ← pat.modules.keysList.head?
   let (i, t, visited, _) ← defaultMatcher.impl pat g (g.modules.length+1) [] [(m_pat, m)] ([], [])
   let it_map := (i.zip t).toAssocList
-  let (i, t) ← pat.modules.toList.foldlM (λ s a => do
+  pat.modules.toList.foldlM (λ s a => do
       let g_name ← visited.toAssocList.find? a.1
-      let g_type ← it_map.find? g_name
-      return (s.1.concat g_name, s.2.concat g_type)
-    ) ([], [])
-  if h : t.toArray.size = pat.modules.length then
-    return (i, Vector.mk t.toArray h)
-  else .none
+      let g_type ← Node.ofTuple <$> g.modules.findEntry? g_name
+      return s.concat g_type
+    ) []
 
 def defaultMatcher (pat : ExprHigh String (String × Nat)) : Pattern String (String × Nat) pat.modules.length := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
        if s.isSome then return s
        return defaultMatcher.inside pat g inst
     ) none | MonadExceptOf.throw RewriteError.done
-  return list
+  let .some vec := list.toVec pat.modules.length
+    | throw (.error "could not transform list")
+  return (vec.toList.map (·.name), vec.map (·.type))
 
 /--
 Find all nodes in between two nodes by performing a DFS that checks that one has
 never reached an output node.
 -/
-def findClosedRegion {Ident} (g : ExprHigh String Ident) (startN endN : String) : Option (List String) := do
+def findClosedRegion {Typ} [Inhabited Typ] (g : ExprHigh String Typ) (startN endN : String) : Option (List String) := do
   let l ← findClosedRegion' (← fullCalcSucc g) startN endN
   let l' ← findClosedRegion' (← fullCalcSucc g.invert) endN startN
   return l.union l'
@@ -857,8 +857,8 @@ def extractType (s : String) : String :=
   let parts := s.splitOn " "
   parts.tail.foldl (λ a b => a ++ " " ++ b) "" |>.drop 1 |>.copy
 
-def match_node {n : Nat} (extract_type : (String × Nat) → RewriteResultSL (Vector Nat n)) (nn : String) (g : ExprHigh String (String × Nat))
-    : RewriteResultSL (List String × Vector Nat n) := do
+def match_node {n : Nat} (extract_type : (String × Nat) → RewriteResultSL (Vector (String × Nat) n)) (nn : String) (g : ExprHigh String (String × Nat))
+    : RewriteResultSL (List String × Vector (String × Nat) n) := do
   let (_map, typ) ← ofOption' (.error s!"{decl_name%}: module '{nn}' not found") (g.modules.find? nn)
   let types ← extract_type typ
   return ([nn], types)

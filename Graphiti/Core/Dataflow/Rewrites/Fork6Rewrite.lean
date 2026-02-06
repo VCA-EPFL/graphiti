@@ -22,7 +22,7 @@ def matcher : Pattern String (String × Nat) 1 := fun g => do
 
       unless "fork6" == typ.1 do return none
 
-      return some ([inst], #v[typ.2])
+      return some ([inst], #v[typ])
     ) none | throw .done
   return list
 
@@ -85,11 +85,11 @@ def rewrite : Rewrite String (String × Nat) :=
   { abstractions := []
     params := 1
     pattern := matcher
-    rewrite := λ l m => ⟨lhsLower l, rhsLower m⟩
+    rewrite := λ l m => ⟨lhsLower (l.map (·.2)), rhsLower m.2⟩
     name := .some "fork-6"
     transformedNodes := [.none]
     addedNodes := [findRhs "fork1" |>.get rfl, findRhs "fork2" |>.get rfl]
-    fresh_types := 2
+    fresh_types := fun x => (x.1, x.2+2)
   }
 
 end Graphiti.Fork6Rewrite

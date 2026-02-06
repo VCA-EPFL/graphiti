@@ -30,7 +30,7 @@ def matcher : Pattern String (String × Nat) 2 := fun g => do
        let (.some load) := followOutput g mc.inst "out1" | return none
        unless load.inst = inst do return none
 
-       return some ([inst, mc.inst], #v[typ.2, mc.typ.2])
+       return some ([inst, mc.inst], #v[typ, mc.typ])
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
@@ -74,11 +74,11 @@ def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
     params := 2
     pattern := matcher,
-    rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
+    rewrite := λ l n => ⟨lhsLower (l.map (·.2)), rhsLower n.2⟩
     name := "load-rewrite"
     transformedNodes := [.none, .none]
     addedNodes := [findRhs "pure" |>.get rfl]
-    fresh_types := 1
+    fresh_types := fun x => (x.1, x.2+1)
   }
 
 end Graphiti.LoadRewrite

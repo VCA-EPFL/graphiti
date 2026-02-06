@@ -1645,7 +1645,7 @@ theorem refines_init :
 
 theorem refines : rhsGhostEvaled ⊑ lhsEvaled := ⟨inferInstance, φ, refine, refines_init⟩
 
-noncomputable def verified_rewrite : VerifiedRewrite Env.well_formed (rewrite.rewrite e.types e.max_type) e.ε where
+noncomputable def verified_rewrite : VerifiedRewrite Env.well_formed (rewrite.rewrite (e.types.map ("", ·)) ("", e.max_type)) e.ε where
   ε_ext := ε_rhs_ghost
   ε_ext_wf := ε_rhs_ghost_wf
   ε_independent := Env.independent_symm ε_rhs_ghost_independent
@@ -1655,8 +1655,10 @@ noncomputable def verified_rewrite : VerifiedRewrite Env.well_formed (rewrite.re
   refinement := by
     apply Module.refines_eq_relax
     apply rhs_ghost_evaled_eq3.symm
-    apply lhs_evaled_eq.symm
+    rotate_left
     apply refines
+    dsimp [rewrite]; rw [Vector.map_map]; dsimp; rw [Vector.map_id]
+    apply lhs_evaled_eq.symm
 
 /--
 info: 'Graphiti.LoopRewrite.verified_rewrite' depends on axioms: [propext, Classical.choice, Quot.sound]

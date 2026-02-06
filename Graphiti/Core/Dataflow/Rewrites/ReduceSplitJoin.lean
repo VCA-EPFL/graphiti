@@ -33,7 +33,7 @@ def matcher : Pattern String (String × Nat) 2 := fun g => do
       unless join_nn.inst = join_nn'.inst do return none
       unless join_nn.inputPort = "in1" && join_nn'.inputPort = "in2" do return none
 
-      return some ([join_nn.inst, inst], #v[join_nn.typ.2, typ.2])
+      return some ([join_nn.inst, inst], #v[join_nn.typ, typ])
     ) none | throw .done
   return list
 
@@ -80,11 +80,11 @@ def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
     params := 2
     pattern := matcher,
-    rewrite := λ l m => ⟨lhsLower l, rhsLower m⟩
+    rewrite := λ l m => ⟨lhsLower (l.map (·.2)), rhsLower m.2⟩
     transformedNodes := [.none, .none]
     addedNodes := [findRhs "queue" |>.get rfl]
     name := .some "reduce-split-join"
-    fresh_types := 1
+    fresh_types := fun x => (x.1, x.2+1)
   }
 
 end Graphiti.ReduceSplitJoin

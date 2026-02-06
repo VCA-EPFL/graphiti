@@ -16,3 +16,4 @@ examples/testbench-static
 
 .vscode/
 *.data
+/docs/public

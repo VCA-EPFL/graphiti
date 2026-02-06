@@ -78,11 +78,11 @@ theorem select_fresh_spec {Ident} {ε : FinEnv Ident (String × String)} {a : Li
   a.length = (select_fresh ε a).length ∧ (∀ a' b', (a', b') ∈ select_fresh ε a → ¬ ε.contains (a', b')) ∧ (select_fresh ε a).Nodup := by
   grind [select_fresh, select_fresh'_spec]
 
-def max_type {Ident} (f : FinEnv Ident (String × Nat)) : Option Nat :=
+def max_type {Ident β α} [Max α] (f : FinEnv Ident (β × α)) : Option α :=
   f.keysList.map Prod.snd |>.max?
 
-def max_typeD {Ident} (f : FinEnv Ident (String × Nat)) : Nat :=
-  f.max_type |>.getD 0
+def max_typeD {Ident β α} [Max α] [Inhabited α] (f : FinEnv Ident (β × α)) : α :=
+  f.max_type |>.getD default
 
 theorem max_typeD_none [BEq (String × Nat)] [LawfulBEq (String × Nat)] {Ident n m} {f : FinEnv Ident (String × Nat)} :
   f.max_typeD ≤ m →

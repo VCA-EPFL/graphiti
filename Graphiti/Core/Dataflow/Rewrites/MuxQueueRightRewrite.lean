@@ -27,7 +27,7 @@ def matcher : Pattern String (String × Nat) 2 := fun g => do
        let (.some mux) := followOutput g inst "out1" | return none
        unless "mux" == mux.typ.1 ∧ mux.inputPort = "in3" do return none
 
-       return some ([inst, mux.inst], #v[typ.2, mux.typ.2])
+       return some ([inst, mux.inst], #v[typ, mux.typ])
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
@@ -78,11 +78,11 @@ def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
     params := 2
     pattern := matcher,
-    rewrite := λ l m => ⟨lhsLower l, rhsLower m⟩
+    rewrite := λ l m => ⟨lhsLower (l.map (·.2)), rhsLower m.2⟩
     name := "mux-queue-right"
     transformedNodes := [.none, findRhs "mux"]
     addedNodes := []
-    fresh_types := 1
+    fresh_types := fun x => (x.1, x.2+1)
   }
 
 end Graphiti.MuxQueueRightRewrite

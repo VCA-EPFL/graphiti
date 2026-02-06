@@ -308,7 +308,8 @@ article {
 .sitenav {
     padding: 1.5rem 0;
     border-top-width: .25rem;
-    padding-left: 4rem;
+    padding-left: 5%;
+    padding-right: 5%;
 }
 
 .sitenav-links {

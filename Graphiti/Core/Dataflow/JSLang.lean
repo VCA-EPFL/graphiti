@@ -143,7 +143,7 @@ def rewriteWithEgg {n} (eggCmd := "graphiti_oracle") (p : Pattern String (String
   let out ← runCommandWithStdin eggCmd #[] (toSExpr constructed)
   IO.ofExcept <| parseRewrites out.stdout
 
-def JSLang.upd1 (m : AssocList String (Option String)) : JSLangRewrite → RewriteResult JSLangRewrite
+def JSLang.upd1 (m : AssocList String (Option String)) : JSLangRewrite → RewriteResult String (String × Nat) JSLangRewrite
 | .assocL s dir => do
   let (.some s') := (m.find? s).getD s
     | throw <| .error s!"{decl_name%}: assocL: '{s}' deleted in map"
@@ -161,7 +161,7 @@ def JSLang.upd1 (m : AssocList String (Option String)) : JSLangRewrite → Rewri
     | throw <| .error s!"{decl_name%}: elim: '{s}' deleted in map"
   return .elim s'
 
-def JSLang.upd (m : AssocList String (Option String)) (j : List JSLangRewrite) : RewriteResult (List JSLangRewrite) :=
+def JSLang.upd (m : AssocList String (Option String)) (j : List JSLangRewrite) : RewriteResult String (String × Nat) (List JSLangRewrite) :=
   j.mapM (JSLang.upd1 m)
 
 end Graphiti

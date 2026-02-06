@@ -27,7 +27,7 @@ def identMatcher (join2 : String) : Pattern String (String × Nat) 2 := fun g =>
   let join1 ← ofOption' (.error s!"{decl_name%}: could not find next node") <| followInput g join2 "in2"
   unless "join" == join1.typ.1 do throw (.error s!"{decl_name%}: type of '{join1.inst}' is '{join1.typ}' instead of 'join' 2")
 
-  return ([join1.inst, join2], #v[join1.typ.2, join2_typ.2.2])
+  return ([join1.inst, join2], #v[join1.typ, join2_typ.2])
 
 def matcher : Pattern String (String × Nat) 2 := fun g => do
   throw (.error s!"{decl_name%}: matcher not implemented")
@@ -86,11 +86,11 @@ def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
     params := 2
     pattern := matcher,
-    rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
+    rewrite := λ l n => ⟨lhsLower (l.map (·.2)), rhsLower n.2⟩
     name := "join-assoc-left"
     transformedNodes := [findRhs "join1" |>.get rfl, findRhs "join2" |>.get rfl],
     addedNodes := [findRhs "pure" |>.get rfl]
-    fresh_types := 3
+    fresh_types := fun x => (x.1, x.2+3)
   }
 
 def targetedRewrite (s : String) :=

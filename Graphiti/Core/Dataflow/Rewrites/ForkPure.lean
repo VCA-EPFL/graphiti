@@ -27,7 +27,7 @@ def matcher : Pattern String (String × Nat) 2 := fun g => do
        let (.some p) := followOutput g inst "out1" | return none
        unless "fork2" == p.typ.1 do return none
 
-       return some ([inst, p.inst], #v[typ.2, p.typ.2])
+       return some ([inst, p.inst], #v[typ, p.typ])
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
@@ -73,11 +73,11 @@ def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
     params := 2
     pattern := matcher,
-    rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
+    rewrite := λ l n => ⟨lhsLower (l.map (·.2)), rhsLower n.2⟩
     name := "fork-pure"
     transformedNodes := [.none, findRhs "fork" |>.get rfl]
     addedNodes := [findRhs "pure1" |>.get rfl, findRhs "pure2" |>.get rfl]
-    fresh_types := 3
+    fresh_types := fun x => (x.1, x.2+3)
   }
 
 end Graphiti.ForkPure

@@ -1,13 +1,20 @@
+{{ $pages := slice }}
+{{ range .Site.Menus.main }}
+  {{ with .Page }}
+    {{ $pages = $pages | append . }}
+  {{ end }}
+{{ end }}
+{{ $pages = $pages.Reverse }}
 <nav class="sitenav">
   <div class="sitenav-links">
     <span class="prev-link">
-      {{ with .PrevInSection }}
+      {{ with $pages.Prev . }}
       <span class="link-label">Previous</span>
       <a href="{{.Permalink}}" accesskey="p" rel="previous">{{.LinkTitle}}</a>
       {{ end }}
     </span>
     <span class="next-link">
-      {{ with .NextInSection }}
+      {{ with $pages.Next . }}
       <span class="link-label">Next</span>
       <a href="{{.Permalink}}" accesskey="n" rel="next">{{.LinkTitle}}</a>
       {{ end }}

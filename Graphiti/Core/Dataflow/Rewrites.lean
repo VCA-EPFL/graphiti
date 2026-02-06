@@ -98,7 +98,7 @@ def rewrite_index :=
     , BranchPureMuxRight.rewrite
     ]
 
-def reverse_rewrite_with_index (rinfo : RuntimeEntry) : RewriteResult (Rewrite String (String × Nat)) := do
+def reverse_rewrite_with_index (rinfo : RuntimeEntry String (String × Nat)) : RewriteResult' String (String × Nat) Rewrite := do
   let name ← ofOption (.error s!"{decl_name%}: no rinfo report") rinfo.name
   let rw ← ofOption (.error s!"{decl_name%}: '{name}' reverse rewrite generation failed") <| rewrite_index.find? name
   reverse_rewrite rw rinfo
@@ -107,7 +107,7 @@ def reverse_rewrite_with_index (rinfo : RuntimeEntry) : RewriteResult (Rewrite S
 The reverseRewrites function will look through the runitme trace and identify the rewrites that should be inverted using
 `rev-start` and `rev-stop` markers.
 -/
-def reverseRewrites (g : ExprHigh String (String × Nat)) : RewriteResult (ExprHigh String (String × Nat)) := do
+def reverseRewrites (g : ExprHigh String (String × Nat)) : RewriteResult' String (String × Nat) ExprHigh := do
   let st ← get
   let st_worklist := st.1.reverse.tail.filter (fun rinfo => rinfo.type != .debug)
 

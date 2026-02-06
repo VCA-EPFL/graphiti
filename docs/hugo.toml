@@ -1,20 +1,22 @@
 baseURL = 'https://example.org/'
 languageCode = 'en-gb'
 title = 'Graphiti Manual'
-
-sectionPagesMenu = 'main'
+enableGitInfo = true
 
 [markup.goldmark.renderer]
-unsafe= true
+  unsafe= true
 
 [markup.goldmark.extensions.passthrough]
-enable = true
+  enable = true
 
 [markup.goldmark.extensions.passthrough.delimiters]
-block = [['\[', '\]'], ['$$', '$$']]
-inline = [['\(', '\)']]
+  block = [['\[', '\]'], ['$$', '$$']]
+  inline = [['\(', '\)']]
 
 [markup.tableOfContents]
   endLevel = 2
   ordered = false
   startLevel = 2
+
+[frontmatter]
+  lastmod = ["lastmod", ":git", "date", "publishDate"]

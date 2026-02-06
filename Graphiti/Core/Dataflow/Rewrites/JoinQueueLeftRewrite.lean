@@ -27,7 +27,7 @@ def matcher : Pattern String (String × Nat) 2 := fun g => do
        let (.some join) := followOutput g inst "out1" | return none
        unless "join" == join.typ.1 ∧ join.inputPort = "in1" do return none
 
-       return some ([inst, join.inst], #v[typ.2, join.typ.2])
+       return some ([inst, join.inst], #v[typ, join.typ])
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
@@ -74,11 +74,11 @@ def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
     params := 2,
     pattern := matcher,
-    rewrite := λ l m => ⟨lhsLower l, rhsLower m⟩
+    rewrite := λ l m => ⟨lhsLower (l.map (·.2)), rhsLower m.2⟩
     name := "join-queue-left"
     transformedNodes := [.none, findRhs "join"]
     addedNodes := []
-    fresh_types := 1
+    fresh_types := fun x => (x.1, x.2+1)
   }
 
 end Graphiti.JoinQueueLeftRewrite

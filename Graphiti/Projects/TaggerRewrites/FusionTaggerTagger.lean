@@ -125,7 +125,7 @@ extract parts of the graph.  The `type` given to each extracted node has to
 match the `type` of the node in LHS and RHS graphs.
 -/
 def rewrite : Rewrite String String :=
-  { abstractions := [⟨0, matchModTop, "mod_left"⟩, ⟨0, matchModBottom, "mod_right"⟩],
+  { abstractions := [⟨matchModTop, "mod_left"⟩, ⟨matchModBottom, "mod_right"⟩],
     params := 0,
     pattern := matcher,
     rewrite := λ _ _ => ⟨lhsLower, rhsLower⟩

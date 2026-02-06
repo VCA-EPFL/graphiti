@@ -429,8 +429,8 @@ theorem rhs_ghost_evaled_eq3 :
 def rewrite : Rewrite String (String × Nat) where
   params := 8
   pattern := default
-  rewrite := fun types n => ⟨lhsLower types, rhsGhostLower n⟩
-  fresh_types := 5
+  rewrite := fun types n => ⟨lhsLower (types.map (·.2)), rhsGhostLower n.2⟩
+  fresh_types := fun x => (x.1, x.2+5)
   name := "loop-rewrite"
 
 end Proof

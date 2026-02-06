@@ -33,13 +33,10 @@ def identMatcher (s : String) : Pattern String (String × Nat) 2 := fun g => do
     throw (.error s!"{decl_name%}: type of '{next2.inst}' is '{next2.typ}' instead of 'split' 2")
   unless next2.inputPort == "out2" do throw (.error s!"{decl_name%}: output port of split is incorrect")
 
-  return ([s, next1.inst], #v[n.2.2, next1.typ.2])
+  return ([s, next1.inst], #v[n.2, next1.typ])
 
 def matcher : Pattern String (String × Nat) 2 := fun g => do
   throw (.error s!"{decl_name%}: matcher not implemented")
-
-def identRenaming (s : String) (g : ExprHigh String (String × Nat)) : RewriteResult (AssocList String (Option String)) :=
-  pure .nil
 
 def lhs : ExprHigh String (String × Nat) := [graph|
     i_0 [type = "io"];
@@ -78,11 +75,11 @@ def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
     params := 2
     pattern := matcher,
-    rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
+    rewrite := λ l n => ⟨lhsLower (l.map (·.2)), rhsLower n.2⟩
     name := "join-split-elim"
     transformedNodes := [.none, .none]
     addedNodes := [findRhs "pure" |>.get rfl]
-    fresh_types := 1
+    fresh_types := fun x => (x.1, x.2+1)
   }
 
 def targetedRewrite (s : String) := { rewrite with pattern := identMatcher s }

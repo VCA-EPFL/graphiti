@@ -76,9 +76,11 @@ def boxLoopBodyOther' : Pattern String (String × Nat) 0 := fun g => do
   let (.cons out _ .nil) := g.modules.filter (λ _ (p, _) => p.output.any (λ a b => b.inst.isTop)) | throw .done
   return ([inp, out], #v[])
 
-def nonPureMatcher {n} (initNode : String) : Pattern String (String × Nat) n := Graphiti.nonPureMatcher <| toPattern (boxLoopBody initNode)
+def nonPureMatcher (initNode : String) : Pattern String (String × Nat) 0 :=
+  Graphiti.nonPureMatcher <| toPattern <| fun g => (fun x => x.1) <$> (boxLoopBody initNode g)
 
-def nonPureForkMatcher {n} (initNode : String) : Pattern String (String × Nat) n := Graphiti.nonPureForkMatcher <| toPattern (boxLoopBody initNode)
+def nonPureForkMatcher (initNode : String) : Pattern String (String × Nat) 0 :=
+  Graphiti.nonPureForkMatcher <| toPattern <| fun g => (fun x => x.1) <$> (boxLoopBody initNode g)
 
 def matcher : Pattern String (String × Nat) 8 := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
@@ -107,7 +109,7 @@ def matcher : Pattern String (String × Nat) 8 := fun g => do
        unless "queue" == queue'.typ.1 do return none
 
        return some ([mux.inst, condition_fork.inst, branch.inst, tag_split.inst, mod.inst, inst, queue.inst],
-           #v[typ.2, mux.typ.2, mod.typ.2, tag_split.typ.2, condition_fork.typ.2, branch.typ.2, queue.typ.2, queue'.typ.2]
+           #v[typ, mux.typ, mod.typ, tag_split.typ, condition_fork.typ, branch.typ, queue.typ, queue'.typ]
          )
 
     ) none | MonadExceptOf.throw RewriteError.done
@@ -198,8 +200,9 @@ def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
     params := 8,
     pattern := matcher,
-    rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
+    rewrite := λ l n => ⟨lhsLower (l.map (·.2)), rhsLower n.2⟩
     name := .some "loop-rewrite"
+    fresh_types := fun x => (x.1, x.2+5)
   }
 
 /--

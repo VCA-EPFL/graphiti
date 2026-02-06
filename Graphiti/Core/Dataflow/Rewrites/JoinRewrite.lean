@@ -12,7 +12,7 @@ namespace Graphiti.JoinRewrite
 
 open StringModule
 
-def matcher (g : ExprHigh String String) : RewriteResult (List String × List String) := sorry
+def matcher (g : ExprHigh String String) : RewriteResult String String (List String × List String) := sorry
 
 @[drunfold_defs]
 def lhs (T₁ T₂ T₃ : Type) (S₁ S₂ S₃ : String) : ExprHigh String String × IdentMap String (TModule1 String) := [graphEnv|

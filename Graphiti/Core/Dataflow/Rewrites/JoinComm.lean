@@ -24,13 +24,10 @@ variable (M : Nat)
 def identMatcher (s : String) : Pattern String (String × Nat) 1 := fun g => do
   let n ← ofOption' (.error s!"{decl_name%}: could not find '{s}'") <| g.modules.find? s
   unless "join" == n.2.1 do throw (.error s!"{decl_name%}: type of '{s}' is '{n.2}' instead of 'join'")
-  return ([s], #v[n.2.2])
+  return ([s], #v[n.2])
 
 def matcher : Pattern String (String × Nat) 1 := fun g => do
   throw (.error s!"{decl_name%}: matcher not implemented")
-
-def identRenaming (s : String) (g : ExprHigh String String) : RewriteResult (AssocList String (Option String)) := do
-  return (.cons s "joinN" .nil)
 
 def lhs : ExprHigh String (String × Nat) := [graph|
     i_0 [type = "io"];
@@ -73,11 +70,11 @@ def rewrite : Rewrite String (String × Nat) :=
   { abstractions := []
     params := 1
     pattern := matcher
-    rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
+    rewrite := λ l n => ⟨lhsLower (l.map (·.2)), rhsLower n.2⟩
     name := "join-comm"
     transformedNodes := [findRhs "joinN" |>.get rfl]
     addedNodes := [findRhs "pure" |>.get rfl]
-    fresh_types := 2
+    fresh_types := fun x => (x.1, x.2+2)
   }
 
 def targetedRewrite s := { rewrite with pattern := identMatcher s }

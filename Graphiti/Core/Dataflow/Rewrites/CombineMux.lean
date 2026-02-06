@@ -16,10 +16,6 @@ namespace Graphiti.CombineMux
 
 open StringModule
 
-local instance : MonadExcept IO.Error RewriteResult where
-  throw e := throw <| .error <| toString e
-  tryCatch m h := throw (.error "Cannot catch IO.Error")
-
 -- Return any 2 Muxes fed by the same fork if the fork has the init as a predecessor (directly or through a tree of forks)
 -- TODO: Currently, it assumes that the init is either the direct predecessor or is a predecessor of the predecessor. We should make it more general to accommodate any number of forks until the init
 
@@ -45,7 +41,7 @@ def matcher : Pattern String (String × Nat) 3 := fun g => do
 
       unless "mux" == mux_nn.typ.1 && mux_nn.inputPort = "in1" do return none
       unless "mux" == mux_nn'.typ.1 && mux_nn'.inputPort = "in1" do return none
-      return some ([mux_nn.inst, mux_nn'.inst, inst], #v[mux_nn.typ.2, mux_nn'.typ.2, typ.2])
+      return some ([mux_nn.inst, mux_nn'.inst, inst], #v[mux_nn.typ, mux_nn'.typ, typ])
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
@@ -119,13 +115,13 @@ def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
     params := 3
     pattern := matcher,
-    rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
+    rewrite := λ l n => ⟨lhsLower (l.map (·.2)), rhsLower n.2⟩
     name := .some "combine-mux"
     transformedNodes := [findRhs "mux", .none, .none]
     addedNodes := [ findRhs "joinT" |>.get rfl, findRhs "joinF" |>.get rfl
                   , findRhs "split" |>.get rfl
                   ]
-    fresh_types := 4
+    fresh_types := fun x => (x.1, x.2+4)
   }
 
 end Graphiti.CombineMux

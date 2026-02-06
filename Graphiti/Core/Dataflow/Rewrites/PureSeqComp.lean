@@ -27,7 +27,7 @@ def matcher : Pattern String (String × Nat) 2 := fun g => do
        let (.some join) := followOutput g inst "out1" | return none
        unless "pure" == join.typ.1 do return none
 
-       return some ([inst, join.inst], #v[typ.2, join.typ.2])
+       return some ([inst, join.inst], #v[typ, join.typ])
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
@@ -67,11 +67,11 @@ def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
     params := 2
     pattern := matcher,
-    rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
+    rewrite := λ l n => ⟨lhsLower (l.map (·.2)), rhsLower n.2⟩
     name := "pure-seq-comp"
     transformedNodes := [.none, .none]
     addedNodes := [findRhs "pure" |>.get rfl]
-    fresh_types := 1
+    fresh_types := fun x => (x.1, x.2+1)
   }
 
 end Graphiti.PureSeqComp

@@ -150,8 +150,8 @@ structure VerifiedRewrite (rewrite : DefiniteRewrite String (String × Nat)) (ε
   lhs_locally_wf : rewrite.input_expr.locally_wf
   refinement : [e| rewrite.output_expr, (ε ++ ε_ext).toEnv ] ⊑ [e| rewrite.input_expr, ε.toEnv ]
 
-theorem run'_implies_pattern {g b st g' _st' rw}:
-  Rewrite.run' g rw b st = .ok g' _st' →
+theorem run'_implies_pattern {Typ} [Repr Typ] [DecidableEq Typ] {g b st g' _st' rw}:
+  Rewrite.run' (Typ := Typ) g rw b st = .ok g' _st' →
   ∃ out, rw.pattern g = .ok out := by
   unfold Rewrite.run'; simp
   intro hrewrite; dsimp [Bind.bind, Monad.toBind, EStateM.instMonad] at *
@@ -233,7 +233,7 @@ theorem run'_implies_wt_lhs {b} {ε_global : FinEnv String (String × Nat)}
   cases hverylower
   subst_vars
   repeat cases ‹Unit›
-  rename RewriteState => rewrite_info
+  /- rename RewriteState => rewrite_info -/
   rename g.extract _ = _ => Hextract
   rename ExprHigh.lower _ = _ => Hlower
   rename ExprLow.higher_correct _ _ = _ => Hrewrite
@@ -245,13 +245,13 @@ theorem run'_implies_wt_lhs {b} {ε_global : FinEnv String (String × Nat)}
   repeat clear ‹addRewriteInfo _ _ = _›
   repeat clear ‹updRewriteInfo _ _ = _›
   rename ExprHigh String (String × Nat) × ExprHigh String (String × Nat) => extractedGraphs
-  rename List String × Vector Nat rw.params => pattern
+  rename List String × Vector (String × Nat) rw.params => pattern
   rename ExprHigh String (String × Nat) => outGraph
   rw [hpat] at Hpattern
   dsimp [RewriteResultSL.runWithState] at Hpattern
   cases Hpattern
   cases ‹EStateM.get _ = _›
-  rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+  rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
   have wi_wf : ExprLow.well_formed ε_global.toEnv wi = true := by
     apply ExprLow.refines_comm_connections'_well_formed2
     · apply ExprLow.replacement_well_formed2; rotate_left 1
@@ -323,7 +323,6 @@ theorem run'_implies_wf_lhs {b} {ε_global : FinEnv String (String × Nat)}
   cases hverylower
   subst_vars
   repeat cases ‹Unit›
-  rename RewriteState => rewrite_info
   rename g.extract _ = _ => Hextract
   rename ExprHigh.lower _ = _ => Hlower
   rename ExprLow.higher_correct _ _ = _ => Hrewrite
@@ -335,13 +334,13 @@ theorem run'_implies_wf_lhs {b} {ε_global : FinEnv String (String × Nat)}
   repeat clear ‹addRewriteInfo _ _ = _›
   repeat clear ‹updRewriteInfo _ _ = _›
   rename ExprHigh String (String × Nat) × ExprHigh String (String × Nat) => extractedGraphs
-  rename List String × Vector Nat rw.params => pattern
+  rename List String × Vector (String × Nat) rw.params => pattern
   rename ExprHigh String (String × Nat) => outGraph
   rw [hpat] at Hpattern
   dsimp [RewriteResultSL.runWithState] at Hpattern
   cases Hpattern
   cases ‹EStateM.get _ = _›
-  rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+  rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
   have wi_wf : ExprLow.well_formed ε_global.toEnv wi = true := by
     apply ExprLow.refines_comm_connections'_well_formed2
     · apply ExprLow.replacement_well_formed2; rotate_left 1
@@ -401,7 +400,6 @@ theorem run'_refines {b} {ε_global : FinEnv String (String × Nat)}
   cases hverylower
   subst_vars
   repeat cases ‹Unit›
-  rename RewriteState => rewrite_info
   rename g.extract _ = _ => Hextract
   rename ExprHigh.lower _ = _ => Hlower
   rename ExprLow.higher_correct _ _ = _ => Hrewrite
@@ -413,13 +411,13 @@ theorem run'_refines {b} {ε_global : FinEnv String (String × Nat)}
   repeat clear ‹addRewriteInfo _ _ = _›
   repeat clear ‹updRewriteInfo _ _ = _›
   rename ExprHigh String (String × Nat) × ExprHigh String (String × Nat) => extractedGraphs
-  rename List String × Vector Nat rw.params => pattern
+  rename List String × Vector (String × Nat) rw.params => pattern
   rename ExprHigh String (String × Nat) => outGraph
   rw [hpat] at Hpattern
   dsimp [RewriteResultSL.runWithState] at Hpattern
   cases Hpattern
   cases ‹EStateM.get _ = _›
-  rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+  rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
   have wi_wf : ExprLow.well_formed ε_global.toEnv wi = true := by
     apply ExprLow.refines_comm_connections'_well_formed2
     · apply ExprLow.replacement_well_formed2; rotate_left 1
@@ -562,7 +560,6 @@ theorem run'_preserves_well_formed {b} {ε_global : FinEnv String (String × Nat
   cases hverylower
   subst_vars
   repeat cases ‹Unit›
-  rename RewriteState => rewrite_info
   rename g.extract _ = _ => Hextract
   rename ExprHigh.lower _ = _ => Hlower
   rename ExprLow.higher_correct _ _ = _ => Hrewrite
@@ -574,13 +571,13 @@ theorem run'_preserves_well_formed {b} {ε_global : FinEnv String (String × Nat
   repeat clear ‹addRewriteInfo _ _ = _›
   repeat clear ‹updRewriteInfo _ _ = _›
   rename ExprHigh String (String × Nat) × ExprHigh String (String × Nat) => extractedGraphs
-  rename List String × Vector Nat rw.params => pattern
+  rename List String × Vector (String × Nat) rw.params => pattern
   rename ExprHigh String (String × Nat) => outGraph
   rw [hpat] at Hpattern
   dsimp [RewriteResultSL.runWithState] at Hpattern
   cases Hpattern
   cases ‹EStateM.get _ = _›
-  rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+  rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
   have rw_output_wf : ExprLow.well_formed (ε_global ++ vrw.ε_ext).toEnv (rw.rewrite types st.fresh_type).output_expr = true := by
     apply ExprLow.refines_subset_well_formed
     apply FinEnv.independent_subset_of_union
@@ -662,7 +659,6 @@ theorem run'_preserves_well_typed {b} {ε_global : FinEnv String (String × Nat)
   cases hverylower
   subst_vars
   repeat cases ‹Unit›
-  rename RewriteState => rewrite_info
   rename g.extract _ = _ => Hextract
   rename ExprHigh.lower _ = _ => Hlower
   rename ExprLow.higher_correct _ _ = _ => Hrewrite
@@ -674,13 +670,13 @@ theorem run'_preserves_well_typed {b} {ε_global : FinEnv String (String × Nat)
   repeat clear ‹addRewriteInfo _ _ = _›
   repeat clear ‹updRewriteInfo _ _ = _›
   rename ExprHigh String (String × Nat) × ExprHigh String (String × Nat) => extractedGraphs
-  rename List String × Vector Nat rw.params => pattern
+  rename List String × Vector (String × Nat) rw.params => pattern
   rename ExprHigh String (String × Nat) => outGraph
   rw [hpat] at Hpattern
   dsimp [RewriteResultSL.runWithState] at Hpattern
   cases Hpattern
   cases ‹EStateM.get _ = _›
-  rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+  rename_i wo wi _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
   have rw_output_wf : ExprLow.well_formed (ε_global ++ vrw.ε_ext).toEnv (rw.rewrite types st.fresh_type).output_expr = true := by
     apply ExprLow.refines_subset_well_formed
     apply FinEnv.independent_subset_of_union

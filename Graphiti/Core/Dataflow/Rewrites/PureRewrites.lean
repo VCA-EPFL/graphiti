@@ -25,9 +25,9 @@ open StringModule
 
 namespace Constant
 
-def extract_type (typ : String × Nat) : RewriteResultSL (Vector Nat 1) := do
+def extract_type (typ : String × Nat) : RewriteResultSL (Vector (String × Nat) 1) := do
   unless typ.1 == "constant" do throw .done
-  return #v[typ.2]
+  return #v[typ]
 
 def match_node := Graphiti.match_node extract_type
 
@@ -68,18 +68,18 @@ def rewrite : Rewrite String (String × Nat) where
   abstractions := []
   params := 1
   pattern := matcher
-  rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
+  rewrite := λ l n => ⟨lhsLower (l.map (·.2)), rhsLower n.2⟩
   name := .some "pure-constant"
   transformedNodes := [findRhs "const" |>.get rfl]
-  fresh_types := 1
+  fresh_types := fun x => (x.1, x.2+1)
 
 end Constant
 
 namespace ConstantNat
 
-def extract_type (typ : String × Nat) : RewriteResultSL (Vector Nat 1) := do
+def extract_type (typ : String × Nat) : RewriteResultSL (Vector (String × Nat) 1) := do
   unless typ.1 == "constantNat" do throw .done
-  return #v[typ.2]
+  return #v[typ]
 
 def match_node := Graphiti.match_node extract_type
 
@@ -120,18 +120,18 @@ def rewrite : Rewrite String (String × Nat) where
   abstractions := []
   params := 1
   pattern := matcher
-  rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
+  rewrite := λ l n => ⟨lhsLower (l.map (·.2)), rhsLower n.2⟩
   name := .some "pure-constant-nat"
   transformedNodes := [findRhs "const" |>.get rfl]
-  fresh_types := 1
+  fresh_types := fun x => (x.1,x.2+1)
 
 end ConstantNat
 
 namespace ConstantBool
 
-def extract_type (typ : String × Nat) : RewriteResultSL (Vector Nat 1) := do
+def extract_type (typ : String × Nat) : RewriteResultSL (Vector (String × Nat) 1) := do
   unless typ.1 == "constantBool" do throw .done
-  return #v[typ.2]
+  return #v[typ]
 
 def match_node := Graphiti.match_node extract_type
 
@@ -172,18 +172,18 @@ def rewrite : Rewrite String (String × Nat) where
   abstractions := []
   params := 1
   pattern := matcher
-  rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
+  rewrite := λ l n => ⟨lhsLower (l.map (·.2)), rhsLower n.2⟩
   name := .some "pure-constant-nat"
   transformedNodes := [findRhs "const" |>.get rfl]
-  fresh_types := 1
+  fresh_types := fun x => (x.1, x.2+1)
 
 end ConstantBool
 
 namespace Operator1
 
-def extract_type (typ : String × Nat) : RewriteResultSL (Vector Nat 1) := do
+def extract_type (typ : String × Nat) : RewriteResultSL (Vector (String × Nat) 1) := do
   unless typ.1 == "operator1" do throw .done
-  return #v[typ.2]
+  return #v[typ]
 
 def match_node := Graphiti.match_node extract_type
 
@@ -225,19 +225,19 @@ def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
     params := 1
     pattern := matcher,
-    rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
+    rewrite := λ l n => ⟨lhsLower (l.map (·.2)), rhsLower n.2⟩
     name := .some "pure-operator1"
     transformedNodes := [findRhs "op" |>.get rfl]
-    fresh_types := 1
+    fresh_types := fun x => (x.1, x.2+1)
   }
 
 end Operator1
 
 namespace Operator2
 
-def extract_type (typ : String × Nat) : RewriteResultSL (Vector Nat 1) := do
+def extract_type (typ : String × Nat) : RewriteResultSL (Vector (String × Nat) 1) := do
   unless typ.1 == "operator2" do throw .done
-  return #v[typ.2]
+  return #v[typ]
 
 def match_node := Graphiti.match_node extract_type
 
@@ -285,20 +285,20 @@ def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
     params := 1
     pattern := matcher,
-    rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
+    rewrite := λ l n => ⟨lhsLower (l.map (·.2)), rhsLower n.2⟩
     name := .some "pure-operator2"
     transformedNodes := [findRhs "op" |>.get rfl]
     addedNodes := [findRhs "join" |>.get rfl]
-    fresh_types := 2
+    fresh_types := fun x => (x.1, x.2+2)
   }
 
 end Operator2
 
 namespace Operator3
 
-def extract_type (typ : String × Nat) : RewriteResultSL (Vector Nat 1) := do
+def extract_type (typ : String × Nat) : RewriteResultSL (Vector (String × Nat) 1) := do
   unless typ.1 == "operator3" do throw .done
-  return #v[typ.2]
+  return #v[typ]
 
 def match_node := Graphiti.match_node extract_type
 
@@ -354,20 +354,20 @@ def rewrite : Rewrite String (String × Nat) :=
   { abstractions := []
     params := 1
     pattern := matcher
-    rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
+    rewrite := λ l n => ⟨lhsLower (l.map (·.2)), rhsLower n.2⟩
     name := .some "pure-operator3"
     transformedNodes := [findRhs "op" |>.get rfl]
     addedNodes := [findRhs "join1" |>.get rfl, findRhs "join2" |>.get rfl]
-    fresh_types := 3
+    fresh_types :=fun x => (x.1, x.2+3)
   }
 
 end Operator3
 
 namespace CondOperator1
 
-def extract_type (typ : String × Nat) : RewriteResultSL (Vector Nat 1) := do
+def extract_type (typ : String × Nat) : RewriteResultSL (Vector (String × Nat) 1) := do
   unless typ.1 == "cond_operator1" do throw .done
-  return #v[typ.2]
+  return #v[typ]
 
 def match_node := Graphiti.match_node extract_type
 
@@ -409,19 +409,19 @@ def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
     params := 1
     pattern := matcher,
-    rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
+    rewrite := λ l n => ⟨lhsLower (l.map (·.2)), rhsLower n.2⟩
     name := .some "pure-cond_operator1"
     transformedNodes := [findRhs "op" |>.get rfl]
-    fresh_types := 1
+    fresh_types := fun x => (x.1, x.2+1)
   }
 
 end CondOperator1
 
 namespace CondOperator2
 
-def extract_type (typ : String × Nat) : RewriteResultSL (Vector Nat 1) := do
+def extract_type (typ : String × Nat) : RewriteResultSL (Vector (String × Nat) 1) := do
   unless typ.1 == "cond_operator2" do throw .done
-  return #v[typ.2]
+  return #v[typ]
 
 def match_node := Graphiti.match_node extract_type
 
@@ -469,20 +469,20 @@ def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
     params := 1
     pattern := matcher,
-    rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
+    rewrite := λ l n => ⟨lhsLower (l.map (·.2)), rhsLower n.2⟩
     name := .some "pure-cond_operator2"
     transformedNodes := [findRhs "op" |>.get rfl]
     addedNodes := [findRhs "join" |>.get rfl]
-    fresh_types := 2
+    fresh_types := fun x => (x.1, x.2+2)
   }
 
 end CondOperator2
 
 namespace Fork
 
-def extract_type (typ : String × Nat) : RewriteResultSL (Vector Nat 1) := do
+def extract_type (typ : String × Nat) : RewriteResultSL (Vector (String × Nat) 1) := do
   unless typ.1 == "fork2" do throw .done
-  return #v[typ.2]
+  return #v[typ]
 
 def match_node := Graphiti.match_node extract_type
 
@@ -530,11 +530,11 @@ def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
     params := 1
     pattern := matcher,
-    rewrite := λ l n => ⟨lhsLower l, rhsLower n⟩
+    rewrite := λ l n => ⟨lhsLower (l.map (·.2)), rhsLower n.2⟩
     name := .some "pure-fork"
     transformedNodes := [.none]
     addedNodes := [findRhs "op" |>.get rfl, findRhs "split" |>.get rfl]
-    fresh_types := 2
+    fresh_types := fun x => (x.1, x.2+2)
   }
 
 end Fork

@@ -33,7 +33,7 @@ def matcher : Pattern String (String × Nat) 3 := fun g => do
       unless "branch" == branch_nn.typ.1 && branch_nn.inputPort = "in2" do return none
       unless "branch" == branch_nn'.typ.1 && branch_nn'.inputPort = "in2" do return none
 
-      return ([branch_nn.inst, branch_nn'.inst, inst], #v[branch_nn.typ.2, branch_nn'.typ.2, typ.2])
+      return ([branch_nn.inst, branch_nn'.inst, inst], #v[branch_nn.typ, branch_nn'.typ, typ])
     ) none | MonadExceptOf.throw RewriteError.done
   return list
 
@@ -106,13 +106,13 @@ def rewrite : Rewrite String (String × Nat) :=
   { abstractions := [],
     params := 3
     pattern := matcher,
-    rewrite := λ l n => ⟨ lhsLower l, rhsLower n ⟩
+    rewrite := λ l n => ⟨ lhsLower (l.map (·.2)), rhsLower n.2 ⟩
     name := .some "combine-branch"
     transformedNodes := [findRhs "branch", .none, .none]
     addedNodes := [ findRhs "join" |>.get rfl
                   , findRhs "splitT" |>.get rfl, findRhs "splitF" |>.get rfl
                   ]
-    fresh_types := 4
+    fresh_types := fun x => (x.1, x.2+4)
   }
 
 end Graphiti.CombineBranch
