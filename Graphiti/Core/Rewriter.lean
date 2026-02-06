@@ -382,7 +382,7 @@ def reverse_rewrite' [DecidableEq Ident] [Append Ident] [Repr Ident] [Repr Typ]
   addRuntimeEntry <| RuntimeEntry.mk EntryType.debug default default default default default default default (.some <| s!"{repr lhs_renamed}\n\n{repr rhs_renamed}\n\n{repr full_renaming}\n\n{repr rhs_renaming}\n\n{repr lhs_renaming}") s!"rev-{rinfo.name.getD "unknown"}"
 
   return ({ params := 0
-            pattern := λ _ => pure default,
+            pattern := λ _ => pure (rhsNodes', #v[]),
             rewrite := λ _ _ => ⟨rhs_renamed, lhs_renamed⟩,
             name := s!"rev-{rinfo.name.getD "unknown"}",
             -- TODO: These dictate ordering of nodes quite strictly.
