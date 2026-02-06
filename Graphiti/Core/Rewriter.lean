@@ -379,7 +379,9 @@ def reverse_rewrite' [DecidableEq Ident] [Append Ident] [Repr Ident] [Repr Typ]
   let lhs_renamed ← ofOption (.error "could not rename") <| def_rewrite.input_expr.renamePorts full_renaming
   let rhs_renamed ← ofOption (.error "could not rename") <| def_rewrite.output_expr.renamePorts full_renaming
 
-  addRuntimeEntry <| RuntimeEntry.mk EntryType.debug default default default default default default default (.some <| s!"{repr lhs_renamed}\n\n{repr rhs_renamed}\n\n{repr full_renaming}\n\n{repr rhs_renaming}\n\n{repr lhs_renaming}") s!"rev-{rinfo.name.getD "unknown"}"
+  addRuntimeEntry <| RuntimeEntry.mk EntryType.debug default default default default default default default
+    (.some <| s!"{repr lhs_renamed}\n\n{repr rhs_renamed}\n\n{repr full_renaming}\n\n{repr rhs_renaming}\n\n{repr lhs_renaming}")
+    s!"rev-{rinfo.name.getD "unknown"}"
 
   return ({ params := 0
             pattern := λ _ => pure (rhsNodes', #v[]),
@@ -659,7 +661,8 @@ a single leaf node which connects to all inputs and all outputs respectively.
 It's much easier to work on this successor structure than on the unstructured
 graph.
 -/
-def fullCalcSucc {Typ} [Inhabited Typ] (g : ExprHigh String Typ) (rootNode : String := "_root_") (leafNode : String := "_leaf_") : Option (Std.HashMap String (Array String)) := do
+def fullCalcSucc {Typ} [Inhabited Typ] (g : ExprHigh String Typ) (rootNode : String := "_root_") (leafNode : String := "_leaf_")
+    : Option (Std.HashMap String (Array String)) := do
   let succ ← calcSucc g
   let succ := succ.map λ _ b => b.map (·.inst)
   let succ := succ.insert rootNode g.inputNodes.toArray
@@ -796,7 +799,8 @@ def findClosedRegion' (succ : Std.HashMap String (Array String)) (startN endN : 
           let nextNodes' := nextNodes.filter (· ∉ visited')
           go w visited' (nextNodes'.union q)
 
-def defaultMatcher.impl (pat g : ExprHigh String (String × Nat)) (fuel : Nat) (visited worklist : List (String × String)) (state : List String × List Nat)
+def defaultMatcher.impl (pat g : ExprHigh String (String × Nat)) (fuel : Nat) (visited worklist : List (String × String))
+    (state : List String × List Nat)
     : Option (List String × List Nat × List (String × String) × List (String × String)) :=
   match fuel with
   | 0 => some (state.1, state.2, visited, worklist)
@@ -857,7 +861,8 @@ def extractType (s : String) : String :=
   let parts := s.splitOn " "
   parts.tail.foldl (λ a b => a ++ " " ++ b) "" |>.drop 1 |>.copy
 
-def match_node {n : Nat} (extract_type : (String × Nat) → RewriteResultSL (Vector (String × Nat) n)) (nn : String) (g : ExprHigh String (String × Nat))
+def match_node {n : Nat} (extract_type : (String × Nat) → RewriteResultSL (Vector (String × Nat) n)) (nn : String)
+    (g : ExprHigh String (String × Nat))
     : RewriteResultSL (List String × Vector (String × Nat) n) := do
   let (_map, typ) ← ofOption' (.error s!"{decl_name%}: module '{nn}' not found") (g.modules.find? nn)
   let types ← extract_type typ
