@@ -150,6 +150,15 @@ structure VerifiedRewrite (rewrite : DefiniteRewrite String (String × Nat)) (ε
   lhs_locally_wf : rewrite.input_expr.locally_wf
   refinement : [e| rewrite.output_expr, (ε ++ ε_ext).toEnv ] ⊑ [e| rewrite.input_expr, ε.toEnv ]
 
+structure VerifiedConditionalRewrite (rewrite : DefiniteRewrite String (String × Nat)) (ε : FinEnv String (String × Nat)) where
+  ε_ext : FinEnv String (String × Nat)
+  ε_ext_wf : env_well_formed ε_ext.toEnv
+  ε_independent : Env.independent ε_ext.toEnv ε.toEnv
+  rhs_wf : rewrite.output_expr.well_formed ε_ext.toEnv
+  rhs_wt : rewrite.output_expr.well_typed ε_ext.toEnv
+  lhs_locally_wf : rewrite.input_expr.locally_wf
+  refinement : [e| rewrite.output_expr, (ε ++ ε_ext).toEnv ] ⊑ [e| rewrite.input_expr, ε.toEnv ]
+
 theorem run'_implies_pattern {Typ} [Repr Typ] [DecidableEq Typ] {g b st g' _st' rw}:
   Rewrite.run' (Typ := Typ) g rw b st = .ok g' _st' →
   ∃ out, rw.pattern g = .ok out := by
