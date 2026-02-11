@@ -429,13 +429,13 @@ def rhs_extract := (rhs T).extract ["write", "fork", "w_reg"] |>.get rfl
 def rhsLower := (rhs_extract T).fst.lower.get rfl
 def findRhs mod := (rhs_extract #v[0, 0]).fst.modules.find? mod |>.map Prod.fst
 
-/- def rewrite : Rewrite String (String × Nat) where
- -   abstractions := []
- -   params := _
- -   pattern := defaultMatcher (lhs #v[0, 0])
- -   rewrite := λ l n => ⟨lhsLower #v[l[3]], rhsLower #v[l[3]]⟩
- -   name := "RWEQ"
- -   transformedNodes := [findRhs "write" |>.get!, findRhs "fork" |>.get!, .none, findRhs "w_reg" |>.get!, .none] -/
+def rewrite : Rewrite String (String × Nat) where
+  abstractions := []
+  params := _
+  pattern := defaultMatcher (lhs #v[0, 0])
+  rewrite := λ l n => ⟨lhsLower #v[l[3].2, l[4].2], rhsLower #v[l[3].2, l[4].2]⟩
+  name := "RWEQ"
+  transformedNodes := [findRhs "write" |>.get!, findRhs "fork" |>.get!, .none, findRhs "w_reg" |>.get!, .none]
 
 end RWNotEQ
 
@@ -493,13 +493,13 @@ def rhs_extract := (rhs T).extract ["write", "fork", "w_reg"] |>.get rfl
 def rhsLower := (rhs_extract T).fst.lower.get rfl
 def findRhs mod := (rhs_extract #v[0]).fst.modules.find? mod |>.map Prod.fst
 
-/- def rewrite : Rewrite String (String × Nat) where
- -   abstractions := []
- -   params := _
- -   pattern := defaultMatcher (lhs #v[0])
- -   rewrite := λ l n => ⟨lhsLower #v[l[3]], rhsLower #v[l[3]]⟩
- -   name := "RWEQ"
- -   transformedNodes := [findRhs "write" |>.get!, findRhs "fork" |>.get!, .none, findRhs "w_reg" |>.get!, .none] -/
+def rewrite : Rewrite String (String × Nat) where
+  abstractions := []
+  params := _
+  pattern := defaultMatcher (lhs #v[0])
+  rewrite := λ l n => ⟨lhsLower #v[l[3].2], rhsLower #v[l[3].2]⟩
+  name := "RWEQ"
+  transformedNodes := [findRhs "write" |>.get!, findRhs "fork" |>.get!, .none, findRhs "w_reg" |>.get!, .none]
 
 end RWEQ
 
