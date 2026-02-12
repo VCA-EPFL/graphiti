@@ -28,7 +28,7 @@ name = "Graphiti"
 
 [[lean_exe]]
 name = "graphiti"
-root = "Main"
+root = "Dataflow"
 
 [[lean_lib]]
 name = "GraphitiCore"
