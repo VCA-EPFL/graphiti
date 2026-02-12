@@ -366,8 +366,13 @@ def instrToGraph (g : CFG) (label : String) : Instruction → CFG
 def codeToGraph (code : Code) : ExprHigh String (String × Nat) :=
   code.foldl instrToGraph ⟨∅, ∅⟩
 
-/- #eval IO.FS.writeFile "random.dot" <| toString <| codeToGraph prog.code
- - #eval IO.Process.run {cmd := "dot", args := #["-Tsvg", "random.dot", "-o", "random.svg"] } -/
+def graph := codeToGraph prog.code
+
+def toSVG (file : String) (graph : ExprHigh String (String × Nat)) := do
+  IO.FS.writeFile (file ++ ".dot") <| toString <| graph
+  let _ ← IO.Process.run {cmd := "dot", args := #["-Tsvg", (file ++ ".dot"), "-o", file ++ ".svg"] }
+
+#eval toSVG "random" graph
 
 namespace Rewrites
 
@@ -425,17 +430,17 @@ def rhs : ExprHigh String (String × Nat) := [graph|
     fork -> read [from="out1", to="in1"];
   ]
 
-def rhs_extract := (rhs T).extract ["write", "fork", "w_reg"] |>.get rfl
+def rhs_extract := (rhs T).extract ["write", "fork", "read", "w_reg", "r_reg"] |>.get rfl
 def rhsLower := (rhs_extract T).fst.lower.get rfl
 def findRhs mod := (rhs_extract #v[0, 0]).fst.modules.find? mod |>.map Prod.fst
 
 def rewrite : Rewrite String (String × Nat) where
   abstractions := []
   params := _
-  pattern := defaultMatcher (lhs #v[0, 0])
+  pattern := defaultMatcher (pred := fun v => v[3].2 != v[4].2) (lhs_extract #v[0, 0]).fst
   rewrite := λ l n => ⟨lhsLower #v[l[3].2, l[4].2], rhsLower #v[l[3].2, l[4].2]⟩
   name := "RWEQ"
-  transformedNodes := [findRhs "write" |>.get!, findRhs "fork" |>.get!, .none, findRhs "w_reg" |>.get!, .none]
+  transformedNodes := [findRhs "write" |>.get!, findRhs "fork" |>.get!, findRhs "read" |>.get!, findRhs "w_reg" |>.get!, findRhs "r_reg" |>.get!]
 
 end RWNotEQ
 
@@ -496,14 +501,14 @@ def findRhs mod := (rhs_extract #v[0]).fst.modules.find? mod |>.map Prod.fst
 def rewrite : Rewrite String (String × Nat) where
   abstractions := []
   params := _
-  pattern := defaultMatcher (lhs #v[0])
+  pattern := defaultMatcher (pred := fun v => v[3].2 == v[4].2)  (lhs_extract #v[0]).fst
   rewrite := λ l n => ⟨lhsLower #v[l[3].2], rhsLower #v[l[3].2]⟩
   name := "RWEQ"
   transformedNodes := [findRhs "write" |>.get!, findRhs "fork" |>.get!, .none, findRhs "w_reg" |>.get!, .none]
 
 end RWEQ
 
-namespace ForkSummary
+namespace ForkSummary1
 
 def lhs : ExprHigh String (String × Nat) := [graph|
     i [type="io"];
@@ -543,12 +548,59 @@ def findRhs mod := rhs_extract.fst.modules.find? mod |>.map Prod.fst
 def rewrite : Rewrite String (String × Nat) where
   abstractions := []
   params := _
-  pattern := defaultMatcher lhs
+  pattern := defaultMatcher lhs_extract.fst
   rewrite := λ l n => ⟨lhsLower, rhsLower⟩
   name := "fork-summary"
   transformedNodes := [.none, findRhs "fork2" |>.get!]
 
-end ForkSummary
+end ForkSummary1
+
+namespace ForkSummary2
+
+def lhs : ExprHigh String (String × Nat) := [graph|
+    i [type="io"];
+    o1 [type="io"];
+    o2 [type="io"];
+
+    fork1 [type="fork1", arg=$(0)];
+    fork2 [type="fork2", arg=$(0)];
+
+    i -> fork2 [to="in1"];
+    fork1 -> o2 [from="out1"];
+    fork2 -> o1 [from="out1"];
+
+    fork2 -> fork1 [from="out2", to="in1"];
+  ]
+
+def lhs_extract := lhs.extract ["fork1", "fork2"] |>.get rfl
+theorem double_check_empty_snd : lhs_extract.snd = ExprHigh.mk ∅ ∅ := by rfl
+def lhsLower := lhs_extract.fst.lower.get rfl
+
+def rhs : ExprHigh String (String × Nat) := [graph|
+    i [type="io"];
+    o1 [type="io"];
+    o2 [type="io"];
+
+    fork2 [type="fork2", arg=$(0)];
+
+    i -> fork2 [to="in1"];
+    fork2 -> o2 [from="out1"];
+    fork2 -> o1 [from="out2"];
+  ]
+
+def rhs_extract := rhs.extract ["fork2"] |>.get rfl
+def rhsLower := rhs_extract.fst.lower.get rfl
+def findRhs mod := rhs_extract.fst.modules.find? mod |>.map Prod.fst
+
+def rewrite : Rewrite String (String × Nat) where
+  abstractions := []
+  params := _
+  pattern := defaultMatcher lhs_extract.fst
+  rewrite := λ l n => ⟨lhsLower, rhsLower⟩
+  name := "fork-summary"
+  transformedNodes := [.none, findRhs "fork2" |>.get!]
+
+end ForkSummary2
 
 namespace ForkAssoc
 
@@ -597,12 +649,34 @@ def findRhs mod := rhs_extract.fst.modules.find? mod |>.map Prod.fst
 def rewrite : Rewrite String (String × Nat) where
   abstractions := []
   params := _
-  pattern := defaultMatcher lhs
+  pattern := defaultMatcher lhs_extract.fst
   rewrite := λ l n => ⟨lhsLower, rhsLower⟩
   name := "fork-assoc"
   transformedNodes := [findRhs "fork1" |>.get!, findRhs "fork2" |>.get!]
 
 end ForkAssoc
+
+/- #eval (defaultMatcher ForkSummary2.lhs_extract.fst) graph -/
+def graph_1 := (rewrite_fix [ForkSummary2.rewrite] graph).run' ⟨[], 0, ("", 0)⟩ |>.get!
+#eval toSVG "random2" graph_1
+
+def resToOption {α β γ} (res : EStateM.Result α β γ) : Option γ :=
+  match res with
+  | .ok s _ => .some s
+  | _ => .none
+
+def stateToOption {α β γ} (res : EStateM.Result α β γ) : β :=
+  match res with
+  | .ok _ s => s
+  | .error _ s => s
+
+#eval RWNotEQ.rewrite.pattern graph_1
+def graph_2_int := (rewrite_fix [RWNotEQ.rewrite] graph_1).run ⟨[], 0, ("", 0)⟩
+def graph_2 := resToOption graph_2_int |>.get!
+#eval graph_1
+#eval resToOption graph_2_int |>.get!
+#eval (stateToOption graph_2_int).runtime_trace |> Lean.toJson
+#eval toSVG "random3" graph_2
 
 end Rewrites
 

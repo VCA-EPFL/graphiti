@@ -1,5 +1,5 @@
 /-
-Copyright (c) 2024, 2025 VCA Lab, EPFL. All rights reserved.
+Copyright (c) 2024-2026 VCA Lab, EPFL. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
@@ -282,6 +282,12 @@ def ofPortMapping [DecidableEq Ident] (p : PortMapping Ident) : Option Ident :=
 def map {α β} (f : α → β) : PortMapping α → PortMapping β
 | ⟨ a, b ⟩ => ⟨a.mapKey (λ k => k.map f) |>.mapVal (λ _ v => v.map f)
               , b.mapKey (λ k => k.map f ) |>.mapVal (λ _ v => v.map f)⟩
+
+def mapPM {α β} (fI fO : PortMap α (InternalPort α) → PortMap β (InternalPort β)) : PortMapping α → PortMapping β
+| ⟨ a, b ⟩ => ⟨fI a, fO b⟩
+
+def mapPM1 {α β} (f : PortMap α (InternalPort α) → PortMap β (InternalPort β)) : PortMapping α → PortMapping β
+| ⟨ a, b ⟩ => ⟨f a, f b⟩
 
 def mapPairs (f : InternalPort Ident → InternalPort Ident → InternalPort Ident) : PortMapping Ident → PortMapping Ident
 | ⟨ a, b ⟩ => ⟨a.mapVal f, b.mapVal f⟩

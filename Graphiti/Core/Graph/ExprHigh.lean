@@ -1,5 +1,5 @@
 /-
-Copyright (c) 2024 VCA Lab, EPFL. All rights reserved.
+Copyright (c) 2024-2026 VCA Lab, EPFL. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
@@ -278,11 +278,14 @@ def renamePorts f (g : ExprHigh Ident Typ) (p : PortMapping Ident) := do
   g_lower.renamePorts p >>= ExprLow.higher_correct f
 
 def renamePorts_fast (g : ExprHigh Ident Typ) (p : PortMapping Ident) :=
-  let f := p.input.bijectivePortRenaming_assume_invertible
-  let h := p.output.bijectivePortRenaming_assume_invertible
-  ExprHigh.mk
-    (g.modules.mapVal (λ k v => (PortMapping.mk (v.1.input.mapVal (λ _ v => f v)) (v.1.output.mapVal (λ _ v => h v)), v.2)))
-    (g.connections.map (λ ⟨o, i⟩ => ⟨h o, f i⟩))
+  if p.input.invertible && p.output.invertible then
+    let f := p.input.bijectivePortRenaming_assume_invertible
+    let h := p.output.bijectivePortRenaming_assume_invertible
+    Option.some <| ExprHigh.mk
+      (g.modules.mapVal (λ k v => (PortMapping.mk (v.1.input.mapVal (λ _ v => f v)) (v.1.output.mapVal (λ _ v => h v)), v.2)))
+      (g.connections.map (λ ⟨o, i⟩ => ⟨h o, f i⟩))
+  else
+    .none
 
 def normaliseNames {α} [DecidableEq α] (e : ExprHigh String α) : Option (ExprHigh String α) :=
   let renameMap := e.modules.toList.map (λ (x, (inst, typ)) =>
@@ -292,56 +295,58 @@ def normaliseNames {α} [DecidableEq α] (e : ExprHigh String α) : Option (Expr
 
 def normaliseNames_fast {α} [DecidableEq α] (e : ExprHigh String α) : Option (ExprHigh String α) :=
   let renameMap := e.modules.toList.map (λ (x, (inst, typ)) =>
-    inst.mapKeys (λ keyPort bodyPort => if bodyPort.inst.isTop then bodyPort else ⟨.internal x, keyPort.name⟩))
-      |> PortMapping.combinePortMapping
-  e.renamePorts_fast renameMap
+    inst.mapPM1 (λ m => m.foldl (fun st keyPort bodyPort => if bodyPort.inst.isTop then st else st.cons bodyPort ⟨.internal x, keyPort.name⟩) ∅))
+  renameMap.foldlM (fun e r =>
+    e.renamePorts_fast r
+  ) e
 
 def renameModules {α} [DecidableEq α] (e : ExprHigh String α) (map : Batteries.AssocList String String) :=
   let newModules := e.modules.mapKey (λ k => map.find? k |>.getD k)
   {e with modules := newModules}.normaliseNames_fast
 
-instance {α} [ToString α] [DecidableEq α] [Repr α] : ToString (ExprHigh String α) where
-  toString a :=
-    -- let instances :=
-    --   a.modules.foldl (λ s inst mod => s ++ s!"\n {inst} [mod = \"{mod}\"];") ""
-    match a.normaliseNames_fast with
-    | some a =>
-      let (io_decl, io_conn) := a.modules.foldl (λ (sdecl, sio) inst (pmap, typ) =>
-        let sdecl := (pmap.input ++ pmap.output).foldl (λ sdecl k v =>
-          if v.inst.isTop
-          then sdecl ++ s!"\n  \"{v.name}\" [type = \"io\", label = \"{v.name}: io\"];"
-          else sdecl) sdecl
-        let sio := pmap.input.foldl (λ io_conn k v =>
-          if v.inst.isTop
-          then io_conn ++ s!"\n  \"{v.name}\" -> \"{inst}\" [to = \"{k.name}\", headlabel = \"{k.name}\"];"
-          else io_conn) sio
-        let sio := pmap.output.foldl (λ io_conn k v =>
-          if v.inst.isTop
-          then io_conn ++ s!"\n \"{inst}\" -> \"{v.name}\" [from = \"{k.name}\", taillabel = \"{k.name}\"];"
-          else io_conn) sio
-        (sdecl, sio)
-      ) ("", "")
-      let modules :=
-        a.modules.foldl
-          (λ s k v =>
-            s ++ s!"  \"{k}\" [type = \"{v.snd}\", label = \"{k}: {v.snd}\"];\n"
-            ) ""
-      let connections :=
-        a.connections.foldl
-          (λ s => λ | ⟨ oport, iport ⟩ =>
-                      s ++ s!"\n  \"{oport.inst}\" -> \"{iport.inst}\" "
-                        ++ s!"[from = \"{oport.name}\","
-                        ++ s!" to = \"{iport.name}\","
-                        ++ s!" taillabel = \"{oport.name}\","
-                        ++ s!" headlabel = \"{iport.name}\","
-                        ++ "];") ""
-      s!"digraph \{
+def asDot {α} [ToString α] [DecidableEq α] (a : ExprHigh String α) : Option String := do
+  let a ← a.normaliseNames_fast
+  let (io_decl, io_conn) := a.modules.foldl (λ (sdecl, sio) inst (pmap, typ) =>
+    let sdecl := (pmap.input ++ pmap.output).foldl (λ sdecl k v =>
+      if v.inst.isTop
+      then sdecl ++ s!"\n  \"{v.name}\" [type = \"io\", label = \"{v.name}: io\"];"
+      else sdecl) sdecl
+    let sio := pmap.input.foldl (λ io_conn k v =>
+      if v.inst.isTop
+      then io_conn ++ s!"\n  \"{v.name}\" -> \"{inst}\" [to = \"{k.name}\", headlabel = \"{k.name}\"];"
+      else io_conn) sio
+    let sio := pmap.output.foldl (λ io_conn k v =>
+      if v.inst.isTop
+      then io_conn ++ s!"\n \"{inst}\" -> \"{v.name}\" [from = \"{k.name}\", taillabel = \"{k.name}\"];"
+      else io_conn) sio
+    (sdecl, sio)
+  ) ("", "")
+  let modules :=
+    a.modules.foldl
+      (λ s k v =>
+        s ++ s!"  \"{k}\" [type = \"{v.snd}\", label = \"{k}: {v.snd}\"];\n"
+        ) ""
+  let connections :=
+    a.connections.foldl
+      (λ s => λ | ⟨ oport, iport ⟩ =>
+                  s ++ s!"\n  \"{oport.inst}\" -> \"{iport.inst}\" "
+                    ++ s!"[from = \"{oport.name}\","
+                    ++ s!" to = \"{iport.name}\","
+                    ++ s!" taillabel = \"{oport.name}\","
+                    ++ s!" headlabel = \"{iport.name}\","
+                    ++ "];") ""
+  s!"digraph \{
 {io_decl}
 {modules}
 {io_conn}
 {connections}
 }"
-    | none => repr a |>.pretty
+
+instance {α} [ToString α] [DecidableEq α] [Repr α] : ToString (ExprHigh String α) where
+  toString a :=
+    match a.asDot with
+    | some a => a
+    | none => s!"ERROR: {repr a}"
 
 end ExprHigh
 

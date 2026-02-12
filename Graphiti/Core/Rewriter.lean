@@ -1,5 +1,5 @@
 /-
-Copyright (c) 2024-2025 VCA Lab, EPFL. All rights reserved.
+Copyright (c) 2024-2026 VCA Lab, EPFL. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
@@ -107,10 +107,10 @@ def RuntimeEntry.stopMarker? (entry : RuntimeEntry Ident Typ) : Bool := entry.ty
 instance [Repr Ident] [Repr Typ] [Lean.ToJson Ident] [Lean.ToJson Typ] [ToString Ident] : Lean.ToJson (RuntimeEntry Ident Typ) where
   toJson r :=
     Lean.Json.mkObj
-      [ ("type", Lean.Format.pretty <| repr r.type)
+      [ ("type", Lean.Format.pretty (width := 10000) <| repr r.type)
       , ("name", Lean.toJson r.name)
-      , ("input_graph", toString <| repr <| r.input_graph)
-      , ("output_graph", toString <| repr <| r.output_graph)
+      , ("input_graph", Lean.Format.pretty (width := 10000) <| repr <| r.input_graph)
+      , ("output_graph", Lean.Format.pretty (width := 10000) <| repr <| r.output_graph)
       , ("matched_subgraph", Lean.toJson r.matched_subgraph)
       , ("matched_subgraph_types", Lean.toJson r.matched_subgraph_types)
       , ("renamed_input_nodes", Lean.Json.mkObj <| r.renamed_input_nodes.toList.map (λ a => (toString a.1, Lean.toJson a.2)))
@@ -803,7 +803,7 @@ def defaultMatcher.impl (pat g : ExprHigh String (String × Nat)) (fuel : Nat) (
     (state : List String × List Nat)
     : Option (List String × List Nat × List (String × String) × List (String × String)) :=
   match fuel with
-  | 0 => some (state.1, state.2, visited, worklist)
+  | 0 => none
   | fuel'+1 =>
     match worklist with
     | [] => some (state.1, state.2, visited, worklist)
@@ -839,11 +839,20 @@ def defaultMatcher.inside (pat g : ExprHigh String (String × Nat)) (m : String)
       return s.concat g_type
     ) []
 
-def defaultMatcher (pat : ExprHigh String (String × Nat)) : Pattern String (String × Nat) pat.modules.length := fun g => do
+def defaultMatcher (pat : ExprHigh String (String × Nat)) (pred : Vector (String × Nat) pat.modules.length → Bool := fun _ => true)
+    : Pattern String (String × Nat) pat.modules.length := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
        if s.isSome then return s
-       return defaultMatcher.inside pat g inst
-    ) none | MonadExceptOf.throw RewriteError.done
+       match defaultMatcher.inside pat g inst with
+       | .some v =>
+         let .some vec := v.toVec pat.modules.length
+           | throw (.error "list not the right size")
+         if pred (vec.map (·.type))
+         then return .some v
+         else return .none
+       | .none =>
+         return none
+    ) none | throw RewriteError.done
   let .some vec := list.toVec pat.modules.length
     | throw (.error "could not transform list")
   return (vec.toList.map (·.name), vec.map (·.type))
