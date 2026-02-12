@@ -353,7 +353,7 @@ def instrToGraph (g : CFG) (label : String) : Instruction → CFG
 | .Icond cond regs true_next false_next =>
   let (st1, val, cfg) := operationToGraph g s!"{label}_cond" cond regs
   let (_, cfg) := addFork cfg label [st1, ⟨.internal s!"{label}_branch", "in1"⟩]
-  {cfg with modules := g.modules.cons s!"{label}_branch" (PortMapping.generate s!"{label}_branch" 2 2, ("branch", 0))}
+  {cfg with modules := cfg.modules.cons s!"{label}_branch" (PortMapping.generate s!"{label}_branch" 2 2, ("branch", 0))}
   |> (connectMaybeWithMerge · ⟨.internal s!"{label}_branch", "out1"⟩ ⟨.internal s!"{true_next}", "in1"⟩)
   |> (connectMaybeWithMerge · ⟨.internal s!"{label}_branch", "out2"⟩ ⟨.internal s!"{false_next}", "in1"⟩)
   |> (connectMaybeWithMerge · val ⟨.internal s!"{label}_branch", "in2"⟩)
@@ -368,9 +368,17 @@ def codeToGraph (code : Code) : ExprHigh String (String × Nat) :=
 
 def graph := codeToGraph prog.code
 
+def existsInPath (cmd : String) : IO Bool := do
+  let result ← IO.Process.output {
+    cmd := "which"
+    args := #[cmd]
+  }
+  return result.exitCode == 0
+
 def toSVG (file : String) (graph : ExprHigh String (String × Nat)) := do
   IO.FS.writeFile (file ++ ".dot") <| toString <| graph
-  let _ ← IO.Process.run {cmd := "dot", args := #["-Tsvg", (file ++ ".dot"), "-o", file ++ ".svg"] }
+  if ← existsInPath "dot" then
+    let _ ← IO.Process.run {cmd := "dot", args := #["-Tsvg", (file ++ ".dot"), "-o", file ++ ".svg"] }
 
 #eval toSVG "random" graph
 
@@ -613,7 +621,7 @@ def lhs : ExprHigh String (String × Nat) := [graph|
     fork1 [type="fork2", arg=$(0)];
     fork2 [type="fork2", arg=$(0)];
 
-    i -> fork2 [to="in1"];
+    i -> fork1 [to="in1"];
     fork1 -> o1 [from="out1"];
     fork2 -> o2 [from="out1"];
     fork2 -> o3 [from="out2"];
@@ -634,10 +642,10 @@ def rhs : ExprHigh String (String × Nat) := [graph|
     fork1 [type="fork2", arg=$(0)];
     fork2 [type="fork2", arg=$(0)];
 
-    i -> fork2 [to="in1"];
-    fork2 -> o1 [from="out2"];
+    i -> fork1 [to="in1"];
     fork1 -> o2 [from="out1"];
     fork2 -> o3 [from="out1"];
+    fork2 -> o1 [from="out2"];
 
     fork1 -> fork2 [from="out2", to="in1"];
   ]
@@ -671,12 +679,25 @@ def stateToOption {α β γ} (res : EStateM.Result α β γ) : β :=
   | .error _ s => s
 
 #eval RWNotEQ.rewrite.pattern graph_1
-def graph_2_int := (rewrite_fix [RWNotEQ.rewrite] graph_1).run ⟨[], 0, ("", 0)⟩
+def graph_2_int := (rewrite_fix [RWNotEQ.rewrite] graph_1).run ⟨[], 10, ("", 0)⟩
 def graph_2 := resToOption graph_2_int |>.get!
-#eval graph_1
+#eval graph_2_int
 #eval resToOption graph_2_int |>.get!
-#eval (stateToOption graph_2_int).runtime_trace |> Lean.toJson
+#eval (stateToOption graph_2_int).runtime_trace.length |> Lean.toJson
 #eval toSVG "random3" graph_2
+
+#eval ForkAssoc.rewrite.pattern graph_2
+def graph_3_int := (ForkAssoc.rewrite.run' graph_2).run ⟨[], 20, ("", 0)⟩
+def graph_3 := resToOption graph_3_int |>.get!
+#eval toSVG "random4" graph_3
+
+def graph_4_int := (rewrite_fix [RWNotEQ.rewrite, RWEQ.rewrite] graph_3).run ⟨[], 30, ("", 0)⟩
+def graph_4 := resToOption graph_4_int |>.get!
+#eval toSVG "random5" graph_4
+
+def graph_5_int := (rewrite_fix [RWNotEQ.rewrite] graph_4).run ⟨[], 40, ("", 0)⟩
+def graph_5 := resToOption graph_5_int |>.get!
+#eval toSVG "random20" graph_5
 
 end Rewrites
 
