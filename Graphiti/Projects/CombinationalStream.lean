@@ -74,7 +74,7 @@ open Stream
 open VerilogExport
 
 def not_m : NatModule D :=
-  { inputs := [(0, ⟨ D, λ s tt s' => more_defined s tt ∧ s' = tt ⟩)].toAssocList,
+  { inputs := [(0, ⟨ D, λ s tt s' => more_defined tt s ∧ s' = tt ⟩)].toAssocList,
     outputs := [(0, ⟨ D, λ s tt s' => s = s' ∧ not (delay false s) = tt⟩)].toAssocList
     init_state := λ s => s = default
   }
@@ -94,8 +94,8 @@ def sink_m_template : VerilogTemplate where
   instantiation name inst := format_instantiation "sink_m" name inst
 
 def nand_m : NatModule (D × D) :=
-  { inputs := [(0, ⟨ D, λ s tt s' => more_defined s.1 tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
-               (1, ⟨ D, λ s tt s' => more_defined s.2 tt ∧ s'.2 = tt ∧ s'.1 = s.1 ⟩)].toAssocList,
+  { inputs := [(0, ⟨ D, λ s tt s' => more_defined tt s.1 ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
+               (1, ⟨ D, λ s tt s' => more_defined tt s.2 ∧ s'.2 = tt ∧ s'.1 = s.1 ⟩)].toAssocList,
     outputs := [(0, ⟨ D, λ s tt s' => s = s' ∧ tt = delay false (nand s.1 s.2) ⟩)].toAssocList
     init_state := λ s => s = default
   }
@@ -105,9 +105,9 @@ def nand_m_template : VerilogTemplate where
   instantiation name inst := format_instantiation "nand_m" name inst
 
 def nand3_m : NatModule (D × D × D) :=
-  { inputs := [(0, ⟨ D, λ s tt s' => more_defined s.1 tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
-               (1, ⟨ D, λ s tt s' => more_defined s.2.1 tt ∧ s'.2.1 = tt ∧ s'.1 = s.1 ∧ s'.2.2 = s.2.2 ⟩),
-               (2, ⟨ D, λ s tt s' => more_defined s.2.2 tt ∧ s'.2.2 = tt ∧ s'.1 = s.1 ∧ s'.2.1 = s.2.1 ⟩)].toAssocList,
+  { inputs := [(0, ⟨ D, λ s tt s' => more_defined tt s.1 ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
+               (1, ⟨ D, λ s tt s' => more_defined tt s.2.1 ∧ s'.2.1 = tt ∧ s'.1 = s.1 ∧ s'.2.2 = s.2.2 ⟩),
+               (2, ⟨ D, λ s tt s' => more_defined tt s.2.2 ∧ s'.2.2 = tt ∧ s'.1 = s.1 ∧ s'.2.1 = s.2.1 ⟩)].toAssocList,
     outputs := [(0, ⟨ D, λ s tt s' => s = s' ∧ tt = delay false (nand3 s.1 s.2.1 s.2.2) ⟩)].toAssocList
     init_state := λ s => s = default
   }
@@ -117,8 +117,8 @@ def nand3_m_template : VerilogTemplate where
   instantiation name inst := format_instantiation "nand3_m" name inst
 
 def and_m : NatModule (D × D) :=
-  { inputs := [(0, ⟨ D, λ s tt s' => more_defined s.1 tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
-               (1, ⟨ D, λ s tt s' => more_defined s.2 tt ∧ s'.2 = tt ∧ s'.1 = s.1 ⟩)].toAssocList,
+  { inputs := [(0, ⟨ D, λ s tt s' => more_defined tt s.1 ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
+               (1, ⟨ D, λ s tt s' => more_defined tt s.2 ∧ s'.2 = tt ∧ s'.1 = s.1 ⟩)].toAssocList,
     outputs := [(0, ⟨ D, λ s tt s' => s = s' ∧ tt = delay false (nand s.1 s.2) ⟩)].toAssocList
     init_state := λ s => s = default
   }
@@ -128,7 +128,7 @@ def and_m_template : VerilogTemplate where
   instantiation name inst := format_instantiation "and_m" name inst
 
 def fork_m : NatModule D :=
-  { inputs := [(0, ⟨ D, λ s tt s' => more_defined s tt ∧ s' = tt ⟩)].toAssocList,
+  { inputs := [(0, ⟨ D, λ s tt s' => more_defined tt s ∧ s' = tt ⟩)].toAssocList,
     outputs := [(0, ⟨ D, λ s tt s' => s = s' ∧ tt = s ⟩), (1, ⟨ D, λ s tt s' => s = s' ∧ tt = s ⟩)].toAssocList
     init_state := λ s => s = default
   }
@@ -138,7 +138,7 @@ def fork_m_template : VerilogTemplate where
   instantiation name inst := format_instantiation "fork_m" name inst
 
 def fork3_m : NatModule D :=
-  { inputs := [(0, ⟨ D, λ s tt s' => more_defined s tt ∧ s' = tt ⟩)].toAssocList,
+  { inputs := [(0, ⟨ D, λ s tt s' => more_defined tt s ∧ s' = tt ⟩)].toAssocList,
     outputs := [(0, ⟨ D, λ s tt s' => s = s' ∧ tt = s ⟩), (1, ⟨ D, λ s tt s' => s = s' ∧ tt = s ⟩), (2, ⟨ D, λ s tt s' => s = s' ∧ tt = s ⟩)].toAssocList
     init_state := λ s => s = default
   }
