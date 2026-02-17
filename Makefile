@@ -4,6 +4,11 @@ help:
 	@echo "make build: build the proof."
 	@echo "make build-exe: build the executable.  This requires cargo to be installed."
 
+.PHONY: ci
+ci:
+	lake build GraphitiCore
+	lake build GraphitiProjects
+
 .PHONY: setup
 setup:
 	lake exe cache get
