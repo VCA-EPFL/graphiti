@@ -155,7 +155,7 @@ namespace Graphiti.Projects.Noc
               flit == ((cast Hv v).fst, noc.routing_policy.mkhead idx (cast Hv v).snd (cast Hv v).fst)
             )
             <;> dsimp at ⊢ Hrf1 Hrf2 flit src
-            · rw [h]
+            · simp only [h]
               apply Hrf1
               by_cases hsrceqidx: src = idx
               · subst src

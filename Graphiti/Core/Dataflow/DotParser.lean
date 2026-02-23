@@ -93,8 +93,11 @@ def strDigits : Parser String := do
   let l ← Lean.Json.Parser.num
   return toString l
 
+def digitsToNat (base : Nat) (digits : Array Nat) : Nat :=
+  digits.foldl (λ r d => r * base + d) 0
+
 def hexParser' : Parser Nat :=
-  Lean.Xml.Parser.digitsToNat 16 <$> many1 (hexChar)
+  digitsToNat 16 <$> many1 (hexChar)
 
 def hexParser : Parser Nat :=
   skipString "0x" *> hexParser'

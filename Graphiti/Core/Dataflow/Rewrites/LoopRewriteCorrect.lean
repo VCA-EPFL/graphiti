@@ -315,7 +315,13 @@ theorem ε_rhs_ghost_wf : ε_rhs_ghost.toEnv.well_formed := by
   intro s y hfind
   simp [ε_rhs_ghost] at hfind
   obtain ⟨a, b, hfind⟩ := hfind
-  simp; grind
+  simp
+  rcases hfind with ⟨ha, hb, hfind⟩ | ⟨_, ⟨ha, hb⟩ | ⟨_, ⟨ha, hb⟩ | ⟨_, ⟨ha, hb⟩ | ⟨_, ⟨ha, hb⟩ | ⟨_, ⟨ha, hb⟩ | hfind⟩⟩⟩⟩⟩
+  · subst_vars; grind
+  · subst_vars; grind
+  · subst_vars; grind
+  · subst_vars; grind
+  · subst_vars; grind
 
 @[drunfold_defs]
 def rhsGhostLower max_type := (ghost_rhs_extract max_type |>.1).lower_TR.get rfl
@@ -325,7 +331,7 @@ theorem ghost_rhs_wf : (rhsGhostLower e.max_type).well_formed ε_rhs_ghost.toEnv
   dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
   dsimp [ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
   dsimp [ExprLow.well_formed]
-  simp only [drenv]; dsimp
+  simp only [drenv]
   simp; and_intros <;> (try decide) <;> (try simp [AssocList.keysList, drcomponents, List.range, List.range.loop]; decide)
 
 theorem ghost_rhs_wt : (rhsGhostLower e.max_type).well_typed ε_rhs_ghost.toEnv := by

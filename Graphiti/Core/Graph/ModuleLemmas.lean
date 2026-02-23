@@ -1461,13 +1461,13 @@ theorem refines_product_associative {J} {jmod : Module Ident J} :
   imod.product (smod.product jmod) ⊑ (imod.product smod).product jmod := by
   refine ⟨inferInstance, fun | (i₁, i₂, i₃), ((s₁, s₂), s₃) => i₁ = s₁ ∧ i₂ = s₂ ∧ i₃ = s₃, refines_φ_product_associative _, ?_⟩
   dsimp [refines_initial]; intro (i_init, s_init, j_init) hprod
-  unfold Module.product at *; dsimp at *; simp [*]
+  unfold Module.product at *; dsimp at *; simp [*]; grind
 
 theorem refines_product_associative' {J} {jmod : Module Ident J} :
   (imod.product smod).product jmod ⊑ imod.product (smod.product jmod) := by
   refine ⟨inferInstance, fun | ((i₁, i₂), i₃), (s₁, s₂, s₃) => i₁ = s₁ ∧ i₂ = s₂ ∧ i₃ = s₃, refines_φ_product_associative' _, ?_⟩
   dsimp [refines_initial]; intro ((i_init, s_init), j_init) hprod
-  unfold Module.product at *; dsimp at *; simp [*]
+  unfold Module.product at *; dsimp at *; simp [*]; grind
 
 theorem refines_φ_product_commutative (h : Disjoint imod smod) :
   have _ := MatchInterface_product_commutative h
@@ -1499,7 +1499,7 @@ theorem refines_product_commutative (h : Disjoint imod smod) :
   (imod.product smod) ⊑ smod.product imod := by
   refine ⟨MatchInterface_product_commutative h, fun | (i₁, i₂), (s₁, s₂) => i₁ = s₂ ∧ i₂ = s₁, refines_φ_product_commutative h, ?_⟩
   dsimp [refines_initial]; intro (i_init, s_init) hprod
-  unfold Module.product at *; dsimp at *; simp [*]
+  unfold Module.product at *; dsimp at *; simp [*]; grind
 
 theorem refines_φ_connect [MatchInterface imod smod] {φ i o} :
     imod ⊑_{φ} smod → imod.connect' o i ⊑_{φ} smod.connect' o i := by
