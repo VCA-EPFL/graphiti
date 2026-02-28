@@ -799,9 +799,9 @@ def findClosedRegion' (succ : Std.HashMap String (Array String)) (startN endN : 
           let nextNodes' := nextNodes.filter (· ∉ visited')
           go w visited' (nextNodes'.union q)
 
-def defaultMatcher.impl (pat g : ExprHigh String (String × Nat)) (fuel : Nat) (visited worklist : List (String × String))
-    (state : List String × List Nat)
-    : Option (List String × List Nat × List (String × String) × List (String × String)) :=
+def defaultMatcher.impl {α} [Inhabited α] (cmp : α → α → Bool) (pat g : ExprHigh String α) (fuel : Nat) (visited worklist : List (String × String))
+    (state : List String × List α)
+    : Option (List String × List α × List (String × String) × List (String × String)) :=
   match fuel with
   | 0 => none
   | fuel'+1 =>
@@ -811,8 +811,8 @@ def defaultMatcher.impl (pat g : ExprHigh String (String × Nat)) (fuel : Nat) (
       let visited' := visited.cons curr
       let (curr1_inst, curr1_typ) ← pat.modules.find? curr.1
       let (curr2_inst, curr2_typ) ← g.modules.find? curr.2
-      unless curr1_typ.1 == curr2_typ.1 do .none
-      let state' := (state.1.cons curr.2, state.2.cons curr2_typ.2)
+      unless cmp curr1_typ curr2_typ do .none
+      let state' := (state.1.cons curr.2, state.2.cons curr2_typ)
       let worklist' ← curr1_inst.input.toList.foldlM (λ wl a => do
           if a.2.inst.isTop then return wl
           let nn ← followInput pat curr.1 a.1.name
@@ -827,11 +827,11 @@ def defaultMatcher.impl (pat g : ExprHigh String (String × Nat)) (fuel : Nat) (
           let new_wl_el := (nn.inst, nn'.inst)
           return if new_wl_el ∈ visited' || new_wl_el ∈ wl then wl else wl.cons new_wl_el
         ) worklist'
-      defaultMatcher.impl pat g fuel' visited' worklist' state'
+      defaultMatcher.impl cmp pat g fuel' visited' worklist' state'
 
-def defaultMatcher.inside (pat g : ExprHigh String (String × Nat)) (m : String) : Option (List (Node String (String × Nat))) := do
+def defaultMatcher.inside {α} [Inhabited α] (cmp : α → α → Bool) (pat g : ExprHigh String α) (m : String) : Option (List (Node String α)) := do
   let m_pat ← pat.modules.keysList.head?
-  let (i, t, visited, _) ← defaultMatcher.impl pat g (g.modules.length+1) [] [(m_pat, m)] ([], [])
+  let (i, t, visited, _) ← defaultMatcher.impl cmp pat g (g.modules.length+1) [] [(m_pat, m)] ([], [])
   let it_map := (i.zip t).toAssocList
   pat.modules.toList.foldlM (λ s a => do
       let g_name ← visited.toAssocList.find? a.1
@@ -839,15 +839,16 @@ def defaultMatcher.inside (pat g : ExprHigh String (String × Nat)) (m : String)
       return s.concat g_type
     ) []
 
-def defaultMatcher (pat : ExprHigh String (String × Nat)) (pred : Vector (String × Nat) pat.modules.length → Bool := fun _ => true)
-    : Pattern String (String × Nat) pat.modules.length := fun g => do
+def defaultMatcher {α} [Inhabited α]
+      (pat : ExprHigh String α) (pred : Vector (Node String α) pat.modules.length → Bool := fun _ => true) (cmp : α → α → Bool := by exact fun a b => a == b)
+    : Pattern String α pat.modules.length := fun g => do
   let (.some list) ← g.modules.foldlM (λ s inst (pmap, typ) => do
        if s.isSome then return s
-       match defaultMatcher.inside pat g inst with
+       match defaultMatcher.inside cmp pat g inst with
        | .some v =>
          let .some vec := v.toVec pat.modules.length
            | throw (.error "list not the right size")
-         if pred (vec.map (·.type))
+         if pred vec
          then return .some v
          else return .none
        | .none =>
@@ -879,5 +880,23 @@ def match_node {n : Nat} (extract_type : (String × Nat) → RewriteResultSL (Ve
 
 def rewrites_to_map {α β} (l : List (Rewrite α β)) : AssocList String (Rewrite α β) :=
   l.flatMap (λ x => match x.name with | .some n => [(n, x)] | _ => []) |>.toAssocList
+
+def create_rewrite {α} [Inhabited α] {n} (name : String) (lhs rhs : Vector α n → α → ExprHigh String α)
+    (pred : Vector (Node String α) n → Bool := fun _ => true)
+    (cmp : α → α → Bool := by exact fun a b => a == b)
+    (h : n = (lhs (Vector.ofFn (fun _ => default)) default).modules.length := by rfl) : Rewrite String α where
+  params := _
+  pattern :=
+    defaultMatcher (lhs (Vector.ofFn (fun _ => default)) default) (h ▸ pred) cmp
+  rewrite := λ l n =>
+    ⟨lhs (h ▸ l) n |>.lower |>.getD default, rhs (h ▸ l) n |>.lower |>.getD default⟩
+  name := name
+  transformedNodes :=
+    (lhs (Vector.ofFn (fun _ => default)) default).modules.toList.map
+      (λ x => (rhs (Vector.ofFn (fun _ => default)) default).modules.find? x.1 |>.map Prod.fst)
+  addedNodes :=
+    (rhs (Vector.ofFn (fun _ => default)) default).modules.toList
+    |>.filter (λ x => x.1 ∉ (lhs (Vector.ofFn (fun _ => default)) default).modules.keysList)
+    |>.map (λ x => x.2.1)
 
 end Graphiti

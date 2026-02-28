@@ -293,7 +293,7 @@ def normaliseNames {α} [DecidableEq α] (e : ExprHigh String α) : Option (Expr
       |> PortMapping.combinePortMapping
   e.renamePorts (λ x => PortMapping.getInstanceName x |>.getD default) renameMap
 
-def normaliseNames_fast {α} [DecidableEq α] (e : ExprHigh String α) : Option (ExprHigh String α) :=
+def normaliseNames_fast {α} (e : ExprHigh String α) : Option (ExprHigh String α) :=
   let renameMap := e.modules.toList.map (λ (x, (inst, typ)) =>
     inst.mapPM1 (λ m => m.foldl (fun st keyPort bodyPort => if bodyPort.inst.isTop then st else st.cons bodyPort ⟨.internal x, keyPort.name⟩) ∅))
   renameMap.foldlM (fun e r =>
@@ -304,7 +304,7 @@ def renameModules {α} [DecidableEq α] (e : ExprHigh String α) (map : Batterie
   let newModules := e.modules.mapKey (λ k => map.find? k |>.getD k)
   {e with modules := newModules}.normaliseNames_fast
 
-def asDot {α} [ToString α] [DecidableEq α] (a : ExprHigh String α) : Option String := do
+def asDot {α} [ToString α] (a : ExprHigh String α) : Option String := do
   let a ← a.normaliseNames_fast
   let (io_decl, io_conn) := a.modules.foldl (λ (sdecl, sio) inst (pmap, typ) =>
     let sdecl := (pmap.input ++ pmap.output).foldl (λ sdecl k v =>
@@ -342,7 +342,7 @@ def asDot {α} [ToString α] [DecidableEq α] (a : ExprHigh String α) : Option 
 {connections}
 }"
 
-instance {α} [ToString α] [DecidableEq α] [Repr α] : ToString (ExprHigh String α) where
+instance {α} [ToString α] [Repr α] : ToString (ExprHigh String α) where
   toString a :=
     match a.asDot with
     | some a => a

@@ -40,6 +40,7 @@ syntax dot_stmnt_list := (dot_stmnt "; ")*
 syntax dot_input_list := ("(" ident ", " num ")"),*
 
 scoped syntax (name := dot_graph) "[graph| " dot_stmnt_list " ]" : term
+scoped syntax (name := dot_graphv2) "[graphv2| " dot_stmnt_list " ]" : term
 scoped syntax (name := dot_graphEnv) "[graphEnv| " dot_stmnt_list " ]" : term
 
 open Lean.Meta Lean.Elab Term Lean.Syntax
@@ -110,6 +111,14 @@ def findStxStr (n : Name) (stx : Array Syntax) : MetaM (Option String) := do
   return out
 
 open Lean Qq in
+def findExpr (n : Name) (stx : Array Syntax) (t : Option Expr) : TermElabM (Option Expr) := do
+  let mut out := none
+  for pair in stx do
+    if checkName n pair[0] then
+      out ← elabTerm pair[2] t
+  return out
+
+open Lean Qq in
 def findStxStr' (n : Name) (stx : Array Syntax) : TermElabM (Option Q(String)) := do
   let mut out := none
   for pair in stx do
@@ -176,6 +185,13 @@ def mkPortMapping {u : Level} {α : Q(Type $u)} : PortMapping Q($α) → Q(PortM
   let a' := a.mapKey reifyInternalPort' |>.mapVal (λ _ => reifyInternalPort') |> mkAssocListExpr
   let b' := b.mapKey reifyInternalPort' |>.mapVal (λ _ => reifyInternalPort') |> mkAssocListExpr
   q(@PortMapping.mk $α $a' $b')
+
+open Lean Qq in
+def mkPortMapping' : PortMapping Q(String) → Q(PortMapping String)
+| ⟨ a, b ⟩ =>
+  let a' := a.mapKey reifyInternalPort' |>.mapVal (λ _ => reifyInternalPort') |> mkAssocListExpr
+  let b' := b.mapKey reifyInternalPort' |>.mapVal (λ _ => reifyInternalPort') |> mkAssocListExpr
+  q(@PortMapping.mk String $a' $b')
 
 open Lean Qq in
 def isIO (i : Q(String)) : Bool := i == .lit (.strVal "io")
@@ -352,6 +368,73 @@ def dotGraphElab : TermElab := λ stx typ? =>
             q(($a', ($p', ($b', $b''))))))
       let modListMap : Q(IdentMap String (PortMapping String × (String × Nat))) := q(List.toAssocList $modList)
       return q(ExprHigh.mk $modListMap $connExpr)
+
+open Lean in
+@[term_elab dot_graphv2]
+def dotGraphv2Elab : TermElab := λ stx typ? =>
+  match typ? with
+  | .some typ =>
+    match typ with
+    | .app (.app (.const ``Graphiti.ExprHigh _) e1) t =>
+      go' stx t
+    | _ => throwErrorAt stx "No type found"
+  | .none => throwErrorAt stx "No type found"
+  where
+    go' (stx : Syntax) (t : Expr) : TermElabM Expr := do
+      let mut instMap : Std.HashMap String (InstIdent String × Bool) := ∅
+      let mut instTypeMap : Std.HashMap String (PortMapping String × Expr) := ∅
+      let mut conns : List (Connection String) := []
+      for stmnt in stx[1][0].getArgs do
+        let low_stmnt := stmnt.getArgs[0]!
+        match low_stmnt with
+        | `(dot_stmnt| $i:ident $[[$[$el:dot_attr],*]]? ) =>
+          let some el := el
+            | throwErrorAt i "Element list is not present"
+          let some modId ← findExpr `type el t
+            | throwErrorAt i "No `type` attribute found at node"
+          let mut modCluster : Bool := findStxBool `cluster el |>.getD false
+          if isIO modId then
+            match updateNodeMaps ⟨instMap, instTypeMap⟩ i.getId.toString modId (isIO modId) modCluster with
+            | .ok ⟨a, b⟩ =>
+              instMap := a
+              instTypeMap := b
+            | .error s =>
+              throwErrorAt i s
+          else
+            /- let some modIdArgs ← findStxStr' `arg el
+             -   | throwErrorAt i "No `arg` attribute found at node" -/
+            match updateNodeMaps ⟨instMap, instTypeMap⟩ i.getId.toString modId (isIO modId) modCluster with
+            | .ok ⟨a, b⟩ =>
+              instMap := a
+              instTypeMap := b
+            | .error s =>
+              throwErrorAt i s
+        | `(dot_stmnt| $a:ident -> $b:ident $[[$[$el:dot_attr],*]]? ) =>
+          -- Error checking to report it early if the instance is not present in the
+          -- hashmap.
+          let some el := el
+            | throwErrorAt (mkListNode #[a, b]) "No `type` attribute found at node"
+          let mut out ← (findStxStr `from el)
+          let mut inp ← (findStxStr `to el)
+          match updateConnMaps ⟨instMap, instTypeMap⟩ conns a.getId.toString b.getId.toString out inp with
+          | .ok (⟨_, b⟩, c) =>
+            conns := c
+            instTypeMap := b
+          | .error (.outInstError s) => throwErrorAt a s
+          | .error (.inInstError s) => throwErrorAt b s
+          | .error (.portError s) => throwErrorAt (mkListNode el) s
+        | _ => pure ()
+      let connExpr : Expr ←
+        mkListLit (← mkAppM ``Connection #[.const ``String []]) (← conns.mapM (λ ⟨ a, b ⟩ => do
+          mkAppM ``Connection.mk #[reifyInternalPort a, reifyInternalPort b]))
+      let modList : Expr ←
+        mkListLit (← mkAppM ``Prod #[.const ``String [], ← mkAppM ``Prod #[← mkAppM ``PortMapping #[.const ``String []], t]])
+          (← instTypeMap.toList.mapM (fun (a, (p, b)) => do
+            let a' := .lit (.strVal a)
+            let p' : Expr := mkPortMapping' <| p.map (.strVal · |> .lit)
+            mkAppM ``Prod.mk #[a', ← mkAppM ``Prod.mk #[p', b]]))
+      let modListMap ← mkAppM `List.toAssocList #[modList]
+      mkAppM ``Graphiti.ExprHigh.mk #[modListMap, connExpr]
 
 -- open Qq in
 -- instance {α : Q(Type)} : Lean.ToExpr Q($α) where

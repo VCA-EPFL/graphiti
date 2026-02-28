@@ -74,6 +74,12 @@ instance : ToString Condition where
   | .Ccompuimm comp _ => s!"Ccompu {comp}"
   | _ => panic! "<not implemented>"
 
+instance : DecidableEq Float := fun a b =>
+  if a <= b && b <= a then
+    isTrue sorry
+  else
+    isFalse sorry
+
 inductive Operation: Type where
 | Omove
 | Ointconst (imm: Int)
@@ -169,7 +175,7 @@ inductive Operation: Type where
 | Osingleoflongu
 | Ocmp (cond: Condition)
 | Osel (cond: Condition)
-deriving Repr, Lean.ToJson, Lean.FromJson, Inhabited
+deriving Repr, Lean.ToJson, Lean.FromJson, Inhabited, DecidableEq
 
 instance : ToString Operation where
   toString
@@ -189,13 +195,33 @@ inductive MemoryChunk : Type where
 | Mfloat64
 | Many32
 | Many64
-deriving Repr, DecidableEq, Lean.ToJson, Lean.FromJson, Inhabited
+deriving Repr, DecidableEq, Lean.ToJson, Lean.FromJson, Inhabited, DecidableEq
+
+instance : ToString MemoryChunk where
+  toString
+  | .Mbool => "bool"
+  | .Mint8signed => "int8signed"
+  | .Mint8unsigned => "int8unsigned"
+  | .Mint16signed => "int16signed"
+  | .Mint16unsigned => "int16unsigned"
+  | .Mint32 => "int32"
+  | .Mint64 => "int64"
+  | .Mfloat32 => "float32"
+  | .Mfloat64 => "float64"
+  | .Many32 => "any32"
+  | .Many64 => "any64"
 
 inductive Addressing: Type where
 | Aindexed (ofs: Ptrofs)
 | Aglobal (id: Ident) (ofs: Ptrofs)
 | Ainstack (ofs: Ptrofs)
-deriving Repr, DecidableEq, Lean.ToJson, Lean.FromJson, Inhabited
+deriving Repr, DecidableEq, Lean.ToJson, Lean.FromJson, Inhabited, DecidableEq
+
+instance : ToString Addressing where
+  toString
+  | .Aindexed ofs => s!"Aindexed {ofs}"
+  | .Aglobal id ofs => s!"Aindexed {id} {ofs}"
+  | .Ainstack ofs => s!"Ainstack {ofs}"
 
 deriving instance Lean.ToJson for Sum
 deriving instance Lean.FromJson for Sum
@@ -209,7 +235,18 @@ inductive Instruction: Type where
 | Icond (cond: Condition) (regs: List Reg) (true_next: Node) (false_next: Node)
 | Ijumptable (reg: Reg) (table: List Node)
 | Ireturn (reg: Option Reg)
-deriving Repr, Lean.ToJson, Lean.FromJson, Inhabited
+deriving Repr, Lean.ToJson, Lean.FromJson, Inhabited, DecidableEq
+
+instance : ToString Instruction where
+  toString
+  | .Inop _ => "Inop"
+  | .Iop op r d _ => s!"Iop ({op}, {r}, {d})"
+  | .Iload chk addr r d _ => s!"Iop ({chk}, {addr}, {r}, {d})"
+  | .Istore chk addr r s _ => s!"Iop ({chk}, {addr}, {r}, {s})"
+  | .Icall d f a _ => "Icall"
+  | .Icond c r _ _ => s!"Icond ({c}, {r})"
+  | .Ijumptable r _ => s!"Ijumptable ({r})"
+  | .Ireturn r => s!"Ireturn {r}"
 
 def Code: Type := Std.TreeMap String Instruction
 deriving Repr, Lean.ToJson, Lean.FromJson, Inhabited
@@ -223,6 +260,62 @@ deriving Repr, Lean.ToJson, Lean.FromJson, Inhabited
 
 def Program: Type := Std.TreeMap String Function
 deriving Repr, Lean.ToJson, Lean.FromJson, Inhabited
+
+inductive Component where
+| merge
+| branch
+| fork
+| pure
+| split
+| queue
+| exit
+| op (o : Operation)
+| cond (o : Condition)
+deriving Repr, Inhabited, Lean.ToJson, Lean.FromJson, DecidableEq
+
+instance : ToString Component where
+  toString
+  | .merge => "merge"
+  | .branch => "branch"
+  | .fork => "fork"
+  | .pure => "pure"
+  | .split => "split"
+  | .op o => s!"op {o}"
+  | .cond o => s!"cond {o}"
+  | .queue => "queue"
+  | .exit => "exit"
+
+inductive RW where
+| reads (l : List Reg)
+| writes (l : List Reg)
+deriving Repr, Inhabited, Lean.ToJson, Lean.FromJson, DecidableEq
+
+instance : ToString RW where
+  toString
+  | .reads l => s!"reads {l}"
+  | .writes l => s!"writes {l}"
+
+inductive DFGandCFG where
+| cfg (i : Instruction)
+| dfg (i : Component)
+| rw (i : RW)
+deriving Repr, Inhabited, Lean.ToJson, Lean.FromJson, DecidableEq
+
+instance : ToString DFGandCFG where
+  toString
+  | .cfg i => toString i
+  | .dfg i => toString i
+  | .rw i => toString i
+
+def DFGandCFG.compare (a b : DFGandCFG) : Bool :=
+  match a, b with
+  | .cfg a, .cfg b
+  | .dfg a, .dfg b => a == b
+  | .rw (.reads _), .rw (.reads _) => true
+  | .rw (.writes _), .rw (.writes _) => true
+  | _, _ => false
+
+abbrev CCCFG := ExprHigh String DFGandCFG
 
 def random := "
 {
@@ -261,9 +354,7 @@ def random := "
 
 def prog : Function := (Lean.Json.parse random >>= Lean.fromJson? (α := Program)).toOption.get! |> (·.get! "f")
 
-#eval IO.println <| repr <| prog
-
-def isInputConnected? (graph : CFG) (inp : Port) : Option Port :=
+def isInputConnected? {β} (graph : ExprHigh String β) (inp : Port) : Option Port :=
   graph.connections.filter (·.input == inp) |>.head? |>.map (·.output)
 
 def PortMap.generate (name label : String) (n : Nat) : PortMap String (InternalPort String) :=
@@ -299,15 +390,15 @@ def operationToGraph {α} [ToString α] (g : CFG) (label : String) (operation : 
   let read_write_graph :=
     ((List.range regs.length).zip regs).foldl (fun st (n, r) =>
       let n := n+1
-      let mods := st.modules.cons s!"{label}_reg{n}" (PortMapping.generate s!"{label}_reg{n}" 0 1, (s!"Reg", r))
-                  |>.cons s!"{label}_read{n}" (PortMapping.generate s!"{label}_read{n}" 2 1, (s!"Read", 0))
+      let mods := st.modules -- .cons s!"{label}_reg{n}" (PortMapping.generate s!"{label}_reg{n}" 0 1, (s!"Reg", r))
+                  |>.cons s!"{label}_read{n}" (PortMapping.generate s!"{label}_read{n}" 1 1, (s!"Read", r))
       {st with modules := mods}
       |> (connectMaybeWithMerge ·
            ⟨.internal s!"{label}_read{n}", "out1"⟩ ⟨.internal s!"{label}_op", s!"in{n}"⟩)
       |> (connectMaybeWithMerge ·
            ⟨.internal s!"{label}_fork", s!"out{n}"⟩ ⟨.internal s!"{label}_read{n}", s!"in1"⟩)
-      |> (connectMaybeWithMerge ·
-           ⟨.internal s!"{label}_reg{n}", s!"out1"⟩ ⟨.internal s!"{label}_read{n}", s!"in2"⟩)
+      /- |> (connectMaybeWithMerge ·
+       -      ⟨.internal s!"{label}_reg{n}", s!"out1"⟩ ⟨.internal s!"{label}_read{n}", s!"in2"⟩) -/
     ) g
   let new_mods := read_write_graph.modules.cons s!"{label}_fork" (PortMapping.generate s!"{label}_fork" 1 regs.length, (s!"fork{regs.length}", 0))
                   |>.cons s!"{label}_op" (PortMapping.generate s!"{label}_op" regs.length 1, (toString operation, 0))
@@ -317,15 +408,15 @@ def operationWithImmToGraph {α β} [ToString α] [ToString β] (g : CFG) (label
   let read_write_graph :=
     ((List.range regs.length).zip regs).foldl (fun st (n, r) =>
       let n := n+1
-      let mods := st.modules.cons s!"{label}_reg{n}" (PortMapping.generate s!"{label}_reg{n}" 0 1, (s!"Reg", r))
-                  |>.cons s!"{label}_read{n}" (PortMapping.generate s!"{label}_read{n}" 2 1, (s!"Read", 0))
+      let mods := st.modules --.cons s!"{label}_reg{n}" (PortMapping.generate s!"{label}_reg{n}" 0 1, (s!"Reg", r))
+                  |>.cons s!"{label}_read{n}" (PortMapping.generate s!"{label}_read{n}" 1 1, (s!"Read", r))
       {st with modules := mods}
       |> (connectMaybeWithMerge ·
            ⟨.internal s!"{label}_read{n}", "out1"⟩ ⟨.internal s!"{label}_op", s!"in{n}"⟩)
       |> (connectMaybeWithMerge ·
            ⟨.internal s!"{label}_fork", s!"out{n}"⟩ ⟨.internal s!"{label}_read{n}", s!"in1"⟩)
-      |> (connectMaybeWithMerge ·
-           ⟨.internal s!"{label}_reg{n}", s!"out1"⟩ ⟨.internal s!"{label}_read{n}", s!"in2"⟩)
+      /- |> (connectMaybeWithMerge ·
+       -      ⟨.internal s!"{label}_reg{n}", s!"out1"⟩ ⟨.internal s!"{label}_read{n}", s!"in2"⟩) -/
     ) g
   let new_mods := read_write_graph.modules.cons s!"{label}_fork" (PortMapping.generate s!"{label}_fork" 1 regs.length, (s!"fork{regs.length}", 0))
                   |>.cons s!"{label}_op" (PortMapping.generate s!"{label}_op" regs.length 1, (toString operation, 0))
@@ -333,11 +424,11 @@ def operationWithImmToGraph {α β} [ToString α] [ToString β] (g : CFG) (label
 
 def writeGraph (g : CFG) (label : String) (dest : Node) : Port × Port × Port × CFG :=
   let new_mods := g.modules
-    |>.cons s!"{label}_write" (PortMapping.generate s!"{label}_write" 3 1, (s!"Write", 0))
-    |>.cons s!"{label}_dest" (PortMapping.generate s!"{label}_dest" 0 1, (s!"Reg", dest))
-  (⟨.internal s!"{label}_write", "in1"⟩, ⟨.internal s!"{label}_write", "in3"⟩, ⟨.internal s!"{label}_write", "out1"⟩, {g with modules := new_mods}
-  |> (connectMaybeWithMerge ·
-       ⟨.internal s!"{label}_dest", s!"out1"⟩ ⟨.internal s!"{label}_write", "in2"⟩))
+    |>.cons s!"{label}_write" (PortMapping.generate s!"{label}_write" 2 1, (s!"Write", dest))
+    /- |>.cons s!"{label}_dest" (PortMapping.generate s!"{label}_dest" 0 1, (s!"Reg", dest)) -/
+  (⟨.internal s!"{label}_write", "in1"⟩, ⟨.internal s!"{label}_write", "in2"⟩, ⟨.internal s!"{label}_write", "out1"⟩, {g with modules := new_mods}
+  /- |> (connectMaybeWithMerge ·
+   -      ⟨.internal s!"{label}_dest", s!"out1"⟩ ⟨.internal s!"{label}_write", "in2"⟩) -/)
 
 def instrToGraph (g : CFG) (label : String) : Instruction → CFG
 | .Inop next =>
@@ -363,10 +454,45 @@ def instrToGraph (g : CFG) (label : String) : Instruction → CFG
   {g with modules := g.modules.cons s!"{label}" (PortMapping.generate s!"{label}" 1 0, ("Ireturn", 0))}
 | _ => panic! "<not implemented>"
 
+def connectCCCFG (graph : CCCFG) (out inp : Port) : CCCFG :=
+  match isInputConnected? graph inp with
+  | some cur_out =>
+    let m := s!"merge_{graph.modules.length}"
+    ⟨ graph.modules.cons m (PortMapping.generate m 2 1, .dfg .merge),
+      graph.connections.filter (· != ⟨cur_out, inp⟩)
+      |>.cons ⟨⟨.internal m, "out1"⟩, inp⟩
+      |>.cons ⟨out, ⟨.internal m, "in1"⟩⟩
+      |>.cons ⟨cur_out, ⟨.internal m, "in2"⟩⟩
+     ⟩
+  | none =>
+    {graph with connections := ⟨out, inp⟩ :: graph.connections}
+
+def instrToCCCFG (g : CCCFG) (label : String) : Instruction → CCCFG
+| op@(.Inop next) =>
+  connectCCCFG {g with modules := g.modules.cons s!"{label}" (PortMapping.generate s!"{label}" 1 1, .cfg op)}
+  ⟨.internal s!"{label}", "out1"⟩ ⟨.internal s!"{next}", "in1"⟩
+| op@(.Iop operation regs dest next) =>
+  connectCCCFG {g with modules := g.modules.cons s!"{label}" (PortMapping.generate s!"{label}" 1 1, .cfg op)}
+  ⟨.internal s!"{label}", "out1"⟩ ⟨.internal s!"{next}", "in1"⟩
+| op@(.Icond cond regs true_next false_next) =>
+  {g with modules := g.modules.cons s!"{label}" (PortMapping.generate s!"{label}" 1 2, .cfg op)}
+  |> (connectCCCFG · ⟨.internal s!"{label}", "out1"⟩ ⟨.internal s!"{true_next}", "in1"⟩)
+  |> (connectCCCFG · ⟨.internal s!"{label}", "out2"⟩ ⟨.internal s!"{false_next}", "in1"⟩)
+| op@(.Ireturn (.some reg)) =>
+  {g with modules := g.modules.cons s!"{label}" (PortMapping.generate s!"{label}" 1 0, .cfg op)}
+| op@(.Ireturn .none) =>
+  {g with modules := g.modules.cons s!"{label}" (PortMapping.generate s!"{label}" 1 0, .cfg op)}
+| _ => panic! "<not implemented>"
+
 def codeToGraph (code : Code) : ExprHigh String (String × Nat) :=
   code.foldl instrToGraph ⟨∅, ∅⟩
 
+def codeToCCCFG (code : Code) : ExprHigh String DFGandCFG :=
+  code.foldl instrToCCCFG ⟨∅, ∅⟩
+
 def graph := codeToGraph prog.code
+
+def cccfg := codeToCCCFG prog.code
 
 def existsInPath (cmd : String) : IO Bool := do
   let result ← IO.Process.output {
@@ -375,12 +501,13 @@ def existsInPath (cmd : String) : IO Bool := do
   }
   return result.exitCode == 0
 
-def toSVG (file : String) (graph : ExprHigh String (String × Nat)) := do
+def toSVG {α} [ToString α] [Repr α] (file : String) (graph : ExprHigh String α) := do
   IO.FS.writeFile (file ++ ".dot") <| toString <| graph
   if ← existsInPath "dot" then
     let _ ← IO.Process.run {cmd := "dot", args := #["-Tsvg", (file ++ ".dot"), "-o", file ++ ".svg"] }
 
 #eval toSVG "random" graph
+#eval toSVG "cccfg" cccfg
 
 namespace Rewrites
 
@@ -394,24 +521,20 @@ def lhs : ExprHigh String (String × Nat) := [graph|
     o_ctx [type="io"];
     o_v [type="io"];
 
-    write [type="Write", arg=$(0)];
+    write [type="Write", arg=$(T[0])];
     fork [type="fork2", arg=$(0)];
-    read [type="Read", arg=$(0)];
-    w_reg [type="Reg", arg=$(T[0])];
-    r_reg [type="Reg", arg=$(T[1])];
+    read [type="Read", arg=$(T[1])];
 
-    i_v -> write [to="in3"];
+    i_v -> write [to="in2"];
     i_ctx -> write [to="in1"];
     fork -> o_ctx [from="out2"];
     read -> o_v [from="out1"];
 
-    w_reg -> write [from="out1", to="in2"];
     write -> fork [from="out1", to="in1"];
     fork -> read [from="out1", to="in1"];
-    r_reg -> read [from="out1", to="in2"];
   ]
 
-def lhs_extract := (lhs T).extract ["write", "fork", "read", "w_reg", "r_reg"] |>.get rfl
+def lhs_extract := (lhs T).extract ["write", "fork", "read"] |>.get rfl
 theorem double_check_empty_snd : (lhs_extract T).snd = ExprHigh.mk ∅ ∅ := by rfl
 def lhsLower := (lhs_extract T).fst.lower.get rfl
 
@@ -421,34 +544,30 @@ def rhs : ExprHigh String (String × Nat) := [graph|
     o_ctx [type="io"];
     o_v [type="io"];
 
-    write [type="Write", arg=$(0)];
+    write [type="Write", arg=$(T[0])];
     fork [type="fork2", arg=$(0)];
-    read [type="Read", arg=$(0)];
-    w_reg [type="Reg", arg=$(T[0])];
-    r_reg [type="Reg", arg=$(T[1])];
+    read [type="Read", arg=$(T[1])];
 
     i_ctx -> fork [to="in1"];
-    i_v -> write [to="in3"];
+    i_v -> write [to="in2"];
     write -> o_ctx [from="out1"];
     read -> o_v [from="out1"];
 
-    w_reg -> write [from="out1", to="in2"];
-    r_reg -> read [from="out1", to="in2"];
     fork -> write [from="out2", to="in1"];
     fork -> read [from="out1", to="in1"];
   ]
 
-def rhs_extract := (rhs T).extract ["write", "fork", "read", "w_reg", "r_reg"] |>.get rfl
+def rhs_extract := (rhs T).extract ["write", "fork", "read"] |>.get rfl
 def rhsLower := (rhs_extract T).fst.lower.get rfl
 def findRhs mod := (rhs_extract #v[0, 0]).fst.modules.find? mod |>.map Prod.fst
 
 def rewrite : Rewrite String (String × Nat) where
   abstractions := []
   params := _
-  pattern := defaultMatcher (pred := fun v => v[3].2 != v[4].2) (lhs_extract #v[0, 0]).fst
-  rewrite := λ l n => ⟨lhsLower #v[l[3].2, l[4].2], rhsLower #v[l[3].2, l[4].2]⟩
+  pattern := defaultMatcher (cmp := fun a b => a.1 == b.1) (pred := fun v => v[0].type.2 != v[2].type.2) (lhs_extract #v[0, 0]).fst
+  rewrite := λ l n => ⟨lhsLower #v[l[0].2, l[2].2], rhsLower #v[l[0].2, l[2].2]⟩
   name := "RWEQ"
-  transformedNodes := [findRhs "write" |>.get!, findRhs "fork" |>.get!, findRhs "read" |>.get!, findRhs "w_reg" |>.get!, findRhs "r_reg" |>.get!]
+  transformedNodes := [findRhs "write" |>.get!, findRhs "fork" |>.get!, findRhs "read" |>.get!]
 
 end RWNotEQ
 
@@ -462,24 +581,20 @@ def lhs : ExprHigh String (String × Nat) := [graph|
     o_ctx [type="io"];
     o_v [type="io"];
 
-    write [type="Write", arg=$(0)];
+    write [type="Write", arg=$(T[0])];
     fork [type="fork2", arg=$(0)];
-    read [type="Read", arg=$(0)];
-    w_reg [type="Reg", arg=$(T[0])];
-    r_reg [type="Reg", arg=$(T[0])];
+    read [type="Read", arg=$(T[0])];
 
-    i_v -> write [to="in3"];
+    i_v -> write [to="in2"];
     i_ctx -> write [to="in1"];
     fork -> o_ctx [from="out2"];
     read -> o_v [from="out1"];
 
-    w_reg -> write [from="out1", to="in2"];
     write -> fork [from="out1", to="in1"];
     fork -> read [from="out1", to="in1"];
-    r_reg -> read [from="out1", to="in2"];
   ]
 
-def lhs_extract := (lhs T).extract ["write", "fork", "read", "w_reg", "r_reg"] |>.get rfl
+def lhs_extract := (lhs T).extract ["write", "fork", "read"] |>.get rfl
 theorem double_check_empty_snd : (lhs_extract T).snd = ExprHigh.mk ∅ ∅ := by rfl
 def lhsLower := (lhs_extract T).fst.lower.get rfl
 
@@ -489,30 +604,28 @@ def rhs : ExprHigh String (String × Nat) := [graph|
     o_ctx [type="io"];
     o_v [type="io"];
 
-    write [type="Write", arg=$(0)];
+    write [type="Write", arg=$(T[0])];
     fork [type="fork2", arg=$(0)];
-    w_reg [type="Reg", arg=$(T[0])];
 
     i_v -> fork [to="in1"];
     i_ctx -> write [to="in1"];
     write -> o_ctx [from="out1"];
     fork -> o_v [from="out1"];
 
-    w_reg -> write [from="out1", to="in2"];
-    fork -> write [from="out2", to="in3"];
+    fork -> write [from="out2", to="in2"];
   ]
 
-def rhs_extract := (rhs T).extract ["write", "fork", "w_reg"] |>.get rfl
+def rhs_extract := (rhs T).extract ["write", "fork"] |>.get rfl
 def rhsLower := (rhs_extract T).fst.lower.get rfl
 def findRhs mod := (rhs_extract #v[0]).fst.modules.find? mod |>.map Prod.fst
 
 def rewrite : Rewrite String (String × Nat) where
   abstractions := []
   params := _
-  pattern := defaultMatcher (pred := fun v => v[3].2 == v[4].2)  (lhs_extract #v[0]).fst
-  rewrite := λ l n => ⟨lhsLower #v[l[3].2], rhsLower #v[l[3].2]⟩
+  pattern := defaultMatcher (cmp := fun a b => a.1 == b.1) (pred := fun v => v[0].type.2 == v[2].type.2)  (lhs_extract #v[0]).fst
+  rewrite := λ l n => ⟨lhsLower #v[l[0].2], rhsLower #v[l[0].2]⟩
   name := "RWEQ"
-  transformedNodes := [findRhs "write" |>.get!, findRhs "fork" |>.get!, .none, findRhs "w_reg" |>.get!, .none]
+  transformedNodes := [findRhs "write" |>.get!, findRhs "fork" |>.get!, .none]
 
 end RWEQ
 
@@ -556,7 +669,7 @@ def findRhs mod := rhs_extract.fst.modules.find? mod |>.map Prod.fst
 def rewrite : Rewrite String (String × Nat) where
   abstractions := []
   params := _
-  pattern := defaultMatcher lhs_extract.fst
+  pattern := defaultMatcher (cmp := fun a b => a.1 == b.1) lhs_extract.fst
   rewrite := λ l n => ⟨lhsLower, rhsLower⟩
   name := "fork-summary"
   transformedNodes := [.none, findRhs "fork2" |>.get!]
@@ -603,7 +716,7 @@ def findRhs mod := rhs_extract.fst.modules.find? mod |>.map Prod.fst
 def rewrite : Rewrite String (String × Nat) where
   abstractions := []
   params := _
-  pattern := defaultMatcher lhs_extract.fst
+  pattern := defaultMatcher (cmp := fun a b => a.1 == b.1) lhs_extract.fst
   rewrite := λ l n => ⟨lhsLower, rhsLower⟩
   name := "fork-summary"
   transformedNodes := [.none, findRhs "fork2" |>.get!]
@@ -657,12 +770,189 @@ def findRhs mod := rhs_extract.fst.modules.find? mod |>.map Prod.fst
 def rewrite : Rewrite String (String × Nat) where
   abstractions := []
   params := _
-  pattern := defaultMatcher lhs_extract.fst
+  pattern := defaultMatcher (cmp := fun a b => a.1 == b.1) lhs_extract.fst
   rewrite := λ l n => ⟨lhsLower, rhsLower⟩
   name := "fork-assoc"
   transformedNodes := [findRhs "fork1" |>.get!, findRhs "fork2" |>.get!]
 
 end ForkAssoc
+
+namespace LoopRewrite
+
+def lhs (l : List Reg) : ExprHigh String DFGandCFG := [graphv2|
+    i [type=$("io")];
+    o [type=$("io")];
+
+    merge [type=$(.dfg .merge)];
+    cond [type=$(.dfg .pure)];
+    condSplit [type=$(.dfg .split)];
+    branch [type=$(.dfg .branch)];
+    readFork [type=$(.dfg .fork)];
+    reads [type=$(.rw (.reads l))];
+    cReads [type=$(.rw (.reads l))];
+    pure [type=$(.dfg .pure)];
+    writes [type=$(.rw (.writes l))];
+
+    i -> merge [to="in1"];
+    writes -> merge [from="out1", to="in2"];
+    merge -> cReads [from="out1", to="in1"];
+    cReads -> cond [from="out1", to="in1"];
+    cond -> condSplit [from="out1", to="in1"];
+    condSplit -> branch [from="out1", to="in1"];
+    condSplit -> branch [from="out2", to="in2"];
+    branch -> o [from="out2"];
+    branch -> readFork [from="out1", to="in1"];
+    readFork -> reads [from="out1", to="in1"];
+    readFork -> writes [from="out2", to="in1"];
+    reads -> pure [from="out1", to="in1"];
+    pure -> writes [from="out1", to="in2"];
+  ]
+
+def lhs_extract l := (lhs l).extract ["merge", "cond", "condSplit", "branch", "readFork", "reads", "cReads", "pure", "writes"] |>.get rfl
+theorem double_check_empty_snd : (lhs_extract []).snd = ExprHigh.mk ∅ ∅ := by rfl
+def lhsLower l := (lhs_extract l).fst.lower.get rfl
+
+def rhs (l : List Reg) : ExprHigh String DFGandCFG := [graphv2|
+    i [type=$("io")];
+    o [type=$("io")];
+
+    merge [type=$(.dfg .merge)];
+    cond [type=$(.dfg .pure)];
+    condSplit [type=$(.dfg .split)];
+    branch [type=$(.dfg .branch)];
+    readFork [type=$(.dfg .fork)];
+    reads [type=$(.rw (.reads l))];
+    pure [type=$(.dfg .pure)];
+    writes [type=$(.rw (.writes l))];
+
+    i -> readFork [to="in1"];
+    readFork -> reads [from="out1", to="in1"];
+    readFork -> writes [from="out2", to="in1"];
+    reads -> merge [from="out1", to="in1"];
+    pure -> merge [from="out1", to="in2"];
+    merge -> cond [from="out1", to="in1"];
+    cond -> condSplit [from="out1", to="in1"];
+    condSplit -> branch [from="out1", to="in1"];
+    condSplit -> branch [from="out2", to="in2"];
+    branch -> o [from="out2"];
+    branch -> pure [from="out1", to="in1"];
+    pure -> writes [from="out1", to="in2"];
+  ]
+
+def rhs_extract l := (rhs l).extract ["merge", "cond", "condSplit", "branch", "readFork", "reads", "pure", "writes"] |>.get rfl
+def rhsLower l := (rhs_extract l).fst.lower.get rfl
+def findRhs mod := (rhs_extract []).fst.modules.find? mod |>.map Prod.fst
+
+def rewrite : Rewrite String DFGandCFG where
+  abstractions := []
+  params := _
+  pattern := defaultMatcher (cmp := DFGandCFG.compare) (lhs_extract []).fst
+  rewrite := λ l n =>
+    match l[5] with
+    | .rw (.reads l') =>
+      ⟨lhsLower l', rhsLower l'⟩
+    | _ => default
+  name := "fork-assoc"
+  /- transformedNodes := [findRhs "fork1" |>.get!, findRhs "fork2" |>.get!] -/
+
+end LoopRewrite
+
+def forkAssoc (s : String) : Rewrite String DFGandCFG :=
+  create_rewrite (cmp := DFGandCFG.compare) (pred := fun a => a[0]!.name == s) "fork-assoc"
+    (λ _ _ => ([graphv2|
+        i [type=$("io")];
+        o1 [type=$("io")];
+        o2 [type=$("io")];
+        o3 [type=$("io")];
+
+        fork1 [type=$(.dfg .fork)];
+        fork2 [type=$(.dfg .fork)];
+
+        i -> fork1 [to="in1"];
+        fork1 -> fork2 [from="out2",to="in1"];
+        fork1 -> o1 [from="out1"];
+        fork2 -> o2 [from="out1"];
+        fork2 -> o3 [from="out2"];
+      ] : ExprHigh String DFGandCFG).extract ["fork1", "fork2"] |>.get rfl |>.1)
+      (λ _ _ => ([graphv2|
+        i [type=$("io")];
+        o1 [type=$("io")];
+        o2 [type=$("io")];
+        o3 [type=$("io")];
+
+        fork1 [type=$(.dfg .fork)];
+        fork2 [type=$(.dfg .fork)];
+
+        i -> fork1 [to="in1"];
+        fork1 -> fork2 [from="out1",to="in1"];
+        fork2 -> o1 [from="out1"];
+        fork2 -> o2 [from="out2"];
+        fork1 -> o3 [from="out2"];
+      ] : ExprHigh String DFGandCFG).extract ["fork1", "fork2"] |>.get rfl |>.1)
+
+def combineReads : Rewrite String DFGandCFG :=
+  create_rewrite (cmp := DFGandCFG.compare) "combine-reads"
+    (λ l _ =>
+      match l[1]!, l[2]! with
+      | .rw (.reads l1), .rw (.reads l2) =>
+        ([graphv2|
+          i [type=$("io")];
+          o1 [type=$("io")];
+          o2 [type=$("io")];
+
+          fork [type=$(.dfg .fork)];
+          read1 [type=$(.rw (.reads l1))];
+          read2 [type=$(.rw (.reads l2))];
+
+          i -> fork [to="in1"];
+          fork -> read1 [from="out1",to="in1"];
+          fork -> read2 [from="out2",to="in1"];
+          read1 -> o1 [from="out1"];
+          read2 -> o2 [from="out1"];
+        ] : ExprHigh String DFGandCFG).extract ["fork", "read1", "read2"] |>.get rfl |>.1
+      | _, _ =>
+        ([graphv2|
+          i [type=$("io")];
+          o1 [type=$("io")];
+          o2 [type=$("io")];
+
+          fork [type=$(.dfg .fork)];
+          read1 [type=$(.rw (.reads []))];
+          read2 [type=$(.rw (.reads []))];
+
+          i -> fork [to="in1"];
+          fork -> read1 [from="out1",to="in1"];
+          fork -> read2 [from="out2",to="in1"];
+          read1 -> o1 [from="out1"];
+          read2 -> o2 [from="out1"];
+        ] : ExprHigh String DFGandCFG).extract ["fork", "read1", "read2"] |>.get rfl |>.1)
+      (λ l _ =>
+      match l[1]!, l[2]! with
+      | .rw (.reads l1), .rw (.reads l2) =>
+        ([graphv2|
+          i [type=$("io")];
+          o1 [type=$("io")];
+          o2 [type=$("io")];
+
+          read [type=$(.rw (.reads (l1 ++ l2)))];
+          split [type=$(.dfg .split)];
+
+          i -> read [to="in1"];
+          read -> split [from="out1",to="in1"];
+          split -> o1 [from="out1"];
+          split -> o2 [from="out2"];
+        ] : ExprHigh String DFGandCFG).extract ["read", "split"] |>.get rfl |>.1
+      | _, _ =>
+        ([graphv2|
+          i [type=$("io")];
+          o1 [type=$("io")];
+          o2 [type=$("io")];
+
+          fork [type=$(.dfg .fork)];
+          read1 [type=$(.rw (.reads []))];
+          read2 [type=$(.rw (.reads []))];
+        ] : ExprHigh String DFGandCFG))
+        (h := by dsimp; split; simp [ExprHigh.extract]; rfl; rfl)
 
 /- #eval (defaultMatcher ForkSummary2.lhs_extract.fst) graph -/
 def graph_1 := (rewrite_fix [ForkSummary2.rewrite] graph).run' ⟨[], 0, ("", 0)⟩ |>.get!
@@ -677,6 +967,26 @@ def stateToOption {α β γ} (res : EStateM.Result α β γ) : β :=
   match res with
   | .ok _ s => s
   | .error _ s => s
+
+def typeToDFGandCFG : String × Nat → DFGandCFG
+| ("merge", _) => .dfg .merge
+| ("split", _) => .dfg .split
+| ("fork2", _) => .dfg .fork
+| ("fork1", _) => .dfg .fork
+| ("fork3", _) => .dfg .fork
+| ("fork4", _) => .dfg .fork
+| ("branch", _) => .dfg .branch
+| ("Read", n) => .rw (.reads [n])
+| ("Write", n) => .rw (.writes [n])
+| ("Ccomp Cne", _) => .dfg (.cond (.Ccomp .Cne))
+| ("Omove", _) => .dfg .queue
+| ("Inop", _) => .dfg .queue
+| ("Omod", _) => .dfg (.op .Omod)
+| ("Ireturn", n) => .cfg (.Ireturn (.some n))
+| _ => .cfg (.Ireturn .none)
+
+def toDFGandCFG (e : ExprHigh String (String × Nat)) : ExprHigh String DFGandCFG :=
+  ⟨e.modules.mapVal (fun k v => (v.1, typeToDFGandCFG v.2)), e.connections⟩
 
 #eval RWNotEQ.rewrite.pattern graph_1
 def graph_2_int := (rewrite_fix [RWNotEQ.rewrite] graph_1).run ⟨[], 10, ("", 0)⟩
@@ -697,7 +1007,21 @@ def graph_4 := resToOption graph_4_int |>.get!
 
 def graph_5_int := (rewrite_fix [RWNotEQ.rewrite] graph_4).run ⟨[], 40, ("", 0)⟩
 def graph_5 := resToOption graph_5_int |>.get!
-#eval toSVG "random20" graph_5
+#eval toSVG "random6" graph_5
+
+def graph_6 := toDFGandCFG graph_5
+#eval toSVG "random7" graph_6
+
+#eval! (forkAssoc "b23eebf3").pattern graph_6
+def graph_7_int := ((forkAssoc "b23eebf3").run' graph_6).run ⟨[], 50, default⟩
+def graph_7 := resToOption graph_7_int |>.get!
+#eval! toSVG "random8" graph_7
+
+#eval! combineReads.pattern graph_7
+def graph_8_int := (combineReads.run' graph_7).run ⟨[], 60, default⟩
+#eval! graph_8_int
+def graph_8 := resToOption graph_8_int |>.get!
+#eval! toSVG "random9" graph_8
 
 end Rewrites
 
