@@ -14,8 +14,8 @@ public import Graphiti.Core.StateTransition
 namespace Graphiti
 
 inductive IOEvent (Ident : Type _) : Type _ where
-| input : InternalPort Ident → (Σ (T : Type _), T) → IOEvent Ident
-| output : InternalPort Ident → (Σ (T : Type _), T) → IOEvent Ident
+| input : InternalPort Ident → (Σ (T : Type*), T) → IOEvent Ident
+| output : InternalPort Ident → (Σ (T : Type*), T) → IOEvent Ident
 
 @[simp] abbrev Trace Ident := List (IOEvent Ident)
 
