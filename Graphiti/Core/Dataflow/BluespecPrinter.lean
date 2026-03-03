@@ -23,16 +23,16 @@ def ExprHigh.toBlueSpec (a : ExprHigh String (String × Nat)) (t : TypeUF) (m : 
   | some a =>
     let (io_decl, io_conn) := a.modules.foldl (λ (sdecl, sio) inst (pmap, typ) =>
       let sdecl := (pmap.input ++ pmap.output).foldl (λ sdecl k v =>
-        if v.inst.isTop
-        then sdecl ++ s!"\n  \"{v.name}\" [type = \"io\", label = \"{v.name}: io\"];"
+        if a.portIsIO v
+        then sdecl ++ s!"\n  \"{v.asDot}\" [type = \"io\", label = \"{v.asDot}: io\"];"
         else sdecl) sdecl
       let sio := pmap.input.foldl (λ io_conn k v =>
-        if v.inst.isTop
-        then io_conn ++ s!"\n  \"{v.name}\" -> \"{inst}\" [to = \"{k.name}\", headlabel = \"{k.name}\"];"
+        if a.portIsIO v
+        then io_conn ++ s!"\n  \"{v.asDot}\" -> \"{inst}\" [to = \"{k.name}\", headlabel = \"{k.name}\"];"
         else io_conn) sio
       let sio := pmap.output.foldl (λ io_conn k v =>
-        if v.inst.isTop
-        then io_conn ++ s!"\n \"{inst}\" -> \"{v.name}\" [from = \"{k.name}\", taillabel = \"{k.name}\"];"
+        if a.portIsIO v
+        then io_conn ++ s!"\n \"{inst}\" -> \"{v.asDot}\" [from = \"{k.name}\", taillabel = \"{k.name}\"];"
         else io_conn) sio
       (sdecl, sio)
     ) ("", "")

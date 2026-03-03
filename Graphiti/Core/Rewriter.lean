@@ -597,7 +597,7 @@ def findType [DecidableEq Typ] (g : ExprHigh Ident Typ) (typ : Typ) : List Ident
 def calcSucc (g : ExprHigh String Typ) : Option (Std.HashMap String (Array (NextNode String Typ))) :=
   g.modules.foldlM (λ succ k v => do
       let a ← v.fst.output.foldlM (λ succ' (k' v' : InternalPort String) => do
-          if v'.inst.isTop then return succ'
+          if g.portIsIO v' then return succ'
           let out ← followOutputFull g k k'
           return succ'.push out
         ) ∅
@@ -814,14 +814,14 @@ def defaultMatcher.impl {α} [Inhabited α] (cmp : α → α → Bool) (pat g : 
       unless cmp curr1_typ curr2_typ do .none
       let state' := (state.1.cons curr.2, state.2.cons curr2_typ)
       let worklist' ← curr1_inst.input.toList.foldlM (λ wl a => do
-          if a.2.inst.isTop then return wl
+          if pat.portIsIO a.2 then return wl
           let nn ← followInput pat curr.1 a.1.name
           let nn' ← followInput g curr.2 a.1.name
           let new_wl_el := (nn.inst, nn'.inst)
           return if new_wl_el ∈ visited' || new_wl_el ∈ wl then wl else wl.cons new_wl_el
         ) worklist'
       let worklist' ← curr1_inst.output.toList.foldlM (λ wl a => do
-          if a.2.inst.isTop then return wl
+          if pat.portIsIO a.2 then return wl
           let nn ← followOutput pat curr.1 a.1.name
           let nn' ← followOutput g curr.2 a.1.name
           let new_wl_el := (nn.inst, nn'.inst)

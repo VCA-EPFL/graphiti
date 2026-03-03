@@ -28,7 +28,9 @@ scoped syntax ident : dot_value
 scoped syntax (name := dot_value_term) "$(" term ")" : dot_value
 scoped syntax "from" : dot_value
 scoped syntax "to" : dot_value
+scoped syntax "io" : dot_value
 
+scoped syntax dot_value : dot_attr
 scoped syntax dot_value " = " dot_value : dot_attr
 scoped syntax (dot_attr),* : dot_attr_list
 
@@ -73,6 +75,15 @@ def dotValueTermElab : TermElab
 | `(dot_value| $( $a:term )), t => elabTerm a t
 | _, _ => throwError "Could not match syntax"
 
+/- #eval show TermElabM Lean.Syntax from do
+ -   let stx ← `(dot_attr_list| io="2")
+ -   let mut stx' : Array Lean.Syntax := #[]
+ -   /- return stx -/
+ -   for pair in stx do
+ -     if checkName n pair[0] then
+ -       stx' := pair
+ -   return stx'[0]! -/
+
 open Lean in
 def hasStxElement (n : Name) (stx : Array Syntax) : Bool := Id.run do
   let mut out := false
@@ -110,12 +121,20 @@ def findStxStr (n : Name) (stx : Array Syntax) : MetaM (Option String) := do
       out := some out'
   return out
 
-open Lean Qq in
+open Lean in
 def findExpr (n : Name) (stx : Array Syntax) (t : Option Expr) : TermElabM (Option Expr) := do
   let mut out := none
   for pair in stx do
     if checkName n pair[0] then
       out ← elabTerm pair[2] t
+  return out
+
+open Lean in
+def findIO (stx : Array Syntax) : MetaM Bool := do
+  let mut out := false
+  for pair in stx do
+    if (← `(dot_attr| io)) == pair then
+      out := true
   return out
 
 open Lean Qq in
@@ -193,8 +212,8 @@ def mkPortMapping' : PortMapping Q(String) → Q(PortMapping String)
   let b' := b.mapKey reifyInternalPort' |>.mapVal (λ _ => reifyInternalPort') |> mkAssocListExpr
   q(@PortMapping.mk String $a' $b')
 
-open Lean Qq in
-def isIO (i : Q(String)) : Bool := i == .lit (.strVal "io")
+open Lean in
+def isIO (i : Expr) : Bool := i == .lit (.strVal "io")
 
 open Lean Qq in
 @[term_elab dot_graph]
@@ -383,6 +402,7 @@ def dotGraphv2Elab : TermElab := λ stx typ? =>
     go' (stx : Syntax) (t : Expr) : TermElabM Expr := do
       let mut instMap : Std.HashMap String (InstIdent String × Bool) := ∅
       let mut instTypeMap : Std.HashMap String (PortMapping String × Expr) := ∅
+      let mut instOrder : List String := []
       let mut conns : List (Connection String) := []
       for stmnt in stx[1][0].getArgs do
         let low_stmnt := stmnt.getArgs[0]!
@@ -390,11 +410,10 @@ def dotGraphv2Elab : TermElab := λ stx typ? =>
         | `(dot_stmnt| $i:ident $[[$[$el:dot_attr],*]]? ) =>
           let some el := el
             | throwErrorAt i "Element list is not present"
-          let some modId ← findExpr `type el t
-            | throwErrorAt i "No `type` attribute found at node"
+          let modId ← (Option.getD · (toExpr "")) <$> findExpr `type el t
           let mut modCluster : Bool := findStxBool `cluster el |>.getD false
-          if isIO modId then
-            match updateNodeMaps ⟨instMap, instTypeMap⟩ i.getId.toString modId (isIO modId) modCluster with
+          if isIO modId || (← findIO el) then
+            match updateNodeMaps ⟨instMap, instTypeMap⟩ i.getId.toString modId true modCluster with
             | .ok ⟨a, b⟩ =>
               instMap := a
               instTypeMap := b
@@ -403,7 +422,8 @@ def dotGraphv2Elab : TermElab := λ stx typ? =>
           else
             /- let some modIdArgs ← findStxStr' `arg el
              -   | throwErrorAt i "No `arg` attribute found at node" -/
-            match updateNodeMaps ⟨instMap, instTypeMap⟩ i.getId.toString modId (isIO modId) modCluster with
+            instOrder := instOrder.concat i.getId.toString
+            match updateNodeMaps ⟨instMap, instTypeMap⟩ i.getId.toString modId false modCluster with
             | .ok ⟨a, b⟩ =>
               instMap := a
               instTypeMap := b
@@ -429,7 +449,7 @@ def dotGraphv2Elab : TermElab := λ stx typ? =>
           mkAppM ``Connection.mk #[reifyInternalPort a, reifyInternalPort b]))
       let modList : Expr ←
         mkListLit (← mkAppM ``Prod #[.const ``String [], ← mkAppM ``Prod #[← mkAppM ``PortMapping #[.const ``String []], t]])
-          (← instTypeMap.toList.mapM (fun (a, (p, b)) => do
+          (← instOrder.map (λ x => (x, instTypeMap[x]!)) |>.mapM (fun (a, (p, b)) => do
             let a' := .lit (.strVal a)
             let p' : Expr := mkPortMapping' <| p.map (.strVal · |> .lit)
             mkAppM ``Prod.mk #[a', ← mkAppM ``Prod.mk #[p', b]]))

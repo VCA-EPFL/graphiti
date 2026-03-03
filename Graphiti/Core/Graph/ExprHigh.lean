@@ -8,6 +8,7 @@ module
 
 public import Lean
 public import Graphiti.Core.Graph.ExprLow
+public import Graphiti.Core.Basic
 
 @[expose] public section
 
@@ -79,26 +80,29 @@ def findOutputPort' (p : InternalPort Ident) (i : IdentMap Ident (PortMapping Id
         return (k, l.fst.name)
     ) none
 
+def portIsIO {α β} [DecidableEq α] (port : InternalPort α) (g : ExprHigh α β) : Bool :=
+  not <| g.connections.any (fun ⟨o, i⟩ => port == o || port == i)
+
 def inputNodes (g : ExprHigh Ident Typ) : List Ident :=
   g.modules.foldl (λ inodes k v =>
-      if v.fst.input.any (λ _ k => k.inst.isTop)
+      if v.fst.input.any (λ _ k => g.portIsIO k)
       then k :: inodes
       else inodes
     ) ∅
 
 def inputPorts (g : ExprHigh Ident Typ) : List Ident :=
   g.modules.foldl (λ inodes k v =>
-      inodes ++ (v.fst.input.filter (λ _ k => k.inst.isTop) |>.toList |>.map (λ (_, ⟨_, k⟩) => k))
+      inodes ++ (v.fst.input.filter (λ _ k => g.portIsIO k) |>.toList |>.map (λ (_, ⟨_, k⟩) => k))
     ) ∅
 
 def outputPorts (g : ExprHigh Ident Typ) : List Ident :=
   g.modules.foldl (λ inodes k v =>
-      inodes ++ (v.fst.output.filter (λ _ k => k.inst.isTop) |>.toList |>.map (λ (_, ⟨_, k⟩) => k))
+      inodes ++ (v.fst.output.filter (λ _ k => g.portIsIO k) |>.toList |>.map (λ (_, ⟨_, k⟩) => k))
     ) ∅
 
 def outputNodes (g : ExprHigh Ident Typ) : List Ident :=
   g.modules.foldl (λ inodes k v =>
-      if v.fst.output.any (λ _ k => k.inst.isTop)
+      if v.fst.output.any (λ _ k => g.portIsIO k)
       then k :: inodes
       else inodes
     ) ∅
@@ -289,13 +293,13 @@ def renamePorts_fast (g : ExprHigh Ident Typ) (p : PortMapping Ident) :=
 
 def normaliseNames {α} [DecidableEq α] (e : ExprHigh String α) : Option (ExprHigh String α) :=
   let renameMap := e.modules.toList.map (λ (x, (inst, typ)) =>
-    inst.mapKeys (λ keyPort bodyPort => if bodyPort.inst.isTop then bodyPort else ⟨.internal x, keyPort.name⟩))
+    inst.mapKeys (λ keyPort bodyPort => if e.portIsIO bodyPort then bodyPort else ⟨.internal x, keyPort.name⟩))
       |> PortMapping.combinePortMapping
   e.renamePorts (λ x => PortMapping.getInstanceName x |>.getD default) renameMap
 
 def normaliseNames_fast {α} (e : ExprHigh String α) : Option (ExprHigh String α) :=
   let renameMap := e.modules.toList.map (λ (x, (inst, typ)) =>
-    inst.mapPM1 (λ m => m.foldl (fun st keyPort bodyPort => if bodyPort.inst.isTop then st else st.cons bodyPort ⟨.internal x, keyPort.name⟩) ∅))
+    inst.mapPM1 (λ m => m.foldl (fun st keyPort bodyPort => if e.portIsIO bodyPort then st else st.cons bodyPort ⟨.internal x, keyPort.name⟩) ∅))
   renameMap.foldlM (fun e r =>
     e.renamePorts_fast r
   ) e
@@ -308,16 +312,16 @@ def asDot {α} [ToString α] (a : ExprHigh String α) : Option String := do
   let a ← a.normaliseNames_fast
   let (io_decl, io_conn) := a.modules.foldl (λ (sdecl, sio) inst (pmap, typ) =>
     let sdecl := (pmap.input ++ pmap.output).foldl (λ sdecl k v =>
-      if v.inst.isTop
-      then sdecl ++ s!"\n  \"{v.name}\" [type = \"io\", label = \"{v.name}: io\"];"
+      if a.portIsIO v
+      then sdecl ++ s!"\n  \"{v.asDot}\" [type = \"io\", label = \"{v.asDot}: io\"];"
       else sdecl) sdecl
     let sio := pmap.input.foldl (λ io_conn k v =>
-      if v.inst.isTop
-      then io_conn ++ s!"\n  \"{v.name}\" -> \"{inst}\" [to = \"{k.name}\", headlabel = \"{k.name}\"];"
+      if a.portIsIO v
+      then io_conn ++ s!"\n  \"{v.asDot}\" -> \"{inst}\" [to = \"{k.name}\", headlabel = \"{k.name}\"];"
       else io_conn) sio
     let sio := pmap.output.foldl (λ io_conn k v =>
-      if v.inst.isTop
-      then io_conn ++ s!"\n \"{inst}\" -> \"{v.name}\" [from = \"{k.name}\", taillabel = \"{k.name}\"];"
+      if a.portIsIO v
+      then io_conn ++ s!"\n \"{inst}\" -> \"{v.asDot}\" [from = \"{k.name}\", taillabel = \"{k.name}\"];"
       else io_conn) sio
     (sdecl, sio)
   ) ("", "")

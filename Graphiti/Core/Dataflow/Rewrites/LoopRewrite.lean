@@ -72,8 +72,8 @@ def boxLoopBodyOther (initNode : Option String) : Pattern String (String × Nat)
   return list
 
 def boxLoopBodyOther' : Pattern String (String × Nat) 0 := fun g => do
-  let (.cons inp _ .nil) := g.modules.filter (λ _ (p, _) => p.input.any (λ a b => b.inst.isTop)) | throw .done
-  let (.cons out _ .nil) := g.modules.filter (λ _ (p, _) => p.output.any (λ a b => b.inst.isTop)) | throw .done
+  let (.cons inp _ .nil) := g.modules.filter (λ _ (p, _) => p.input.any (λ a b => g.portIsIO b)) | throw .done
+  let (.cons out _ .nil) := g.modules.filter (λ _ (p, _) => p.output.any (λ a b => g.portIsIO b)) | throw .done
   return ([inp, out], #v[])
 
 def nonPureMatcher (initNode : String) : Pattern String (String × Nat) 0 :=

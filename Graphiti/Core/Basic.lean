@@ -164,9 +164,12 @@ def InternalPort.map {α β} (f : α → β) : InternalPort α → InternalPort 
 | ⟨ .top, a ⟩ => ⟨ .top, f a ⟩
 | ⟨ .internal b, a ⟩ => ⟨ .internal (f b), f a ⟩
 
+def InternalPort.asDot {Ident} [ToString Ident] : InternalPort Ident → String
+| ⟨.internal a, b⟩ => toString a ++ "." ++ toString b
+| ⟨.top, b⟩ => toString b
+
 instance {Ident} [ToString Ident] : ToString (InternalPort Ident) where
-  toString | ⟨.internal a, b⟩ => toString a ++ " " ++ toString b
-           | ⟨.top, b⟩ => toString b
+  toString := InternalPort.asDot
 
 /--
 If only an identifier is provided, it can be coerced into an `InternalPort

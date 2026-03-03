@@ -890,69 +890,100 @@ def forkAssoc (s : String) : Rewrite String DFGandCFG :=
         fork1 -> o3 [from="out2"];
       ] : ExprHigh String DFGandCFG).extract ["fork1", "fork2"] |>.get rfl |>.1)
 
+def extractList : DFGandCFG → List Nat
+| .rw (.reads l) => l
+| .rw (.writes l) => l
+| _ => []
+
 def combineReads : Rewrite String DFGandCFG :=
-  create_rewrite (cmp := DFGandCFG.compare) "combine-reads"
-    (λ l _ =>
-      match l[1]!, l[2]! with
-      | .rw (.reads l1), .rw (.reads l2) =>
-        ([graphv2|
-          i [type=$("io")];
-          o1 [type=$("io")];
-          o2 [type=$("io")];
+  create_rewrite (n := 3) (cmp := DFGandCFG.compare) "combine-reads"
+    (λ l _ => [graphv2|
+          i [io];
+          o1 [io];
+          o2 [io];
 
           fork [type=$(.dfg .fork)];
-          read1 [type=$(.rw (.reads l1))];
-          read2 [type=$(.rw (.reads l2))];
+          read1 [type=$(.rw (.reads (extractList l[1])))];
+          read2 [type=$(.rw (.reads (extractList l[2])))];
 
           i -> fork [to="in1"];
           fork -> read1 [from="out1",to="in1"];
           fork -> read2 [from="out2",to="in1"];
           read1 -> o1 [from="out1"];
           read2 -> o2 [from="out1"];
-        ] : ExprHigh String DFGandCFG).extract ["fork", "read1", "read2"] |>.get rfl |>.1
-      | _, _ =>
-        ([graphv2|
-          i [type=$("io")];
-          o1 [type=$("io")];
-          o2 [type=$("io")];
+        ])
+      (λ l _ => [graphv2|
+          i [io];
+          o1 [io];
+          o2 [io];
 
-          fork [type=$(.dfg .fork)];
-          read1 [type=$(.rw (.reads []))];
-          read2 [type=$(.rw (.reads []))];
-
-          i -> fork [to="in1"];
-          fork -> read1 [from="out1",to="in1"];
-          fork -> read2 [from="out2",to="in1"];
-          read1 -> o1 [from="out1"];
-          read2 -> o2 [from="out1"];
-        ] : ExprHigh String DFGandCFG).extract ["fork", "read1", "read2"] |>.get rfl |>.1)
-      (λ l _ =>
-      match l[1]!, l[2]! with
-      | .rw (.reads l1), .rw (.reads l2) =>
-        ([graphv2|
-          i [type=$("io")];
-          o1 [type=$("io")];
-          o2 [type=$("io")];
-
-          read [type=$(.rw (.reads (l1 ++ l2)))];
+          read1 [type=$(.rw (.reads (extractList l[1] ++ extractList l[2])))];
           split [type=$(.dfg .split)];
 
-          i -> read [to="in1"];
-          read -> split [from="out1",to="in1"];
+          i -> read1 [to="in1"];
+          read1 -> split [from="out1",to="in1"];
           split -> o1 [from="out1"];
           split -> o2 [from="out2"];
-        ] : ExprHigh String DFGandCFG).extract ["read", "split"] |>.get rfl |>.1
-      | _, _ =>
-        ([graphv2|
-          i [type=$("io")];
-          o1 [type=$("io")];
-          o2 [type=$("io")];
+        ])
 
-          fork [type=$(.dfg .fork)];
-          read1 [type=$(.rw (.reads []))];
-          read2 [type=$(.rw (.reads []))];
-        ] : ExprHigh String DFGandCFG))
-        (h := by dsimp; split; simp [ExprHigh.extract]; rfl; rfl)
+inductive RWTree α β where
+| base (r : Rewrite α β)
+| seq (r1 r2 : RWTree α β)
+| par (r1 r2 : RWTree α β)
+| fix (r : RWTree α β)
+
+def RWTree.execFuel {α} [DecidableEq α] [Repr α] (fuel : Nat) (g : ExprHigh String α) : RWTree String α → RewriteResult' String α ExprHigh
+| base r => r.run' g
+| seq r1 r2 => r1.execFuel fuel g >>= r2.execFuel fuel
+| par r1 r2 => fun s =>
+  match r1.execFuel fuel g s with
+  | .error .done _ => r2.execFuel fuel g s
+  | x => x
+| fix r => fun s =>
+  match r.execFuel fuel g s with
+  | .error e s' => .error e s'
+  | .ok g' s' =>
+    match fuel with
+    | fuel'+1 => (RWTree.fix r).execFuel fuel' g' s'
+    | _ => .error (.error "ran out of fuel") s'
+
+def RWTree.exec {α} [DecidableEq α] [Repr α] (g : ExprHigh String α) (r : RWTree String α) : RewriteResult' String α ExprHigh :=
+  r.execFuel 100000 g
+
+/--
+Removes a node from the graph, creating a hole, returning the port mapping for that hole, which will either point to IO
+ports inside of the graph when connections were removed, or they will point to new IO ports that were present in the
+graph beforehand.
+-/
+def pokeHole {Ident Typ} [Inhabited Ident] [DecidableEq Ident] (i : Ident) (e : ExprHigh Ident Typ) : Option (ExprHigh Ident Typ × PortMapping Ident) := do
+  let pm ← e.modules.find? i
+  return ({modules := e.modules.eraseAll i,
+           connections := e.connections.filter (fun x => not (x.output ∈ pm.1.output.valsList || x.input ∈ pm.1.input.valsList))},
+          pm.1.mapPairs (λ k x => e.connections.find? (fun ⟨o, i⟩ => i == x || o == x)
+                                  |>.map (fun ⟨o, i⟩ => if i == x then o else i) |>.getD x))
+
+/--
+IO ports are generally just unconnected ports, however, they are normally represented by a .top InternPort, which is
+assumed to be the case in other parts of the code.  This function therefore takes a graph with unconnected ports, and
+transforms them into the .top representation when necessary.
+
+This only works for strings, because we are using the toString function do form the unique label of the top port.
+-/
+def normalizeIOPorts {α} (g : ExprHigh String α) : ExprHigh String α :=
+  {g with
+   modules :=
+     g.modules.mapVal
+       (fun _ v =>
+         ⟨v.1.mapPairs (fun | _, p@⟨.internal _, _⟩ => if g.portIsIO p then ⟨.top, toString p⟩ else p | _, p => p), v.2⟩)}
+
+
+
+/- def extendWithDFS {Ident Typ} [DecidableEq Ident] (e : ExprHigh Ident Typ) (out inp : InternalPort Ident) := -/
+
+
+/- def generatePureForMatch {β : Type}
+ -   (genPureRewrites : RWTree String β)
+ -   : RWTree String β := -/
 
 /- #eval (defaultMatcher ForkSummary2.lhs_extract.fst) graph -/
 def graph_1 := (rewrite_fix [ForkSummary2.rewrite] graph).run' ⟨[], 0, ("", 0)⟩ |>.get!
