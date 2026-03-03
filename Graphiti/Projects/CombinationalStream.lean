@@ -73,6 +73,8 @@ abbrev D := Stream Bool
 open Stream
 open VerilogExport
 
+abbrev Named (s : String) (T : Type _) := T
+
 def not_m : NatModule D :=
   { inputs := [(0, ⟨ D, λ s tt s' => more_defined tt s ∧ s' = tt ⟩)].toAssocList,
     outputs := [(0, ⟨ D, λ s tt s' => s = s' ∧ not (delay false s) = tt⟩)].toAssocList
@@ -93,10 +95,10 @@ def sink_m_template : VerilogTemplate where
   module := build_local_module "sink_m" (simple_interface ["in1"] []) ""
   instantiation name inst := format_instantiation "sink_m" name inst
 
-def nand_m : NatModule (D × D) :=
-  { inputs := [(0, ⟨ D, λ s tt s' => more_defined tt s.1 ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
-               (1, ⟨ D, λ s tt s' => more_defined tt s.2 ∧ s'.2 = tt ∧ s'.1 = s.1 ⟩)].toAssocList,
-    outputs := [(0, ⟨ D, λ s tt s' => s = s' ∧ tt = delay false (nand s.1 s.2) ⟩)].toAssocList
+def nand_m (s : String) : NatModule (Named s (D × D)) :=
+  { inputs := [(0, ⟨ Named s!"{s}.in1" D, λ s tt s' => more_defined tt s.1 ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
+               (1, ⟨ Named s!"{s}.in2" D, λ s tt s' => more_defined tt s.2 ∧ s'.2 = tt ∧ s'.1 = s.1 ⟩)].toAssocList,
+    outputs := [(0, ⟨ Named s!"{s}.out1" D, λ s tt s' => s = s' ∧ tt = delay false (nand s.1 s.2) ⟩)].toAssocList
     init_state := λ s => s = default
   }
 
@@ -150,7 +152,7 @@ def fork3_m_template : VerilogTemplate where
 def not_sm := not_m.stringify
 def sink_sm := sink_m.stringify
 def and_sm := and_m.stringify
-def nand_sm := nand_m.stringify
+def nand_sm (s : String := "") := (nand_m s).stringify
 def nand3_sm := nand3_m.stringify
 def fork_sm := fork_m.stringify
 def fork3_sm := fork3_m.stringify
@@ -252,12 +254,12 @@ def et_flip_flop_m := [graphEnv|
     q [type="io"];
     q_bar [type="io"];
 
-    n1 [type="nand_m", typeImp = $(⟨_, nand_sm⟩)];
-    n2 [type="nand_m", typeImp = $(⟨_, nand_sm⟩)];
+    n1 [type="nand_m1", typeImp = $(⟨_, nand_sm "nand1"⟩)];
+    n2 [type="nand_m2", typeImp = $(⟨_, nand_sm "nand2"⟩)];
     n3 [type="nand3_m", typeImp = $(⟨_, nand3_sm⟩)];
-    n4 [type="nand_m", typeImp = $(⟨_, nand_sm⟩)];
-    n5 [type="nand_m", typeImp = $(⟨_, nand_sm⟩)];
-    n6 [type="nand_m", typeImp = $(⟨_, nand_sm⟩)];
+    n4 [type="nand_m3", typeImp = $(⟨_, nand_sm "nand3"⟩)];
+    n5 [type="nand_m4", typeImp = $(⟨_, nand_sm "nand4"⟩)];
+    n6 [type="nand_m5", typeImp = $(⟨_, nand_sm "nand5"⟩)];
 
     clkF [type="fork_m", typeImp = $(⟨_, fork_sm⟩)];
     n2F [type="fork3_m", typeImp = $(⟨_, fork3_sm⟩)];
@@ -298,13 +300,17 @@ def et_flip_flop_m := [graphEnv|
     n6F -> q_bar [from="out2"];
   ]
 
+#check ExprHigh
+#eval repr <| et_flip_flop_m.1
+#eval repr <| et_flip_flop_m.2.toList.map Prod.fst
+
 def env' := env.cons "d_latch_m" d_latch_m_template
 
-def et_flip_flop_spec : NatModule (D × D) :=
-  { inputs := [ (0, ⟨ D, λ s tt s' => True ⟩)
-              , (1, ⟨ D, λ s tt s' => True ⟩)].toAssocList,
-    outputs := [ (0, ⟨ D, λ s tt s' => True ⟩)
-               , (1, ⟨ D, λ s tt s' => True ⟩)].toAssocList,
+def et_flip_flop_spec : StringModule (D × D) :=
+  { inputs := [ (↑"clk", ⟨ D, λ s tt s' => True ⟩)
+              , (↑"d", ⟨ D, λ s tt s' => True ⟩)].toAssocList,
+    outputs := [ (↑"q", ⟨ D, λ s tt s' => True ⟩)
+               , (↑"q_bar", ⟨ D, λ s tt s' => True ⟩)].toAssocList,
     init_state := λ s => s = default
   }
 
@@ -341,6 +347,70 @@ def et_ms_flip_flop_m := [graphEnv|
 #eval IO.print <| build_verilog_module "et_flip_flop_m" env et_flip_flop_m.1 (simple_interface ["d", "clk"] ["q", "q_bar"])
 #guard_msgs (drop info) in
 #eval IO.print <| build_verilog_module "et_ms_flip_flop_m" env' et_ms_flip_flop_m.1 (simple_interface ["d", "clk"] ["q", "q_bar"])
+
+namespace Refinement
+
+def et_flip_flop_m_lowered := et_flip_flop_m.1.lower_TR |>.get rfl
+
+#eval et_flip_flop_m_lowered
+#check ExprLow
+
+def env := (et_flip_flop_m).2
+
+@[drenv] theorem find?_nand1_m : (Batteries.AssocList.find? "nand_m1" env) = .some ⟨_, nand_sm "nand1"⟩ := rfl
+@[drenv] theorem find?_nand2_m : (Batteries.AssocList.find? "nand_m2" env) = .some ⟨_, nand_sm "nand2"⟩ := rfl
+@[drenv] theorem find?_nand3_m : (Batteries.AssocList.find? "nand_m3" env) = .some ⟨_, nand_sm "nand3"⟩ := rfl
+@[drenv] theorem find?_nand4_m : (Batteries.AssocList.find? "nand_m4" env) = .some ⟨_, nand_sm "nand4"⟩ := rfl
+@[drenv] theorem find?_nand5_m : (Batteries.AssocList.find? "nand_m5" env) = .some ⟨_, nand_sm "nand5"⟩ := rfl
+@[drenv] theorem find?_nand_3_m : (Batteries.AssocList.find? "nand3_m" env) = .some ⟨_, nand3_sm⟩ := rfl
+@[drenv] theorem find?_fork_m : (Batteries.AssocList.find? "fork_m" env) = .some ⟨_, fork_sm⟩ := rfl
+@[drenv] theorem find?_fork3_m : (Batteries.AssocList.find? "fork3_m" env) = .some ⟨_, fork3_sm⟩ := rfl
+
+seal env in
+def_module lhsModuleType : Type :=
+  [T| et_flip_flop_m_lowered, env.find? ]
+reduction_by
+  dsimp [et_flip_flop_m_lowered]
+  dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
+  dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
+  dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
+  simp only [drenv]
+  dsimp
+
+seal env in
+def_module lhsModule : StringModule lhsModuleType :=
+  [e| et_flip_flop_m_lowered, env.find? ]
+reduction_by
+       dsimp [et_flip_flop_m_lowered]
+       (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
+        dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
+        dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
+        rw [rw_opaque (by simp only [drenv]; rfl)]; dsimp
+        dsimp [Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts, Module.mapInputPorts, reduceAssocListfind?]
+        simp (disch := decide) only [AssocList.bijectivePortRenaming_invert]
+        dsimp [Module.product]
+        dsimp only [reduceModuleconnect'2]
+        dsimp only [reduceEraseAll]
+        dsimp; dsimp [reduceAssocListfind?]
+
+        unfold Module.connect''
+        dsimp [toString]
+        )
+        /- dsimp [Module.liftL, Module.liftR, drcomponents]) -/
+
+instance : MatchInterface lhsModule et_flip_flop_spec := by
+  dsimp [lhsModule, et_flip_flop_spec]
+  solve_match_interface
+
+axiom φ : lhsModuleType → (D × D) → Prop
+
+theorem refines' :
+  lhsModule ⊑_{φ} et_flip_flop_spec := by sorry
+
+theorem refines :
+  lhsModule ⊑ et_flip_flop_spec := by sorry
+
+end Refinement
 
 end FlipFlop
 
