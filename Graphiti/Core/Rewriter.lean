@@ -577,18 +577,21 @@ def followOutputFull (g : ExprHigh Ident Typ) (inst : Ident) (output : InternalP
 Follow an output to the next node.  A similar function could be written to
 follow the input to the previous node.
 -/
-def followInput' (g : ExprHigh Ident Typ) (inst input : Ident) : RewriteResult' Ident Typ NextNode := do
+def followInput' (g : ExprHigh Ident Typ) (inst : Ident) (input : InternalPort Ident) : RewriteResult' Ident Typ NextNode := do
   let (pmap, _) ← ofOption (.error "instance not in modules")
     <| g.modules.find? inst
   let localInputName ← ofOption (.error "port not in instance portmap")
-    <| pmap.input.find? ⟨.top, input⟩
+    <| pmap.input.find? input
   let c@⟨localOutputName, _⟩ ← ofOption (.error "output not in connections")
     <| g.connections.find? (λ c => c.input = localInputName)
   let (inst, iport) ← ofOption (.error "input port not in modules")
     <| ExprHigh.findOutputPort' localOutputName g.modules
-  ofOption (.error "instance not in modules") <| (g.modules.findEntry? inst).map (λ x => ⟨inst, iport, input, x.2.1, x.2.2, c⟩)
+  ofOption (.error "instance not in modules") <| (g.modules.findEntry? inst).map (λ x => ⟨inst, iport, input.name, x.2.1, x.2.2, c⟩)
 
 def followInput (g : ExprHigh Ident Typ) (inst input : Ident) : Option (NextNode Ident Typ) :=
+  (followInput' g inst ⟨.top, input⟩).run' default
+
+def followInputFull (g : ExprHigh Ident Typ) (inst : Ident) (input : InternalPort Ident) : Option (NextNode Ident Typ) :=
   (followInput' g inst input).run' default
 
 def findType [DecidableEq Typ] (g : ExprHigh Ident Typ) (typ : Typ) : List Ident :=
