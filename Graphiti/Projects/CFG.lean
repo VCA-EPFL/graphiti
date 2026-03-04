@@ -11,6 +11,7 @@ import Graphiti.Core.Graph.ExprHigh
 import Graphiti.Core.Graph.Environment
 import Graphiti.Core.Graph.ExprHighElaborator
 import Graphiti.Core.Rewriter
+import Graphiti.Core.Dataflow.JSLang
 
 open Batteries (AssocList)
 
@@ -74,18 +75,12 @@ instance : ToString Condition where
   | .Ccompuimm comp _ => s!"Ccompu {comp}"
   | _ => panic! "<not implemented>"
 
-instance : DecidableEq Float := fun a b =>
-  if a <= b && b <= a then
-    isTrue sorry
-  else
-    isFalse sorry
-
 inductive Operation: Type where
 | Omove
 | Ointconst (imm: Int)
 | Olongconst (imm: Int)
-| Ofloatconst (imm: Float)
-| Osingleconst (imm: Float)
+| Ofloatconst (imm: Int)
+| Osingleconst (imm: Int)
 | Oaddrsymbol (id: Ident) (ofs: Ptrofs)
 | Oaddrstack (ofs: Ptrofs)
 | Ocast8signed
@@ -195,7 +190,7 @@ inductive MemoryChunk : Type where
 | Mfloat64
 | Many32
 | Many64
-deriving Repr, DecidableEq, Lean.ToJson, Lean.FromJson, Inhabited, DecidableEq
+deriving Repr, DecidableEq, Lean.ToJson, Lean.FromJson, Inhabited
 
 instance : ToString MemoryChunk where
   toString
@@ -215,7 +210,7 @@ inductive Addressing: Type where
 | Aindexed (ofs: Ptrofs)
 | Aglobal (id: Ident) (ofs: Ptrofs)
 | Ainstack (ofs: Ptrofs)
-deriving Repr, DecidableEq, Lean.ToJson, Lean.FromJson, Inhabited, DecidableEq
+deriving Repr, DecidableEq, Lean.ToJson, Lean.FromJson, Inhabited
 
 instance : ToString Addressing where
   toString
@@ -266,6 +261,7 @@ inductive Component where
 | branch
 | fork
 | pure
+| join
 | split
 | queue
 | exit
@@ -284,6 +280,7 @@ instance : ToString Component where
   | .cond o => s!"cond {o}"
   | .queue => "queue"
   | .exit => "exit"
+  | .join => "join"
 
 inductive RW where
 | reads (l : List Reg)
@@ -306,6 +303,11 @@ instance : ToString DFGandCFG where
   | .cfg i => toString i
   | .dfg i => toString i
   | .rw i => toString i
+
+instance : JSType DFGandCFG where
+  isSplit | .dfg .split => true | _ => false
+  isJoin  | .dfg .join  => true | _ => false
+  isPure  | .dfg .pure  => true | _ => false
 
 def DFGandCFG.compare (a b : DFGandCFG) : Bool :=
   match a, b with
@@ -976,9 +978,177 @@ def normalizeIOPorts {α} (g : ExprHigh String α) : ExprHigh String α :=
        (fun _ v =>
          ⟨v.1.mapPairs (fun | _, p@⟨.internal _, _⟩ => if g.portIsIO p then ⟨.top, toString p⟩ else p | _, p => p), v.2⟩)}
 
+def ExprHigh.findPort {Typ} (p : InternalPort String) (i : ExprHigh String Typ) : Option String :=
+  ExprHigh.findInputPort p i.modules <|> ExprHigh.findOutputPort p i.modules
 
+def ExprHigh.findPort' {Typ} (p : InternalPort String) (i : ExprHigh String Typ) : Option (String × String) :=
+  ExprHigh.findInputPort' p i.modules <|> ExprHigh.findOutputPort' p i.modules
 
-/- def extendWithDFS {Ident Typ} [DecidableEq Ident] (e : ExprHigh Ident Typ) (out inp : InternalPort Ident) := -/
+def followIO {Ident Typ} [DecidableEq Ident] [Inhabited Typ] (g : ExprHigh Ident Typ) mainMod intPort :=
+  followInput g mainMod intPort <|> followOutput g mainMod intPort
+
+def getIndexInOtherGraph {Typ} [Inhabited Typ] (pat g : ExprHigh String Typ) (main : List String) (port : InternalPort String)
+    : Option (String × InternalPort String) := do
+  let (mod, intPort) ← ExprHigh.findPort' port pat
+  let idx ← pat.modules.toList.findIdx? (fun x => x.1 == mod)
+  let mainMod ← main[idx]?
+  return (mainMod, intPort)
+
+structure GraphSlice where
+  regStart : String × InternalPort String
+  regEnd : String × InternalPort String
+deriving Repr, Inhabited, DecidableEq
+
+def extendWithDFS {Typ} [Inhabited Typ] (e : ExprHigh String Typ) (l : List String)
+    (out inp : InternalPort String) (g : ExprHigh String Typ)
+    : RewriteResultSL GraphSlice := do
+  let actualOut ← getIndexInOtherGraph e g l out |>.toExcept (.error "could not find output port")
+  let actualInp ← getIndexInOtherGraph e g l inp |>.toExcept (.error "could not find input port")
+  return ⟨actualOut, actualInp⟩
+
+def pokeAllPures {Typ} (isPure : Typ → Bool) (e : ExprHigh String Typ) : Option (ExprHigh String Typ × AssocList String (PortMapping String)) := do
+  let allPures := e.modules.toList.filter (fun (k, v) => isPure v.2) |>.map Prod.fst
+  let v ← allPures.foldlM (fun st p => pokeHole p st.1 >>= fun (g', pm) => pure (g', st.2.concat pm)) (e, [])
+  return (v.1, (allPures.zip v.2).toAssocList)
+
+def findNodesFromPures {Typ} [Inhabited Typ] (cmp : Typ → Typ → Bool) (isPure : Typ → Bool) (pat g : ExprHigh String Typ)
+    : RewriteResultSL (AssocList String GraphSlice) := do
+  let new_pat ← pokeAllPures isPure pat |>.toExcept (.error "could not remove all pures")
+  let (l, _) ← (defaultMatcher (cmp := cmp) new_pat.1) g
+  let ms ← new_pat.2.toList.foldlM (fun st (k, el) => do
+      let out ← el.input.find? ⟨.top, "in1"⟩ |>.toExcept (.error "could not find input in pure")
+      let inp ← el.output.find? ⟨.top, "out1"⟩ |>.toExcept (.error "could not find output in pure")
+      let res ← extendWithDFS new_pat.1 l out inp g
+      return st.concat (k, res)
+    ) []
+  return ms.toAssocList
+
+def regionToNodes {Typ} [Inhabited Typ] (g : ExprHigh String Typ) (r : GraphSlice) : Option (List String) := do
+  let fstart ← followIO g r.regStart.1 r.regStart.2.2
+  let fend ← followIO g r.regEnd.1 r.regEnd.2.2
+  if fstart.inst == r.regEnd.1 && fend.inst == r.regStart.1 then
+    return []
+  else
+    findClosedRegion g fstart.inst fend.inst
+
+def regionToJSLang {Typ} [Inhabited Typ] [JSType Typ] (g : ExprHigh String Typ) (r : GraphSlice) : Option JSLang := do
+  let fend ← followIO g r.regEnd.1 r.regEnd.2.2
+  let succ ← calcSucc g.invert
+  JSLang.construct 10000 (JSLang.ofNNHashMap succ) r.regStart.1 ⟨fend.inst, default, default, default⟩
+
+def pat :=
+  ([graphv2|
+     i [io];
+     o1 [io];
+     o2 [io];
+
+     fork [type=$(.dfg .fork)];
+     read1 [type=$(.dfg .pure)];
+     forkB [type=$(.dfg .fork)];
+     read2 [type=$(.rw (.reads []))];
+
+     i -> fork [to="in1"];
+     fork -> read1 [from="out1",to="in1"];
+     fork -> read2 [from="out2",to="in1"];
+     read1 -> forkB [from="out1",to="in1"];
+     forkB -> o1 [from="out1"];
+     read2 -> o2 [from="out1"];
+     fork -> forkB [from="out3", to="in2"];
+   ] : ExprHigh String DFGandCFG)
+
+def g :=
+  ([graphv2|
+     i [io];
+     o1 [io];
+     o2 [io];
+
+     fork_ [type=$(.dfg .fork)];
+     read1_ [type=$(.dfg .split)];
+     extra_ [type=$(.dfg .pure)];
+     extra2_ [type=$(.dfg .pure)];
+     extra3_ [type=$(.dfg .join)];
+     forkB_ [type=$(.dfg .fork)];
+     read2_ [type=$(.rw (.reads []))];
+
+     i -> fork_ [to="in1"];
+     fork_ -> read1_ [from="out1",to="in1"];
+     fork_ -> read2_ [from="out2",to="in1"];
+     read1_ -> extra_ [from="out1",to="in1"];
+     read1_ -> extra2_ [from="out2",to="in1"];
+     extra_ -> extra3_ [from="out1",to="in1"];
+     extra2_ -> extra3_ [from="out1",to="in2"];
+     extra3_ -> forkB_ [from="out1",to="in1"];
+     forkB_ -> o1 [from="out1"];
+     read2_ -> o2 [from="out1"];
+     fork_ -> forkB_ [from="out3", to="in2"];
+   ] : ExprHigh String DFGandCFG)
+
+def g2 :=
+  ([graphv2|
+     i [io];
+     o1 [io];
+     o2 [io];
+
+     fork_ [type=$(.dfg .fork)];
+     read1_ [type=$(.dfg .split)];
+     extra_ [type=$(.dfg .pure)];
+     extra2_ [type=$(.dfg .pure)];
+     extra3_ [type=$(.dfg .join)];
+     forkB_ [type=$(.dfg .fork)];
+     read2_ [type=$(.rw (.reads []))];
+
+     i -> fork_ [to="in1"];
+     fork_ -> forkB_ [from="out1",to="in1"];
+     fork_ -> read2_ [from="out2",to="in1"];
+     forkB_ -> o1 [from="out1"];
+     read2_ -> o2 [from="out1"];
+     fork_ -> forkB_ [from="out3", to="in2"];
+   ] : ExprHigh String DFGandCFG)
+
+def pat' := pokeHole "read1" pat |>.get rfl |>.1
+def pat'_norm := normalizeIOPorts pat'
+
+#eval IO.println pat'
+
+/- #eval extendWithDFS DFGandCFG.compare pat' ⟨.internal "fork", "out1"⟩ ⟨.internal "forkB", "in1"⟩ g -/
+#eval (defaultMatcher (cmp := DFGandCFG.compare) pat') g
+
+def reg := (findNodesFromPures DFGandCFG.compare (· == .dfg .pure) pat g) |>.toOption |>.get! |>.find? "read1" |>.get!
+#eval reg
+
+def reg2 := findNodesFromPures DFGandCFG.compare (· == .dfg .pure) pat g2 |>.toOption |>.get! |>.find? "read1" |>.get!
+#eval regionToNodes g2 reg2
+
+#eval regionToNodes g reg
+#eval IO.println (regionToJSLang g reg |>.get! |>.elimPure |>.toSExpr)
+
+/--
+This seems to be the algo, but why? Who knows
+-/
+def nodesToPure (l : List String) : RWTree String DFGandCFG := sorry
+def moveForkUp (l : List String) : RWTree String DFGandCFG := sorry
+def forkToPure (l : List String) : RWTree String DFGandCFG := sorry
+
+def preprocessPureRegion (g : ExprHigh String DFGandCFG) (l : List String) : RewriteResult' String DFGandCFG ExprHigh :=
+  (nodesToPure l).exec g >>= (moveForkUp l).exec >>= (forkToPure l).exec
+
+def rwWithPure (pureGen : ExprHigh String DFGandCFG → GraphSlice → RewriteResult' String DFGandCFG ExprHigh)
+  (rw : Rewrite String DFGandCFG) (g : ExprHigh String DFGandCFG) : RewriteResult' String DFGandCFG ExprHigh :=
+  sorry
+
+/--
+This function takes a graph and transforms the slice into
+-/
+def generatePure (g : ExprHigh String DFGandCFG) (slice : GraphSlice) : RewriteResult' String DFGandCFG ExprHigh := do
+  let l ← ofOption (.error "could not transform region to node") <| regionToNodes g slice
+  let g' ← preprocessPureRegion g l
+
+  sorry
+
+/- new_pat.2.toList.foldlM (fun st v => ) -/
+
+/- def pureToPattern {Typ} [Inhabited Typ] (cmp : Typ → Typ → Bool) (e : ExprHigh String Typ)
+ -     (out inp : InternalPort String) : Pattern String Typ 0 := fun g => do -/
 
 
 /- def generatePureForMatch {β : Type}
@@ -1145,8 +1315,6 @@ def gcd : ExprHigh String (String × Nat) := [graph|
     l1cont -> l1rdx2 [from="O2", to="I"];
     l1rdx2 -> l1 [from="O", to="val"];
   ]
-
-#eval IO.println <| toString gcd
 
 end Example
 
