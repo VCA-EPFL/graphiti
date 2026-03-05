@@ -175,7 +175,7 @@ def rewriteWithEgg {n} (eggCmd := "graphiti_oracle")
   let out ← runCommandWithStdin eggCmd #[] (toString constructed.toSExpr)
   IO.ofExcept <| parseRewrites out.stdout
 
-def JSLang.upd1 (m : AssocList String (Option String)) : JSLangRewrite → RewriteResult String (String × Nat) JSLangRewrite
+def JSLang.upd1 {Typ} (m : AssocList String (Option String)) : JSLangRewrite → RewriteResult String Typ JSLangRewrite
 | .assocL s dir => do
   let (.some s') := (m.find? s).getD s
     | throw <| .error s!"{decl_name%}: assocL: '{s}' deleted in map"
@@ -193,7 +193,7 @@ def JSLang.upd1 (m : AssocList String (Option String)) : JSLangRewrite → Rewri
     | throw <| .error s!"{decl_name%}: elim: '{s}' deleted in map"
   return .elim s'
 
-def JSLang.upd (m : AssocList String (Option String)) (j : List JSLangRewrite) : RewriteResult String (String × Nat) (List JSLangRewrite) :=
+def JSLang.upd {Typ} (m : AssocList String (Option String)) (j : List JSLangRewrite) : RewriteResult String Typ (List JSLangRewrite) :=
   j.mapM (JSLang.upd1 m)
 
 def JSLang.elimPure : JSLang → JSLang

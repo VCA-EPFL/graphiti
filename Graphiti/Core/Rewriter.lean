@@ -884,22 +884,39 @@ def match_node {n : Nat} (extract_type : (String × Nat) → RewriteResultSL (Ve
 def rewrites_to_map {α β} (l : List (Rewrite α β)) : AssocList String (Rewrite α β) :=
   l.flatMap (λ x => match x.name with | .some n => [(n, x)] | _ => []) |>.toAssocList
 
+def getStructure {α β} [Inhabited α] {n} (lhs : Vector α n → α → ExprHigh β α) : ExprHigh β α :=
+  lhs (Vector.ofFn (fun _ => default)) default
+
 def create_rewrite {α} [Inhabited α] {n} (name : String) (lhs rhs : Vector α n → α → ExprHigh String α)
     (pred : Vector (Node String α) n → Bool := fun _ => true)
     (cmp : α → α → Bool := by exact fun a b => a == b)
-    (h : n = (lhs (Vector.ofFn (fun _ => default)) default).modules.length := by rfl) : Rewrite String α where
+    (h : n = (getStructure lhs).modules.length := by rfl) : Rewrite String α where
   params := _
   pattern :=
-    defaultMatcher (lhs (Vector.ofFn (fun _ => default)) default) (h ▸ pred) cmp
+    defaultMatcher (getStructure lhs) (h ▸ pred) cmp
   rewrite := λ l n =>
     ⟨lhs (h ▸ l) n |>.lower |>.getD default, rhs (h ▸ l) n |>.lower |>.getD default⟩
   name := name
   transformedNodes :=
-    (lhs (Vector.ofFn (fun _ => default)) default).modules.toList.map
-      (λ x => (rhs (Vector.ofFn (fun _ => default)) default).modules.find? x.1 |>.map Prod.fst)
+    (getStructure lhs).modules.toList.map
+      (λ x => (getStructure rhs).modules.find? x.1 |>.map Prod.fst)
   addedNodes :=
-    (rhs (Vector.ofFn (fun _ => default)) default).modules.toList
-    |>.filter (λ x => x.1 ∉ (lhs (Vector.ofFn (fun _ => default)) default).modules.keysList)
+    (getStructure rhs).modules.toList
+    |>.filter (λ x => x.1 ∉ (getStructure lhs).modules.keysList)
     |>.map (λ x => x.2.1)
+
+class FuzzyCompare (α : Type _) where
+  cmp : α → α → Bool
+
+structure RewriteHigh (Ident Typ : Type _) where
+  params : Nat
+  lhs : Vector Typ params → Typ → ExprHigh Ident Typ
+  rhs : Vector Typ params → Typ → ExprHigh Ident Typ
+  well_formed : ∀ [Inhabited Typ], params = (getStructure lhs).modules.length := by intros; rfl
+  predicate : Vector (Node Ident Typ) params → Bool := fun _ => True
+  name : Option String := .none
+
+def RewriteHigh.lower {Typ} [Inhabited Typ] [FuzzyCompare Typ] (rw : RewriteHigh String Typ) : Rewrite String Typ :=
+  create_rewrite (rw.name.getD "unnamed") rw.lhs rw.rhs rw.predicate FuzzyCompare.cmp rw.well_formed
 
 end Graphiti
