@@ -432,17 +432,31 @@ def dotGraphv2Elab : TermElab := λ stx typ? =>
         | `(dot_stmnt| $a:ident -> $b:ident $[[$[$el:dot_attr],*]]? ) =>
           -- Error checking to report it early if the instance is not present in the
           -- hashmap.
-          let some el := el
-            | throwErrorAt (mkListNode #[a, b]) "No `type` attribute found at node"
-          let mut out ← (findStxStr `from el)
-          let mut inp ← (findStxStr `to el)
-          match updateConnMaps ⟨instMap, instTypeMap⟩ conns a.getId.toString b.getId.toString out inp with
-          | .ok (⟨_, b⟩, c) =>
-            conns := c
-            instTypeMap := b
-          | .error (.outInstError s) => throwErrorAt a s
-          | .error (.inInstError s) => throwErrorAt b s
-          | .error (.portError s) => throwErrorAt (mkListNode el) s
+          match el with
+          | some el =>
+            let mut out ← (findStxStr `from el)
+            let mut inp ← (findStxStr `to el)
+            match updateConnMaps ⟨instMap, instTypeMap⟩ conns a.getId.toString b.getId.toString out inp with
+            | .ok (⟨_, b⟩, c) =>
+              conns := c
+              instTypeMap := b
+            | .error (.outInstError s) => throwErrorAt a s
+            | .error (.inInstError s) => throwErrorAt b s
+            | .error (.portError s) => throwErrorAt (mkListNode el) s
+          | none =>
+            let a' := a.getId.toString.splitOn "."
+            let b' := b.getId.toString.splitOn "."
+            let .some a_name := a'[0]?
+              | throwErrorAt a s!"could not parse identifier {a}"
+            let .some b_name := b'[0]?
+              | throwErrorAt b s!"could not parse identifier {b}"
+            match updateConnMaps ⟨instMap, instTypeMap⟩ conns a_name b_name a'[1]? b'[1]? with
+            | .ok (⟨_, b⟩, c) =>
+              conns := c
+              instTypeMap := b
+            | .error (.outInstError s) => throwErrorAt a s
+            | .error (.inInstError s) => throwErrorAt b s
+            | .error (.portError s) => throwErrorAt (mkListNode #[a, b]) s
         | _ => pure ()
       let connExpr : Expr ←
         mkListLit (← mkAppM ``Connection #[.const ``String []]) (← conns.mapM (λ ⟨ a, b ⟩ => do
