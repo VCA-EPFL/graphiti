@@ -38,15 +38,27 @@ def map3 {α β γ σ} (f : α → β → γ → σ) (s1 : Stream α) (s2 : Stre
 variable {α : Type _}
 
 def more_defined (s1 s2 : Stream α) : Prop :=
-  ∃ s1' s2', s1 = some s1' ∧ s2 = some s2' ∧ s1'.length >= s2'.length ∧ s1'.take (s2'.length) = s2'
+  ∃ s1' s2', s1 = some s1' ∧ s2 = some s2' ∧ s1'.length > s2'.length ∧ s1'.take (s2'.length) = s2'
 
 def delay (d : α) (s : Stream α) : Stream α :=
   Option.map (d :: ·) s
+
+def delayN (d : List α) (s : Stream α) : Stream α :=
+  Option.map (d ++ ·) s
 
 def not (s : Stream Bool) : Stream Bool := s.map (!·)
 
 def and (s1 s2 : Stream Bool) : Stream Bool :=
   map2 (λ a b => a && b) s1 s2
+
+def xor (s1 s2 : Stream Bool) : Stream Bool :=
+  map2 (λ a b => Bool.xor a b) s1 s2
+
+def or (s1 s2 : Stream Bool) : Stream Bool :=
+  map2 (λ a b => Bool.or a b) s1 s2
+
+def xor3 (s1 s2 s3 : Stream Bool) : Stream Bool :=
+  map3 (λ a b c => Bool.xor (Bool.xor a b) c) s1 s2 s3
 
 def and3 (s1 s2 s3 : Stream Bool) : Stream Bool :=
   map3 (λ a b c => a && b && c) s1 s2 s3
@@ -129,7 +141,7 @@ def and_m_template : VerilogTemplate where
   module := build_local_module "and_m" (simple_interface ["in1", "in2"] ["out1"]) "assign #1 out1 = in1 & in2;"
   instantiation name inst := format_instantiation "and_m" name inst
 
-def fork_m : NatModule D :=
+def fork_m (s : String) : NatModule (Named s D) :=
   { inputs := [(0, ⟨ D, λ s tt s' => more_defined tt s ∧ s' = tt ⟩)].toAssocList,
     outputs := [(0, ⟨ D, λ s tt s' => s = s' ∧ tt = s ⟩), (1, ⟨ D, λ s tt s' => s = s' ∧ tt = s ⟩)].toAssocList
     init_state := λ s => s = default
@@ -154,7 +166,7 @@ def sink_sm := sink_m.stringify
 def and_sm := and_m.stringify
 def nand_sm (s : String := "") := (nand_m s).stringify
 def nand3_sm := nand3_m.stringify
-def fork_sm := fork_m.stringify
+def fork_sm (s : String := "") := (fork_m s).stringify
 def fork3_sm := fork3_m.stringify
 
 def env : IdentMap String VerilogTemplate :=
@@ -413,5 +425,213 @@ theorem refines :
 end Refinement
 
 end FlipFlop
+
+namespace HalfAdder
+
+/--
+Equivalent to just xor.
+-/
+def half_adder_s := [graphEnv|
+    a [type="io"];
+    b [type="io"];
+    s [type="io"];
+
+    n1 [type="nand_m_1", typeImp=$(⟨_, nand_sm "nand_1"⟩)];
+    n2 [type="nand_m_2", typeImp=$(⟨_, nand_sm "nand_2"⟩)];
+    n3 [type="nand_m_3", typeImp=$(⟨_, nand_sm "nand_3"⟩)];
+    n4 [type="nand_m_4", typeImp=$(⟨_, nand_sm "nand_4"⟩)];
+
+    a_f [type="fork_m_1", typeImp=$(⟨_, fork_sm "a_f"⟩)];
+    b_f [type="fork_m_2", typeImp=$(⟨_, fork_sm "b_f"⟩)];
+    n1_f [type="fork_m_3", typeImp=$(⟨_, fork_sm "n1_f"⟩)];
+
+    a -> a_f [to="in1"];
+    b -> b_f [to="in1"];
+    n1 -> n1_f [from="out1",to="in1"];
+
+    a_f -> n1 [from="out2",to="in1"];
+    b_f -> n1 [from="out1",to="in2"];
+    a_f -> n2 [from="out1",to="in1"];
+    b_f -> n3 [from="out2",to="in2"];
+
+    n1_f -> n2 [from="out1",to="in2"];
+    n1_f -> n3 [from="out2",to="in1"];
+
+    n2 -> n4 [from="out1",to="in1"];
+    n3 -> n4 [from="out1",to="in2"];
+
+    n4 -> s [from="out1"];
+  ]
+
+def half_adder_s_lowered := half_adder_s.1.lower_TR |>.get rfl
+
+def xor_with_delay : StringModule (D × D) where
+  inputs := [ (↑"a", ⟨ D, λ s tt s' => more_defined tt s.1 ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩)
+            , (↑"b", ⟨ D, λ s tt s' => more_defined tt s.2 ∧ s'.2 = tt ∧ s'.1 = s.1 ⟩)
+            ].toAssocList
+  outputs := [ (↑"s", ⟨ D, λ s tt s' => tt = delayN [false, false, false, false] (s.1.xor s.2) ∧ s = s' ⟩)].toAssocList
+  internals := []
+  init_state s := s = (.some [], .some [])
+
+def env := half_adder_s.2
+
+@[drenv] theorem find?_nand1_m : (Batteries.AssocList.find? "nand_m_1" env) = .some ⟨_, nand_sm "nand_1"⟩ := rfl
+@[drenv] theorem find?_nand2_m : (Batteries.AssocList.find? "nand_m_2" env) = .some ⟨_, nand_sm "nand_2"⟩ := rfl
+@[drenv] theorem find?_nand3_m : (Batteries.AssocList.find? "nand_m_3" env) = .some ⟨_, nand_sm "nand_3"⟩ := rfl
+@[drenv] theorem find?_nand4_m : (Batteries.AssocList.find? "nand_m_4" env) = .some ⟨_, nand_sm "nand_4"⟩ := rfl
+@[drenv] theorem find?_fork1_m : (Batteries.AssocList.find? "fork_m_1" env) = .some ⟨_, fork_sm "a_f"⟩ := rfl
+@[drenv] theorem find?_fork2_m : (Batteries.AssocList.find? "fork_m_2" env) = .some ⟨_, fork_sm "b_f"⟩ := rfl
+@[drenv] theorem find?_fork3_m : (Batteries.AssocList.find? "fork_m_3" env) = .some ⟨_, fork_sm "n1_f"⟩ := rfl
+
+seal env in
+def_module half_adder_m_t : Type :=
+  [T| half_adder_s_lowered, env.find? ]
+reduction_by
+  dsimp [half_adder_s_lowered]
+  dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
+  dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
+  dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
+  simp only [drenv]
+  dsimp
+
+seal env in
+def_module half_adder_m : StringModule half_adder_m_t :=
+  [e| half_adder_s_lowered, env.find? ]
+reduction_by
+       dsimp [half_adder_s_lowered]
+       (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
+        dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
+        dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
+        rw [rw_opaque (by simp only [drenv]; rfl)]; dsimp
+        dsimp [Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts, Module.mapInputPorts, reduceAssocListfind?]
+        simp (disch := decide) only [AssocList.bijectivePortRenaming_invert]
+        dsimp [Module.product]
+        dsimp only [reduceModuleconnect'2]
+        dsimp only [reduceEraseAll]
+        dsimp; dsimp [reduceAssocListfind?]
+
+        unfold Module.connect''
+        dsimp [toString]
+        )
+
+instance : MatchInterface half_adder_m xor_with_delay := by
+  dsimp [half_adder_m, xor_with_delay]
+  solve_match_interface
+
+axiom φ : half_adder_m_t → (D × D) → Prop
+
+theorem refines' :
+  half_adder_m ⊑_{φ} xor_with_delay := by sorry
+
+theorem refines :
+  half_adder_m ⊑ xor_with_delay := by sorry
+
+end HalfAdder
+
+namespace FullAdder
+
+def half_adder_m (s : String := "") : StringModule (Named s (D × D)) :=
+  { inputs := [(↑"a", ⟨ Named s!"{s}.a" D, λ s tt s' => more_defined tt s.1 ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
+               (↑"b", ⟨ Named s!"{s}.b" D, λ s tt s' => more_defined tt s.2 ∧ s'.2 = tt ∧ s'.1 = s.1 ⟩)].toAssocList,
+    outputs := [ (↑"s", ⟨ Named s!"{s}.s" D, λ s tt s' => s = s' ∧ tt = delay false (xor s.1 s.2) ⟩)
+               , (↑"c", ⟨ Named s!"{s}.c" D, λ s tt s' => s = s' ∧ tt = delay false (and s.1 s.2) ⟩)].toAssocList
+    init_state := λ s => s = default
+  }
+
+def or_m (s : String := "") : StringModule (D × D) :=
+  { inputs := [(↑"a", ⟨ D, λ s tt s' => more_defined tt s.1 ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
+               (↑"b", ⟨ D, λ s tt s' => more_defined tt s.2 ∧ s'.2 = tt ∧ s'.1 = s.1 ⟩)].toAssocList,
+    outputs := [(↑"c", ⟨ D, λ s tt s' => s = s' ∧ tt = delay false (and s.1 s.2) ⟩)].toAssocList
+    init_state := λ s => s = default
+  }
+
+def adcb (a b c : D) : D × D :=
+  (map3 (fun x y z => (BitVec.adcb x y z).1) a b c, map3 (fun x y z => (BitVec.adcb x y z).2) a b c)
+
+def full_adder_spec_m (s : String := "") : StringModule (Named s (D × D × D)) :=
+  { inputs := [(↑"a", ⟨ Named s!"{s}.a" D, λ s tt s' => more_defined tt s.1 ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
+               (↑"b", ⟨ Named s!"{s}.b" D, λ s tt s' => more_defined tt s.2.1 ∧ s'.2.1 = tt ∧ s'.1 = s.1 ∧ s'.2.2 = s.2.2 ⟩),
+               (↑"cin", ⟨ Named s!"{s}.c" D, λ s tt s' => more_defined tt s.2.2 ∧ s'.2.2 = tt ∧ s'.1 = s.1 ∧ s'.2.1 = s.2.1 ⟩)].toAssocList,
+    outputs := [ (↑"s", ⟨ Named s!"{s}.s" D, λ s tt s' => s = s' ∧ tt = delay false (adcb s.1 s.2.1 s.2.2).2 ⟩)
+               , (↑"cout", ⟨ Named s!"{s}.c" D, λ s tt s' => s = s' ∧ tt = delay false (adcb s.1 s.2.1 s.2.2).1 ⟩)].toAssocList
+    init_state := λ s => s = default
+  }
+
+/--
+Equivalent to just xor.
+-/
+def full_adder_s := [graphEnv|
+    a [type="io"];
+    b [type="io"];
+    cin [type="io"];
+    s [type="io"];
+    cout [type="io"];
+
+    ha1 [type="ha_1", typeImp=$(⟨_, half_adder_m "ha_1"⟩)];
+    ha2 [type="ha_2", typeImp=$(⟨_, half_adder_m "ha_2"⟩)];
+    or [type="or", typeImp=$(⟨_, or_m⟩)];
+
+    a -> ha1 [to="a"];
+    b -> ha1 [to="b"];
+    cin -> ha2 [to="a"];
+    ha1 -> ha2 [from="s",to="b"];
+    ha2 -> s [from="s"];
+    ha2 -> or [from="c",to="a"];
+    ha1 -> or [from="c",to="b"];
+    or -> cout [from="c"];
+  ]
+
+def full_adder_s_lowered := full_adder_s.1.lower_TR |>.get rfl
+
+def env := full_adder_s.2
+
+@[drenv] theorem find?_nand1_m : (Batteries.AssocList.find? "ha_1" env) = .some ⟨_, half_adder_m "ha_1"⟩ := rfl
+@[drenv] theorem find?_nand2_m : (Batteries.AssocList.find? "ha_2" env) = .some ⟨_, half_adder_m "ha_2"⟩ := rfl
+@[drenv] theorem find?_nand3_m : (Batteries.AssocList.find? "or" env) = .some ⟨_, or_m⟩ := rfl
+
+seal env in
+def_module full_adder_imp_t : Type :=
+  [T| full_adder_s_lowered, env.find? ]
+reduction_by
+  dsimp [full_adder_s_lowered]
+  dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
+  dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
+  dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
+  simp only [drenv]
+  dsimp
+
+seal env in
+def_module full_adder_imp : StringModule full_adder_imp_t :=
+  [e| full_adder_s_lowered, env.find? ]
+reduction_by
+       dsimp [full_adder_s_lowered]
+       (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
+        dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
+        dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
+        rw [rw_opaque (by simp only [drenv]; rfl)]; dsimp
+        dsimp [Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts, Module.mapInputPorts, reduceAssocListfind?]
+        simp (disch := decide) only [AssocList.bijectivePortRenaming_invert]
+        dsimp [Module.product]
+        dsimp only [reduceModuleconnect'2]
+        dsimp only [reduceEraseAll]
+        dsimp; dsimp [reduceAssocListfind?]
+
+        unfold Module.connect''
+        dsimp [toString]
+        )
+
+instance : MatchInterface full_adder_imp full_adder_spec_m := by
+  dsimp [full_adder_imp,full_adder_spec_m]
+  solve_match_interface
+
+axiom φ : full_adder_imp_t → (D × D × D) → Prop
+
+theorem refines' :
+  full_adder_imp ⊑_{φ} full_adder_spec_m := by sorry
+
+theorem refines :
+  full_adder_imp ⊑ full_adder_spec_m := by sorry
+
+end FullAdder
 
 end Graphiti.CombModule
