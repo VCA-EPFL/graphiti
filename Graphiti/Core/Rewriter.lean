@@ -815,6 +815,10 @@ def defaultMatcher.impl {α} [Inhabited α] (cmp : α → α → Bool) (pat g : 
       let (curr1_inst, curr1_typ) ← pat.modules.find? curr.1
       let (curr2_inst, curr2_typ) ← g.modules.find? curr.2
       unless cmp curr1_typ curr2_typ do .none
+      unless curr1_inst.input.keysList.length == curr2_inst.input.keysList.length do .none
+      unless curr1_inst.output.keysList.length == curr2_inst.output.keysList.length do .none
+      unless (curr1_inst.input.keysList.inter curr2_inst.input.keysList).length == curr2_inst.input.keysList.length do .none
+      unless (curr1_inst.output.keysList.inter curr2_inst.output.keysList).length == curr2_inst.output.keysList.length do .none
       let state' := (state.1.cons curr.2, state.2.cons curr2_typ)
       let worklist' ← curr1_inst.input.toList.foldlM (λ wl a => do
           if pat.portIsIO a.2 then return wl
@@ -914,9 +918,9 @@ structure RewriteHigh (Ident Typ : Type _) where
   rhs : Vector Typ params → Typ → ExprHigh Ident Typ
   well_formed : ∀ [Inhabited Typ], params = (getStructure lhs).modules.length := by intros; rfl
   predicate : Vector (Node Ident Typ) params → Bool := fun _ => True
-  name : Option String := .none
+  name : String := by exact (toString decl_name%)
 
 def RewriteHigh.lower {Typ} [Inhabited Typ] [FuzzyCompare Typ] (rw : RewriteHigh String Typ) : Rewrite String Typ :=
-  create_rewrite (rw.name.getD "unnamed") rw.lhs rw.rhs rw.predicate FuzzyCompare.cmp rw.well_formed
+  create_rewrite rw.name rw.lhs rw.rhs rw.predicate FuzzyCompare.cmp rw.well_formed
 
 end Graphiti
