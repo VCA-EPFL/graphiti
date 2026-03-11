@@ -1,5 +1,5 @@
 /-
-Copyright (c) 2025 VCA Lab, EPFL. All rights reserved.
+Copyright (c) 2025-2026 VCA Lab, EPFL. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
@@ -15,7 +15,7 @@ import Graphiti.Core.Dataflow.JSLang
 
 open Batteries (AssocList)
 
-namespace Graphiti.CombModule
+namespace Graphiti.CFG
 
 @[simp] abbrev Val := Int
 @[simp] abbrev Reg := Nat
@@ -256,6 +256,22 @@ deriving Repr, Lean.ToJson, Lean.FromJson, Inhabited
 def Program: Type := Std.TreeMap String Function
 deriving Repr, Lean.ToJson, Lean.FromJson, Inhabited
 
+inductive TupOperation where
+| take (n: Nat)
+| drop (n: Nat)
+| at (n : Nat)
+| set (n: Nat)
+| append
+deriving Repr, Inhabited, Lean.ToJson, Lean.FromJson, DecidableEq
+
+instance : ToString TupOperation where
+  toString
+  | .take (n: Nat) => s!"take {n}"
+  | .drop (n: Nat) => s!"drop {n}"
+  | .append => s!"append"
+  | .at (n : Nat) => s!"at {n}"
+  | .set (n: Nat) => s!"set {n}"
+
 inductive Component where
 | merge
 | branch
@@ -264,7 +280,9 @@ inductive Component where
 | join
 | split
 | queue
+| sink
 | exit
+| tuple (l : TupOperation)
 | op (o : Operation)
 | cond (o : Condition)
 deriving Repr, Inhabited, Lean.ToJson, Lean.FromJson, DecidableEq
@@ -281,16 +299,24 @@ instance : ToString Component where
   | .queue => "queue"
   | .exit => "exit"
   | .join => "join"
+  | .sink => "sink"
+  | .tuple l => s!"tuple {l}"
 
 inductive RW where
 | reads (l : List Reg)
 | writes (l : List Reg)
+| readsN (l : List Reg)
+| writesN (l : List Reg)
 deriving Repr, Inhabited, Lean.ToJson, Lean.FromJson, DecidableEq
 
 instance : ToString RW where
   toString
   | .reads l => s!"reads {l}"
   | .writes l => s!"writes {l}"
+  -- [2, 3, 4, 5].foldl (fun (st : Σ T, T) x => ⟨st.1 × Nat, (st.2, x)⟩) ⟨_, 1⟩ |>.2
+  -- Actually they output a list of values
+  | .readsN l => s!"readsN {l}"
+  | .writesN l => s!"writesN {l}"
 
 inductive DFGandCFG where
 | cfg (i : Instruction)
@@ -311,34 +337,47 @@ instance : JSType DFGandCFG where
 
 def DFGandCFG.compare (a b : DFGandCFG) : Bool :=
   match a, b with
-  | .cfg a, .cfg b
-  | .dfg a, .dfg b => a == b
   | .rw (.reads _), .rw (.reads _) => true
   | .rw (.writes _), .rw (.writes _) => true
+  | .rw (.readsN _), .rw (.readsN _) => true
+  | .rw (.writesN _), .rw (.writesN _) => true
+  | .dfg (.op _), .dfg (.op _) => true
+  | .dfg (.cond _), .dfg (.cond _) => true
+  | .dfg (.tuple _), .dfg (.tuple _) => true
+  | .cfg (.Iop _ _ _ _), .cfg (.Iop _ _ _ _) => true
+  | .cfg (.Inop _), .cfg (.Inop _) => true
+  | .cfg (.Icond _ _ _ _), .cfg (.Icond _ _ _ _) => true
+  | .cfg a, .cfg b
+  | .dfg a, .dfg b => a == b
   | _, _ => false
 
 instance : FuzzyCompare DFGandCFG where
   cmp := DFGandCFG.compare
 
-def typeToDFGandCFG : String × Nat → DFGandCFG
-| ("merge", _) => .dfg .merge
-| ("split", _) => .dfg .split
-| ("fork2", _) => .dfg .fork
-| ("fork1", _) => .dfg .fork
-| ("fork3", _) => .dfg .fork
-| ("fork4", _) => .dfg .fork
-| ("branch", _) => .dfg .branch
-| ("Read", n) => .rw (.reads [n])
-| ("Write", n) => .rw (.writes [n])
-| ("Ccomp Cne", _) => .dfg (.cond (.Ccomp .Cne))
-| ("Omove", _) => .dfg .queue
-| ("Inop", _) => .dfg .queue
-| ("Omod", _) => .dfg (.op .Omod)
-| ("Ireturn", n) => .cfg (.Ireturn (.some n))
-| _ => .cfg (.Ireturn .none)
+def typeToDFGandCFG : String × Nat → Option DFGandCFG
+| ("merge", _) => .some <| .dfg .merge
+| ("split", _) => .some <| .dfg .split
+| ("sink", _) => .some <| .dfg .sink
+| ("fork2", _) => .some <| .dfg .fork
+| ("fork1", _) => .some <| .dfg .fork
+| ("fork3", _) => .some <| .dfg .fork
+| ("fork4", _) => .some <| .dfg .fork
+| ("join", _) => .some <| .dfg .join
+| ("pure", _) => .some <| .dfg .pure
+| ("branch", _) => .some <| .dfg .branch
+| ("Read", n) => .some <| .rw (.reads [n])
+| ("Write", n) => .some <| .rw (.writes [n])
+| ("Ccomp Cne", _) => .some <| .dfg (.cond (.Ccomp .Cne))
+| ("Omove", _) => .some <| .dfg .queue
+| ("Inop", _) => .some <| .dfg .queue
+| ("Omod", _) => .some <| .dfg (.op .Omod)
+| ("Ireturn", n) => .some <| .cfg (.Ireturn (.some n))
+| _ => .none
 
-def toDFGandCFG (e : ExprHigh String (String × Nat)) : ExprHigh String DFGandCFG :=
-  ⟨e.modules.mapVal (fun k v => (v.1, typeToDFGandCFG v.2)), e.connections⟩
+def toDFGandCFG (e : ExprHigh String (String × Nat)) : Option (ExprHigh String DFGandCFG) := do
+  let m ← e.modules.toList.mapM (fun (k, v) => typeToDFGandCFG v.2 >>= fun f => (k, (v.1, f)))
+  return ⟨m.toAssocList, e.connections⟩
+
 
 abbrev CCCFG := ExprHigh String DFGandCFG
 
@@ -389,6 +428,14 @@ def PortMap.generate (name label : String) (n : Nat) : PortMap String (InternalP
 
 def PortMapping.generate (name : String) (inp out : Nat) : PortMapping String :=
   ⟨PortMap.generate name "in" inp, PortMap.generate name "out" out⟩
+
+def PortMap.generateTop (name label : String) (n : Nat) : PortMap String (InternalPort String) :=
+  List.range n
+  |>.map (fun i => (⟨.top, label ++ toString (i+1)⟩, ⟨.top, name ++ toString (i+1)⟩))
+  |>.toAssocList
+
+def PortMapping.generateTop (inp out : Nat) : PortMapping String :=
+  ⟨PortMap.generateTop "i" "in" inp, PortMap.generateTop "o" "out" out⟩
 
 def connectMaybeWithMerge (graph : CFG) (out inp : Port) : CFG :=
   match isInputConnected? graph inp with
@@ -534,8 +581,6 @@ def toSVG {α} [ToString α] [Repr α] (file : String) (graph : ExprHigh String 
 #eval toSVG "random" graph
 #eval toSVG "cccfg" cccfg
 
-namespace Rewrites
-
 namespace RWNotEQ
 
 variable (T : Vector Nat 2)
@@ -591,7 +636,7 @@ def rewrite : Rewrite String (String × Nat) where
   params := _
   pattern := defaultMatcher (cmp := fun a b => a.1 == b.1) (pred := fun v => v[0].type.2 != v[2].type.2) (lhs_extract #v[0, 0]).fst
   rewrite := λ l n => ⟨lhsLower #v[l[0].2, l[2].2], rhsLower #v[l[0].2, l[2].2]⟩
-  name := "RWEQ"
+  name := "RWNotEQ"
   transformedNodes := [findRhs "write" |>.get!, findRhs "fork" |>.get!, findRhs "read" |>.get!]
 
 end RWNotEQ
@@ -918,6 +963,8 @@ def forkAssoc (s : String) : Rewrite String DFGandCFG :=
 def extractList : DFGandCFG → List Nat
 | .rw (.reads l) => l
 | .rw (.writes l) => l
+| .rw (.readsN l) => l
+| .rw (.writesN l) => l
 | _ => []
 
 def combineReads : Rewrite String DFGandCFG :=
@@ -970,24 +1017,68 @@ instance : Functor RWTree where
 instance {α : Type _} : Append (RWTree α) where
   append a b := .seq a b
 
-def RWTree.execFuel {α β i} (runSingle : β → Rewrite i α → RewriteResult i α β) (fuel : Nat)
-    (g : β) : RWTree (Rewrite i α) → RewriteResult i α β
+def getVal {β} : Sum β β → β
+| .inl g => g
+| .inr g => g
+
+def toInL {β} : Sum β β → Sum β β
+| .inl g => .inl g
+| .inr g => .inl g
+
+def toInR {β} : Sum β β → Sum β β
+| .inl g => .inr g
+| .inr g => .inr g
+
+def RWTree.execFuel {α β i} (runSingle : β → Rewrite i α → RewriteResult i α (Sum β β)) (fuel : Nat)
+    (g : β) : RWTree (Rewrite i α) → RewriteResult i α (Sum β β)
 | base r => runSingle g r
-| seq r1 r2 => r1.execFuel runSingle fuel g >>= r2.execFuel runSingle fuel
+| seq r1 r2 => fun s =>
+  match r1.execFuel runSingle fuel g s with
+  | .error e s' => .error e s'
+  | .ok (.inl g') s' => (toInL <$> r2.execFuel runSingle fuel g') s'
+  | .ok (.inr g') s' => r2.execFuel runSingle fuel g' s'
 | par r1 r2 => fun s =>
   match r1.execFuel runSingle fuel g s with
-  | .error .done _ => r2.execFuel runSingle fuel g s
+  | .error _ _ => r2.execFuel runSingle fuel g s
   | x => x
 | fix r => fun s =>
   match r.execFuel runSingle fuel g s with
   | .error e s' => .error e s'
-  | .ok g' s' =>
+  | .ok (.inl g') s' =>
     match fuel with
-    | fuel'+1 => (RWTree.fix r).execFuel runSingle fuel' g' s'
+    | fuel'+1 => (toInL <$> (RWTree.fix r).execFuel runSingle fuel' g') s'
     | _ => .error (.error "ran out of fuel") s'
+  | .ok (.inr g') s' => .ok (.inr g') s'
 
-def RWTree.exec {α} [DecidableEq α] [Repr α] (g : ExprHigh String α) (r : RWTree (Rewrite String α)) : RewriteResult' String α ExprHigh :=
-  r.execFuel Rewrite.run' 100000 g
+def computeOverSum {β α a b} (f : β → α → RewriteResult a b β) : β → α → RewriteResult a b (Sum β β) :=
+  fun a b s =>
+    match f a b s with
+    | .ok x y => .ok (.inl x) y
+    | .error .done y => .ok (.inr a) y
+    | .error x y => .error x y
+
+def computeUnderSum {β} {γ : Type _ → Type _} [Functor γ] (f : β → γ (Sum β β)) : β → γ β :=
+  fun a => getVal <$> f a
+
+def RWTree.exec {α} [DecidableEq α] [Repr α] (g : ExprHigh String α) (r : RWTree (Rewrite String α))
+    : RewriteResult' String α ExprHigh :=
+  (computeUnderSum <| r.execFuel (computeOverSum Rewrite.run') 100000) g
+
+def rewriteAndUpd {α β} [DecidableEq β] [Repr β] (upd : AssocList String (Option String) → α → RewriteResult String β α) (ru : ExprHigh String β × α) (rw : Rewrite String β)
+  : RewriteResult String β (ExprHigh String β × α) := do
+  let g' ← rw.run' ru.1
+  let st' ← update_state upd ru.2
+  return (g', st')
+
+def RWTree.execUpd {α β} [DecidableEq α] [Repr α]
+    (upd : AssocList String (Option String) → β → RewriteResult String α β) (r : RWTree (Rewrite String α)) :=
+  (computeUnderSum <| r.execFuel (computeOverSum (rewriteAndUpd upd)) 100000)
+
+def _root_.List.toRWTreeFix {α} (l : List α) : Option (RWTree α) :=
+  match l with
+  | [] => .none
+  | x :: xs =>
+    .some <| xs.map (RWTree.fix <| .base ·) |>.foldl (· ++ ·) (.fix <| .base x)
 
 /--
 Removes a node from the graph, creating a hole, returning the port mapping for that hole, which will either point to IO
@@ -1048,10 +1139,12 @@ def pokeAllPures {Typ} (isPure : Typ → Bool) (e : ExprHigh String Typ) : Optio
   let v ← allPures.foldlM (fun st p => pokeHole p st.1 >>= fun (g', pm) => pure (g', st.2.concat pm)) (e, [])
   return (v.1, (allPures.zip v.2).toAssocList)
 
-def findNodesFromPures {Typ} [Inhabited Typ] (cmp : Typ → Typ → Bool) (isPure : Typ → Bool) (pat g : ExprHigh String Typ)
+def findNodesFromPures {Typ} [Inhabited Typ] [ToString Typ] [Repr Typ] (cmp : Typ → Typ → Bool) (isPure : Typ → Bool) (pat g : ExprHigh String Typ)
     : RewriteResultSL (AssocList String GraphSlice) := do
   let new_pat ← pokeAllPures isPure pat |>.toExcept (.error "could not remove all pures")
-  let (l, _) ← (defaultMatcher (cmp := cmp) new_pat.1) g
+  let (l, _) ← match (defaultMatcher (cmp := cmp) new_pat.1) g with
+                | .error .done => .error (.error s!"could not match poked graph: {new_pat.1}")
+                | x => x
   let ms ← new_pat.2.toList.foldlM (fun st (k, el) => do
       let out ← el.input.find? ⟨.top, "in1"⟩ |>.toExcept (.error "could not find input in pure")
       let inp ← el.output.find? ⟨.top, "out1"⟩ |>.toExcept (.error "could not find output in pure")
@@ -1071,7 +1164,7 @@ def regionToNodes {Typ} [Inhabited Typ] (g : ExprHigh String Typ) (r : GraphSlic
 def regionToJSLang {Typ} [Inhabited Typ] [JSType Typ] (g : ExprHigh String Typ) (r : GraphSlice) : Option JSLang := do
   let fend ← followIO g r.regEnd.1 r.regEnd.2.2
   let succ ← calcSucc g.invert
-  JSLang.construct 10000 (JSLang.ofNNHashMap succ) r.regStart.1 ⟨fend.inst, default, default, default⟩
+  JSLang.construct 10000 (JSLang.ofNNHashMap succ) r.regStart.1 ⟨fend.inst, fend.typ, default, default⟩
 
 def pat :=
   ([graphv2|
@@ -1101,8 +1194,8 @@ def g :=
 
      fork_ [type=$(.dfg .fork)];
      read1_ [type=$(.dfg .split)];
-     extra_ [type=$(.dfg .pure)];
-     extra2_ [type=$(.dfg .pure)];
+     extra_ [type=$(.dfg (.op default))];
+     extra2_ [type=$(.dfg (.op default))];
      extra3_ [type=$(.dfg .join)];
      forkB_ [type=$(.dfg .fork)];
      read2_ [type=$(.rw (.reads []))];
@@ -1150,7 +1243,7 @@ def pat'_norm := normalizeIOPorts pat'
 /- #eval extendWithDFS DFGandCFG.compare pat' ⟨.internal "fork", "out1"⟩ ⟨.internal "forkB", "in1"⟩ g -/
 #eval (defaultMatcher (cmp := DFGandCFG.compare) pat') g
 
-def reg := (findNodesFromPures DFGandCFG.compare (· == .dfg .pure) pat g) |>.toOption |>.get! |>.find? "read1" |>.get!
+def reg := (findNodesFromPures DFGandCFG.compare JSType.isPure pat g) |>.toOption |>.get! |>.find? "read1" |>.get!
 #eval reg
 
 def reg2 := findNodesFromPures DFGandCFG.compare (· == .dfg .pure) pat g2 |>.toOption |>.get! |>.find? "read1" |>.get!
@@ -1159,89 +1252,151 @@ def reg2 := findNodesFromPures DFGandCFG.compare (· == .dfg .pure) pat g2 |>.to
 #eval regionToNodes g reg
 #eval IO.println (regionToJSLang g reg |>.get! |>.elimPure |>.toSExpr)
 
-/--
-This seems to be the algo, but why? Who knows
--/
-def nodesToPure (l : List String) : RWTree (Rewrite String DFGandCFG) := sorry
-def moveForkUp (l : List String) : RWTree (Rewrite String DFGandCFG) := sorry
-def forkToPure (l : List String) : RWTree (Rewrite String DFGandCFG) := sorry
-
-def runWithPure (pureGen : ExprHigh String DFGandCFG → GraphSlice → RewriteResult' String DFGandCFG ExprHigh)
-  (rw : RewriteHigh String DFGandCFG) (g : ExprHigh String DFGandCFG) : RewriteResult' String DFGandCFG ExprHigh := do
-  let l ← findNodesFromPures FuzzyCompare.cmp JSType.isPure (getStructure rw.lhs) g |>.runWithState
-  let g' ← l.toList.foldlM (fun g x => pureGen g x.2) g
-  rw.lower.run' g'
-
-def preprocessPureRegion (g : ExprHigh String DFGandCFG) (l : List String) : RewriteResult' String DFGandCFG ExprHigh :=
-  (nodesToPure l).exec g >>= (moveForkUp l).exec >>= (forkToPure l).exec
-
-local instance {α} : MonadExcept IO.Error (RewriteResult String α) where
-  throw e := throw <| .error <| toString e
-  tryCatch m h := throw (.error "Cannot catch IO.Error")
-
-def runEgg (js : JSLang) : RewriteResult String DFGandCFG (List JSLangRewrite) := ofExcept <| unsafe unsafeIO do
-  let out ← runCommandWithStdin "graphiti_oracle" #[] (toString js.toSExpr)
-  IO.ofExcept <| parseRewrites out.stdout
-
 def DFGandCFG.JoinAssocL.rewrite : RewriteHigh String DFGandCFG where
   params := _
-  lhs := fun _ _ => toDFGandCFG (JoinAssocL.lhs default)
-  rhs := fun _ _ => toDFGandCFG (JoinAssocL.rhs default)
+  lhs := fun _ _ => toDFGandCFG (JoinAssocL.lhs_extract default).1 |>.get rfl
+  rhs := fun _ _ => toDFGandCFG (JoinAssocL.rhs_extract default).1 |>.get rfl
+  name := "join-assoc-l"
 
 def DFGandCFG.JoinAssocR.rewrite : RewriteHigh String DFGandCFG where
   params := _
-  lhs := fun _ _ => toDFGandCFG (JoinAssocR.lhs default)
-  rhs := fun _ _ => toDFGandCFG (JoinAssocR.rhs default)
+  lhs := fun _ _ => toDFGandCFG (JoinAssocR.lhs_extract default).1 |>.get rfl
+  rhs := fun _ _ => toDFGandCFG (JoinAssocR.rhs_extract default).1 |>.get rfl
+  name := "join-assoc-r"
 
 def DFGandCFG.JoinComm.rewrite : RewriteHigh String DFGandCFG where
   params := _
-  lhs := fun _ _ => toDFGandCFG (JoinComm.lhs default)
-  rhs := fun _ _ => toDFGandCFG (JoinComm.rhs default)
+  lhs := fun _ _ => toDFGandCFG (JoinComm.lhs_extract default).1 |>.get rfl
+  rhs := fun _ _ => toDFGandCFG (JoinComm.rhs_extract default).1 |>.get rfl
+  name := "join-comm"
 
 def DFGandCFG.JoinSplitElim.rewrite : RewriteHigh String DFGandCFG where
   params := _
-  lhs := fun _ _ => toDFGandCFG (JoinSplitElim.lhs default)
-  rhs := fun _ _ => toDFGandCFG (JoinSplitElim.rhs default)
+  lhs := fun _ _ => toDFGandCFG (JoinSplitElim.lhs_extract default).1 |>.get rfl
+  rhs := fun _ _ => toDFGandCFG (JoinSplitElim.rhs_extract default).1 |>.get rfl
+  name := "join-split-elim"
 
 def DFGandCFG.PureSeqComp.rewrite : RewriteHigh String DFGandCFG where
   params := _
-  lhs := fun _ _ => toDFGandCFG (PureSeqComp.lhs default)
-  rhs := fun _ _ => toDFGandCFG (PureSeqComp.rhs default)
+  lhs := fun _ _ => toDFGandCFG (PureSeqComp.lhs_extract default).1 |>.get rfl
+  rhs := fun _ _ => toDFGandCFG (PureSeqComp.rhs default) |>.get rfl
+  name := "pure-seq-comp"
 
 def DFGandCFG.PureJoinLeft.rewrite : RewriteHigh String DFGandCFG where
   params := _
-  lhs := fun _ _ => toDFGandCFG (PureJoinLeft.lhs default)
-  rhs := fun _ _ => toDFGandCFG (PureJoinLeft.rhs default)
+  lhs := fun _ _ => toDFGandCFG (PureJoinLeft.lhs_extract default).1 |>.get rfl
+  rhs := fun _ _ => toDFGandCFG (PureJoinLeft.rhs_extract default).1 |>.get rfl
+  name := "pure-join-left"
 
 def DFGandCFG.PureJoinRight.rewrite : RewriteHigh String DFGandCFG where
   params := _
-  lhs := fun _ _ => toDFGandCFG (PureJoinRight.lhs default)
-  rhs := fun _ _ => toDFGandCFG (PureJoinRight.rhs default)
+  lhs := fun _ _ => toDFGandCFG (PureJoinRight.lhs_extract default).1 |>.get rfl
+  rhs := fun _ _ => toDFGandCFG (PureJoinRight.rhs_extract default).1 |>.get rfl
+  name := "pure-join-right"
 
 def DFGandCFG.PureSplitRight.rewrite : RewriteHigh String DFGandCFG where
   params := _
-  lhs := fun _ _ => toDFGandCFG (PureSplitRight.lhs default)
-  rhs := fun _ _ => toDFGandCFG (PureSplitRight.rhs default)
+  lhs := fun _ _ => toDFGandCFG (PureSplitRight.lhs_extract default).1 |>.get rfl
+  rhs := fun _ _ => toDFGandCFG (PureSplitRight.rhs_extract default).1 |>.get rfl
+  name := "pure-split-right"
 
 def DFGandCFG.PureSplitLeft.rewrite : RewriteHigh String DFGandCFG where
   params := _
-  lhs := fun _ _ => toDFGandCFG (PureSplitLeft.lhs default)
-  rhs := fun _ _ => toDFGandCFG (PureSplitLeft.rhs default)
+  lhs := fun _ _ => toDFGandCFG (PureSplitLeft.lhs_extract default).1 |>.get rfl
+  rhs := fun _ _ => toDFGandCFG (PureSplitLeft.rhs_extract default).1 |>.get rfl
+  name := "pure-split-left"
 
 def DFGandCFG.SplitSinkRight.rewrite : RewriteHigh String DFGandCFG where
   params := _
-  lhs := fun _ _ => toDFGandCFG (SplitSinkRight.lhs default)
-  rhs := fun _ _ => toDFGandCFG (SplitSinkRight.rhs default)
+  lhs := fun _ _ => toDFGandCFG (SplitSinkRight.lhs_extract default).1 |>.get rfl
+  rhs := fun _ _ => toDFGandCFG (SplitSinkRight.rhs_extract default).1 |>.get rfl
+  name := "split-sink-right"
 
 def DFGandCFG.SplitSinkLeft.rewrite : RewriteHigh String DFGandCFG where
   params := _
-  lhs := fun _ _ => toDFGandCFG (SplitSinkRight.lhs default)
-  rhs := fun _ _ => toDFGandCFG (SplitSinkRight.rhs default)
+  lhs := fun _ _ => toDFGandCFG (SplitSinkRight.lhs_extract default).1 |>.get rfl
+  rhs := fun _ _ => toDFGandCFG (SplitSinkRight.rhs_extract default).1 |>.get rfl
+  name := "split-sink-left"
 
 def DFGandCFG.PureSink.rewrite : RewriteHigh String DFGandCFG where
   params := _
-  lhs := fun _ _ => toDFGandCFG (PureSink.lhs default)
-  rhs := fun _ _ => toDFGandCFG (PureSink.rhs default)
+  lhs := fun _ _ => toDFGandCFG (PureSink.lhs_extract default).1 |>.get rfl
+  rhs := fun _ _ => toDFGandCFG (PureSink.rhs_extract default).1 |>.get rfl
+  name := "pure-sink"
+
+def DFGandCFG.ForkPure.rewrite : RewriteHigh String DFGandCFG where
+  params := _
+  lhs := fun _ _ => toDFGandCFG (ForkPure.lhs_extract default).1 |>.get rfl
+  rhs := fun _ _ => toDFGandCFG (ForkPure.rhs_extract default).1 |>.get rfl
+  name := "fork-pure"
+
+def DFGandCFG.ForkJoin.rewrite : RewriteHigh String DFGandCFG where
+  params := _
+  lhs := fun _ _ => toDFGandCFG (ForkJoin.lhs_extract default).1 |>.get rfl
+  rhs := fun _ _ => toDFGandCFG (ForkJoin.rhs_extract default).1 |>.get rfl
+  name := "fork-join"
+
+def DFGandCFG.ForkToPure.rewrite : RewriteHigh String DFGandCFG where
+  params := _
+  lhs := fun _ _ => toDFGandCFG (PureRewrites.Fork.lhs_extract default).1 |>.get rfl
+  rhs := fun _ _ => toDFGandCFG (PureRewrites.Fork.rhs_extract default).1 |>.get rfl
+  name := "fork-to-pure"
+
+def DFGandCFG.ForkRewrite.rewrite (n : Nat) : RewriteHigh String DFGandCFG :=
+  let lhs : ExprHigh _ _ := ⟨[("fork", (PortMapping.generateTop 1 (n+3), DFGandCFG.dfg .fork))].toAssocList, []⟩
+  let pm := PortMapping.generateTop 1 (n+2) |>.replace ⟨.top, "in1"⟩ ⟨.internal "fork1", "in1"⟩
+  let pm2 := PortMapping.generateTop 1 2 |>.replace ⟨.top, "out2"⟩ ⟨.internal "fork2", "out2"⟩
+  let rhs : ExprHigh _ _ := ⟨[("fork1", (pm, DFGandCFG.dfg .fork)), ("fork2", (pm2, DFGandCFG.dfg .fork))].toAssocList,
+    [⟨⟨.internal "fork2", "out2"⟩, ⟨.internal "fork1", "in1"⟩⟩]⟩
+  {params := 1, lhs := fun _ _ => lhs, rhs := fun _ _ => rhs, name := s!"fork-rewrite-{n}"}
+
+def getOp : DFGandCFG → Operation
+| .dfg (.op op) => op
+| _ => default
+
+def getTuple : DFGandCFG → TupOperation
+| .dfg (.tuple op) => op
+| _ => default
+
+def getIcond : DFGandCFG → Condition
+| .dfg (.cond a) => a
+| _ => default
+
+def DFGandCFG.OpToPure.rewrite (n : Nat) : RewriteHigh String DFGandCFG :=
+  let lhs (v : Vector DFGandCFG 1) : ExprHigh _ _ := ⟨[("op", (PortMapping.generateTop (n+1) 1, DFGandCFG.dfg (.op (getOp v[0]))))].toAssocList, []⟩
+  if n != 0 then
+    let pm := PortMapping.generateTop 1 1 |>.replace ⟨.top, "in1"⟩ ⟨.internal "op", "in1"⟩
+    let pm2 := PortMapping.generateTop (n+1) 1 |>.replace ⟨.top, "out1"⟩ ⟨.internal "join", "out1"⟩
+    let rhs : ExprHigh _ _ := ⟨[("op", (pm, DFGandCFG.dfg .pure)), ("join", (pm2, DFGandCFG.dfg .join))].toAssocList,
+      [⟨⟨.internal "join", "out1"⟩, ⟨.internal "op", "in1"⟩⟩]⟩
+    {params := 1, lhs := fun l _ => lhs l, rhs := fun _ _ => rhs, name := s!"op-to-pure-{n}"}
+  else
+    let rhs : ExprHigh _ _ := ⟨[("op", (PortMapping.generateTop (n+1) 1, DFGandCFG.dfg .pure))].toAssocList, []⟩
+    {params := 1, lhs := fun l _ => lhs l, rhs := fun _ _ => rhs, name := s!"op-to-pure-{n}"}
+
+def DFGandCFG.TupleToPure.rewrite (n : Nat) : RewriteHigh String DFGandCFG :=
+  let lhs (v : Vector DFGandCFG 1) : ExprHigh _ _ := ⟨[("op", (PortMapping.generateTop (n+1) 1, DFGandCFG.dfg (.tuple (getTuple v[0]))))].toAssocList, []⟩
+  if n != 0 then
+    let pm := PortMapping.generateTop 1 1 |>.replace ⟨.top, "in1"⟩ ⟨.internal "op", "in1"⟩
+    let pm2 := PortMapping.generateTop (n+1) 1 |>.replace ⟨.top, "out1"⟩ ⟨.internal "join", "out1"⟩
+    let rhs : ExprHigh _ _ := ⟨[("op", (pm, DFGandCFG.dfg .pure)), ("join", (pm2, DFGandCFG.dfg .join))].toAssocList,
+      [⟨⟨.internal "join", "out1"⟩, ⟨.internal "op", "in1"⟩⟩]⟩
+    {params := 1, lhs := fun l _ => lhs l, rhs := fun _ _ => rhs, name := s!"tup-to-pure-{n}"}
+  else
+    let rhs : ExprHigh _ _ := ⟨[("op", (PortMapping.generateTop (n+1) 1, DFGandCFG.dfg .pure))].toAssocList, []⟩
+    {params := 1, lhs := fun l _ => lhs l, rhs := fun _ _ => rhs, name := s!"tup-to-pure-{n}"}
+
+def DFGandCFG.CondToPure.rewrite (n : Nat) : RewriteHigh String DFGandCFG :=
+  let lhs (v : Vector DFGandCFG 1) : ExprHigh _ _ := ⟨[("op", (PortMapping.generateTop (n+1) 1, DFGandCFG.dfg (.cond (getIcond v[0]))))].toAssocList, []⟩
+  if n != 0 then
+    let pm := PortMapping.generateTop 1 1 |>.replace ⟨.top, "in1"⟩ ⟨.internal "op", "in1"⟩
+    let pm2 := PortMapping.generateTop (n+1) 1 |>.replace ⟨.top, "out1"⟩ ⟨.internal "join", "out1"⟩
+    let rhs : ExprHigh _ _ := ⟨[("op", (pm, DFGandCFG.dfg .pure)), ("join", (pm2, DFGandCFG.dfg .join))].toAssocList,
+      [⟨⟨.internal "join", "out1"⟩, ⟨.internal "op", "in1"⟩⟩]⟩
+    {params := 1, lhs := fun l _ => lhs l, rhs := fun _ _ => rhs, name := s!"cond-to-pure-{n}"}
+  else
+    let rhs : ExprHigh _ _ := ⟨[("op", (PortMapping.generateTop (n+1) 1, DFGandCFG.dfg .pure))].toAssocList, []⟩
+    {params := 1, lhs := fun l _ => lhs l, rhs := fun _ _ => rhs, name := s!"cond-to-pure-{n}"}
 
 def movePureJoin : RWTree (RewriteHigh String DFGandCFG) :=
   .fix (.base DFGandCFG.PureJoinLeft.rewrite)
@@ -1259,56 +1414,132 @@ def normPure : RWTree (RewriteHigh String DFGandCFG) := .fix <|
   ++ movePureJoin
   ++ reduceSink
 
+def DFGandCFG.forkRewrites := RWTree.fix <|
+  List.range 7 |>.reverse |>.map DFGandCFG.ForkRewrite.rewrite |>.toRWTreeFix |>.get rfl
+
+def nodesToPure : RWTree (RewriteHigh String DFGandCFG) :=
+  (List.range 2 |>.reverse |>.map DFGandCFG.OpToPure.rewrite)
+  ++ (List.range 2 |>.reverse |>.map DFGandCFG.CondToPure.rewrite)
+  ++ (List.range 2 |>.reverse |>.map DFGandCFG.TupleToPure.rewrite)
+  |>.toRWTreeFix |>.get rfl
+
+def moveForkUp : RWTree (RewriteHigh String DFGandCFG) := .fix <|
+  .seq (.fix (.base DFGandCFG.ForkPure.rewrite)) (.fix (.base DFGandCFG.ForkJoin.rewrite))
+
+def forkToPure : RWTree (RewriteHigh String DFGandCFG) :=
+  .fix (.base DFGandCFG.ForkToPure.rewrite)
+
+def preprocessRewrites (g : ExprHigh String DFGandCFG) (slice : GraphSlice) : RWTree (Rewrite String DFGandCFG) :=
+  (fun r => let r := r.lower; {r with pattern :=
+    (fun g =>
+      let nodes := (regionToNodes g slice |>.getD [])
+      ofOption' (.error "could not extract nodes") (g.extract nodes) >>= fun x => r.pattern x.1)})
+  <$> .seq nodesToPure (.seq moveForkUp forkToPure)
+
+def runWithPure (pureGen : ExprHigh String DFGandCFG → GraphSlice → RewriteResult' String DFGandCFG ExprHigh)
+  (rw : RewriteHigh String DFGandCFG) (g : ExprHigh String DFGandCFG) : RewriteResult' String DFGandCFG ExprHigh := do
+  let l ← findNodesFromPures FuzzyCompare.cmp JSType.isPure (getStructure rw.lhs) g |>.runWithState
+  let g' ← l.toList.foldlM (fun g x => pureGen g x.2) g
+  rw.lower.run' g'
+
+local instance {α} : MonadExcept IO.Error (RewriteResult String α) where
+  throw e := throw <| .error <| toString e
+  tryCatch m h := throw (.error "Cannot catch IO.Error")
+
+def runEgg (js : JSLang) : RewriteResult String DFGandCFG (List JSLangRewrite) := ofExcept <| unsafe unsafeIO do
+  IO.println s!"{(toString js.toSExpr)}"
+  let out ← runCommandWithStdin "graphiti_oracle" #[] (toString js.toSExpr)
+  IO.ofExcept <| parseRewrites out.stdout
+
 def mapToRewrite : JSLangRewrite → Rewrite String DFGandCFG
 | .assocL s true
 | .assocR s false => {DFGandCFG.JoinAssocL.rewrite with predicate := fun v => v[1].name == s}.lower
 | .assocR s true
 | .assocL s false => {DFGandCFG.JoinAssocR.rewrite with predicate := fun v => v[1].name == s}.lower
 | .comm s => {DFGandCFG.JoinComm.rewrite with predicate := fun v => v[0].name == s}.lower
-| .elim s => {DFGandCFG.JoinSplitElim.rewrite with predicate := fun v => v[1].name == s}.lower
+| .elim s => {DFGandCFG.JoinSplitElim.rewrite with predicate := fun v => v[0].name == s}.lower
 
-def rewriteAndUpd (ru : ExprHigh String DFGandCFG × List JSLangRewrite) (rw : Rewrite String DFGandCFG)
-  : RewriteResult String DFGandCFG (ExprHigh String DFGandCFG × List JSLangRewrite) := do
-  let g' ← rw.run' ru.1
-  let st' ← update_state JSLang.upd ru.2
-  return (g', st')
+def doneToErr {α β γ} (msg : String) (r : RewriteResult α β γ) : RewriteResult α β γ := fun s =>
+  match r.run s with
+  | .error .done s' => .error (.error msg) s'
+  | x => x
 
 def pureGenerator.impl (g : ExprHigh String DFGandCFG) : List JSLangRewrite → Nat → RewriteResult' String DFGandCFG ExprHigh
 | _, 0 => fun st => .error (.error "No fuel") st
 | [], _ => pure g
 | jsRw :: rst, fuel+1 => do
-  let rw ← rewriteAndUpd (g, rst) (mapToRewrite jsRw)
-  let (rw, rst') ← (RewriteHigh.lower <$> normPure).execFuel rewriteAndUpd 100000 rw
+  let rw ← doneToErr s!"could not apply {repr jsRw}" <| rewriteAndUpd JSLang.upd (g, rst) (mapToRewrite jsRw)
+  let (rw, rst') ← doneToErr s!"could not apply normalization for {repr jsRw}" <| (RewriteHigh.lower <$> normPure).execUpd JSLang.upd rw
   pureGenerator.impl rw rst' fuel
 
-def pureGenerator (g : ExprHigh String DFGandCFG) (ls : List JSLangRewrite) : RewriteResult' String DFGandCFG ExprHigh :=
+def pureGeneratorWithRenaming (g : ExprHigh String DFGandCFG) (ls : List JSLangRewrite) : RewriteResult' String DFGandCFG ExprHigh :=
   pureGenerator.impl g ls (ls.length+1)
+
+def pureGenerator (g : ExprHigh String DFGandCFG) : List JSLangRewrite → RewriteResult' String DFGandCFG ExprHigh
+| [] => pure g
+| jsRw :: rst => do
+  let g ← (mapToRewrite jsRw).run' g >>= (RewriteHigh.lower <$> normPure).exec
+  pureGenerator g rst
 
 def joinSplitReduction (fuel : Nat) (g : ExprHigh String DFGandCFG) (slice : GraphSlice) : RewriteResult' String DFGandCFG ExprHigh := do
   match fuel with
   | n+1 =>
     let js ← ofOption (.error "could not generate JSLang from region") <| regionToJSLang g slice
     let elimJS := js.elimPure
-    if elimJS == .I then
-      return g
     let res ← runEgg elimJS
-    pureGenerator g res
+    if res == [] then return g
+    let g' ← pureGeneratorWithRenaming g res
+    joinSplitReduction n g' slice
   | 0 => fun s => .error (.error "ran out of fuel") s
 
 def generatePure (g : ExprHigh String DFGandCFG) (slice : GraphSlice) : RewriteResult' String DFGandCFG ExprHigh := do
   let l ← ofOption (.error "could not transform region to node") <| regionToNodes g slice
-  let g' ← preprocessPureRegion g l
+  let g' ← (preprocessRewrites g slice).exec g
+  let g' ← (RewriteHigh.lower <$> normPure).exec g'
   joinSplitReduction 10000 g' slice
 
-/- new_pat.2.toList.foldlM (fun st v => ) -/
+/- def rw : RewriteHigh String DFGandCFG := {params := _, lhs := fun _ _ => pat, rhs := fun _ _ => pat} -/
 
-/- def pureToPattern {Typ} [Inhabited Typ] (cmp : Typ → Typ → Bool) (e : ExprHigh String Typ)
- -     (out inp : InternalPort String) : Pattern String Typ 0 := fun g => do -/
+/- def g3 :=
+ -   ([graphv2|
+ -      i [io];
+ -      o1 [io];
+ -      o2 [io];
+ -
+ -      fork_ [type=$(.dfg .fork)];
+ -      read1_ [type=$(.dfg .split)];
+ -      extra_ [type=$(.dfg (.op default))];
+ -      extra2_ [type=$(.dfg (.op default))];
+ -      extra3_ [type=$(.dfg .join)];
+ -      forkB_ [type=$(.dfg .fork)];
+ -      read2_ [type=$(.rw (.reads []))];
+ -
+ -      i -> fork_ [to="in1"];
+ -      fork_ -> read1_ [from="out1",to="in1"];
+ -      fork_ -> read2_ [from="out2",to="in1"];
+ -      read1_ -> extra_ [from="out1",to="in1"];
+ -      read1_ -> extra2_ [from="out2",to="in1"];
+ -      extra_ -> extra3_ [from="out1",to="in1"];
+ -      extra2_ -> extra3_ [from="out1",to="in2"];
+ -      extra3_ -> forkB_ [from="out1",to="in1"];
+ -      forkB_ -> o1 [from="out1"];
+ -      read2_ -> o2 [from="out1"];
+ -      fork_ -> forkB_ [from="out3", to="in2"];
+ -    ] : ExprHigh String DFGandCFG) -/
 
-
-/- def generatePureForMatch {β : Type}
- -   (genPureRewrites : RWTree String β)
- -   : RWTree String β := -/
+/- #eval IO.println <| g3
+ -
+ - def g' := g3.standardiseNames.get rfl
+ -
+ - #eval findNodesFromPures FuzzyCompare.cmp JSType.isPure (getStructure rw.lhs) g'
+ -
+ - def l := findNodesFromPures FuzzyCompare.cmp JSType.isPure (getStructure rw.lhs) g' |>.toOption |>.get!
+ -
+ - def x := (generatePure g' (l.find? "read1" |>.get!)).run ⟨[], 10, default⟩
+ -
+ - #eval IO.println x /- match x with | .error .done s => s | _ => panic! "Hey" -/
+ -
+ - #eval IO.println <| runWithPure generatePure rw g' ⟨[], 10, default⟩ -/
 
 /- #eval (defaultMatcher ForkSummary2.lhs_extract.fst) graph -/
 def graph_1 := (rewrite_fix [ForkSummary2.rewrite] graph).run' ⟨[], 0, ("", 0)⟩ |>.get!
@@ -1345,21 +1576,19 @@ def graph_5_int := (rewrite_fix [RWNotEQ.rewrite] graph_4).run ⟨[], 40, ("", 0
 def graph_5 := resToOption graph_5_int |>.get!
 #eval toSVG "random6" graph_5
 
-def graph_6 := toDFGandCFG graph_5
-#eval toSVG "random7" graph_6
-
-#eval! (forkAssoc "b23eebf3").pattern graph_6
-def graph_7_int := ((forkAssoc "b23eebf3").run' graph_6).run ⟨[], 50, default⟩
-def graph_7 := resToOption graph_7_int |>.get!
-#eval! toSVG "random8" graph_7
-
-#eval! combineReads.pattern graph_7
-def graph_8_int := (combineReads.run' graph_7).run ⟨[], 60, default⟩
-#eval! graph_8_int
-def graph_8 := resToOption graph_8_int |>.get!
-#eval! toSVG "random9" graph_8
-
-end Rewrites
+/- def graph_6 := toDFGandCFG graph_5
+ - #eval toSVG "random7" graph_6
+ -
+ - #eval! (forkAssoc "b23eebf3").pattern graph_6
+ - def graph_7_int := ((forkAssoc "b23eebf3").run' graph_6).run ⟨[], 50, default⟩
+ - def graph_7 := resToOption graph_7_int |>.get!
+ - #eval! toSVG "random8" graph_7
+ -
+ - #eval! combineReads.pattern graph_7
+ - def graph_8_int := (combineReads.run' graph_7).run ⟨[], 60, default⟩
+ - #eval! graph_8_int
+ - def graph_8 := resToOption graph_8_int |>.get!
+ - #eval! toSVG "random9" graph_8 -/
 
 namespace Denotation
 
@@ -1453,4 +1682,4 @@ def gcd : ExprHigh String (String × Nat) := [graph|
 
 end Example
 
-end Graphiti.CombModule
+end Graphiti.CFG
