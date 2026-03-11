@@ -246,7 +246,7 @@ def higher_correct (e : ExprLow Ident Typ) : Option (ExprHigh Ident Typ) :=
 
 end LowerToHigher
 
-def higher (e : ExprLow String String) : Option (ExprHigh String String) :=
+def higher {α} [DecidableEq α] (e : ExprLow String α) : Option (ExprHigh String α) :=
   e.higher_correct PortMapping.hashPortMapping
 
 end ExprLow
@@ -351,6 +351,12 @@ instance {α} [ToString α] [Repr α] : ToString (ExprHigh String α) where
     match a.asDot with
     | some a => a
     | none => s!"ERROR: {repr a}"
+
+/--
+Standardise the names of the nodes in the graph so that they match with what the rewriting algorithm is doing.
+-/
+def standardiseNames {α} [DecidableEq α] (grph : ExprHigh String α) :=
+  grph.lower >>= ExprLow.higher
 
 end ExprHigh
 

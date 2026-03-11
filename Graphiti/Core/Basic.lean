@@ -301,6 +301,9 @@ def mapKeys (f : InternalPort Ident → InternalPort Ident → InternalPort Iden
 def inverse (p : PortMapping Ident) :=
   {p with input := p.input.inverse, output := p.output.inverse}
 
+def replace [DecidableEq Ident] (p : PortMapping Ident) (a b : InternalPort Ident) : PortMapping Ident :=
+  ⟨p.input.replace a b, p.output.replace a b⟩
+
 variable [DecidableEq Ident]
 
 def squash (a b : PortMapping Ident) :=

@@ -51,18 +51,18 @@ def rhs : ExprHigh String (String × Nat) := [graph|
     i_1 [type = "io"];
     o_out [type = "io"];
 
-    joinN [type = "join", arg = $(M+1)];
+    join [type = "join", arg = $(M+1)];
     pure [type = "pure", arg = $(M+2)];
 
-    i_0 -> joinN [to = "in2"];
-    i_1 -> joinN [to = "in1"];
+    i_0 -> join [to = "in2"];
+    i_1 -> join [to = "in1"];
 
-    joinN -> pure [from="out1", to="in1"];
+    join -> pure [from="out1", to="in1"];
 
     pure -> o_out [from = "out1"];
   ]
 
-def rhs_extract := (rhs M).extract ["joinN", "pure"] |>.get rfl
+def rhs_extract := (rhs M).extract ["join", "pure"] |>.get rfl
 def rhsLower := (rhs_extract M).fst.lower.get rfl
 def findRhs mod := (rhs_extract 0).fst.modules.find? mod |>.map Prod.fst
 
@@ -72,7 +72,7 @@ def rewrite : Rewrite String (String × Nat) :=
     pattern := matcher
     rewrite := λ l n => ⟨lhsLower (l.map (·.2)), rhsLower n.2⟩
     name := "join-comm"
-    transformedNodes := [findRhs "joinN" |>.get rfl]
+    transformedNodes := [findRhs "join" |>.get rfl]
     addedNodes := [findRhs "pure" |>.get rfl]
     fresh_types := fun x => (x.1, x.2+2)
   }

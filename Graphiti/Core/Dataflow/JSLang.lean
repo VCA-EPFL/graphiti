@@ -108,7 +108,7 @@ inductive JSLangRewrite where
 | assocR (s : String) (dir : Bool)
 | comm (s : String)
 | elim (s : String)
-deriving Repr
+deriving Repr, DecidableEq, Inhabited
 
 def parseRewrites (s : String) : Except String (List JSLangRewrite) := do
   match ← Lean.Json.parse s with
