@@ -142,8 +142,8 @@ def and_m_template : VerilogTemplate where
   instantiation name inst := format_instantiation "and_m" name inst
 
 def fork_m (s : String) : NatModule (Named s D) :=
-  { inputs := [(0, ⟨ D, λ s tt s' => more_defined tt s ∧ s' = tt ⟩)].toAssocList,
-    outputs := [(0, ⟨ D, λ s tt s' => s = s' ∧ tt = s ⟩), (1, ⟨ D, λ s tt s' => s = s' ∧ tt = s ⟩)].toAssocList
+  { inputs := [(0, ⟨ Named s!"{s}.in1" D, λ s tt s' => more_defined tt s ∧ s' = tt ⟩)].toAssocList,
+    outputs := [(0, ⟨ Named s!"{s}.out1" D, λ s tt s' => s = s' ∧ tt = s ⟩), (1, ⟨ Named s!"{s}.out2" D, λ s tt s' => s = s' ∧ tt = s ⟩)].toAssocList
     init_state := λ s => s = default
   }
 
@@ -273,12 +273,12 @@ def et_flip_flop_m := [graphEnv|
     n5 [type="nand_m4", typeImp = $(⟨_, nand_sm "nand4"⟩)];
     n6 [type="nand_m5", typeImp = $(⟨_, nand_sm "nand5"⟩)];
 
-    clkF [type="fork_m", typeImp = $(⟨_, fork_sm⟩)];
+    clkF [type="clkF", typeImp = $(⟨_, fork_sm "clkF"⟩)];
     n2F [type="fork3_m", typeImp = $(⟨_, fork3_sm⟩)];
-    n3F [type="fork_m", typeImp = $(⟨_, fork_sm⟩)];
-    n4F [type="fork_m", typeImp = $(⟨_, fork_sm⟩)];
-    n5F [type="fork_m", typeImp = $(⟨_, fork_sm⟩)];
-    n6F [type="fork_m", typeImp = $(⟨_, fork_sm⟩)];
+    n3F [type="n3_f", typeImp = $(⟨_, fork_sm "n3_f"⟩)];
+    n4F [type="n4_f", typeImp = $(⟨_, fork_sm "n4_f"⟩)];
+    n5F [type="n5_f", typeImp = $(⟨_, fork_sm "n5_f"⟩)];
+    n6F [type="n6_f", typeImp = $(⟨_, fork_sm "n6_f"⟩)];
 
     n2 -> n2F [from="out1", to="in1"];
     n3 -> n3F [from="out1", to="in1"];
@@ -375,7 +375,12 @@ def env := (et_flip_flop_m).2
 @[drenv] theorem find?_nand4_m : (Batteries.AssocList.find? "nand_m4" env) = .some ⟨_, nand_sm "nand4"⟩ := rfl
 @[drenv] theorem find?_nand5_m : (Batteries.AssocList.find? "nand_m5" env) = .some ⟨_, nand_sm "nand5"⟩ := rfl
 @[drenv] theorem find?_nand_3_m : (Batteries.AssocList.find? "nand3_m" env) = .some ⟨_, nand3_sm⟩ := rfl
-@[drenv] theorem find?_fork_m : (Batteries.AssocList.find? "fork_m" env) = .some ⟨_, fork_sm⟩ := rfl
+@[drenv] theorem find?_clkF_m : (Batteries.AssocList.find? "clkF" env) = .some ⟨_, fork_sm "clkF"⟩ := rfl
+@[drenv] theorem find?_n3_f_m : (Batteries.AssocList.find? "n3_f" env) = .some ⟨_, fork_sm "n3_f"⟩ := rfl
+@[drenv] theorem find?_n4_f_m : (Batteries.AssocList.find? "n4_f" env) = .some ⟨_, fork_sm "n4_f"⟩ := rfl
+@[drenv] theorem find?_n5_f_m : (Batteries.AssocList.find? "n5_f" env) = .some ⟨_, fork_sm "n5_f"⟩ := rfl
+@[drenv] theorem find?_n6_f_m : (Batteries.AssocList.find? "n6_f" env) = .some ⟨_, fork_sm "n6_f"⟩ := rfl
+-- @[drenv] theorem find?_fork_m : (Batteries.AssocList.find? "fork_m" env) = .some ⟨_, fork_sm⟩ := rfl
 @[drenv] theorem find?_fork3_m : (Batteries.AssocList.find? "fork3_m" env) = .some ⟨_, fork3_sm⟩ := rfl
 
 seal env in
@@ -554,6 +559,13 @@ def full_adder_spec_m (s : String := "") : StringModule (Named s (D × D × D)) 
                (↑"cin", ⟨ Named s!"{s}.c" D, λ s tt s' => more_defined tt s.2.2 ∧ s'.2.2 = tt ∧ s'.1 = s.1 ∧ s'.2.1 = s.2.1 ⟩)].toAssocList,
     outputs := [ (↑"s", ⟨ Named s!"{s}.s" D, λ s tt s' => s = s' ∧ tt = delay false (adcb s.1 s.2.1 s.2.2).2 ⟩)
                , (↑"cout", ⟨ Named s!"{s}.c" D, λ s tt s' => s = s' ∧ tt = delay false (adcb s.1 s.2.1 s.2.2).1 ⟩)].toAssocList
+    init_state := λ s => s = default
+  }
+
+def buffer_spec_m (s : String := "") : StringModule (Named s (D × D)) :=
+ {
+  inputs := [(↑"in", ⟨ Named s!"{s}.in" D, λ s tt s' => more_defined tt s.1 ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩)].toAssocList,
+  outputs := [(↑"out", ⟨ Named s!"{s}.out" D, λ s tt s' => more_defined tt s.2 ∧ s'.2 = tt ∧ s'.1 = s.1⟩)].toAssocList,
     init_state := λ s => s = default
   }
 
