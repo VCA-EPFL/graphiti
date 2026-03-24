@@ -418,11 +418,32 @@ reduction_by
 instance : MatchInterface lhsModule et_flip_flop_spec := by
   dsimp [lhsModule, et_flip_flop_spec]
   solve_match_interface
-
-axiom φ : lhsModuleType → (D × D) → Prop
+def φ : lhsModuleType → (D × D) → Prop :=
+  λ (_, _, _, _, (_, dataL), _, _, _, _, clkL, _) (clk, data) =>
+    -- First, extract the state
+    dataL = data /\ clkL = clk
+    -- Second, invariants
+    -- Non-mathematically, our current ideas are the following two invariants:
+    -- 1: the output state is at most the length of the input + delay
+    -- 2: the function defined by the input is more defined than the output
 
 theorem refines' :
-  lhsModule ⊑_{φ} et_flip_flop_spec := by sorry
+  lhsModule ⊑_{φ} et_flip_flop_spec := by
+    intro lhsModule rhsModule inv
+    unfold φ at inv
+    let (n2, n4, n5, n4_f, (n3i1, dataL), n3_f, n6_f, n1, n3_1, clkL, n5_f) := lhsModule
+    let (clk, data) := rhsModule
+    clear lhsModule rhsModule
+    simp at inv
+    apply Module.comp_refines.mk
+    . -- Inputs
+      intros inport targetLhs invalue h
+      unfold lhsModuleType at lhsState
+      sorry
+    . -- Outputs
+      sorry
+    . -- Internals
+      sorry
 
 theorem refines :
   lhsModule ⊑ et_flip_flop_spec := by sorry
@@ -553,6 +574,7 @@ def or_m (s : String := "") : StringModule (D × D) :=
 def adcb (a b c : D) : D × D :=
   (map3 (fun x y z => (BitVec.adcb x y z).1) a b c, map3 (fun x y z => (BitVec.adcb x y z).2) a b c)
 
+-- TODO: s has delay of 2, cout 3.
 def full_adder_spec_m (s : String := "") : StringModule (Named s (D × D × D)) :=
   { inputs := [(↑"a", ⟨ Named s!"{s}.a" D, λ s tt s' => more_defined tt s.1 ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
                (↑"b", ⟨ Named s!"{s}.b" D, λ s tt s' => more_defined tt s.2.1 ∧ s'.2.1 = tt ∧ s'.1 = s.1 ∧ s'.2.2 = s.2.2 ⟩),
@@ -568,6 +590,31 @@ def buffer_spec_m (s : String := "") : StringModule (Named s (D × D)) :=
   outputs := [(↑"out", ⟨ Named s!"{s}.out" D, λ s tt s' => more_defined tt s.2 ∧ s'.2 = tt ∧ s'.1 = s.1⟩)].toAssocList,
     init_state := λ s => s = default
   }
+
+ def buffered_full_adder_m := [graphEnv|
+  a [type="io"];
+  b [type="io"];
+  cin [type="io"];
+  s [type="io"];
+  cout [type="io"];
+
+  fa [type="fa", typeImp=$(⟨_, full_adder_spec_m "fa"⟩)];
+  b_1 [type="b_1", typeImp=$(⟨_, buffer_spec_m "b_1"⟩)];
+  b_2 [type="b_2", typeImp=$(⟨_, buffer_spec_m "b_2"⟩)];
+
+  a -> fa [to="a"];
+  b -> fa [to="b"];
+  cin -> fa [to="cin"];
+
+  fa -> b_1 [from="s", to="in"];
+  fa -> b_2 [from="cout", to="in"];
+  b_1 -> s [from="out"];
+  b_2 -> cout [from="out"];
+ ]
+
+def buffered_full_adder_m_lowered := buffered_full_adder_m.1.lower_TR |>.get rfl
+
+def env_bfam := buffered_full_adder_m.2
 
 /--
 Equivalent to just xor.
@@ -595,15 +642,15 @@ def full_adder_s := [graphEnv|
 
 def full_adder_s_lowered := full_adder_s.1.lower_TR |>.get rfl
 
-def env := full_adder_s.2
+def env_fas := full_adder_s.2
 
-@[drenv] theorem find?_nand1_m : (Batteries.AssocList.find? "ha_1" env) = .some ⟨_, half_adder_m "ha_1"⟩ := rfl
-@[drenv] theorem find?_nand2_m : (Batteries.AssocList.find? "ha_2" env) = .some ⟨_, half_adder_m "ha_2"⟩ := rfl
-@[drenv] theorem find?_nand3_m : (Batteries.AssocList.find? "or" env) = .some ⟨_, or_m⟩ := rfl
+@[drenv] theorem find?_nand1_m : (Batteries.AssocList.find? "ha_1" env_fas) = .some ⟨_, half_adder_m "ha_1"⟩ := rfl
+@[drenv] theorem find?_nand2_m : (Batteries.AssocList.find? "ha_2" env_fas) = .some ⟨_, half_adder_m "ha_2"⟩ := rfl
+@[drenv] theorem find?_nand3_m : (Batteries.AssocList.find? "or" env_fas) = .some ⟨_, or_m⟩ := rfl
 
-seal env in
+seal env_fas in
 def_module full_adder_imp_t : Type :=
-  [T| full_adder_s_lowered, env.find? ]
+  [T| full_adder_s_lowered, env_fas.find? ]
 reduction_by
   dsimp [full_adder_s_lowered]
   dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
@@ -612,9 +659,9 @@ reduction_by
   simp only [drenv]
   dsimp
 
-seal env in
+seal env_fas in
 def_module full_adder_imp : StringModule full_adder_imp_t :=
-  [e| full_adder_s_lowered, env.find? ]
+  [e| full_adder_s_lowered, env_fas.find? ]
 reduction_by
        dsimp [full_adder_s_lowered]
        (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
@@ -636,10 +683,13 @@ instance : MatchInterface full_adder_imp full_adder_spec_m := by
   dsimp [full_adder_imp,full_adder_spec_m]
   solve_match_interface
 
-axiom φ : full_adder_imp_t → (D × D × D) → Prop
+def φ : full_adder_imp_t → (D × D × D) → Prop := sorry
 
 theorem refines' :
-  full_adder_imp ⊑_{φ} full_adder_spec_m := by sorry
+  full_adder_imp ⊑_{φ} full_adder_spec_m := by
+    intro lhsModule rhsModule inv
+    unfold φ at inv
+    sorry
 
 theorem refines :
   full_adder_imp ⊑ full_adder_spec_m := by sorry
