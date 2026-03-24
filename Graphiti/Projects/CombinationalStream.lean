@@ -588,8 +588,8 @@ def buffer_spec_m (s : String := "") : StringModule (Named s (D × D)) :=
  {
   inputs := [(↑"in", ⟨ Named s!"{s}.in" D, λ s tt s' => more_defined tt s.1 ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩)].toAssocList,
   outputs := [(↑"out", ⟨ Named s!"{s}.out" D, λ s tt s' => more_defined tt s.2 ∧ s'.2 = tt ∧ s'.1 = s.1⟩)].toAssocList,
-    init_state := λ s => s = default
-  }
+  init_state := λ s => s = default
+ }
 
  def buffered_full_adder_m := [graphEnv|
   a [type="io"];
@@ -615,6 +615,42 @@ def buffer_spec_m (s : String := "") : StringModule (Named s (D × D)) :=
 def buffered_full_adder_m_lowered := buffered_full_adder_m.1.lower_TR |>.get rfl
 
 def env_bfam := buffered_full_adder_m.2
+
+@[drenv] theorem find?_fa_m : (Batteries.AssocList.find? "fa" env_bfam) = .some ⟨_, full_adder_spec_m "fa"⟩ := rfl
+@[drenv] theorem find?_b1_m : (Batteries.AssocList.find? "b_1" env_bfam) = .some ⟨_, buffer_spec_m "b_1"⟩ := rfl
+@[drenv] theorem find?_b2_m : (Batteries.AssocList.find? "b_2" env_bfam) = .some ⟨_, buffer_spec_m "b_2"⟩ := rfl
+
+seal env_bfam in
+def_module full_adder_spec_t : Type :=
+  [T| buffered_full_adder_m_lowered, env_bfam.find? ]
+reduction_by
+  dsimp [buffered_full_adder_m_lowered]
+  dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
+  dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
+  dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
+  simp only [drenv]
+  dsimp
+
+
+seal env_bfam in
+def_module full_adder_spec : StringModule full_adder_spec_t :=
+  [e| buffered_full_adder_m_lowered, env_bfam.find? ]
+reduction_by
+       dsimp [buffered_full_adder_m_lowered]
+       (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
+        dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
+        dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
+        rw [rw_opaque (by simp only [drenv]; rfl)]; dsimp
+        dsimp [Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts, Module.mapInputPorts, reduceAssocListfind?]
+        simp (disch := decide) only [AssocList.bijectivePortRenaming_invert]
+        dsimp [Module.product]
+        dsimp only [reduceModuleconnect'2]
+        dsimp only [reduceEraseAll]
+        dsimp; dsimp [reduceAssocListfind?]
+
+        unfold Module.connect''
+        dsimp [toString]
+        )
 
 /--
 Equivalent to just xor.
