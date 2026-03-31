@@ -574,13 +574,14 @@ def or_m (s : String := "") : StringModule (D × D) :=
 def adcb (a b c : D) : D × D :=
   (map3 (fun x y z => (BitVec.adcb x y z).1) a b c, map3 (fun x y z => (BitVec.adcb x y z).2) a b c)
 
--- TODO: s has delay of 2, cout 3.
+-- TODO: delay is not completely correct. Most intuitively, s is stable two ticks after *the last change*, not after any change.
+-- similarly, cout is stable 3 ticks after the last change. However, implementing this is currently messy.
 def full_adder_spec_m (s : String := "") : StringModule (Named s (D × D × D)) :=
   { inputs := [(↑"a", ⟨ Named s!"{s}.a" D, λ s tt s' => more_defined tt s.1 ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
                (↑"b", ⟨ Named s!"{s}.b" D, λ s tt s' => more_defined tt s.2.1 ∧ s'.2.1 = tt ∧ s'.1 = s.1 ∧ s'.2.2 = s.2.2 ⟩),
                (↑"cin", ⟨ Named s!"{s}.c" D, λ s tt s' => more_defined tt s.2.2 ∧ s'.2.2 = tt ∧ s'.1 = s.1 ∧ s'.2.1 = s.2.1 ⟩)].toAssocList,
-    outputs := [ (↑"s", ⟨ Named s!"{s}.s" D, λ s tt s' => s = s' ∧ tt = delay false (adcb s.1 s.2.1 s.2.2).2 ⟩)
-               , (↑"cout", ⟨ Named s!"{s}.c" D, λ s tt s' => s = s' ∧ tt = delay false (adcb s.1 s.2.1 s.2.2).1 ⟩)].toAssocList
+    outputs := [ (↑"s", ⟨ Named s!"{s}.s" D, λ s tt s' => s = s' ∧ tt = delayN [false, false] (adcb s.1 s.2.1 s.2.2).2 ⟩)
+               , (↑"cout", ⟨ Named s!"{s}.c" D, λ s tt s' => s = s' ∧ tt = delayN [false, false, false] (adcb s.1 s.2.1 s.2.2).1 ⟩)].toAssocList
     init_state := λ s => s = default
   }
 
@@ -715,16 +716,32 @@ reduction_by
         dsimp [toString]
         )
 
-instance : MatchInterface full_adder_imp full_adder_spec_m := by
-  dsimp [full_adder_imp,full_adder_spec_m]
+instance : MatchInterface full_adder_imp full_adder_spec := by
+  dsimp [full_adder_imp,full_adder_spec]
   solve_match_interface
 
-def φ : full_adder_imp_t → (D × D × D) → Prop := sorry
+
+def φ (lhs: full_adder_imp_t) (rhs : full_adder_spec_t) : Prop :=
+  let ((lA, lB), (lCin, ha1s), ha2c, ha1c) := lhs
+  let ((bs_in, bs_out), (bc_in, bc_out), (rA, rB, rCin)) := rhs
+  more_defined bc_out (delay false (or ha2c ha1c)) ∧
+    more_defined bs_out (delay false (xor lCin ha1s))
 
 theorem refines' :
-  full_adder_imp ⊑_{φ} full_adder_spec_m := by
+  full_adder_imp ⊑_{φ} full_adder_spec := by
     intro lhsModule rhsModule inv
     unfold φ at inv
+    let ((lA, lB), (lCin, ha1s), ha2c, ha1c) := lhsModule
+    let ((bs_in, bs_out), (bc_in, bc_out), (rA, rB, rCin)) := rhsModule
+    clear lhsModule rhsModule
+    -- simp at inv
+    apply Module.comp_refines.mk
+    . -- Inputs
+      intros inport targetLhs invalue h
+      sorry
+    . -- Outputs
+      sorry
+    . -- Internals
     sorry
 
 theorem refines :
