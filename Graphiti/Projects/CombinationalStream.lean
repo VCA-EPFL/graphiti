@@ -37,8 +37,8 @@ def map3 {α β γ σ} (f : α → β → γ → σ) (s1 : Stream α) (s2 : Stre
 
 variable {α : Type _}
 
-def more_defined (s1 s2 : Stream α) : Prop :=
-  ∃ s1' s2', s1 = some s1' ∧ s2 = some s2' ∧ s1'.length > s2'.length ∧ s1'.take (s2'.length) = s2'
+def subseq_of (s1 s2 : Stream α) : Prop :=
+  ∃ s1' s2', s1 = some s1' ∧ s2 = some s2' ∧ s2'.length > s1'.length ∧ s2'.take (s1'.length) = s1'
 
 def delay (d : α) (s : Stream α) : Stream α :=
   Option.map (d :: ·) s
@@ -67,6 +67,249 @@ def nand (s1 s2 : Stream Bool) : Stream Bool := not <| and s1 s2
 
 def nand3 (s1 s2 s3 : Stream Bool) : Stream Bool := not <| and3 s1 s2 s3
 
+namespace List
+def filter_window [BEq α] (delay: Nat) (a : List α): List Bool :=
+  -- I'd use a List.finRange if it had enough theorems on it but
+  -- I'm not good enough with that kind of type manipulation to do it quickly
+  (List.range a.length).map
+    (fun i => ((a.take (i + 1)).drop (i + 1 - delay)).all (fun v => some v == a[i]?))
+
+theorem filter_window_length [BEq α] (delay : Nat) (a : List α) :
+    (filter_window delay a).length = a.length := by
+      simp [List.length_range, filter_window]
+
+theorem filter_window_nil [BEq α] (delay : Nat) :
+    filter_window delay ([] : List α) = [] := by
+      rfl
+
+theorem filter_window_get [BEq α] (delay : Nat) (a : List α) (i : Nat)
+    (hi : i < a.length) :
+    (filter_window delay a)[i]? = some (((a.take (i + 1)).drop (i + 1 - delay)).all
+      (fun v => some v == a[i]?)) := by
+        unfold filter_window; aesop;
+
+theorem filter_window_get_prefix [BEq α] (delay : Nat) (s1 s2 : List α)
+    (h : s1 <+: s2) (i : Nat) (hi : i < s1.length) :
+    (filter_window delay s1)[i]? = (filter_window delay s2)[i]? := by
+      obtain ⟨t, ht⟩ := h;
+      rw [ ← ht, filter_window_get, filter_window_get ];
+      · rw [ List.take_append_of_le_length ];
+        · grind;
+        · grind;
+      · grind;
+      · exact hi
+
+theorem filter_window_prefix [BEq α] :
+    ∀ delay : Nat, ∀ s1 s2 : List α,
+    s1 <+: s2 →
+    (filter_window delay s1) <+: (filter_window delay s2) := by
+      intros delay s1 s2 hs1s2
+      have h_filter_eq_take : filter_window delay s1 = (filter_window delay s2).take s1.length := by
+        refine' List.ext_get _ _;
+        · rw [ List.length_take, filter_window_length, filter_window_length ];
+          rw [ min_eq_left ( hs1s2.length_le ) ];
+        · intro n hn hn';
+          convert filter_window_get_prefix delay s1 s2 hs1s2 n _;
+          · grind;
+          · exact hn.trans_le ( by simp +decide [ filter_window_length ] );
+      exact h_filter_eq_take ▸ List.take_prefix _ _
+
+def strict_prefix (s1 s2 : List α) : Prop :=
+  s1.length < s2.length ∧ s1 = s2.take s1.length
+
+infix:50 " <<: " => strict_prefix
+
+theorem strict_prefix_is_prefix (s1 s2 : List α)
+  : s1 <<: s2 → s1 <+: s2
+  := by
+  intro H
+  obtain ⟨_, H⟩ := H
+  rw [H]
+  apply List.take_prefix
+
+theorem strict_prefix_iff_prefix_neq (s1 s2 : List α)
+  : s1 <<: s2 ↔ (s1 <+: s2 ∧ ¬s1 = s2)
+  := by
+  apply Iff.intro
+  . intro H
+    apply And.intro
+    . apply strict_prefix_is_prefix
+      exact H
+    . intro Heq
+      unfold strict_prefix at H
+      grind
+  . intro H
+    obtain ⟨Hp, Hneq⟩ := H
+    unfold strict_prefix
+    apply And.intro
+    . apply Nat.lt_of_le_of_ne
+      . apply List.IsPrefix.length_le
+        exact Hp
+      . intro Heq
+        apply Hneq
+        apply List.IsPrefix.eq_of_length
+        <;> assumption
+    . apply List.prefix_iff_eq_take.mp
+      exact Hp
+
+lemma strict_prefix_iff_prefix_length (s1 s2 : List α)
+  : s1 <<: s2 ↔ (s1 <+: s2 ∧ s1.length < s2.length)
+  := by
+  apply Iff.trans
+  . apply strict_prefix_iff_prefix_neq
+  . apply Iff.intro
+    . intro H
+      obtain ⟨Hp, Hneq⟩ := H
+      apply And.intro
+      . assumption
+      . apply Nat.lt_of_le_of_ne
+        . apply List.IsPrefix.length_le Hp
+        . intro Heq
+          apply Hneq
+          apply List.IsPrefix.eq_of_length
+          <;> assumption
+    . intro H
+      obtain ⟨Hp, Hneq⟩ := H
+      apply And.intro
+      . assumption
+      . intro H
+        have Heq : s1.length = s2.length := by rw [H]
+        grind
+
+def filter_window3 [BEq α] (delay: Nat) (a b c : List α) : List Bool :=
+  List.zipWith Bool.and (filter_window delay a) (List.zipWith Bool.and (filter_window delay b) (filter_window delay c))
+
+lemma zipWith_prefix.{u, v, w} {α : Type u} {β : Type v} {γ : Type w} :
+  ∀f: α → β → γ, ∀ a a': List α, ∀ b : List β,
+  a <+: a' → List.zipWith f a b <+: List.zipWith f a' b
+  := by
+  intros f a a' b H
+  revert a' b
+  induction a with
+  | nil => simp
+  | cons hd tl iH =>
+    intro a' b H
+    rw [List.cons_prefix_iff] at H
+    obtain ⟨tl', Ha', H⟩ := H
+    subst_vars
+    unfold List.zipWith
+    cases b
+    . simp
+    . rename_i bHd bTl
+      simp
+      grind
+
+lemma zipWith_strict_prefix.{u, v, w} {α : Type u} {β : Type v} {γ : Type w} :
+  ∀f: α → β → γ, ∀ a a': List α, ∀ b : List β,
+  a <<: a' → a.length < b.length → List.zipWith f a b <<: List.zipWith f a' b
+  := by
+  intros f a a' b H Hlen
+  apply (strict_prefix_iff_prefix_neq (List.zipWith f a b) (List.zipWith f a' b)).mpr
+  apply And.intro
+  . apply zipWith_prefix
+    apply strict_prefix_is_prefix
+    assumption
+  . intro Hzip
+    obtain ⟨H, Hneq⟩ := (strict_prefix_iff_prefix_length a a').mp H
+    have H : (List.zipWith f a b).length = (List.zipWith f a' b).length := by rw [Hzip]
+    rw [List.length_zipWith, List.length_zipWith] at H
+    grind
+
+
+
+theorem filter_window3_prefix_1 [BEq α] :
+  ∀ delay: Nat, ∀a a' b c : List α,
+  filter_window delay a <+: filter_window delay a' →
+  filter_window3 delay a b c <+: filter_window3 delay a' b c
+  := by
+  intros delay a a' b c H
+  unfold filter_window3
+  generalize (List.zipWith Bool.and (filter_window delay b) (filter_window delay c)) = v
+  apply zipWith_prefix
+  assumption
+
+def is_filtered_prefix (filter : List Bool) (s1 s2 : List Bool) : Prop :=
+  s1.length <= s2.length ∧ s2.length <= filter.length ∧
+  (∀ i : Nat, i < s1.length → filter[i]? = some true → s1[i]? = s2[i]?)
+
+theorem filter_prefix_filtered_prefix :
+  ∀ f1 f2 s1 s2,
+  is_filtered_prefix f1 s1 s2 →
+  f1 <+: f2 →
+  is_filtered_prefix f2 s1 s2
+  := by
+  intro f1 f2 s1 s2
+  unfold is_filtered_prefix
+  intros H Hprefix
+  obtain ⟨Hslen, Hfslen, Hfsubs⟩ := H
+  split_ands
+  . assumption
+  . grind
+  . intro i Hi Hf
+    apply Hfsubs
+    . assumption
+    . rw [List.getElem?_eq_getElem] at Hf
+      rotate_left
+      next => grind
+
+      rw [List.getElem?_eq_getElem]
+      rotate_left
+      next => grind
+
+      simp at Hf
+      simp
+      rw [← Hf, List.IsPrefix.getElem]
+      assumption
+end List
+
+def filter_window [BEq α] (delay: Nat) (a : Stream α) : Stream Bool := Option.map (List.filter_window delay) a
+
+def filter_window3 [BEq α] (delay: Nat) (a b cin : Stream α) : Stream Bool :=
+  match a, b, cin with
+  | some a, some b, some c => some (List.filter_window3 delay a b c)
+  | _, _, _ => none
+
+def filtered_eq (filter : Stream Bool) (input tt : Stream α) : Prop :=
+  match filter, input, tt with
+  | some filter, some input, some tt =>
+    tt.length = input.length ∧ filter.length = input.length ∧
+      (∀ i : Nat, filter[i]? = some true → tt[i]? = input[i]?)
+  | _, _, _ => False
+
+def filtered_subseq_of (filter : Stream Bool) (s1 s2 : Stream α) : Prop :=
+  match filter, s1, s2 with
+  | some filter, some s1, some s2 =>
+    s1.length < s2.length ∧ s2.length < filter.length ∧
+      (∀ i : Nat, i < s1.length → filter[i]? = some true → s1[i]? = s2[i]?)
+  | _, _, _ => False
+
+theorem filter_subseq_filtered_subseq :
+  ∀ f1 f2 : Stream Bool, ∀ s1 s2 : Stream α,
+  filtered_subseq_of f1 s1 s2 →
+  subseq_of f1 f2 →
+  filtered_subseq_of f2 s1 s2 := by
+  intro f1 f2 s1 s2
+  unfold filtered_subseq_of
+  cases f1 <;> cases f2 <;> cases s1 <;> cases s2 <;>
+    try simp
+  . intros
+    unfold subseq_of
+    grind
+  . rename_i f1 f2 s1 s2
+    intro Hslen Hsflen Hssubs
+    unfold subseq_of
+    intro Hfsubs
+    obtain ⟨f1', f2', Heq1, Heq2, Hflen, Hfsubs⟩ := Hfsubs
+    cases Heq1
+    cases Heq2
+    split_ands
+    . assumption
+    . transitivity <;> assumption
+    . intro i Hlim Hfilter
+      apply Hssubs i Hlim
+      rw [←Hfsubs, List.getElem?_take_of_lt]
+      <;> grind
+
 end Stream
 
 -- We thought we needed a top and bot value for streams, essentially operating on 4-valued logic.  However, we do not
@@ -88,7 +331,7 @@ open VerilogExport
 abbrev Named (s : String) (T : Type _) := T
 
 def not_m : NatModule D :=
-  { inputs := [(0, ⟨ D, λ s tt s' => more_defined tt s ∧ s' = tt ⟩)].toAssocList,
+  { inputs := [(0, ⟨ D, λ s tt s' => subseq_of s tt ∧ s' = tt ⟩)].toAssocList,
     outputs := [(0, ⟨ D, λ s tt s' => s = s' ∧ not (delay false s) = tt⟩)].toAssocList
     init_state := λ s => s = default
   }
@@ -108,8 +351,8 @@ def sink_m_template : VerilogTemplate where
   instantiation name inst := format_instantiation "sink_m" name inst
 
 def nand_m (s : String) : NatModule (Named s (D × D)) :=
-  { inputs := [(0, ⟨ Named s!"{s}.in1" D, λ s tt s' => more_defined tt s.1 ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
-               (1, ⟨ Named s!"{s}.in2" D, λ s tt s' => more_defined tt s.2 ∧ s'.2 = tt ∧ s'.1 = s.1 ⟩)].toAssocList,
+  { inputs := [(0, ⟨ Named s!"{s}.in1" D, λ s tt s' => subseq_of s.1 tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
+               (1, ⟨ Named s!"{s}.in2" D, λ s tt s' => subseq_of s.2 tt ∧ s'.2 = tt ∧ s'.1 = s.1 ⟩)].toAssocList,
     outputs := [(0, ⟨ Named s!"{s}.out1" D, λ s tt s' => s = s' ∧ tt = delay false (nand s.1 s.2) ⟩)].toAssocList
     init_state := λ s => s = default
   }
@@ -119,9 +362,9 @@ def nand_m_template : VerilogTemplate where
   instantiation name inst := format_instantiation "nand_m" name inst
 
 def nand3_m : NatModule (D × D × D) :=
-  { inputs := [(0, ⟨ D, λ s tt s' => more_defined tt s.1 ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
-               (1, ⟨ D, λ s tt s' => more_defined tt s.2.1 ∧ s'.2.1 = tt ∧ s'.1 = s.1 ∧ s'.2.2 = s.2.2 ⟩),
-               (2, ⟨ D, λ s tt s' => more_defined tt s.2.2 ∧ s'.2.2 = tt ∧ s'.1 = s.1 ∧ s'.2.1 = s.2.1 ⟩)].toAssocList,
+  { inputs := [(0, ⟨ D, λ s tt s' => subseq_of s.1 tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
+               (1, ⟨ D, λ s tt s' => subseq_of s.2.1 tt ∧ s'.2.1 = tt ∧ s'.1 = s.1 ∧ s'.2.2 = s.2.2 ⟩),
+               (2, ⟨ D, λ s tt s' => subseq_of s.2.2 tt ∧ s'.2.2 = tt ∧ s'.1 = s.1 ∧ s'.2.1 = s.2.1 ⟩)].toAssocList,
     outputs := [(0, ⟨ D, λ s tt s' => s = s' ∧ tt = delay false (nand3 s.1 s.2.1 s.2.2) ⟩)].toAssocList
     init_state := λ s => s = default
   }
@@ -131,8 +374,8 @@ def nand3_m_template : VerilogTemplate where
   instantiation name inst := format_instantiation "nand3_m" name inst
 
 def and_m : NatModule (D × D) :=
-  { inputs := [(0, ⟨ D, λ s tt s' => more_defined tt s.1 ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
-               (1, ⟨ D, λ s tt s' => more_defined tt s.2 ∧ s'.2 = tt ∧ s'.1 = s.1 ⟩)].toAssocList,
+  { inputs := [(0, ⟨ D, λ s tt s' => subseq_of s.1 tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
+               (1, ⟨ D, λ s tt s' => subseq_of s.2 tt ∧ s'.2 = tt ∧ s'.1 = s.1 ⟩)].toAssocList,
     outputs := [(0, ⟨ D, λ s tt s' => s = s' ∧ tt = delay false (nand s.1 s.2) ⟩)].toAssocList
     init_state := λ s => s = default
   }
@@ -142,7 +385,7 @@ def and_m_template : VerilogTemplate where
   instantiation name inst := format_instantiation "and_m" name inst
 
 def fork_m (s : String) : NatModule (Named s D) :=
-  { inputs := [(0, ⟨ Named s!"{s}.in1" D, λ s tt s' => more_defined tt s ∧ s' = tt ⟩)].toAssocList,
+  { inputs := [(0, ⟨ Named s!"{s}.in1" D, λ s tt s' => subseq_of s tt ∧ s' = tt ⟩)].toAssocList,
     outputs := [(0, ⟨ Named s!"{s}.out1" D, λ s tt s' => s = s' ∧ tt = s ⟩), (1, ⟨ Named s!"{s}.out2" D, λ s tt s' => s = s' ∧ tt = s ⟩)].toAssocList
     init_state := λ s => s = default
   }
@@ -152,7 +395,7 @@ def fork_m_template : VerilogTemplate where
   instantiation name inst := format_instantiation "fork_m" name inst
 
 def fork3_m : NatModule D :=
-  { inputs := [(0, ⟨ D, λ s tt s' => more_defined tt s ∧ s' = tt ⟩)].toAssocList,
+  { inputs := [(0, ⟨ D, λ s tt s' => subseq_of s tt ∧ s' = tt ⟩)].toAssocList,
     outputs := [(0, ⟨ D, λ s tt s' => s = s' ∧ tt = s ⟩), (1, ⟨ D, λ s tt s' => s = s' ∧ tt = s ⟩), (2, ⟨ D, λ s tt s' => s = s' ∧ tt = s ⟩)].toAssocList
     init_state := λ s => s = default
   }
@@ -438,7 +681,7 @@ theorem refines' :
     apply Module.comp_refines.mk
     . -- Inputs
       intros inport targetLhs invalue h
-      /- unfold lhsModuleType at lhsState -/
+      -- unfold lhsModuleType at lhsState
       sorry
     . -- Outputs
       sorry
@@ -492,8 +735,8 @@ def half_adder_s := [graphEnv|
 def half_adder_s_lowered := half_adder_s.1.lower_TR |>.get rfl
 
 def xor_with_delay : StringModule (D × D) where
-  inputs := [ (↑"a", ⟨ D, λ s tt s' => more_defined tt s.1 ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩)
-            , (↑"b", ⟨ D, λ s tt s' => more_defined tt s.2 ∧ s'.2 = tt ∧ s'.1 = s.1 ⟩)
+  inputs := [ (↑"a", ⟨ D, λ s tt s' => subseq_of s.1 tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩)
+            , (↑"b", ⟨ D, λ s tt s' => subseq_of s.2 tt ∧ s'.2 = tt ∧ s'.1 = s.1 ⟩)
             ].toAssocList
   outputs := [ (↑"s", ⟨ D, λ s tt s' => tt = delayN [false, false, false, false] (s.1.xor s.2) ∧ s = s' ⟩)].toAssocList
   internals := []
@@ -557,16 +800,16 @@ end HalfAdder
 namespace FullAdder
 
 def half_adder_m (s : String := "") : StringModule (Named s (D × D)) :=
-  { inputs := [(↑"a", ⟨ Named s!"{s}.a" D, λ s tt s' => more_defined tt s.1 ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
-               (↑"b", ⟨ Named s!"{s}.b" D, λ s tt s' => more_defined tt s.2 ∧ s'.2 = tt ∧ s'.1 = s.1 ⟩)].toAssocList,
+  { inputs := [(↑"a", ⟨ Named s!"{s}.a" D, λ s tt s' => subseq_of s.1 tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
+               (↑"b", ⟨ Named s!"{s}.b" D, λ s tt s' => subseq_of s.2 tt ∧ s'.2 = tt ∧ s'.1 = s.1 ⟩)].toAssocList,
     outputs := [ (↑"s", ⟨ Named s!"{s}.s" D, λ s tt s' => s = s' ∧ tt = delay false (xor s.1 s.2) ⟩)
                , (↑"c", ⟨ Named s!"{s}.c" D, λ s tt s' => s = s' ∧ tt = delay false (and s.1 s.2) ⟩)].toAssocList
     init_state := λ s => s = default
   }
 
 def or_m (s : String := "") : StringModule (D × D) :=
-  { inputs := [(↑"a", ⟨ D, λ s tt s' => more_defined tt s.1 ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
-               (↑"b", ⟨ D, λ s tt s' => more_defined tt s.2 ∧ s'.2 = tt ∧ s'.1 = s.1 ⟩)].toAssocList,
+  { inputs := [(↑"a", ⟨ D, λ s tt s' => subseq_of s.1 tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
+               (↑"b", ⟨ D, λ s tt s' => subseq_of s.2 tt ∧ s'.2 = tt ∧ s'.1 = s.1 ⟩)].toAssocList,
     outputs := [(↑"c", ⟨ D, λ s tt s' => s = s' ∧ tt = delay false (and s.1 s.2) ⟩)].toAssocList
     init_state := λ s => s = default
   }
@@ -574,21 +817,19 @@ def or_m (s : String := "") : StringModule (D × D) :=
 def adcb (a b c : D) : D × D :=
   (map3 (fun x y z => (BitVec.adcb x y z).1) a b c, map3 (fun x y z => (BitVec.adcb x y z).2) a b c)
 
--- TODO: delay is not completely correct. Most intuitively, s is stable two ticks after *the last change*, not after any change.
--- similarly, cout is stable 3 ticks after the last change. However, implementing this is currently messy.
 def full_adder_spec_m (s : String := "") : StringModule (Named s (D × D × D)) :=
-  { inputs := [(↑"a", ⟨ Named s!"{s}.a" D, λ s tt s' => more_defined tt s.1 ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
-               (↑"b", ⟨ Named s!"{s}.b" D, λ s tt s' => more_defined tt s.2.1 ∧ s'.2.1 = tt ∧ s'.1 = s.1 ∧ s'.2.2 = s.2.2 ⟩),
-               (↑"cin", ⟨ Named s!"{s}.c" D, λ s tt s' => more_defined tt s.2.2 ∧ s'.2.2 = tt ∧ s'.1 = s.1 ∧ s'.2.1 = s.2.1 ⟩)].toAssocList,
-    outputs := [ (↑"s", ⟨ Named s!"{s}.s" D, λ s tt s' => s = s' ∧ tt = delayN [false, false] (adcb s.1 s.2.1 s.2.2).2 ⟩)
-               , (↑"cout", ⟨ Named s!"{s}.c" D, λ s tt s' => s = s' ∧ tt = delayN [false, false, false] (adcb s.1 s.2.1 s.2.2).1 ⟩)].toAssocList
+  { inputs := [(↑"a", ⟨ Named s!"{s}.a" D, λ s tt s' => subseq_of s.1 tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
+               (↑"b", ⟨ Named s!"{s}.b" D, λ s tt s' => subseq_of s.2.1 tt ∧ s'.2.1 = tt ∧ s'.1 = s.1 ∧ s'.2.2 = s.2.2 ⟩),
+               (↑"cin", ⟨ Named s!"{s}.c" D, λ s tt s' => subseq_of s.2.2 tt ∧ s'.2.2 = tt ∧ s'.1 = s.1 ∧ s'.2.1 = s.2.1 ⟩)].toAssocList,
+    outputs := [ (↑"s", ⟨ Named s!"{s}.s" D, λ s tt s' => s = s' ∧ filtered_eq (filter_window3 3 s.1 s.2.1 s.2.2) (adcb s.1 s.2.1 s.2.2).2 tt ⟩)
+               , (↑"cout", ⟨ Named s!"{s}.c" D, λ s tt s' => s = s' ∧ filtered_eq (filter_window3 3 s.1 s.2.1 s.2.2) (adcb s.1 s.2.1 s.2.2).1 tt ⟩)].toAssocList
     init_state := λ s => s = default
   }
 
 def buffer_spec_m (s : String := "") : StringModule (Named s (D × D)) :=
  {
-  inputs := [(↑"in", ⟨ Named s!"{s}.in" D, λ s tt s' => more_defined tt s.1 ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩)].toAssocList,
-  outputs := [(↑"out", ⟨ Named s!"{s}.out" D, λ s tt s' => more_defined tt s.2 ∧ s'.2 = tt ∧ s'.1 = s.1⟩)].toAssocList,
+  inputs := [(↑"in", ⟨ Named s!"{s}.in" D, λ s tt s' => subseq_of s.1 tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩)].toAssocList,
+  outputs := [(↑"out", ⟨ Named s!"{s}.out" D, λ s tt s' => subseq_of s.2 tt ∧ s'.2 = tt ∧ s'.1 = s.1⟩)].toAssocList,
   init_state := λ s => s = default
  }
 
@@ -724,21 +965,113 @@ instance : MatchInterface full_adder_imp full_adder_spec := by
 def φ (lhs: full_adder_imp_t) (rhs : full_adder_spec_t) : Prop :=
   let ((lA, lB), (lCin, ha1s), ha2c, ha1c) := lhs
   let ((bs_in, bs_out), (bc_in, bc_out), (rA, rB, rCin)) := rhs
-  more_defined bc_out (delay false (or ha2c ha1c)) ∧
-    more_defined bs_out (delay false (xor lCin ha1s))
+  let filter := filter_window3 3 rA rB rCin
+  -- Input states must be equivalent
+  lA = rA ∧ lB = rB ∧ lCin = rCin ∧
+  -- Internal connections of the implementation are monotonic (less defined than each other). TODO.
+  -- Buffer inputs are more defined, when filtered by rA, rB, rCin.
+  filtered_subseq_of filter (delay false (or ha2c ha1c)) bc_in ∧
+    filtered_subseq_of filter (delay false (xor lCin ha1s)) bs_in ∧
+  -- Outputs are more defined, when filtered by rA, rB, rCin.
+  filtered_subseq_of filter bc_out (delay false (or ha2c ha1c)) ∧
+    filtered_subseq_of filter bs_out (delay false (xor lCin ha1s))
 
 theorem refines' :
   full_adder_imp ⊑_{φ} full_adder_spec := by
-    intro lhsModule rhsModule inv
-    unfold φ at inv
-    let ((lA, lB), (lCin, ha1s), ha2c, ha1c) := lhsModule
-    let ((bs_in, bs_out), (bc_in, bc_out), (rA, rB, rCin)) := rhsModule
-    clear lhsModule rhsModule
-    -- simp at inv
+    unfold Module.refines_φ
+    intro init_i init_s Hφ
+    obtain ⟨⟨lA, lB⟩, ⟨lCin, ha1s⟩, ha2c, ha1c⟩ := init_i
+    obtain ⟨⟨bs_in, bs_out⟩, ⟨bc_in, bc_out⟩, ⟨rA, rB, rCin⟩⟩ := init_s
+    obtain ⟨HφA, HφB, HφCin, HφBufferInC, HφBufferInS, HφBufferOutC, HφBufferOutS⟩ := Hφ
+    subst_vars
+    -- TODO: force all of the Streams to be Some (for those that require it)
+    -- TODO: rewrite functions that are specific to streams to be wrappers around List ones
+
     apply Module.comp_refines.mk
     . -- Inputs
-      intros inport targetLhs invalue h
+      intro ident lhs_out s a
+
+      -- The ident has to resolve to something
+      by_cases HContains: (full_adder_imp.inputs.contains ident)
+      . -- Unpack initial states for both modules
+        -- Split by cases on the port
+        unfold full_adder_imp at HContains; simp at HContains
+        rcases HContains with h | h | h
+        <;> subst_vars <;> simp <;> rw [PortMap.rw_rule_execution] at a <;> simp at a
+        . -- Input accepted: a.
+          -- Unpack the impact of setting a.
+          obtain ⟨⟨a_moredef, ⟨out_has_s, a_ident1⟩⟩, a_ident2⟩ := a
+          simp at a_moredef
+          simp at a_ident1
+          -- Swap out rA in our previous state's definition
+          use ⟨⟨bs_in, bs_out⟩, ⟨bc_in, bc_out⟩, ⟨s, rB, rCin⟩⟩
+          apply And.intro
+          . -- Our new state is valid
+            rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]
+            simp
+            constructor
+            . simp
+              assumption
+            . rfl
+          . -- Our new state maintains φ
+            -- We use the same state with no internal rules
+            use ⟨⟨bs_in, bs_out⟩, ⟨bc_in, bc_out⟩, ⟨s, rB, rCin⟩⟩
+            apply And.intro
+            . exact existSR_reflexive
+            . unfold φ
+              obtain ⟨⟨oA, oB⟩, ⟨oCin, oha1s⟩, oha2c, oha1c⟩ := lhs_out
+              simp
+              obtain ⟨_, _, _, _⟩ := a_ident2
+              simp at a_ident1
+              simp at out_has_s
+              subst_vars
+
+              -- Just get rid of the options...
+              cases rA <;> cases oB <;> cases rCin <;> cases bc_in
+              <;> try next => (unfold filter_window3 filtered_subseq_of at HφBufferInC <;> simp at HφBufferInC)
+              rename_i rA oB rCin bc_in
+              cases ha2c <;> cases ha1c
+              <;> try next => (unfold filter_window3 filtered_subseq_of Stream.or map2 delay at HφBufferInC <;> simp at HφBufferInC)
+              rename_i ha2c ha1c
+              cases ha1s <;> cases bs_in
+              <;> try next => (unfold filter_window3 filtered_subseq_of Stream.xor map2 delay at HφBufferInS <;> simp at HφBufferInS)
+              rename_i ha1s bs_in
+              cases oA <;> try next => (unfold subseq_of at a_moredef <;> simp at a_moredef)
+              rename_i oA
+              split_ands <;> try rfl
+              . simp
+                unfold filter_window3 filtered_subseq_of Stream.or delay map2 at HφBufferInC
+                simp at HφBufferInC
+                grind
+              . unfold List.filter_window3
+                rw [List.length_zipWith, List.length_zipWith]
+                unfold List.filter_window
+                repeat rw [List.length_map, List.length_range]
+                unfold filter_window3 filtered_subseq_of Stream.or delay map2 at HφBufferInC
+                simp at HφBufferInC
+                obtain ⟨_, H, _⟩ := HφBufferInC
+                unfold List.filter_window3 List.filter_window at H
+                repeat rw [List.length_zipWith, List.length_map, List.length_range] at H
+                rw [List.length_map, List.length_range] at H
+                unfold subseq_of at a_moredef
+                obtain ⟨rA, oA, Heq1, Heq2, Hlen, Htake⟩ := a_moredef
+                cases Heq1
+                cases Heq2
+                grind
+              . simp
+                unfold filter_window3 filtered_subseq_of Stream.or delay map2 at HφBufferInC
+                simp at HφBufferInC
+                obtain ⟨_, _, iH⟩ := HφBufferInC
+                intro i Hl Hf
       sorry
+              . sorry
+              . sorry
+              . sorry
+              . sorry
+              . sorry
+        . sorry
+        . sorry
+      . exfalso; exact (PortMap.getIO_not_contained_false a HContains)
     . -- Outputs
       sorry
     . -- Internals
