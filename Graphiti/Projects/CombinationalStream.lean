@@ -742,7 +742,7 @@ theorem refines' :
     . -- Outputs
       sorry
     . -- Internals
-    sorry
+      sorry
 
 theorem refines :
   full_adder_imp ⊑ full_adder_spec_m := by sorry
