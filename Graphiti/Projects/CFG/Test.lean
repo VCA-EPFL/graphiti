@@ -14,8 +14,7 @@ namespace Graphiti.CFG.Test
 
 def cccfg' := cccfg.standardiseNames |>.get!
 
-#eval cccfg'
-#check RewriteError
+/- #eval cccfg' -/
 
 /- def findNodesFromPures {Typ} [Inhabited Typ] [ToString Typ] [Repr Typ] [DecidableEq Typ] (cmp : Typ → Typ → Bool) (isPure : Typ → Bool) (pat g : ExprHigh String Typ)
  -     : RewriteResultSL (AssocList String GraphSlice) := do
@@ -38,19 +37,19 @@ def cccfg' := cccfg.standardiseNames |>.get!
  -    - return g' -/
  -   return l -/
 
-#eval IO.println cccfg'
-#eval IO.println <| (RewriteHigh.lower <$> TranslateNode.translate).exec cccfg' ⟨[], 0, default⟩
-#eval match ((RewriteHigh.lower <$> TranslateNode.translate).exec cccfg'
-                    >>= fun g => (RewriteHigh.lower <$> MoveRW.move_rw).exec g
-                    >>= fun g => runWithPure generatePure MoveRW.normalize_rw g
-                    >>= fun g => runWithPure generatePure MoveRW.normalize_loop_rw g
-                    >>= fun g => runWithPure generatePure MoveRW.normalize_loop_rw2 g
-                    /- >>= fun g => pure g -/
-                    ) ⟨[], 0, default⟩ with
-      | .ok e s => IO.println <| e
-      | .error e s => do
-        IO.println <| Lean.toJson (s.runtime_trace)
-        /- IO.println <| (s.runtime_trace |>.getLast? |>.get! |>.output_graph) -/
-        IO.println <| e
+/- #eval IO.println cccfg'
+ - #eval IO.println <| (RewriteHigh.lower <$> TranslateNode.translate).exec cccfg' ⟨[], 0, default⟩
+ - #eval match ((RewriteHigh.lower <$> TranslateNode.translate).exec cccfg'
+ -                     >>= fun g => (RewriteHigh.lower <$> MoveRW.move_rw).exec g
+ -                     >>= fun g => runWithPure generatePure MoveRW.normalize_rw g
+ -                     >>= fun g => runWithPure generatePure MoveRW.normalize_loop_rw g
+ -                     >>= fun g => runWithPure generatePure MoveRW.normalize_loop_rw2 g
+ -                     /- >>= fun g => pure g -/
+ -                     ) ⟨[], 0, default⟩ with
+ -       | .ok e s => IO.println <| e
+ -       | .error e s => do
+ -         IO.println <| Lean.toJson (s.runtime_trace)
+ -         /- IO.println <| (s.runtime_trace |>.getLast? |>.get! |>.output_graph) -/
+ -         IO.println <| e -/
 
 end Graphiti.CFG.Test

@@ -578,8 +578,8 @@ def toSVG {α} [ToString α] [Repr α] (file : String) (graph : ExprHigh String 
   if ← existsInPath "dot" then
     let _ ← IO.Process.run {cmd := "dot", args := #["-Tsvg", (file ++ ".dot"), "-o", file ++ ".svg"] }
 
-#eval toSVG "random" graph
-#eval toSVG "cccfg" cccfg
+/- #eval toSVG "random" graph
+ - #eval toSVG "cccfg" cccfg -/
 
 namespace RWNotEQ
 
@@ -1238,19 +1238,19 @@ def g2 :=
 def pat' := pokeHole "read1" pat |>.get rfl |>.1
 def pat'_norm := normalizeIOPorts pat'
 
-#eval IO.println pat'
+/- #eval IO.println pat' -/
 
 /- #eval extendWithDFS DFGandCFG.compare pat' ⟨.internal "fork", "out1"⟩ ⟨.internal "forkB", "in1"⟩ g -/
-#eval (defaultMatcher (cmp := DFGandCFG.compare) pat') g
+/- #eval (defaultMatcher (cmp := DFGandCFG.compare) pat') g -/
 
 def reg := (findNodesFromPures DFGandCFG.compare JSType.isPure pat g) |>.toOption |>.get! |>.find? "read1" |>.get!
-#eval reg
+/- #eval reg -/
 
 def reg2 := findNodesFromPures DFGandCFG.compare (· == .dfg .pure) pat g2 |>.toOption |>.get! |>.find? "read1" |>.get!
-#eval regionToNodes g2 reg2
+/- #eval regionToNodes g2 reg2 -/
 
-#eval regionToNodes g reg
-#eval IO.println (regionToJSLang g reg |>.get! |>.elimPure |>.toSExpr)
+/- #eval regionToNodes g reg
+ - #eval IO.println (regionToJSLang g reg |>.get! |>.elimPure |>.toSExpr) -/
 
 def DFGandCFG.JoinAssocL.rewrite : RewriteHigh String DFGandCFG where
   params := _
@@ -1543,7 +1543,7 @@ def generatePure (g : ExprHigh String DFGandCFG) (slice : GraphSlice) : RewriteR
 
 /- #eval (defaultMatcher ForkSummary2.lhs_extract.fst) graph -/
 def graph_1 := (rewrite_fix [ForkSummary2.rewrite] graph).run' ⟨[], 0, ("", 0)⟩ |>.get!
-#eval toSVG "random2" graph_1
+/- #eval toSVG "random2" graph_1 -/
 
 def resToOption {α β γ} (res : EStateM.Result α β γ) : Option γ :=
   match res with
@@ -1555,26 +1555,26 @@ def stateToOption {α β γ} (res : EStateM.Result α β γ) : β :=
   | .ok _ s => s
   | .error _ s => s
 
-#eval RWNotEQ.rewrite.pattern graph_1
+/- #eval RWNotEQ.rewrite.pattern graph_1 -/
 def graph_2_int := (rewrite_fix [RWNotEQ.rewrite] graph_1).run ⟨[], 10, ("", 0)⟩
 def graph_2 := resToOption graph_2_int |>.get!
-#eval graph_2_int
-#eval resToOption graph_2_int |>.get!
-#eval (stateToOption graph_2_int).runtime_trace.length |> Lean.toJson
-#eval toSVG "random3" graph_2
+/- #eval graph_2_int
+ - #eval resToOption graph_2_int |>.get! -/
+/- #eval (stateToOption graph_2_int).runtime_trace.length |> Lean.toJson
+ - #eval toSVG "random3" graph_2 -/
 
-#eval ForkAssoc.rewrite.pattern graph_2
+/- #eval ForkAssoc.rewrite.pattern graph_2 -/
 def graph_3_int := (ForkAssoc.rewrite.run' graph_2).run ⟨[], 20, ("", 0)⟩
 def graph_3 := resToOption graph_3_int |>.get!
-#eval toSVG "random4" graph_3
+/- #eval toSVG "random4" graph_3 -/
 
 def graph_4_int := (rewrite_fix [RWNotEQ.rewrite, RWEQ.rewrite] graph_3).run ⟨[], 30, ("", 0)⟩
 def graph_4 := resToOption graph_4_int |>.get!
-#eval toSVG "random5" graph_4
+/- #eval toSVG "random5" graph_4 -/
 
 def graph_5_int := (rewrite_fix [RWNotEQ.rewrite] graph_4).run ⟨[], 40, ("", 0)⟩
 def graph_5 := resToOption graph_5_int |>.get!
-#eval toSVG "random6" graph_5
+/- #eval toSVG "random6" graph_5 -/
 
 /- def graph_6 := toDFGandCFG graph_5
  - #eval toSVG "random7" graph_6
