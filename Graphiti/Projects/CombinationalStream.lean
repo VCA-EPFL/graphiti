@@ -438,7 +438,7 @@ theorem refines' :
     apply Module.comp_refines.mk
     . -- Inputs
       intros inport targetLhs invalue h
-      unfold lhsModuleType at lhsState
+      /- unfold lhsModuleType at lhsState -/
       sorry
     . -- Outputs
       sorry
