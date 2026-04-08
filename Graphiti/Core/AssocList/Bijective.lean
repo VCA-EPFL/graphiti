@@ -59,34 +59,6 @@ theorem eraseAll_comm_mapKey {α β γ} [DecidableEq α] [DecidableEq γ] {f : �
       · simp [beq_iff_eq] at Hfeq
         simpa [Hinj Hfeq]
 
-theorem bijectivePortRenaming_bijective {α} [DecidableEq α] {p : AssocList α α} :
-  Function.Bijective p.bijectivePortRenaming := by
-  rw [Function.bijective_iff_existsUnique]
-  intro b
-  by_cases h : p.filterId.keysList.inter p.inverse.filterId.keysList = ∅ && p.keysList.Nodup && p.inverse.keysList.Nodup
-  · cases h' : (p.filterId ++ p.inverse.filterId).find? b
-    · refine ⟨b, ?_, ?_⟩ <;> (unfold bijectivePortRenaming; simp [*, -AssocList.find?_eq])
-      intro y Hy; simp only [List.empty_eq, Bool.and_eq_true, decide_eq_true_eq] at h
-      simp only [invertible, h, List.empty_eq, and_self, decide_true, ↓reduceIte] at Hy
-      cases h'' : AssocList.find? y (p.filterId ++ p.inverse.filterId) <;> (rw [h''] at Hy; dsimp at Hy) <;> try assumption
-      subst b
-      have := invertibleMap (by unfold invertible; simp [*]) h''
-      simp only [lift_append] at this
-      rw [this] at h'; injection h'
-    · rename_i val
-      refine ⟨val, ?_, ?_⟩ <;> (unfold bijectivePortRenaming; simp [*, -AssocList.find?_eq])
-      · simp at h; simp [invertible, h, -AssocList.find?_eq]
-        rw [invertibleMap]; rfl; simp [invertible, *]; assumption
-      · intros y hY
-        simp at h; simp [invertible, h, -AssocList.find?_eq] at hY
-        cases h'' : AssocList.find? y (p.filterId ++ p.inverse.filterId)
-        · rw [h''] at hY; dsimp at hY; subst y; rw [h''] at h'; injection h'
-        · rename_i val'; rw [h''] at hY; dsimp at *; subst b
-          have := invertibleMap (by simp [invertible, *]) h''; rw [this] at h'; injection h'
-  · refine ⟨b, ?_, ?_⟩ <;> (unfold bijectivePortRenaming; simp [invertible, *])
-    · intros; exfalso; apply h; simp [*]
-    · split; exfalso; apply h; simp [*]; simpa
-
 theorem bijectivePortRenaming_involutive {α} [DecidableEq α] {p : AssocList α α} :
   Function.Involutive p.bijectivePortRenaming := by
   unfold Function.Involutive
@@ -96,6 +68,10 @@ theorem bijectivePortRenaming_involutive {α} [DecidableEq α] {p : AssocList α
   cases h' : (p.filterId ++ p.inverse.filterId).find? i; dsimp; rw [h']; rfl
   dsimp
   rw [invertibleMap]; rfl; assumption; assumption
+
+theorem bijectivePortRenaming_bijective {α} [DecidableEq α] {p : AssocList α α} :
+  Function.Bijective p.bijectivePortRenaming :=
+  bijectivePortRenaming_involutive.bijective
 
 theorem mapKey_involutive {α β} {f : α → α} (a : AssocList α β) :
   Function.Involutive f →
