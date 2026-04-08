@@ -345,84 +345,21 @@ theorem wf_modify_expression {e : ExprLow Ident Typ} {i i'}:
     simp only [Bool.and_eq_true] at *
     grind
 
--- TODO: Cleanup this proof.
 theorem mapKey_comm2 {α} {m : PortMap Ident α} {inst : PortMap Ident (InternalPort Ident)} {f i}:
   Function.Bijective f →
   (inst.mapVal fun _ => f).invertible →
   inst.invertible →
   inst.contains i →
   (inst.mapVal fun _ => f).bijectivePortRenaming i = (f ∘ inst.bijectivePortRenaming) i := by
-  intro hbij hinv1 hinv2 hcont
-  unfold AssocList.bijectivePortRenaming
-  rw [hinv1, hinv2]; dsimp
-  rw [←AssocList.contains_find?_iff] at hcont
-  obtain ⟨v, hfind⟩ := hcont
-  by_cases h : i = f i
-  · rw [h] at hfind ⊢
-    by_cases h' : f i = v
-    · subst v
-      rw [AssocList.append_find_right, AssocList.append_find_right]
-      rw [AssocList.filterId_correct, AssocList.filterId_correct]; rw (occs := [2]) [←h]; rfl
-      simp [AssocList.invertible, List.empty_eq, Bool.decide_and, Bool.and_eq_true, decide_eq_true_eq] at hinv2
-      apply hinv2.2.2
-      rw [AssocList.inverse_correct]
-      simp [AssocList.invertible, List.empty_eq, Bool.decide_and, Bool.and_eq_true, decide_eq_true_eq] at hinv2
-      apply hinv2.2.2; assumption
-      simp [AssocList.invertible, List.empty_eq, Bool.decide_and, Bool.and_eq_true, decide_eq_true_eq] at hinv1
-      apply hinv1.2.2
-      rw [AssocList.inverse_correct]
-      simp [AssocList.invertible, List.empty_eq, Bool.decide_and, Bool.and_eq_true, decide_eq_true_eq] at hinv1
-      apply hinv1.2.2
-      rw [←AssocList.find?_map_comm]; rw [hfind]; simp [←h]
-      rw [AssocList.filterId_correct]
-      simp [AssocList.invertible, List.empty_eq, Bool.decide_and, Bool.and_eq_true, decide_eq_true_eq] at hinv2
-      apply hinv2.2.1; assumption
-      rw [AssocList.filterId_correct]
-      simp [AssocList.invertible, List.empty_eq, Bool.decide_and, Bool.and_eq_true, decide_eq_true_eq] at hinv1
-      apply hinv1.2.1
-      rw [←AssocList.find?_map_comm]; rw [hfind]; simp [←h]
-    · rw [AssocList.append_find_left (x := f v)]
-      rw [AssocList.append_find_left (x := v)]; rfl
-      rw [AssocList.filterId_correct2] <;> assumption
-      rw [AssocList.filterId_correct2]; rw [←h] at h'; unfold Not at *; intro h''; apply h';
-      rwa [←hbij.injective.eq_iff]
-      rw [←AssocList.find?_map_comm]
-      rw [hfind]; rfl
-  · by_cases h' : i = v
-    · subst i
-      rw [AssocList.append_find_left (x := f v), AssocList.append_find_right]
-      rw [AssocList.filterId_correct]; rfl
-      simp [AssocList.invertible, List.empty_eq, Bool.decide_and, Bool.and_eq_true, decide_eq_true_eq] at hinv2
-      apply hinv2.2.2
-      rw [AssocList.inverse_correct]
-      simp [AssocList.invertible, List.empty_eq, Bool.decide_and, Bool.and_eq_true, decide_eq_true_eq] at hinv2
-      apply hinv2.2.2
-      assumption
-      rw [AssocList.filterId_correct]
-      simp [AssocList.invertible, List.empty_eq, Bool.decide_and, Bool.and_eq_true, decide_eq_true_eq] at hinv2
-      apply hinv2.2.1
-      assumption
-      rw [AssocList.filterId_correct2]; assumption
-      rw [←AssocList.find?_map_comm]; rw [hfind]; rfl
-    · by_cases h'' : i = f v
-      · subst i
-        rw [AssocList.append_find_right, AssocList.append_find_left (x := v)]
-        dsimp; rw [AssocList.filterId_correct]; rfl
-        simp [AssocList.invertible, List.empty_eq, Bool.decide_and, Bool.and_eq_true, decide_eq_true_eq] at hinv1
-        apply hinv1.2.2
-        rw [AssocList.inverse_correct]
-        simp [AssocList.invertible, List.empty_eq, Bool.decide_and, Bool.and_eq_true, decide_eq_true_eq] at hinv1
-        apply hinv1.2.2
-        rw [←AssocList.find?_map_comm]; rw [hfind]; rfl
-        rw [AssocList.filterId_correct2] <;> assumption
-        rw [AssocList.filterId_correct]
-        simp [AssocList.invertible, List.empty_eq, Bool.decide_and, Bool.and_eq_true, decide_eq_true_eq] at hinv1
-        apply hinv1.2.1
-        rw [←AssocList.find?_map_comm]; rw [hfind]; rfl
-      · rw [AssocList.append_find_left (x := f v), AssocList.append_find_left (x := v)]; rfl
-        rw [AssocList.filterId_correct2]; assumption; assumption
-        rw [AssocList.filterId_correct2]; assumption
-        rw [←AssocList.find?_map_comm]; rw [hfind]; rfl
+  intro hbij hinst_map hinst hcontains
+  have hfind : ∃ v, inst.find? i = some v := by
+    have : (inst.find? i).isSome := AssocList.contains_some hcontains
+    exact Option.isSome_iff_exists.mp this
+  obtain ⟨v, hv⟩ := hfind
+  have hv2 : inst.bijectivePortRenaming i = v := AssocList.bijectivePortRenaming_eq3 hinst hv
+  have hfind_mapped : (inst.mapVal (fun _ => f)).find? i = some (f v) := by
+    rw [AssocList.find?_mapVal, hv]; rfl
+  rw [AssocList.bijectivePortRenaming_eq3 hinst_map hfind_mapped,← hv2]; rfl
 
 theorem mapKey_valid_domain {α β γ} [BEq α] [LawfulBEq α] {m : AssocList α β} {f g : α → γ}:
   (∀ i, m.contains i → f i = g i) →
