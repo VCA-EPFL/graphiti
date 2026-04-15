@@ -165,6 +165,13 @@ lemma zipWith_strict_prefix.{u, v, w} {α : Type u} {β : Type v} {γ : Type w} 
     rw [List.length_zipWith, List.length_zipWith] at H
     grind
 
+theorem prefix_filter_window_prefix [BEq α] :
+  ∀ delay: Nat, ∀ a a' : List α,
+  a <+: a' →
+  filter_window delay a <+: filter_window delay a'
+  := by
+  sorry
+
 theorem filter_window3_prefix_1 [BEq α] :
   ∀ delay: Nat, ∀a a' b c : List α,
   filter_window delay a <+: filter_window delay a' →
@@ -181,13 +188,13 @@ def is_filtered_prefix (filter : List Bool) (s1 s2 : List α) : Prop :=
   (∀ i : Nat, i < s1.length → filter[i]? = some true → s1[i]? = s2[i]?)
 
 -- Notations are weird :(
-notation "["s1 " <+: " s2"]:" filter => is_filtered_prefix filter s1 s2
+notation s1 " <+:{" filter "}" s2:max => is_filtered_prefix filter s1 s2
 
 def is_filtered_strict_prefix (filter : List Bool) (s1 s2 : List α) : Prop :=
   s1.length < s2.length ∧ s2.length <= filter.length ∧
   (∀ i : Nat, i < s1.length → filter[i]? = some true → s1[i]? = s2[i]?)
 
-notation "["s1 " <<: " s2"]:" filter => is_filtered_strict_prefix filter s1 s2
+notation s1 " <<:{" filter "}" s2:max => is_filtered_strict_prefix filter s1 s2
 
 theorem filter_prefix_filtered_prefix :
   ∀ f1 f2, ∀ s1 s2 : List α,
@@ -199,7 +206,7 @@ theorem filter_prefix_filtered_prefix :
   unfold is_filtered_prefix
   intros H Hprefix
   obtain ⟨Hslen, Hfslen, Hfsubs⟩ := H
-  split_ands
+  and_intros
   . assumption
   . grind
   . intro i Hi Hf
@@ -217,6 +224,14 @@ theorem filter_prefix_filtered_prefix :
       simp
       rw [← Hf, List.IsPrefix.getElem]
       assumption
+
+theorem filter_prefix_strict_filtered_prefix :
+  ∀ f1 f2, ∀ s1 s2 : List α,
+    s1 <<:{f1} s2 →
+    f1 <+: f2 →
+    s1 <<:{f2} s2
+  := by
+  sorry
 
 def filtered_eq (filter : List Bool) (s1 s2 : List α) : Prop :=
   s1.length = s2.length ∧ filter.length = s1.length ∧
@@ -956,42 +971,21 @@ theorem refines' :
             . exact existSR_reflexive
             . unfold φ
               obtain ⟨⟨oA, oB⟩, ⟨oCin, oha1s⟩, oha2c, oha1c⟩ := lhs_out
-              simp
-              obtain ⟨_, _, _, _⟩ := a_ident2
-              simp at a_ident1
-              simp at out_has_s
+              cases a_ident2
               subst_vars
-              split_ands <;> try next => rfl
-              -- buffer-in C
-              . obtain ⟨Hlenb, Hlenf, H⟩ := HφBufferInC
-                exact Hlenb
-              . obtain ⟨Hlenb, Hlenf, H⟩ := HφBufferInC
-                apply (Nat.le_trans Hlenf)
-                obtain ⟨HaPrefix, HaLen⟩ := (strict_prefix_iff_prefix_length rA oA).mp a_moredef
-                unfold filter_window3
-                generalize (List.zipWith Bool.and (filter_window 3 oB) (filter_window 3 rCin)) = v
-                rw [List.length_zipWith, List.length_zipWith, List.filter_window_length, List.filter_window_length]
-                grind
-              . obtain ⟨Hlenb, Hlenf, H⟩ := HφBufferInC
-                intros i Hi Hfilter
-                specialize H i Hi
-                apply H
-                rw [←Hfilter]
-                unfold filter_window3
-
-                sorry
-              -- buffer-in S
-              . sorry
-              . sorry
-              . sorry
-              -- buffer-out C
-              . sorry
-              . sorry
-              . sorry
-              -- buffer-out S
-              . sorry
-              . sorry
-              . sorry
+              with_reducible and_intros <;> try rfl
+              . apply filter_prefix_strict_filtered_prefix
+                assumption
+                grind only [filter_window3_prefix_1, prefix_filter_window_prefix, strict_prefix_iff_prefix_length]
+              . apply filter_prefix_strict_filtered_prefix
+                assumption
+                grind only [filter_window3_prefix_1, prefix_filter_window_prefix, strict_prefix_iff_prefix_length]
+              . apply filter_prefix_strict_filtered_prefix
+                assumption
+                grind only [filter_window3_prefix_1, prefix_filter_window_prefix, strict_prefix_iff_prefix_length]
+              . apply filter_prefix_strict_filtered_prefix
+                assumption
+                grind only [filter_window3_prefix_1, prefix_filter_window_prefix, strict_prefix_iff_prefix_length]
         . sorry
         . sorry
       . exfalso; exact (PortMap.getIO_not_contained_false a HContains)
