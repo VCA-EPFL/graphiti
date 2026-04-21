@@ -970,22 +970,7 @@ theorem refines' :
             apply And.intro
             . exact existSR_reflexive
             . unfold φ
-              obtain ⟨⟨oA, oB⟩, ⟨oCin, oha1s⟩, oha2c, oha1c⟩ := lhs_out
-              cases a_ident2
-              subst_vars
-              with_reducible and_intros <;> try rfl
-              . apply filter_prefix_strict_filtered_prefix
-                assumption
-                grind only [filter_window3_prefix_1, prefix_filter_window_prefix, strict_prefix_iff_prefix_length]
-              . apply filter_prefix_strict_filtered_prefix
-                assumption
-                grind only [filter_window3_prefix_1, prefix_filter_window_prefix, strict_prefix_iff_prefix_length]
-              . apply filter_prefix_strict_filtered_prefix
-                assumption
-                grind only [filter_window3_prefix_1, prefix_filter_window_prefix, strict_prefix_iff_prefix_length]
-              . apply filter_prefix_strict_filtered_prefix
-                assumption
-                grind only [filter_window3_prefix_1, prefix_filter_window_prefix, strict_prefix_iff_prefix_length]
+              grind only [filter_prefix_strict_filtered_prefix, filter_window3_prefix_1, prefix_filter_window_prefix, strict_prefix_iff_prefix_length]
         . sorry
         . sorry
       . exfalso; exact (PortMap.getIO_not_contained_false a HContains)
