@@ -165,13 +165,6 @@ lemma zipWith_strict_prefix.{u, v, w} {α : Type u} {β : Type v} {γ : Type w} 
     rw [List.length_zipWith, List.length_zipWith] at H
     grind
 
-theorem prefix_filter_window_prefix [BEq α] :
-  ∀ delay: Nat, ∀ a a' : List α,
-  a <+: a' →
-  filter_window delay a <+: filter_window delay a'
-  := by
-  sorry
-
 theorem filter_window3_prefix_1 [BEq α] :
   ∀ delay: Nat, ∀a a' b c : List α,
   filter_window delay a <+: filter_window delay a' →
@@ -225,13 +218,32 @@ theorem filter_prefix_filtered_prefix :
       rw [← Hf, List.IsPrefix.getElem]
       assumption
 
-theorem filter_prefix_strict_filtered_prefix :
+theorem filter_prefix_filtered_strict_prefix :
   ∀ f1 f2, ∀ s1 s2 : List α,
     s1 <<:{f1} s2 →
     f1 <+: f2 →
     s1 <<:{f2} s2
   := by
-  sorry
+  intro f1 f2 s1 s2
+  unfold is_filtered_strict_prefix
+  intros H Hprefix
+  obtain ⟨Hslen, Hfslen, Hfsubs⟩ := H
+  and_intros
+  . assumption
+  . grind
+  . intro i Hi Hf
+    apply Hfsubs
+    . assumption
+    . rw [List.getElem?_eq_getElem] at Hf
+      rotate_left
+      next => grind
+
+      rw [List.getElem?_eq_getElem]
+      rotate_left
+      next => grind
+
+      rw [← Hf, List.IsPrefix.getElem]
+      assumption
 
 def filtered_eq (filter : List Bool) (s1 s2 : List α) : Prop :=
   s1.length = s2.length ∧ filter.length = s1.length ∧
@@ -750,18 +762,20 @@ end HalfAdder
 
 namespace FullAdder
 
-def half_adder_m (s : String := "") : StringModule (Named s (D × D)) :=
-  { inputs := [(↑"a", ⟨ Named s!"{s}.a" D, λ s tt s' => s.1 <<: tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
-               (↑"b", ⟨ Named s!"{s}.b" D, λ s tt s' => s.2 <<: tt ∧ s'.2 = tt ∧ s'.1 = s.1 ⟩)].toAssocList,
-    outputs := [ (↑"s", ⟨ Named s!"{s}.s" D, λ s tt s' => s = s' ∧ tt = delay false (xor s.1 s.2) ⟩)
-               , (↑"c", ⟨ Named s!"{s}.c" D, λ s tt s' => s = s' ∧ tt = delay false (and s.1 s.2) ⟩)].toAssocList
+def monotonic_output (s s' tt goal : D) : Prop := s <<: s' ∧ s' = tt ∧ tt <+: goal
+
+def half_adder_m (s : String := "") : StringModule (Named s ((D × D) × (D × D))) :=
+  { inputs := [(↑"a", ⟨ Named s!"{s}.a" D, λ s tt s' => s.1.1 <<: tt ∧ s'.1.1 = tt ∧ s'.1.2 = s.1.2 ∧ s'.2 = s.2 ⟩),
+               (↑"b", ⟨ Named s!"{s}.b" D, λ s tt s' => s.1.2 <<: tt ∧ s'.1.2 = tt ∧ s'.2 = s.2 ⟩)].toAssocList,
+    outputs := [ (↑"s", ⟨ Named s!"{s}.s" D, λ s tt s' => s.1 = s'.1 ∧ s.2.2 = s'.2.2 ∧ (monotonic_output s.2.1 s'.2.1 tt (delay false (xor s.1.1 s.1.2))) ⟩)
+               , (↑"c", ⟨ Named s!"{s}.c" D, λ s tt s' => s.1 = s'.1 ∧ s.2.1 = s'.2.1 ∧ (monotonic_output s.2.1 s'.2.2 tt (delay false (and s.1.1 s.1.2))) ⟩)].toAssocList
     init_state := λ s => s = default
   }
 
-def or_m (s : String := "") : StringModule (D × D) :=
-  { inputs := [(↑"a", ⟨ D, λ s tt s' => s.1 <<: tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
-               (↑"b", ⟨ D, λ s tt s' => s.2 <<: tt ∧ s'.2 = tt ∧ s'.1 = s.1 ⟩)].toAssocList,
-    outputs := [(↑"c", ⟨ D, λ s tt s' => s = s' ∧ tt = delay false (and s.1 s.2) ⟩)].toAssocList
+def or_m (s : String := "") : StringModule ((D × D) × D) :=
+  { inputs := [(↑"a", ⟨ D, λ s tt s' => s.1.1 <<: tt ∧ s'.1.1 = tt ∧ s'.1.2 = s.1.2 ∧ s.2 = s'.2 ⟩),
+               (↑"b", ⟨ D, λ s tt s' => s.1.2 <<: tt ∧ s'.1.2 = tt ∧ s'.1.1 = s.1.1 ∧ s.2 = s'.2⟩)].toAssocList,
+    outputs := [(↑"c", ⟨ D, λ s tt s' => s.1 = s'.1 ∧ (monotonic_output s.2 s'.2 tt (delay false (and s.1.1 s.1.2))) ⟩)].toAssocList
     init_state := λ s => s = default
   }
 
@@ -913,8 +927,19 @@ instance : MatchInterface full_adder_imp full_adder_spec := by
   solve_match_interface
 
 
+-- TODO: the is_filtered_strict_prefix should be talking about the output buffers of the modules
 def φ (lhs: full_adder_imp_t) (rhs : full_adder_spec_t) : Prop :=
-  let ((lA, lB), (lCin, ha1s), ha2c, ha1c) := lhs
+  /- Naming conventions:
+  - lA/lB/lCin are the left A B and Cin inputs
+  - ha?_b? are the half-adders' (1 and 2) output buffers (b) for the sum (s) and carry (c)
+  - ha?? are the half-adders' actual outputs as fed into another module
+  - or_b is the output buffer for the or
+
+  Similarly, for the right module
+  - b?_in/b?_out are the input/output buffers for the buffer modules
+  - rA/rB/rCin are the right A B and Cin inputs
+  -/
+  let (((lA, lB), (ha1_bs, ha1_bc)), ((lCin, ha1s), (ha2_bs, ha2_bc)), (ha2c, ha1c), or_b) := lhs
   let ((bs_in, bs_out), (bc_in, bc_out), (rA, rB, rCin)) := rhs
   let filter := filter_window3 3 rA rB rCin
   -- Input states must be equivalent
@@ -931,7 +956,7 @@ theorem refines' :
   full_adder_imp ⊑_{φ} full_adder_spec := by
     unfold Module.refines_φ
     intro init_i init_s Hφ
-    obtain ⟨⟨lA, lB⟩, ⟨lCin, ha1s⟩, ha2c, ha1c⟩ := init_i
+    obtain ⟨⟨⟨lA, lB⟩, ⟨ha1_bs, ha1_bc⟩⟩, ⟨⟨lCin, ha1s⟩, ⟨ha2_bs, ha2_bc⟩⟩, ⟨ha2c, ha1c⟩, or_b⟩ := init_i
     obtain ⟨⟨bs_in, bs_out⟩, ⟨bc_in, bc_out⟩, ⟨rA, rB, rCin⟩⟩ := init_s
     obtain ⟨HφA, HφB, HφCin, HφBufferInC, HφBufferInS, HφBufferOutC, HφBufferOutS⟩ := Hφ
     subst_vars
@@ -951,13 +976,12 @@ theorem refines' :
         <;> subst_vars <;> simp <;> rw [PortMap.rw_rule_execution] at a <;> simp at a
         . -- Input accepted: a.
           -- Unpack the impact of setting a.
-          obtain ⟨⟨a_moredef, ⟨out_has_s, a_ident1⟩⟩, a_ident2⟩ := a
-          simp at a_moredef
-          simp at a_ident1
+          obtain ⟨⟨a_moredef, ⟨out_has_s, a_ident1, a_ident2⟩⟩, a_ident3⟩ := a
+          dsimp at a_moredef a_ident1 a_ident2 a_ident3
           -- Swap out rA in our previous state's definition
           use ⟨⟨bs_in, bs_out⟩, ⟨bc_in, bc_out⟩, ⟨s, rB, rCin⟩⟩
           apply And.intro
-          . -- Our new state is valid
+          . -- Our new transition is valid
             rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]
             simp
             constructor
