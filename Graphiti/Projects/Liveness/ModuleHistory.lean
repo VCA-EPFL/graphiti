@@ -47,9 +47,7 @@ theorem generate_history_correct1_base {m : Module Ident S} {t : Trace Ident} :
         rw [PortMap.rw_rule_execution (by rw [Batteries.AssocList.find?_mapVal, h1])] at *
         rw [PortMap.rw_rule_execution (by simp [Option.map, Option.getD]; rfl)] at *
         cases h_og : (Batteries.AssocList.find? ip m.inputs) <;> try subst_eqs; rw [PortMap.rw_rule_execution (by rw [h_og])] at *; simp at d
-        case some x =>
-          have ⟨ _, rell ⟩ := d
-          grind
+        grind [PortMap.getIO, generate_history, Batteries.AssocList.find?_mapVal]
       rw [h]
       simp at *
       assumption
@@ -63,9 +61,7 @@ theorem generate_history_correct1_base {m : Module Ident S} {t : Trace Ident} :
         rw [PortMap.rw_rule_execution (by rw [Batteries.AssocList.find?_mapVal, h1])] at *
         rw [PortMap.rw_rule_execution (by simp [Option.map, Option.getD]; rfl)] at *
         cases h_og : (Batteries.AssocList.find? ip m.outputs) <;> try subst_eqs; rw [PortMap.rw_rule_execution (by rw [h_og])] at *; simp at d
-        case some x =>
-          have ⟨ _, rell ⟩ := d
-          grind
+        grind [PortMap.getIO, generate_history, Batteries.AssocList.find?_mapVal]
       rw [h]
       simp at *
       assumption
