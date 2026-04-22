@@ -22,7 +22,7 @@ def filter_window [BEq α] (delay: Nat) (a : List α): List Bool :=
   -- I'd use a List.finRange if it had enough theorems on it but
   -- I'm not good enough with that kind of type manipulation to do it quickly
   (List.range a.length).map
-    (fun i => ((a.take (i + 1)).drop (i + 1 - delay)).all (fun v => some v == a[i]?))
+    (fun i => i >= delay ∧ ((a.take (i + 1)).drop (i + 1 - delay)).all (fun v => some v == a[i]?))
 
 theorem filter_window_length [BEq α] (delay : Nat) (a : List α) :
     (filter_window delay a).length = a.length := by
@@ -366,7 +366,7 @@ def fork3_sm := fork3_m.stringify
 
 def env : IdentMap String VerilogTemplate :=
   [("sink_m", sink_m_template), ("and_m", and_m_template), ("nand_m", nand_m_template), ("nand3_m", nand3_m_template), ("fork_m", fork_m_template), ("fork3_m", fork3_m_template), ("not_m", not_m_template)].toAssocList
-
+/-
 namespace FlipFlop
 
 def d_latch'_m := [graphEnv|
@@ -646,15 +646,7 @@ theorem refines :
 end Refinement
 
 end FlipFlop
-
-namespace ClkExample
-
-def clk_s := [graphEnv|
-    a [type="io"];
-
-]
-
-end ClkExample
+-/
 
 namespace HalfAdder
 
@@ -762,7 +754,8 @@ end HalfAdder
 
 namespace FullAdder
 
-def monotonic_output (s s' tt goal : D) : Prop := s <<: s' ∧ s' = tt ∧ tt <+: goal
+-- TODO maybe: move monotonicity directly to the outputs of the impl module
+def monotonic_output (s s' tt goal : D) : Prop := s <<: s' ∧ s' = tt ∧ tt = goal
 
 def half_adder_m (s : String := "") : StringModule (Named s ((D × D) × (D × D))) :=
   { inputs := [(↑"a", ⟨ Named s!"{s}.a" D, λ s tt s' => s.1.1 <<: tt ∧ s'.1.1 = tt ∧ s'.1.2 = s.1.2 ∧ s'.2 = s.2 ⟩),
@@ -775,12 +768,12 @@ def half_adder_m (s : String := "") : StringModule (Named s ((D × D) × (D × D
 def or_m (s : String := "") : StringModule ((D × D) × D) :=
   { inputs := [(↑"a", ⟨ D, λ s tt s' => s.1.1 <<: tt ∧ s'.1.1 = tt ∧ s'.1.2 = s.1.2 ∧ s.2 = s'.2 ⟩),
                (↑"b", ⟨ D, λ s tt s' => s.1.2 <<: tt ∧ s'.1.2 = tt ∧ s'.1.1 = s.1.1 ∧ s.2 = s'.2⟩)].toAssocList,
-    outputs := [(↑"c", ⟨ D, λ s tt s' => s.1 = s'.1 ∧ (monotonic_output s.2 s'.2 tt (delay false (and s.1.1 s.1.2))) ⟩)].toAssocList
+    outputs := [(↑"c", ⟨ D, λ s tt s' => s.1 = s'.1 ∧ (monotonic_output s.2 s'.2 tt (delay false (or s.1.1 s.1.2))) ⟩)].toAssocList
     init_state := λ s => s = default
   }
 
 def adcb (a b c : D) : D × D :=
-  (List.zipWith3 (fun x y z => (BitVec.adcb x y z).1) a b c, List.zipWith3 (fun x y z => (BitVec.adcb x y z).2) a b c)
+  (List.map (fun x => (BitVec.adcb x.1 x.2.1 x.2.2).1) (List.zip a (List.zip b c)), List.map (fun x => (BitVec.adcb x.1 x.2.1 x.2.1).2) (List.zip a (List.zip b c)))
 
 def full_adder_spec_m (s : String := "") : StringModule (Named s (D × D × D)) :=
   { inputs := [(↑"a", ⟨ Named s!"{s}.a" D, λ s tt s' => s.1 <<: tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
@@ -791,10 +784,17 @@ def full_adder_spec_m (s : String := "") : StringModule (Named s (D × D × D)) 
     init_state := λ s => s = default
   }
 
+def future_sight_m (n : Nat) (s : String := "") : StringModule (Named s D) :=
+  {
+    inputs := [(↑"in", ⟨ Named s!"{s}.in" D, λ s tt s' => s <<: tt ∧ s' = tt⟩)].toAssocList,
+    outputs := [(↑"out", ⟨ Named s!"{s}.out" D, λ s tt s' => s = s' ∧ (∃x, x.length = n ∧ s ++ x = tt)⟩)].toAssocList,
+    init_state := λ s => s = default
+  }
+
 def buffer_spec_m (s : String := "") : StringModule (Named s (D × D)) :=
  {
   inputs := [(↑"in", ⟨ Named s!"{s}.in" D, λ s tt s' => s.1 <<: tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩)].toAssocList,
-  outputs := [(↑"out", ⟨ Named s!"{s}.out" D, λ s tt s' => s.2 <<: tt ∧ s'.2 = tt ∧ s'.1 = s.1⟩)].toAssocList,
+  outputs := [(↑"out", ⟨ Named s!"{s}.out" D, λ s tt s' => s.2 <<: tt ∧ s'.2 = tt ∧ tt <+: s.1 ∧ s'.1 = s.1⟩)].toAssocList,
   init_state := λ s => s = default
  }
 
@@ -927,7 +927,6 @@ instance : MatchInterface full_adder_imp full_adder_spec := by
   solve_match_interface
 
 
--- TODO: the is_filtered_strict_prefix should be talking about the output buffers of the modules
 def φ (lhs: full_adder_imp_t) (rhs : full_adder_spec_t) : Prop :=
   /- Naming conventions:
   - lA/lB/lCin are the left A B and Cin inputs
@@ -945,12 +944,18 @@ def φ (lhs: full_adder_imp_t) (rhs : full_adder_spec_t) : Prop :=
   -- Input states must be equivalent
   lA = rA ∧ lB = rB ∧ lCin = rCin ∧
   -- Internal connections of the implementation are monotonic (less defined than each other). TODO.
-  -- Buffer inputs are more defined, when filtered by rA, rB, rCin.
-  is_filtered_strict_prefix filter (delay false (or ha2c ha1c)) bc_in ∧
-    is_filtered_strict_prefix filter (delay false (xor lCin ha1s)) bs_in ∧
-  -- Outputs are more defined, when filtered by rA, rB, rCin.
-  is_filtered_strict_prefix filter bc_out (delay false (or ha2c ha1c)) ∧
-    is_filtered_strict_prefix filter bs_out (delay false (xor lCin ha1s))
+  -- Spec buffer inputs are equal to the maximum from the inputs (always flush the internal transition)
+  bc_in <+:{filter} (adcb rA rB rCin).1 ∧
+  bs_in <+:{filter} (adcb rA rB rCin).2 ∧
+  -- Spec outputs are more or as defined as impl outputs, when filtered by rA, rB, rCin.
+  bc_out <+: or_b ∧
+    bs_out <+: ha2_bs ∧
+  -- Spec buffer inputs are more or as defined that the outputs.
+  or_b <+: bc_in ∧
+    ha2_bs <+: bs_in
+
+macro "destruct_ands_eqs" : tactic =>
+  `(tactic| with_reducible repeat cases ‹_ ∧ _›; subst_vars; with_reducible repeat cases ‹_ = _›)
 
 theorem refines' :
   full_adder_imp ⊑_{φ} full_adder_spec := by
@@ -958,14 +963,12 @@ theorem refines' :
     intro init_i init_s Hφ
     obtain ⟨⟨⟨lA, lB⟩, ⟨ha1_bs, ha1_bc⟩⟩, ⟨⟨lCin, ha1s⟩, ⟨ha2_bs, ha2_bc⟩⟩, ⟨ha2c, ha1c⟩, or_b⟩ := init_i
     obtain ⟨⟨bs_in, bs_out⟩, ⟨bc_in, bc_out⟩, ⟨rA, rB, rCin⟩⟩ := init_s
-    obtain ⟨HφA, HφB, HφCin, HφBufferInC, HφBufferInS, HφBufferOutC, HφBufferOutS⟩ := Hφ
+    obtain ⟨HφA, HφB, HφCin, HφBCDef, HφBSDef, HφBufferInC, HφBufferInS, HφBufferOutC, HφBufferOutS⟩ := Hφ
     subst_vars
-    -- TODO: force all of the Streams to be Some (for those that require it)
-    -- TODO: rewrite functions that are specific to streams to be wrappers around List ones
 
     apply Module.comp_refines.mk
     . -- Inputs
-      intro ident lhs_out s a
+      intro ident ⟨⟨⟨oA, oB⟩, ⟨oha1_bs, oha1_bc⟩⟩, ⟨⟨oCin, oha1s⟩, ⟨oha2_bs, oha2_bc⟩⟩, ⟨oha2c, oha1c⟩, oor_b⟩ s a
 
       -- The ident has to resolve to something
       by_cases HContains: (full_adder_imp.inputs.contains ident)
@@ -973,33 +976,72 @@ theorem refines' :
         -- Split by cases on the port
         unfold full_adder_imp at HContains; simp at HContains
         rcases HContains with h | h | h
-        <;> subst_vars <;> simp <;> rw [PortMap.rw_rule_execution] at a <;> simp at a
+        <;> subst_vars <;> simp <;> rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at a <;> simp at a
         . -- Input accepted: a.
-          -- Unpack the impact of setting a.
-          obtain ⟨⟨a_moredef, ⟨out_has_s, a_ident1, a_ident2⟩⟩, a_ident3⟩ := a
-          dsimp at a_moredef a_ident1 a_ident2 a_ident3
+          destruct_ands_eqs
+          rename_i accept
           -- Swap out rA in our previous state's definition
-          use ⟨⟨bs_in, bs_out⟩, ⟨bc_in, bc_out⟩, ⟨s, rB, rCin⟩⟩
+          use ⟨⟨bs_in, bs_out⟩, ⟨bc_in, bc_out⟩, ⟨s, oB, oCin⟩⟩
           apply And.intro
           . -- Our new transition is valid
             rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]
             simp
             constructor
-            . simp
-              assumption
+            . grind
             . rfl
           . -- Our new state maintains φ
             -- We use the same state with no internal rules
-            use ⟨⟨bs_in, bs_out⟩, ⟨bc_in, bc_out⟩, ⟨s, rB, rCin⟩⟩
+            use ⟨⟨bs_in, bs_out⟩, ⟨bc_in, bc_out⟩, ⟨s, oB, oCin⟩⟩
             apply And.intro
             . exact existSR_reflexive
             . unfold φ
-              grind only [filter_prefix_strict_filtered_prefix, filter_window3_prefix_1, prefix_filter_window_prefix, strict_prefix_iff_prefix_length]
-        . sorry
-        . sorry
+              with_reducible split_ands <;>
+                try grind only [filter_prefix_filtered_prefix, filter_window3_prefix_1, filter_window_prefix, strict_prefix_iff_prefix_length]
+              . sorry -- Mechanical, uninteresting for now.
+              . sorry
+        . sorry -- Input accepted: b
+        . sorry -- Input accepted: cin
       . exfalso; exact (PortMap.getIO_not_contained_false a HContains)
     . -- Outputs
-      sorry
+      intro ident ⟨⟨⟨oA, oB⟩, ⟨oha1_bs, oha1_bc⟩⟩, ⟨⟨oCin, oha1s⟩, ⟨oha2_bs, oha2_bc⟩⟩, ⟨oha2c, oha1c⟩, oor_b⟩ s a
+      -- The ident has to resolve to something
+      by_cases HContains: (full_adder_imp.outputs.contains ident)
+      . -- Unpack initial states for both modules
+        -- Split by cases on the port
+        unfold full_adder_imp at HContains; simp at HContains
+        rcases HContains with h | h | h
+        <;> subst_vars <;> simp <;> rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at a <;> simp at a
+        . -- Extracting sum
+          dsimp [Module.liftL] at a
+          destruct_ands_eqs
+          obtain ⟨Hbs_mono, Hout_is_new_state, Hout_is_eq⟩ := ‹monotonic_output _ _ _ _›
+          subst Hout_is_new_state
+          clear ‹monotonic_output _ _ _ _›
+          use ⟨⟨bs_in, bs_out⟩, ⟨bc_in, bc_out⟩, ⟨oA, oB, rCin⟩⟩
+          apply And.intro
+          . sorry
+          . use ⟨⟨bs_in, oha2_bs⟩, ⟨bc_in, bc_out⟩, ⟨oA, oB, rCin⟩⟩
+            subst_vars
+
+            apply And.intro
+            . -- Our new transition is valid
+              rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]
+              with_reducible and_intros <;> dsimp
+              . grind [strict_prefix_iff_prefix_length]
+              . sorry -- Mechanical
+            . -- Our new state maintains φ
+              -- We use the same state with no internal rules
+              unfold φ
+              with_reducible and_intros <;> try grind
+              -- Currently impossible with this phi.
+              -- TODO: move forward so that bs_in is as long as possible.
+              -- Not gonna be the real thing but proof-of-concept...
+              have Hupdated : bs_in.length = (adcb oA oB rCin).2.length := by sorry
+              unfold is_filtered_prefix at HφBSDef
+
+              sorry
+        . sorry -- Outputting cout
+      . sorry
     . -- Internals
       sorry
 
