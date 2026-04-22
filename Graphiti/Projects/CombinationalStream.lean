@@ -34,9 +34,9 @@ theorem filter_window_nil [BEq α] (delay : Nat) :
 
 theorem filter_window_get [BEq α] (delay : Nat) (a : List α) (i : Nat)
     (hi : i < a.length) :
-    (filter_window delay a)[i]? = some (((a.take (i + 1)).drop (i + 1 - delay)).all
-      (fun v => some v == a[i]?)) := by
-        unfold filter_window; aesop;
+    (filter_window delay a)[i]? = some (Bool.and (i >= delay) (((a.take (i + 1)).drop (i + 1 - delay)).all
+      (fun v => some v == a[i]?))) := by
+        unfold filter_window; grind;
 
 theorem filter_window_get_prefix [BEq α] (delay : Nat) (s1 s2 : List α)
     (h : s1 <+: s2) (i : Nat) (hi : i < s1.length) :
@@ -784,7 +784,7 @@ def full_adder_spec_m (s : String := "") : StringModule (Named s (D × D × D)) 
     init_state := λ s => s = default
   }
 
-def future_sight_m (n : Nat) (s : String := "") : StringModule (Named s D) :=
+def future_sight_m (s : String := "") (n : Nat) : StringModule (Named s D) :=
   {
     inputs := [(↑"in", ⟨ Named s!"{s}.in" D, λ s tt s' => s <<: tt ∧ s' = tt⟩)].toAssocList,
     outputs := [(↑"out", ⟨ Named s!"{s}.out" D, λ s tt s' => s = s' ∧ (∃x, x.length = n ∧ s ++ x = tt)⟩)].toAssocList,
@@ -807,14 +807,18 @@ def buffer_spec_m (s : String := "") : StringModule (Named s (D × D)) :=
 
   fa [type="fa", typeImp=$(⟨_, full_adder_spec_m "fa"⟩)];
   b_1 [type="b_1", typeImp=$(⟨_, buffer_spec_m "b_1"⟩)];
+  fs_1 [type="fs_1", typeImp=$(⟨_, future_sight_m "fs_1" 3⟩)];
   b_2 [type="b_2", typeImp=$(⟨_, buffer_spec_m "b_2"⟩)];
+  fs_2 [type="fs_2", typeImp=$(⟨_, future_sight_m "fs_2" 3⟩)];
 
   a -> fa [to="a"];
   b -> fa [to="b"];
   cin -> fa [to="cin"];
 
-  fa -> b_1 [from="s", to="in"];
-  fa -> b_2 [from="cout", to="in"];
+  fa -> fs_1 [from="s", to="in"];
+  fa -> fs_2 [from="cout", to="in"];
+  fs_1 -> b_1 [from="out", to="in"];
+  fs_2 -> b_2 [from="out", to="in"];
   b_1 -> s [from="out"];
   b_2 -> cout [from="out"];
  ]
@@ -826,6 +830,8 @@ def env_bfam := buffered_full_adder_m.2
 @[drenv] theorem find?_fa_m : (Batteries.AssocList.find? "fa" env_bfam) = .some ⟨_, full_adder_spec_m "fa"⟩ := rfl
 @[drenv] theorem find?_b1_m : (Batteries.AssocList.find? "b_1" env_bfam) = .some ⟨_, buffer_spec_m "b_1"⟩ := rfl
 @[drenv] theorem find?_b2_m : (Batteries.AssocList.find? "b_2" env_bfam) = .some ⟨_, buffer_spec_m "b_2"⟩ := rfl
+@[drenv] theorem find?_fs1_m : (Batteries.AssocList.find? "fs_1" env_bfam) = .some ⟨_, future_sight_m "fs_1" 3⟩ := rfl
+@[drenv] theorem find?_fs2_m : (Batteries.AssocList.find? "fs_2" env_bfam) = .some ⟨_, future_sight_m "fs_2" 3⟩ := rfl
 
 seal env_bfam in
 def_module full_adder_spec_t : Type :=
@@ -936,10 +942,11 @@ def φ (lhs: full_adder_imp_t) (rhs : full_adder_spec_t) : Prop :=
 
   Similarly, for the right module
   - b?_in/b?_out are the input/output buffers for the buffer modules
+  - fs_? are the future-sight modules
   - rA/rB/rCin are the right A B and Cin inputs
   -/
   let (((lA, lB), (ha1_bs, ha1_bc)), ((lCin, ha1s), (ha2_bs, ha2_bc)), (ha2c, ha1c), or_b) := lhs
-  let ((bs_in, bs_out), (bc_in, bc_out), (rA, rB, rCin)) := rhs
+  let ((bs_in, bs_out), fs_s, (bc_in, bc_out), (rA, rB, rCin), fs_c) := rhs
   let filter := filter_window3 3 rA rB rCin
   -- Input states must be equivalent
   lA = rA ∧ lB = rB ∧ lCin = rCin ∧
@@ -962,7 +969,7 @@ theorem refines' :
     unfold Module.refines_φ
     intro init_i init_s Hφ
     obtain ⟨⟨⟨lA, lB⟩, ⟨ha1_bs, ha1_bc⟩⟩, ⟨⟨lCin, ha1s⟩, ⟨ha2_bs, ha2_bc⟩⟩, ⟨ha2c, ha1c⟩, or_b⟩ := init_i
-    obtain ⟨⟨bs_in, bs_out⟩, ⟨bc_in, bc_out⟩, ⟨rA, rB, rCin⟩⟩ := init_s
+    obtain ⟨⟨bs_in, bs_out⟩, fs_s, ⟨bc_in, bc_out⟩, ⟨rA, rB, rCin⟩, fs_c⟩ := init_s
     obtain ⟨HφA, HφB, HφCin, HφBCDef, HφBSDef, HφBufferInC, HφBufferInS, HφBufferOutC, HφBufferOutS⟩ := Hφ
     subst_vars
 
@@ -981,17 +988,18 @@ theorem refines' :
           destruct_ands_eqs
           rename_i accept
           -- Swap out rA in our previous state's definition
-          use ⟨⟨bs_in, bs_out⟩, ⟨bc_in, bc_out⟩, ⟨s, oB, oCin⟩⟩
+          use ⟨⟨bs_in, bs_out⟩, fs_s, ⟨bc_in, bc_out⟩, ⟨s, oB, oCin⟩, fs_c⟩
           apply And.intro
           . -- Our new transition is valid
             rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]
-            simp
+            dsimp
             constructor
-            . grind
+            . unfold Module.liftR Module.liftL
+              grind
             . rfl
           . -- Our new state maintains φ
             -- We use the same state with no internal rules
-            use ⟨⟨bs_in, bs_out⟩, ⟨bc_in, bc_out⟩, ⟨s, oB, oCin⟩⟩
+            use ⟨⟨bs_in, bs_out⟩, fs_s, ⟨bc_in, bc_out⟩, ⟨s, oB, oCin⟩, fs_c⟩
             apply And.intro
             . exact existSR_reflexive
             . unfold φ
@@ -1017,10 +1025,10 @@ theorem refines' :
           obtain ⟨Hbs_mono, Hout_is_new_state, Hout_is_eq⟩ := ‹monotonic_output _ _ _ _›
           subst Hout_is_new_state
           clear ‹monotonic_output _ _ _ _›
-          use ⟨⟨bs_in, bs_out⟩, ⟨bc_in, bc_out⟩, ⟨oA, oB, rCin⟩⟩
+          use ⟨⟨bs_in, bs_out⟩, fs_s, ⟨bc_in, bc_out⟩, ⟨oA, oB, rCin⟩, fs_c⟩
           apply And.intro
           . sorry
-          . use ⟨⟨bs_in, oha2_bs⟩, ⟨bc_in, bc_out⟩, ⟨oA, oB, rCin⟩⟩
+          . use ⟨⟨bs_in, oha2_bs⟩, fs_s, ⟨bc_in, bc_out⟩, ⟨oA, oB, rCin⟩, fs_c⟩
             subst_vars
 
             apply And.intro
