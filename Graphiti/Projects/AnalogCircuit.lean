@@ -296,14 +296,38 @@ noncomputable def_module vrc_module (E R C : ℝ) : StringModule vrc_module_t  :
 
 
 /-- Lowered NAND gate topology. -/
+@[drunfold_defs]
 def nand_lowered := (nand_circuit 0 0 0).1.lower_TR |>.get rfl
 
 /-- Component environment for the NAND gate. -/
 def env_nand (Vdd R Vth : ℝ) := (nand_circuit Vdd R Vth).2
 
+@[drenv] theorem env_nand_vsource (Vdd R Vth : ℝ) :
+    Batteries.AssocList.find? "vsource" (env_nand Vdd R Vth) = .some ⟨_, vsource_sm Vdd⟩ := rfl
+@[drenv] theorem env_nand_resistor (Vdd R Vth : ℝ) :
+    Batteries.AssocList.find? "resistor" (env_nand Vdd R Vth) = .some ⟨_, resistor_sm R⟩ := rfl
+@[drenv] theorem env_nand_probe (Vdd R Vth : ℝ) :
+    Batteries.AssocList.find? "probe" (env_nand Vdd R Vth) = .some ⟨_, probe_sm⟩ := rfl
+@[drenv] theorem env_nand_nmos1 (Vdd R Vth : ℝ) :
+    Batteries.AssocList.find? "nmos1" (env_nand Vdd R Vth) = .some ⟨_, nmos_sm Vth⟩ := rfl
+@[drenv] theorem env_nand_nmos2 (Vdd R Vth : ℝ) :
+    Batteries.AssocList.find? "nmos2" (env_nand Vdd R Vth) = .some ⟨_, nmos_sm Vth⟩ := rfl
 
+seal env_nand in
+-- Type extraction: TODO do a tactic for that
+def_module nand_module_t : Type :=
+  [T| nand_lowered, (env_nand 0 0 0).find? ]
+reduction_by
+  dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
+  dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
+  dsimp [ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type,
+         ExprLow.build_module, ExprLow.build_module', toString]
+  simp only [drenv]
+  dsimp
 
-noncomputable def nand_module (Vdd R Vth : ℝ) :=
+seal env_nand in
+/-- The NAND gate, obtained by lowering the graphEnv definition. -/
+noncomputable def_module nand_module (Vdd R Vth : ℝ) : StringModule nand_module_t :=
   [e| nand_lowered, (env_nand Vdd R Vth).find? ]
 -- ============================================================================
 -- § Equation Derivation
@@ -394,9 +418,7 @@ The NAND correctness theorem: for a physically valid state of the NAND circuit,
 
 
 /-- When both inputs are above threshold at time `t`, the output voltage is 0 (GND).
-
-    Both NMOS transistors are ON → drain=source for each → output is shorted
-    to the VDD negative terminal (GND) through the series path. -/
+-/
 theorem nand_both_high (Vdd R Vth : ℝ) (hR : R ≠ 0)
     (s) (h : analogValid (nand_module Vdd R Vth) s)
     -- Both gates above threshold at time t
@@ -405,23 +427,122 @@ theorem nand_both_high (Vdd R Vth : ℝ) (hR : R ≠ 0)
     (hB : s.1.vG t - s.1.vS t > Vth)             -- NMOS2 gate high
     : s.2.1.v t = s.2.2.2.1.v₂ t                 -- output = GND voltage
     := by
-  sorry  -- From analogValid: extract NMOS constitutive laws + KVL.
-         -- NMOS1 ON: n1.vD = n1.vS, NMOS2 ON: n2.vD = n2.vS
-         -- Connection: output = n1.vD, n1.vS = n2.vD, n2.vS = GND
-         -- Chain: output = n1.vD = n1.vS = n2.vD = n2.vS = GND
+  obtain ⟨hinit, hint⟩ := h
+  dsimp [nand_module, vsource_sm, resistor_sm, probe_sm, nmos_sm,
+         vsource, resistor, probe, nmos,
+         NatModule.stringify, Module.mapIdent] at *
+  obtain ⟨⟨hn2_on, _⟩, _, ⟨hn1_on, _⟩, _, _⟩ := hinit
+  -- Five internal rules, one per connection.
+  have h1 := hint _ (List.mem_cons_self ..)
+  have h2 := hint _ (List.mem_cons_of_mem _ (List.mem_cons_self ..))
+  have h3 := hint _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_self ..)))
+  have h4 := hint _ (List.mem_cons_of_mem _
+                      (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_self ..))))
+  have h5 := hint _ (List.mem_cons_of_mem _
+                      (List.mem_cons_of_mem _
+                        (List.mem_cons_of_mem _
+                          (List.mem_cons_of_mem _ (List.mem_cons_self ..)))))
+  simp only [forall_const, not_true_eq_false, false_implies, and_true] at h1 h2 h3 h4 h5
+  obtain ⟨_, _, h1'⟩ := h1
+  obtain ⟨_, _, h2'⟩ := h2
+  obtain ⟨_, _, h3'⟩ := h3
+  obtain ⟨_, _, h4'⟩ := h4
+  obtain ⟨_, _, h5'⟩ := h5
+  -- NMOS ON at t: drain-source is a short.
+  have hn1vD : s.2.2.1.vD t = s.2.2.1.vS t := hn1_on t hA
+  have hn2vD : s.1.vD t = s.1.vS t := hn2_on t hB
+  -- Voltage chain: prb.v = n1.vD; n1.vS = n2.vD; n2.vS = vdd.v₂.
+  have hvc3 : s.2.1.v t = s.2.2.1.vD t := by grind
+  have hvc4 : s.2.2.1.vS t = s.1.vD t := by grind
+  have hvc5 : s.1.vS t = s.2.2.2.1.v₂ t := by grind
+  linarith
 
 /-- When input A is below threshold at time `t`, the output voltage equals Vdd.
-
-    NMOS₁ OFF → iDS₁ = 0 → series current = 0 → no voltage drop across R
-    → output = VDD. -/
+-/
 theorem nand_a_low (Vdd R Vth : ℝ)
     (s) (h : analogValid (nand_module Vdd R Vth) s)
     (t : ℝ)
     (hA : s.2.2.1.vG t - s.2.2.1.vS t ≤ Vth)    -- NMOS1 gate low
     : s.2.1.v t = s.2.2.2.1.v₁ t                  -- output = VDD voltage
     := by
-  sorry  -- NMOS1 OFF: iDS1 = 0. Series: iDS1 = iDS2 = 0.
-         -- No current through R → output = VDD (by Ohm's law: 0 = R·0).
+  obtain ⟨hinit, hint⟩ := h
+  dsimp [nand_module, vsource_sm, resistor_sm, probe_sm, nmos_sm,
+         vsource, resistor, probe, nmos,
+         NatModule.stringify, Module.mapIdent] at *
+  obtain ⟨_, _, ⟨_, hn1_off⟩, _, hrpull⟩ := hinit
+  have h1 := hint _ (List.mem_cons_self ..)
+  have h2 := hint _ (List.mem_cons_of_mem _ (List.mem_cons_self ..))
+  have h3 := hint _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_self ..)))
+  have h4 := hint _ (List.mem_cons_of_mem _
+                      (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_self ..))))
+  have h5 := hint _ (List.mem_cons_of_mem _
+                      (List.mem_cons_of_mem _
+                        (List.mem_cons_of_mem _
+                          (List.mem_cons_of_mem _ (List.mem_cons_self ..)))))
+  simp only [forall_const, not_true_eq_false, false_implies, and_true] at h1 h2 h3 h4 h5
+  obtain ⟨_, _, h1'⟩ := h1
+  obtain ⟨_, _, h2'⟩ := h2
+  obtain ⟨_, _, h3'⟩ := h3
+  obtain ⟨_, _, h4'⟩ := h4
+  obtain ⟨_, _, h5'⟩ := h5
+  -- NMOS1 OFF at t: no drain-source current.
+  have hn1_iDS : s.2.2.1.iDS t = 0 := hn1_off t hA
+  -- Current chain: rpull.i = prb.i = n1.iDS = 0.
+  have hic3 : s.2.1.i t = s.2.2.1.iDS t := by grind
+  have hic2 : s.2.2.2.2.i t = s.2.1.i t := by grind
+  have h_i0 : s.2.2.2.2.i t = 0 := by linarith
+  -- No drop across rpull: v₁ = v₂.
+  have hrpull_t : s.2.2.2.2.v₁ t - s.2.2.2.2.v₂ t = R * s.2.2.2.2.i t := hrpull t
+  have hrpull_vi : s.2.2.2.2.v₁ t = s.2.2.2.2.v₂ t := by
+    rw [h_i0, mul_zero] at hrpull_t; linarith
+  -- Voltage chain: vdd.v₁ = rpull.v₁; rpull.v₂ = prb.v.
+  have hvc1 : s.2.2.2.1.v₁ t = s.2.2.2.2.v₁ t := by grind
+  have hvc2 : s.2.2.2.2.v₂ t = s.2.1.v t := by grind
+  linarith
+
+/-- When input B is below threshold at time `t`, the output voltage equals Vdd.
+-/
+theorem nand_b_low (Vdd R Vth : ℝ)
+    (s) (h : analogValid (nand_module Vdd R Vth) s)
+    (t : ℝ)
+    (hB : s.1.vG t - s.1.vS t ≤ Vth)            -- NMOS2 gate low
+    : s.2.1.v t = s.2.2.2.1.v₁ t                  -- output = VDD voltage
+    := by
+  obtain ⟨hinit, hint⟩ := h
+  dsimp [nand_module, vsource_sm, resistor_sm, probe_sm, nmos_sm,
+         vsource, resistor, probe, nmos,
+         NatModule.stringify, Module.mapIdent] at *
+  obtain ⟨⟨_, hn2_off⟩, _, _, _, hrpull⟩ := hinit
+  have h1 := hint _ (List.mem_cons_self ..)
+  have h2 := hint _ (List.mem_cons_of_mem _ (List.mem_cons_self ..))
+  have h3 := hint _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_self ..)))
+  have h4 := hint _ (List.mem_cons_of_mem _
+                      (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_self ..))))
+  have h5 := hint _ (List.mem_cons_of_mem _
+                      (List.mem_cons_of_mem _
+                        (List.mem_cons_of_mem _
+                          (List.mem_cons_of_mem _ (List.mem_cons_self ..)))))
+  simp only [forall_const, not_true_eq_false, false_implies, and_true] at h1 h2 h3 h4 h5
+  obtain ⟨_, _, h1'⟩ := h1
+  obtain ⟨_, _, h2'⟩ := h2
+  obtain ⟨_, _, h3'⟩ := h3
+  obtain ⟨_, _, h4'⟩ := h4
+  obtain ⟨_, _, h5'⟩ := h5
+  -- NMOS2 OFF at t: no drain-source current.
+  have hn2_iDS : s.1.iDS t = 0 := hn2_off t hB
+  -- Current chain: rpull.i = prb.i = n1.iDS = n2.iDS = 0.
+  have hic4 : s.2.2.1.iDS t = s.1.iDS t := by grind
+  have hic3 : s.2.1.i t = s.2.2.1.iDS t := by grind
+  have hic2 : s.2.2.2.2.i t = s.2.1.i t := by grind
+  have h_i0 : s.2.2.2.2.i t = 0 := by linarith
+  -- No drop across rpull: v₁ = v₂.
+  have hrpull_t : s.2.2.2.2.v₁ t - s.2.2.2.2.v₂ t = R * s.2.2.2.2.i t := hrpull t
+  have hrpull_vi : s.2.2.2.2.v₁ t = s.2.2.2.2.v₂ t := by
+    rw [h_i0, mul_zero] at hrpull_t; linarith
+  -- Voltage chain: vdd.v₁ = rpull.v₁; rpull.v₂ = prb.v.
+  have hvc1 : s.2.2.2.1.v₁ t = s.2.2.2.2.v₁ t := by grind
+  have hvc2 : s.2.2.2.2.v₂ t = s.2.1.v t := by grind
+  linarith
 
 end
 
