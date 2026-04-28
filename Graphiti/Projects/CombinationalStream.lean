@@ -24,7 +24,7 @@ def filter_window [BEq α] (delay: Nat) (a : List α): List Bool :=
   (List.range a.length).map
     (fun i => i >= delay ∧ ((a.take (i + 1)).drop (i + 1 - delay)).all (fun v => some v == a[i]?))
 
-theorem filter_window_length [BEq α] (delay : Nat) (a : List α) :
+theorem length_filter_window [BEq α] (delay : Nat) (a : List α) :
     (filter_window delay a).length = a.length := by
       simp [List.length_range, filter_window]
 
@@ -56,7 +56,7 @@ theorem filter_window_prefix [BEq α] :
       intros delay s1 s2 hs1s2
       have h_filter_eq_take : filter_window delay s1 = (filter_window delay s2).take s1.length := by
         refine' List.ext_get _ _;
-        · rw [ List.length_take, filter_window_length, filter_window_length ];
+        · rw [ List.length_take, length_filter_window, length_filter_window ];
           rw [ Nat.min_eq_left ( hs1s2.length_le ) ];
         · intro n hn hn';
           convert filter_window_get_prefix delay s1 s2 hs1s2 n _;
@@ -128,6 +128,14 @@ lemma strict_prefix_iff_prefix_length (s1 s2 : List α)
 
 def filter_window3 [BEq α] (delay: Nat) (a b c : List α) : List Bool :=
   List.zipWith Bool.and (filter_window delay a) (List.zipWith Bool.and (filter_window delay b) (filter_window delay c))
+
+theorem length_filter_window3 [BEq α] :
+  ∀ d, ∀ a b c : List α,
+    List.length (filter_window3 d a b c) = min a.length (min b.length c.length)
+  := by
+    intros
+    unfold filter_window3
+    grind only [List.length_zipWith, List.length_filter_window]
 
 lemma zipWith_prefix.{u, v, w} {α : Type u} {β : Type v} {γ : Type w} :
   ∀f: α → β → γ, ∀ a a': List α, ∀ b : List β,
@@ -258,7 +266,7 @@ def pad_with_list (target : Nat) (pad l : List α) : List α :=
 theorem length_pad_with_list : ∀ t, ∀ p l : List α, p.length >= t → (pad_with_list t p l).length = max t l.length
   := by
     unfold pad_with_list
-    grind
+    grind only [= List.length_append, = max_def, = List.length_take, = List.length_drop, = min_def]
 
 theorem filtered_eq_select_from_filter :
   ∀ f, ∀ lt lf : List α, f.length = lt.length → lf.length >= lt.length → filtered_eq f lt (select_from_filter lt lf f)
@@ -300,6 +308,7 @@ lemma select_from_filter_prefix_of_agree
         exact ⟨ pad, by simp +decide ⟩;
       | cons f fs ih =>
         intros carry pad h
+        -- Sloowwww
         rcases carry with ( _ | ⟨ c, carry ⟩ ) <;> rcases pad with ( _ | ⟨ p, pad ⟩ ) <;> simp_all +decide;
         -- The first three "by grind" should be simpler but this works.
         exact ⟨ fun hf => h 0 (by grind) (by grind) (by grind) hf, ih _ _ fun i hi_f hi_c hi_p hi => h ( i + 1 ) ( by grind ) ( by grind ) ( by grind ) hi ⟩
@@ -812,23 +821,37 @@ namespace FullAdder
 -- TODO maybe: move monotonicity directly to the outputs of the impl module
 def monotonic_output (s s' tt goal : D) : Prop := s <<: s' ∧ s' = tt ∧ tt = goal
 
-def half_adder_m (s : String := "") : StringModule (Named s ((D × D) × (D × D))) :=
-  { inputs := [(↑"a", ⟨ Named s!"{s}.a" D, λ s tt s' => s.1.1 <<: tt ∧ s'.1.1 = tt ∧ s'.1.2 = s.1.2 ∧ s'.2 = s.2 ⟩),
-               (↑"b", ⟨ Named s!"{s}.b" D, λ s tt s' => s.1.2 <<: tt ∧ s'.1.2 = tt ∧ s'.2 = s.2 ⟩)].toAssocList,
-    outputs := [ (↑"s", ⟨ Named s!"{s}.s" D, λ s tt s' => s.1 = s'.1 ∧ s.2.2 = s'.2.2 ∧ (monotonic_output s.2.1 s'.2.1 tt (delay false (xor s.1.1 s.1.2))) ⟩)
-               , (↑"c", ⟨ Named s!"{s}.c" D, λ s tt s' => s.1 = s'.1 ∧ s.2.1 = s'.2.1 ∧ (monotonic_output s.2.1 s'.2.2 tt (delay false (and s.1.1 s.1.2))) ⟩)].toAssocList
+def half_adder_m (s : String := "") : StringModule (Named s (D × D)) :=
+  { inputs := [(↑"a", ⟨ Named s!"{s}.a" D, λ s tt s' => s.1 <<: tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
+               (↑"b", ⟨ Named s!"{s}.b" D, λ s tt s' => s.2 <<: tt ∧ s'.2 = tt ∧ s'.1 = s.1 ⟩)].toAssocList,
+    outputs := [ (↑"s", ⟨ Named s!"{s}.s" D, λ s tt s' => s = s' ∧ tt = (delay false (xor s.1 s.2)) ⟩)
+               , (↑"c", ⟨ Named s!"{s}.c" D, λ s tt s' => s = s' ∧ tt = (delay false (and s.1 s.2)) ⟩)].toAssocList
     init_state := λ s => s = default
   }
 
-def or_m (s : String := "") : StringModule ((D × D) × D) :=
-  { inputs := [(↑"a", ⟨ D, λ s tt s' => s.1.1 <<: tt ∧ s'.1.1 = tt ∧ s'.1.2 = s.1.2 ∧ s.2 = s'.2 ⟩),
-               (↑"b", ⟨ D, λ s tt s' => s.1.2 <<: tt ∧ s'.1.2 = tt ∧ s'.1.1 = s.1.1 ∧ s.2 = s'.2⟩)].toAssocList,
-    outputs := [(↑"c", ⟨ D, λ s tt s' => s.1 = s'.1 ∧ (monotonic_output s.2 s'.2 tt (delay false (or s.1.1 s.1.2))) ⟩)].toAssocList
+def or_m (s : String := "") : StringModule (D × D) :=
+  { inputs := [(↑"a", ⟨ D, λ s tt s' => s.1 <<: tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
+               (↑"b", ⟨ D, λ s tt s' => s.2 <<: tt ∧ s'.2 = tt ∧ s'.1 = s.1 ⟩)].toAssocList,
+    outputs := [(↑"c", ⟨ D, λ s tt s' => s = s' ∧ tt = delay false (or s.1 s.2) ⟩)].toAssocList
     init_state := λ s => s = default
   }
 
 def adcb (a b c : D) : D × D :=
   (List.map (fun x => (BitVec.adcb x.1 x.2.1 x.2.2).1) (List.zip a (List.zip b c)), List.map (fun x => (BitVec.adcb x.1 x.2.1 x.2.2).2) (List.zip a (List.zip b c)))
+
+theorem length_adcb_1 :
+  ∀ a b c, List.length (adcb a b c).1 = min a.length (min b.length c.length)
+  := by
+  unfold adcb
+  intros
+  rw [List.length_map, List.length_zip, List.length_zip]
+
+theorem length_adcb_2 :
+  ∀ a b c, List.length (adcb a b c).2 = min a.length (min b.length c.length)
+  := by
+  unfold adcb
+  intros
+  rw [List.length_map, List.length_zip, List.length_zip]
 
 def full_adder_spec_m (s : String := "") : StringModule (Named s (D × D × D)) :=
   { inputs := [(↑"a", ⟨ Named s!"{s}.a" D, λ s tt s' => s.1 <<: tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
@@ -860,22 +883,26 @@ def buffer_spec_m (s : String := "") : StringModule (Named s (D × D)) :=
   s [type="io"];
   cout [type="io"];
 
+  b_a [type="b_a", typeImp=$(⟨_, buffer_spec_m "b_a"⟩)];
+  b_b [type="b_b", typeImp=$(⟨_, buffer_spec_m "b_b"⟩)];
+  b_c [type="b_c", typeImp=$(⟨_, buffer_spec_m "b_c"⟩)];
+
   fa [type="fa", typeImp=$(⟨_, full_adder_spec_m "fa"⟩)];
-  b_1 [type="b_1", typeImp=$(⟨_, buffer_spec_m "b_1"⟩)];
   fs_1 [type="fs_1", typeImp=$(⟨_, future_sight_m "fs_1" 3⟩)];
-  b_2 [type="b_2", typeImp=$(⟨_, buffer_spec_m "b_2"⟩)];
   fs_2 [type="fs_2", typeImp=$(⟨_, future_sight_m "fs_2" 3⟩)];
 
-  a -> fa [to="a"];
-  b -> fa [to="b"];
-  cin -> fa [to="cin"];
+  a -> b_a [to="in"];
+  b -> b_b [to="in"];
+  cin -> b_c [to="in"];
+
+  b_a -> fa [from="out", to="a"];
+  b_b -> fa [from="out", to="b"];
+  b_c -> fa [from="out", to="cin"];
 
   fa -> fs_1 [from="s", to="in"];
   fa -> fs_2 [from="cout", to="in"];
-  fs_1 -> b_1 [from="out", to="in"];
-  fs_2 -> b_2 [from="out", to="in"];
-  b_1 -> s [from="out"];
-  b_2 -> cout [from="out"];
+  fs_1 -> s [from="out"];
+  fs_2 -> cout [from="out"];
  ]
 
 def buffered_full_adder_m_lowered := buffered_full_adder_m.1.lower_TR |>.get rfl
@@ -883,8 +910,9 @@ def buffered_full_adder_m_lowered := buffered_full_adder_m.1.lower_TR |>.get rfl
 def env_bfam := buffered_full_adder_m.2
 
 @[drenv] theorem find?_fa_m : (Batteries.AssocList.find? "fa" env_bfam) = .some ⟨_, full_adder_spec_m "fa"⟩ := rfl
-@[drenv] theorem find?_b1_m : (Batteries.AssocList.find? "b_1" env_bfam) = .some ⟨_, buffer_spec_m "b_1"⟩ := rfl
-@[drenv] theorem find?_b2_m : (Batteries.AssocList.find? "b_2" env_bfam) = .some ⟨_, buffer_spec_m "b_2"⟩ := rfl
+@[drenv] theorem find?_b_a_m : (Batteries.AssocList.find? "b_a" env_bfam) = .some ⟨_, buffer_spec_m "b_a"⟩ := rfl
+@[drenv] theorem find?_b_b_m : (Batteries.AssocList.find? "b_b" env_bfam) = .some ⟨_, buffer_spec_m "b_b"⟩ := rfl
+@[drenv] theorem find?_b_c_m : (Batteries.AssocList.find? "b_c" env_bfam) = .some ⟨_, buffer_spec_m "b_c"⟩ := rfl
 @[drenv] theorem find?_fs1_m : (Batteries.AssocList.find? "fs_1" env_bfam) = .some ⟨_, future_sight_m "fs_1" 3⟩ := rfl
 @[drenv] theorem find?_fs2_m : (Batteries.AssocList.find? "fs_2" env_bfam) = .some ⟨_, future_sight_m "fs_2" 3⟩ := rfl
 
@@ -991,30 +1019,26 @@ instance : MatchInterface full_adder_imp full_adder_spec := by
 def φ (lhs: full_adder_imp_t) (rhs : full_adder_spec_t) : Prop :=
   /- Naming conventions:
   - lA/lB/lCin are the left A B and Cin inputs
-  - ha?_b? are the half-adders' (1 and 2) output buffers (b) for the sum (s) and carry (c)
-  - ha?? are the half-adders' actual outputs as fed into another module
-  - or_b is the output buffer for the or
+  - ha?? are the half-adders' outputs as fed into another module
 
   Similarly, for the right module
   - b?_in/b?_out are the input/output buffers for the buffer modules
   - fs_? are the future-sight modules
-  - rA/rB/rCin are the right A B and Cin inputs
+  - aA/aB/aC are the right A B and Cin inputs into the spec calculator
   -/
-  let (((lA, lB), (ha1_bs, ha1_bc)), ((lCin, ha1s), (ha2_bs, ha2_bc)), (ha2c, ha1c), or_b) := lhs
-  let ((bs_in, bs_out), fs_s, (bc_in, bc_out), (rA, rB, rCin), fs_c) := rhs
-  let filter := (filter_window3 3 rA rB rCin) ++ (List.replicate 3 false)
+  let ((lA, lB), (lCin, ha1s), (ha1c, ha2c)) := lhs
+  let (fs_s, (aA, aB, aC), (ba_in, ba_out), (bb_in, bb_out), (bc_in, bc_out), fs_c) := rhs
+  let lenS := (min lCin.length (ha1s.length)) + 1
+  let filter := (filter_window3 3 aA aB aC)
   -- Input states must be equivalent
-  lA = rA ∧ lB = rB ∧ lCin = rCin ∧
+  lA = ba_in ∧ lB = bb_in ∧ lCin = bc_in ∧
   -- Internal state of the impl is logical.
-  ha1_bs <+: (delay false (List.xor lA lB)) ∧
-  -- Internal wires are monotonic
-  ha1s <+: ha1_bs ∧
-  -- Spec outputs are more or as defined as impl outputs, when filtered by rA, rB, rCin.
-  bc_out <+: or_b ∧
-    bs_out <+: ha2_bs ∧
-  -- Spec buffer inputs are more or as defined that the outputs.
-  or_b <+: bc_in ∧
-    ha2_bs <+: bs_in
+  -- Internal state of the spec is logical.
+  aA = ba_out ∧ aB = bb_out ∧ aC = bc_out ∧
+  ba_out <+: ba_in ∧ bb_out <+: bb_in ∧ bc_out <+: bc_in ∧
+  filtered_eq filter (adcb aA aB aC).2 fs_s ∧
+  -- Our spec doesn't move ahead of the impl
+  aA.length <= lenS ∧ aB.length <= lenS ∧ aC.length <= lenS
 
 macro "destruct_ands_eqs" : tactic =>
   `(tactic| with_reducible repeat cases ‹_ ∧ _›; subst_vars; with_reducible repeat cases ‹_ = _›)
@@ -1025,128 +1049,48 @@ macro "destruct_ands_eqs" : tactic =>
 -- but potentially structured a bit strangely
 -- this is because they really only exist as tools to prove refinement
 
-/-
-Extracts the componentwise conjunction from `filter_window3`.
--/
--- Maybe we could simplify those length proofs?
-lemma filter_window3_getElem_and (a b c : List Bool) (i : Nat)
-    (hi : i < (filter_window3 3 a b c).length) :
-    (filter_window3 3 a b c)[i] = true →
-    (filter_window 3 a)[i]'(by simp [filter_window3, List.length_zipWith, filter_window_length] at hi; rw [filter_window_length]; omega) = true ∧
-    (filter_window 3 b)[i]'(by simp [filter_window3, List.length_zipWith, filter_window_length] at hi; rw [filter_window_length]; omega) = true ∧
-    (filter_window 3 c)[i]'(by simp [filter_window3, List.length_zipWith, filter_window_length] at hi; rw [filter_window_length]; omega) = true := by
-      unfold filter_window3;
-      grind only [= List.getElem_zipWith]
-
--- This def was given by Aristotle. It works and makes sense, but jeez.
-/-
-If `filter_window 3 a` is `true` at index `i` (with `i < a.length`), then `i ≥ 3`
-    and elements at indices `i-1` and `i-2` equal the element at index `i`.
--/
-lemma filter_window_3_stable (a : List Bool) (i : Nat) (hi : i < a.length) :
-    (filter_window 3 a)[i]'(by rw [filter_window_length]; exact hi) = true →
-    i ≥ 3 ∧ a[i - 1]'(by omega) = a[i] ∧ a[i - 2]'(by omega) = a[i] := by
-      unfold filter_window
-      rcases i with ( _ | _ | _ | i )
-      <;> try (grind only [= List.getElem_map, = List.getElem_range])
-      by_cases H : a[i + 1 + 1 + 1] <;>
-      (
-        simp_all;
-        repeat rw [
-          List.drop_eq_getElem_cons (by rw [List.length_take]; omega),
-          List.getElem_take
-        ];
-        repeat rw [List.mem_cons];
-        grind only
-      )
-
-/-
-The second component of `adcb` at index `i` equals `a[i] ^^ b[i] ^^ cin[i]`.
--/
-lemma adcb_snd_getElem (a b cin : List Bool) (i : Nat)
-    (hi : i < ((adcb a b cin).2).length) :
-    ((adcb a b cin).2)[i] = (a[i]'(by simp [adcb, List.length_map, List.length_zip, List.length_zip] at hi; omega)) ^^
-      (b[i]'(by simp [adcb, List.length_map, List.length_zip, List.length_zip] at hi; omega)) ^^
-      (cin[i]'(by simp [adcb, List.length_map, List.length_zip, List.length_zip] at hi; omega)) := by
-        unfold adcb BitVec.adcb;
-        -- By definition of `BitVec.adcb`, the second component is simply the XOR of the three operands.
-        rw [List.getElem_map, List.getElem_zip, List.getElem_zip]
-        grind only
-/-
-The element at index `i+1` of `delay false (xor cin s)` equals `cin[i] ^^ s[i]`.
--/
-lemma delay_xor_getElem_succ (cin s : List Bool) (i : Nat)
-    (hi_c : i < cin.length) (hi_s : i < s.length) :
-    (delay false (xor cin s))[i + 1]'(by simp [delay, List.xor]; omega) =
-    cin[i] ^^ s[i] := by
-      unfold delay List.xor;
-      grind only [= List.getElem_cons, = List.getElem_zipWith]
-/-- The element at index 0 of `delay false l` is `false`. -/
-lemma delay_getElem_zero (l : List Bool) :
-    (delay false l)[0]'(by simp [delay]) = false := by
-  rfl
-/-
-At filter-true positions of `filter_window3 3 a b cin`, the carry (adcb sum)
-    agrees with the delayed XOR computation.
--/
-lemma carry_pad_agree_at_stable (a b cin ha1s : List Bool)
-    (hpre : ha1s <+: delay false (xor a b))
-    (i : Nat)
-    (hi_f : i < (filter_window3 3 a b cin).length)
-    (hi_c : i < ((adcb a b cin).2).length)
-    (hi_p : i < (delay false (xor cin ha1s)).length)
-    (hfilter : (filter_window3 3 a b cin)[i] = true) :
-    ((adcb a b cin).2)[i] = (delay false (xor cin ha1s))[i] := by
-      -- Extract the stability conditions from `filter_window3_getElem_and` and `filter_window_3_stable`.
-      obtain ⟨ha_w, hb_w, hc_w⟩ := filter_window3_getElem_and a b cin i hi_f hfilter
-      unfold adcb at hi_c
-      simp at hi_c
-      unfold delay List.xor at hi_p
-      simp at hi_p
-
-      obtain ⟨hi_m, ha_1, ha_2⟩ := filter_window_3_stable a i (by grind only) ha_w
-      obtain ⟨_, hb_1, hb_2⟩ := filter_window_3_stable b i (by grind only) hb_w
-      obtain ⟨_, hc_1, hc_2⟩ := filter_window_3_stable cin i (by grind only) hc_w
-      destruct_ands_eqs
-      clear ha_w hb_w hc_w hfilter hi_f
-
-      have h_ha1s : ha1s[i - 1]'(by grind only [= min_def]) = (a[i - 2]'(by grind only) ^^ b[i - 2]'(by grind only)) := by
-        rw [List.IsPrefix.getElem hpre]
-        unfold delay List.xor
-
-        grind only [= List.getElem_cons, = List.getElem_zipWith]
-
-      unfold adcb delay List.xor BitVec.adcb
-      rw [List.getElem_map, List.getElem_zip, List.getElem_zip]
-      grind only [= List.getElem_cons, = List.getElem_zipWith]
-
-lemma catchup_sum_out :
-  ∀ a b cin ha1s,
-    ha1s <+: (delay false (List.xor a b)) →
-    delay false (List.xor cin ha1s) <+:
-      pad_with_list (delay false (List.xor cin ha1s)).length (delay false (List.xor cin ha1s))
-        (select_from_filter (adcb a b cin).2 (delay false (List.xor cin ha1s)) (filter_window3 3 a b cin))
+theorem move_buffer_forward_legal :
+  ∀ old max : D, ∀ n,
+    old <+: max →
+    old.length <= n →
+    ¬(old = (List.take n max)) →
+    old <<: (List.take n max)
   := by
-    intros a b cin ha1s hpre
-    rw [ pad_with_list_eq_of_prefix ]
-    exact List.prefix_rfl
+  intros old max n Hp Hlen Hneq
+  rw [List.strict_prefix_iff_prefix_neq]
+  split_ands
+  . eapply List.prefix_of_prefix_length_le
+    . assumption
+    . apply List.take_prefix
+    . rw [List.length_take]
+      -- These next lines could just be a grind.
+      rw [Nat.le_min]
+      split_ands
+      . assumption
+      . apply List.IsPrefix.length_le
+        assumption
+  . assumption
 
-    apply select_from_filter_prefix_of_agree
-    intros i hi_f hi_c hi_p a_1
-    exact carry_pad_agree_at_stable a b cin ha1s hpre i hi_f hi_c hi_p a_1
+theorem existSR_zero_single_step {S : Type _} (rules : List (S → S → Prop)):
+  ∀ s s', ∀ rule ∈ rules, s = s' ∨ rule s s' → existSR rules s s' := by
+  intros s s' rule Hin H
+  rcases H with h | h
+  . subst h
+    exact existSR_reflexive
+  . exact (existSR_single_step _ _ _ _ Hin h)
 
 theorem refines' :
   full_adder_imp ⊑_{φ} full_adder_spec := by
     unfold Module.refines_φ
     intro init_i init_s Hφ
-    obtain ⟨⟨⟨lA, lB⟩, ⟨ha1_bs, ha1_bc⟩⟩, ⟨⟨lCin, ha1s⟩, ⟨ha2_bs, ha2_bc⟩⟩, ⟨ha2c, ha1c⟩, or_b⟩ := init_i
-    obtain ⟨⟨bs_in, bs_out⟩, fs_s, ⟨bc_in, bc_out⟩, ⟨rA, rB, rCin⟩, fs_c⟩ := init_s
-    obtain ⟨HφA, HφB, HφCin, HφHA1BS, HφHA1S, HφBufferInC, HφBufferInS, HφBufferOutC, HφBufferOutS⟩ := Hφ
-    subst_vars
+    obtain ⟨⟨lA, lB⟩, ⟨lCin, ha1s⟩, ⟨ha1c, ha2c⟩⟩ := init_i
+    obtain ⟨fs_s, ⟨aA, aB, aC⟩, ⟨ba_in, ba_out⟩, ⟨bb_in, bb_out⟩, ⟨bc_in, bc_out⟩, fs_c⟩ := init_s
+    obtain ⟨HlLA, HlLB, HlLCin, HrLA, HrLB, HrLC, HφBA, HφBB, HφBC, HφAF, HφBF, HφCF⟩ := Hφ
+    subst HlLA HlLB HlLCin HrLA HrLB HrLC
 
     apply Module.comp_refines.mk
     . -- Inputs
-      intro ident ⟨⟨⟨oA, oB⟩, ⟨oha1_bs, oha1_bc⟩⟩, ⟨⟨oCin, oha1s⟩, ⟨oha2_bs, oha2_bc⟩⟩, ⟨oha2c, oha1c⟩, oor_b⟩ s a
+      intro ident ⟨⟨oA, oB⟩, ⟨oCin, oha1s⟩, ⟨oha1c, oha2c⟩⟩ s a
 
       -- The ident has to resolve to something
       by_cases HContains: (full_adder_imp.inputs.contains ident)
@@ -1159,31 +1103,27 @@ theorem refines' :
           destruct_ands_eqs
           rename_i accept
           -- Swap out rA in our previous state's definition
-          use ⟨⟨bs_in, bs_out⟩, fs_s, ⟨bc_in, bc_out⟩, ⟨s, oB, oCin⟩, fs_c⟩
+          use ⟨fs_s, ⟨aA, aB, aC⟩, ⟨s, aA⟩, ⟨oB, aB⟩, ⟨oCin, aC⟩, fs_c⟩
           apply And.intro
           . -- Our new transition is valid
             rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]
-            dsimp
-            constructor
-            . unfold Module.liftR Module.liftL
-              grind
-            . rfl
+            dsimp [Module.liftR, Module.liftL]
+            grind only
           . -- Our new state maintains φ
             -- We use the same state with no internal rules
-            use ⟨⟨bs_in, bs_out⟩, fs_s, ⟨bc_in, bc_out⟩, ⟨s, oB, oCin⟩, fs_c⟩
+            use ⟨fs_s, ⟨aA, aB, aC⟩, ⟨s, aA⟩, ⟨oB, aB⟩, ⟨oCin, aC⟩, fs_c⟩
             apply And.intro
             . exact existSR_reflexive
             . unfold φ
               with_reducible split_ands <;> try rfl
+              all_goals try assumption
 
-              -- slow due to the theorems; commented out for now
-              all_goals try grind only -- [filter_prefix_filtered_prefix, filter_window3_prefix_1, filter_window_prefix, strict_prefix_iff_prefix_length]
-              sorry -- For now!
+              . exact List.IsPrefix.trans HφBA (strict_prefix_is_prefix _ _ accept)
         . sorry -- Input accepted: b
         . sorry -- Input accepted: cin
       . exfalso; exact (PortMap.getIO_not_contained_false a HContains)
     . -- Outputs
-      intro ident ⟨⟨⟨oA, oB⟩, ⟨oha1_bs, oha1_bc⟩⟩, ⟨⟨oCin, oha1s⟩, ⟨oha2_bs, oha2_bc⟩⟩, ⟨oha2c, oha1c⟩, oor_b⟩ s a
+      intro ident ⟨⟨oA, oB⟩, ⟨oCin, oha1s⟩, ⟨oha1c, oha2c⟩⟩ s a
       -- The ident has to resolve to something
       by_cases HContains: (full_adder_imp.outputs.contains ident)
       . -- Unpack initial states for both modules
@@ -1194,68 +1134,125 @@ theorem refines' :
         . -- Extracting sum
           dsimp [Module.liftL] at a
           destruct_ands_eqs
-          obtain ⟨Hbs_mono, Hout_is_new_state, Hout_is_eq⟩ := ‹monotonic_output _ _ _ _›
-          subst Hout_is_new_state
-          clear ‹monotonic_output _ _ _ _›
-          -- Target of bs_in is adcb with holes in filter filled in via oha2_bs
-          -- Note that there may be some extra values at the end, which will either be correct or in the filter
-          -- so they will be okay to be outputted from the spec-module in the future.
-
-          -- The stuff we can actually calculate
-          let new_sfuture := select_from_filter (adcb oA oB rCin).2 oha2_bs (filter_window3 3 oA oB rCin)
-          -- And the extra bit we may need from oha2_bs that's "from the future".
-          let new_bs_in := pad_with_list oha2_bs.length oha2_bs new_sfuture
-
-          use ⟨⟨new_bs_in, bs_out⟩, new_sfuture, ⟨bc_in, bc_out⟩, ⟨oA, oB, rCin⟩, fs_c⟩
+          -- Compute the new state
+          -- 1. All of the inputs to the FA module need to be caught up
+          --    The FA module outputs the same length as the min of its inputs
+          --    So we take the same length as the desired output (the future module is only used if needed)
+          -- 2. The future sight module needs to be caught up as well.
+          --    It simply takes `adcb` on all max inputs truncated to the right length
+          --    (easily proven to be the same as the buffered version)
+          let tlen := min lCin.length ha1s.length + 1
+          let naA := List.take tlen oA
+          let naB := List.take tlen oB
+          let naC := List.take tlen lCin
+          let new_fs_s := select_from_filter (List.take tlen (adcb oA oB lCin).2) (delay false (xor lCin ha1s))
+            (filter_window3 3 oA oB lCin)
+          let intermediate_states : D → D → D → D → full_adder_spec_t := fun a b c fs => ⟨fs, ⟨a, b, c⟩, ⟨oA, a⟩, ⟨oB, b⟩, ⟨lCin, c⟩, fs_c⟩
+          use (intermediate_states naA naB naC new_fs_s)
           apply And.intro
-          . sorry
-            /-eapply (existSR_transitive _ _ ⟨⟨bs_in, bs_out⟩, new_sfuture, ⟨bc_in, bc_out⟩, ⟨oA, oB, rCin⟩, fs_c⟩ _)
-            . by_cases Hstep_necessary: new_sfuture = fs_s
-              -- Remove the case where the transition was "already done".
-              subst Hstep_necessary
-              apply existSR_reflexive
+          . -- There are 3 buffer -> FA transitions, and 1 FA -> fs transition
+            -- Therefore, there are 4 intermediate states.
+            -- Could we automate this somehow? Probably not really?
+            eapply (existSR_transitive _ _
+              (intermediate_states naA naB naC fs_s)
+            _)
+            . -- 3 buffer -> FA transitions
+              eapply (existSR_transitive _ _
+                (intermediate_states naA naB aC fs_s)
+              _)
+              eapply (existSR_transitive _ _
+                (intermediate_states naA aB aC fs_s)
+              _)
+              all_goals subst intermediate_states; dsimp
+              . eapply existSR_zero_single_step
+                apply @List.getElem_mem _ _ 0
+                  (by unfold full_adder_spec Module.internals; dsimp; omega)
 
-              eapply existSR_single_step
+                unfold full_adder_spec Module.internals Module.liftR Module.liftL Named; dsimp
+                simp
 
-              apply @List.getElem_mem _ _ 0
-                (by unfold full_adder_spec Module.internals; dsimp; grind only)
+                by_cases Hneq: aA = naA
+                (left; subst Hneq; rfl)
+                right
 
+                rw [and_comm, and_self_left]
 
-              unfold full_adder_spec Module.internals Named
-              simp [Module.liftR, Module.liftL]
+                grind only [move_buffer_forward_legal, List.take_prefix]
+              . eapply existSR_zero_single_step
+                apply @List.getElem_mem _ _ 1
+                  (by unfold full_adder_spec Module.internals; dsimp; omega)
 
-              with_reducible and_intros
-              . subst new_sfuture
-                apply filtered_eq_select_from_filter
-                . unfold filter_window3 adcb
-                  subst_vars
-                  simp only [List.length_zipWith, List.length_map, List.length_zip, filter_window_length]
-                . subst_vars
-                  unfold adcb delay List.xor
-                  unfold select_from_filter at Hstep_necessary
-                  simp only [List.length_cons, List.length_zipWith, List.length_map, List.length_zip, filter_window_length]
-                  -- TODO: gotta make a slight change to:
-                  -- future-sight: gotta allow sending out subsequences; what if we can't lock in everything yet?
-                  -- select_from_filter: we gotta pick `false` if it's too short; filter should dictate it
-                  simp only [ge_iff_le, inf_le_iff]
-                  sorry
-              . sorry
-            . eapply existSR_single_step
-              sorry
-              sorry -/
-          . use ⟨⟨new_bs_in, oha2_bs⟩, new_sfuture, ⟨bc_in, bc_out⟩, ⟨oA, oB, rCin⟩, fs_c⟩
-            subst_vars
+                unfold full_adder_spec Module.internals Module.liftR Module.liftL Named; dsimp
+                simp
 
+                by_cases Hneq: aB = naB
+                (left; subst Hneq; rfl)
+                right
+
+                rw [and_comm, and_self_left]
+
+                grind only [move_buffer_forward_legal, List.take_prefix]
+              . eapply existSR_zero_single_step
+                apply @List.getElem_mem _ _ 2
+                  (by unfold full_adder_spec Module.internals; dsimp; omega)
+
+                unfold full_adder_spec Module.internals Module.liftR Module.liftL Named; dsimp
+                simp
+
+                by_cases Hneq: aC = naC
+                (left; subst Hneq; rfl)
+                right
+
+                rw [and_comm, and_self_left]
+
+                grind only [move_buffer_forward_legal, List.take_prefix]
+            . -- FA -> fs transition
+              subst intermediate_states; dsimp
+              -- We need to add that the future sight's input is always the result of the FA's computation.
+              -- Also that the input of the FA is always a sublist of the full input?
+              eapply existSR_zero_single_step
+              apply @List.getElem_mem _ _ 3
+                (by unfold full_adder_spec Module.internals; dsimp; omega)
+
+              unfold full_adder_spec Module.internals Module.liftR Module.liftL Named; dsimp
+              simp
+
+              by_cases Hneq: fs_s = new_fs_s
+              (left; subst Hneq; rfl)
+              right
+
+              -- Needs the redefinition of new_fs_s
+              apply And.intro
+              . subst new_fs_s naA naB naC
+                sorry
+              . rw [List.strict_prefix_iff_prefix_neq]
+
+                apply And.intro
+                . sorry -- Needs an addition to phi.
+                . assumption
+          . -- Do the output step. No state changes.
+            use (intermediate_states naA naB naC new_fs_s)
             apply And.intro
-            . -- Our new transition is valid
-              rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]
-              with_reducible and_intros <;> dsimp
-              . grind [strict_prefix_iff_prefix_length]
-              . grind [catchup_sum_out]
-            . -- Our new state maintains φ
-              -- We use the same state with no internal rules
-              unfold φ
-              with_reducible and_intros <;> try grind [catchup_sum_out]
+            . rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]
+              dsimp [intermediate_states]
+              simp only [true_and, and_true]
+              -- This should be a lemma, probably
+              -- Needs the redefinition of new_fs_s
+              sorry
+            . unfold φ
+              split_ands <;> try rfl
+              all_goals try apply List.take_prefix
+              all_goals try (rw [List.length_take]; apply Nat.min_le_left)
+              . -- This could be done via
+                -- a length_adcb theorem or so.
+                subst new_fs_s tlen naA naB naC
+                unfold select_from_filter delay List.xor
+                simp only [List.length_filter_window3, List.length_cons, length_adcb_2, List.length_take, List.length_zipWith, List.length_zip]
+                simp only [Nat.min_assoc, inf_le_iff, inf_le_left, or_true, inf_of_le_right, inf_of_le_left, le_inf_iff,
+    inf_le_right, and_self]
+                grind only
+              . rw [List.length_filter_window3, length_adcb_2]
+              . sorry -- We should be using a lemma anyway.
         . sorry -- Outputting cout
       . sorry
     . -- Internals
