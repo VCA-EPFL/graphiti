@@ -1043,11 +1043,144 @@ def φ (lhs: full_adder_imp_t) (rhs : full_adder_spec_t) : Prop :=
 macro "destruct_ands_eqs" : tactic =>
   `(tactic| with_reducible repeat cases ‹_ ∧ _›; subst_vars; with_reducible repeat cases ‹_ = _›)
 
+
+theorem existSR_zero_single_step {S : Type _} (rules : List (S → S → Prop)):
+  ∀ s s', ∀ rule ∈ rules, s = s' ∨ rule s s' → existSR rules s s' := by
+  intros s s' rule Hin H
+  rcases H with h | h
+  . subst h
+    exact existSR_reflexive
+  . exact (existSR_single_step _ _ _ _ Hin h)
+
+macro "indexed_rule_or_rfl" n:num t:term : tactic =>
+  `(tactic| (apply existSR_zero_single_step
+             apply @List.getElem_mem _ _ $n
+              (by unfold full_adder_spec Module.internals; dsimp; omega)
+
+             unfold full_adder_spec Module.internals Module.liftR Module.liftL Named; dsimp
+             simp
+
+             by_cases Hneq: $t
+             (left; subst Hneq; rfl)
+             right
+            ))
+
 -- === BEGIN REFINEMENT LEMMAS ===
 
 -- From here on, we make a bunch of lemmas that are true
 -- but potentially structured a bit strangely
 -- this is because they really only exist as tools to prove refinement
+
+/-
+Extracts the componentwise conjunction from `filter_window3`.
+-/
+-- Maybe we could simplify those length proofs?
+lemma filter_window3_getElem_and (a b c : List Bool) (i : Nat)
+    (hi : i < (filter_window3 3 a b c).length) :
+    (filter_window3 3 a b c)[i] = true →
+    (filter_window 3 a)[i]'(by simp [filter_window3, List.length_zipWith, length_filter_window] at hi; rw [length_filter_window]; omega) = true ∧
+    (filter_window 3 b)[i]'(by simp [filter_window3, List.length_zipWith, length_filter_window] at hi; rw [length_filter_window]; omega) = true ∧
+    (filter_window 3 c)[i]'(by simp [filter_window3, List.length_zipWith, length_filter_window] at hi; rw [length_filter_window]; omega) = true := by
+      unfold filter_window3;
+      grind only [= List.getElem_zipWith]
+
+-- This def was given by Aristotle. It works and makes sense, but jeez.
+/-
+If `filter_window 3 a` is `true` at index `i` (with `i < a.length`), then `i ≥ 3`
+    and elements at indices `i-1` and `i-2` equal the element at index `i`.
+-/
+lemma filter_window_3_stable (a : List Bool) (i : Nat) (hi : i < a.length) :
+    (filter_window 3 a)[i]'(by rw [length_filter_window]; exact hi) = true →
+    i ≥ 3 ∧ a[i - 1]'(by omega) = a[i] ∧ a[i - 2]'(by omega) = a[i] := by
+      unfold filter_window
+      rcases i with ( _ | _ | _ | i )
+      <;> try (grind only [= List.getElem_map, = List.getElem_range])
+      by_cases H : a[i + 1 + 1 + 1] <;>
+      (
+        simp_all;
+        repeat rw [
+          List.drop_eq_getElem_cons (by rw [List.length_take]; omega),
+          List.getElem_take
+        ];
+        repeat rw [List.mem_cons];
+        grind only
+      )
+
+/-
+The second component of `adcb` at index `i` equals `a[i] ^^ b[i] ^^ cin[i]`.
+-/
+lemma adcb_snd_getElem (a b cin : List Bool) (i : Nat)
+    (hi : i < ((adcb a b cin).2).length) :
+    ((adcb a b cin).2)[i] = (a[i]'(by simp [adcb, List.length_map, List.length_zip, List.length_zip] at hi; omega)) ^^
+      (b[i]'(by simp [adcb, List.length_map, List.length_zip, List.length_zip] at hi; omega)) ^^
+      (cin[i]'(by simp [adcb, List.length_map, List.length_zip, List.length_zip] at hi; omega)) := by
+        unfold adcb BitVec.adcb;
+        -- By definition of `BitVec.adcb`, the second component is simply the XOR of the three operands.
+        rw [List.getElem_map, List.getElem_zip, List.getElem_zip]
+        grind only
+/-
+The element at index `i+1` of `delay false (xor cin s)` equals `cin[i] ^^ s[i]`.
+-/
+lemma delay_xor_getElem_succ (cin s : List Bool) (i : Nat)
+    (hi_c : i < cin.length) (hi_s : i < s.length) :
+    (delay false (xor cin s))[i + 1]'(by simp [delay, List.xor]; omega) =
+    cin[i] ^^ s[i] := by
+      unfold delay List.xor;
+      grind only [= List.getElem_cons, = List.getElem_zipWith]
+/-- The element at index 0 of `delay false l` is `false`. -/
+lemma delay_getElem_zero (l : List Bool) :
+    (delay false l)[0]'(by simp [delay]) = false := by
+  rfl
+/-
+At filter-true positions of `filter_window3 3 a b cin`, the carry (adcb sum)
+    agrees with the delayed XOR computation.
+-/
+lemma carry_pad_agree_at_stable (a b cin ha1s : List Bool)
+    (hpre : ha1s <+: delay false (xor a b))
+    (i : Nat)
+    (hi_f : i < (filter_window3 3 a b cin).length)
+    (hi_c : i < ((adcb a b cin).2).length)
+    (hi_p : i < (delay false (xor cin ha1s)).length)
+    (hfilter : (filter_window3 3 a b cin)[i] = true) :
+    ((adcb a b cin).2)[i] = (delay false (xor cin ha1s))[i] := by
+      -- Extract the stability conditions from `filter_window3_getElem_and` and `filter_window_3_stable`.
+      obtain ⟨ha_w, hb_w, hc_w⟩ := filter_window3_getElem_and a b cin i hi_f hfilter
+      unfold adcb at hi_c
+      simp at hi_c
+      unfold delay List.xor at hi_p
+      simp at hi_p
+
+      obtain ⟨hi_m, ha_1, ha_2⟩ := filter_window_3_stable a i (by grind only) ha_w
+      obtain ⟨_, hb_1, hb_2⟩ := filter_window_3_stable b i (by grind only) hb_w
+      obtain ⟨_, hc_1, hc_2⟩ := filter_window_3_stable cin i (by grind only) hc_w
+      destruct_ands_eqs
+      clear ha_w hb_w hc_w hfilter hi_f
+
+      have h_ha1s : ha1s[i - 1]'(by grind only [= min_def]) = (a[i - 2]'(by grind only) ^^ b[i - 2]'(by grind only)) := by
+        rw [List.IsPrefix.getElem hpre]
+        unfold delay List.xor
+
+        grind only [= List.getElem_cons, = List.getElem_zipWith]
+
+      unfold adcb delay List.xor BitVec.adcb
+      rw [List.getElem_map, List.getElem_zip, List.getElem_zip]
+      grind only [= List.getElem_cons, = List.getElem_zipWith]
+
+lemma catchup_sum_out :
+  ∀ a b cin ha1s,
+    ha1s <+: (delay false (List.xor a b)) →
+    delay false (List.xor cin ha1s) <+:
+      pad_with_list (delay false (List.xor cin ha1s)).length (delay false (List.xor cin ha1s))
+        (select_from_filter (adcb a b cin).2 (delay false (List.xor cin ha1s)) (filter_window3 3 a b cin))
+  := by
+    intros a b cin ha1s hpre
+    rw [ pad_with_list_eq_of_prefix ]
+    exact List.prefix_rfl
+
+    apply select_from_filter_prefix_of_agree
+    intros i hi_f hi_c hi_p a_1
+    exact carry_pad_agree_at_stable a b cin ha1s hpre i hi_f hi_c hi_p a_1
+
 
 theorem move_buffer_forward_legal :
   ∀ old max : D, ∀ n,
@@ -1070,14 +1203,6 @@ theorem move_buffer_forward_legal :
       . apply List.IsPrefix.length_le
         assumption
   . assumption
-
-theorem existSR_zero_single_step {S : Type _} (rules : List (S → S → Prop)):
-  ∀ s s', ∀ rule ∈ rules, s = s' ∨ rule s s' → existSR rules s s' := by
-  intros s s' rule Hin H
-  rcases H with h | h
-  . subst h
-    exact existSR_reflexive
-  . exact (existSR_single_step _ _ _ _ Hin h)
 
 theorem refines' :
   full_adder_imp ⊑_{φ} full_adder_spec := by
@@ -1145,90 +1270,61 @@ theorem refines' :
           let naA := List.take tlen oA
           let naB := List.take tlen oB
           let naC := List.take tlen lCin
+          -- TODO: switch to adcb naA naB naC (same for filter)
+          -- TODO: use delay false ... directly, then prove they're equivalent
           let new_fs_s := select_from_filter (List.take tlen (adcb oA oB lCin).2) (delay false (xor lCin ha1s))
             (filter_window3 3 oA oB lCin)
-          let intermediate_states : D → D → D → D → full_adder_spec_t := fun a b c fs => ⟨fs, ⟨a, b, c⟩, ⟨oA, a⟩, ⟨oB, b⟩, ⟨lCin, c⟩, fs_c⟩
+          let intermediate_states : D → D → D → D → full_adder_spec_t :=
+            fun a b c fs => ⟨fs, ⟨a, b, c⟩, ⟨oA, a⟩, ⟨oB, b⟩, ⟨lCin, c⟩, fs_c⟩
           use (intermediate_states naA naB naC new_fs_s)
           apply And.intro
           . -- There are 3 buffer -> FA transitions, and 1 FA -> fs transition
             -- Therefore, there are 4 intermediate states.
             -- Could we automate this somehow? Probably not really?
-            eapply (existSR_transitive _ _
+            apply (existSR_transitive _ _
               (intermediate_states naA naB naC fs_s)
             _)
             . -- 3 buffer -> FA transitions
-              eapply (existSR_transitive _ _
+              apply (existSR_transitive _ _
                 (intermediate_states naA naB aC fs_s)
               _)
-              eapply (existSR_transitive _ _
+              apply (existSR_transitive _ _
                 (intermediate_states naA aB aC fs_s)
               _)
               all_goals subst intermediate_states; dsimp
-              . eapply existSR_zero_single_step
-                apply @List.getElem_mem _ _ 0
-                  (by unfold full_adder_spec Module.internals; dsimp; omega)
-
-                unfold full_adder_spec Module.internals Module.liftR Module.liftL Named; dsimp
-                simp
-
-                by_cases Hneq: aA = naA
-                (left; subst Hneq; rfl)
-                right
-
+              . indexed_rule_or_rfl 0 (aA = naA)
                 rw [and_comm, and_self_left]
-
                 grind only [move_buffer_forward_legal, List.take_prefix]
-              . eapply existSR_zero_single_step
-                apply @List.getElem_mem _ _ 1
-                  (by unfold full_adder_spec Module.internals; dsimp; omega)
-
-                unfold full_adder_spec Module.internals Module.liftR Module.liftL Named; dsimp
-                simp
-
-                by_cases Hneq: aB = naB
-                (left; subst Hneq; rfl)
-                right
-
+              . indexed_rule_or_rfl 1 (aB = naB)
                 rw [and_comm, and_self_left]
-
                 grind only [move_buffer_forward_legal, List.take_prefix]
-              . eapply existSR_zero_single_step
-                apply @List.getElem_mem _ _ 2
-                  (by unfold full_adder_spec Module.internals; dsimp; omega)
-
-                unfold full_adder_spec Module.internals Module.liftR Module.liftL Named; dsimp
-                simp
-
-                by_cases Hneq: aC = naC
-                (left; subst Hneq; rfl)
-                right
-
+              . indexed_rule_or_rfl 2 (aC = naC)
                 rw [and_comm, and_self_left]
-
                 grind only [move_buffer_forward_legal, List.take_prefix]
             . -- FA -> fs transition
               subst intermediate_states; dsimp
               -- We need to add that the future sight's input is always the result of the FA's computation.
               -- Also that the input of the FA is always a sublist of the full input?
-              eapply existSR_zero_single_step
-              apply @List.getElem_mem _ _ 3
-                (by unfold full_adder_spec Module.internals; dsimp; omega)
-
-              unfold full_adder_spec Module.internals Module.liftR Module.liftL Named; dsimp
-              simp
-
-              by_cases Hneq: fs_s = new_fs_s
-              (left; subst Hneq; rfl)
-              right
+              indexed_rule_or_rfl 3 (fs_s = new_fs_s)
 
               -- Needs the redefinition of new_fs_s
               apply And.intro
               . subst new_fs_s naA naB naC
-                sorry
+                have H: (List.take tlen (adcb oA oB lCin).2) = (adcb (List.take tlen oA) (List.take tlen oB) (List.take tlen lCin)).2
+                := by sorry
+                rw [H]
+                have Hfalse: (filter_window3 3 oA oB lCin) = (filter_window3 3 (List.take tlen oA) (List.take tlen oB) (List.take tlen lCin))
+                := by sorry -- not true but almost!
+                rw [Hfalse]
+                eapply filtered_eq_select_from_filter
+                simp only [length_filter_window3, List.length_take, length_adcb_2]
+                unfold delay List.xor
+                simp only [length_filter_window3, List.length_take, length_adcb_2, List.length_cons, List.length_zipWith]
+                grind only [= min_def] -- horrifically slow, but can be improved
               . rw [List.strict_prefix_iff_prefix_neq]
 
                 apply And.intro
-                . sorry -- Needs an addition to phi.
+                . sorry -- Will need a lemma
                 . assumption
           . -- Do the output step. No state changes.
             use (intermediate_states naA naB naC new_fs_s)
@@ -1238,11 +1334,14 @@ theorem refines' :
               simp only [true_and, and_true]
               -- This should be a lemma, probably
               -- Needs the redefinition of new_fs_s
+
               sorry
             . unfold φ
-              split_ands <;> try rfl
+              with_reducible split_ands <;> try rfl
               all_goals try apply List.take_prefix
               all_goals try (rw [List.length_take]; apply Nat.min_le_left)
+
+              split_ands
               . -- This could be done via
                 -- a length_adcb theorem or so.
                 subst new_fs_s tlen naA naB naC
