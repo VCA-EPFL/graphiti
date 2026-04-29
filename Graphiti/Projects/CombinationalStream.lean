@@ -1214,6 +1214,53 @@ lemma delay_xor_prefix_l (l l' r : D)
   apply List.zipWith_prefix
   assumption
 
+lemma filtered_eq_impl_out (a b c a' b' c' h h' : D)
+  (Ha: a' <+: a) (Hb: b' <+: b) (Hc: c' <+: c)
+  (Hmid: h <+: delay false (List.xor a b))
+  (Hend: h' <+: (delay false (List.xor c h)))
+  (Hlen_end: List.length (adcb a' b' c').2 = List.length h')
+  : filtered_eq (filter_window3 3 a' b' c') (adcb a' b' c').2 h'
+  := by
+  split_ands
+  . exact Hlen_end
+  . rw [List.length_filter_window3, length_adcb_2]
+  . intros i Hf
+    rw [getElem?_eq_some_iff] at Hf
+    obtain ⟨Hi, Hf⟩ := Hf
+
+    -- Simplify our i bounds
+    simp only [List.length_filter_window3, List.length_take, Nat.lt_min] at Hi
+    obtain ⟨Hia, Hib, Hic⟩ := Hi
+    rw [length_adcb_2] at Hlen_end
+
+    -- Go from [i]? to [i]
+    rw [
+      (getElem?_pos _ _ (by grind only [length_adcb_2, min_def])),
+      (getElem?_pos _ _ (by grind only [min_def]))
+    ]
+    rw [Option.some.injEq]
+
+    rw [List.IsPrefix.getElem Hend]
+
+    -- Generalize arguments to their longest form
+    -- We're accessing a single value, so who cares about lengths
+    rw [getElem_delay_xor_agrees_r _ _ _ _ Hmid]
+    rw [adcb_snd_agrees_1 _ _ _ a _ (by assumption)]
+    rw [adcb_snd_agrees_2 _ _ _ b _ (by assumption)]
+    rw [adcb_snd_agrees_3 _ _ _ c _ (by assumption)]
+
+    -- Actually prove they match!
+    apply (sum_pad_agree_at_stable _ _ _ _ (by rw [length_filter_window3]; grind only [= min_def, usr List.IsPrefix.length_le]))
+
+    -- Last condition: the filter must be true here for them to agree
+    -- Just gotta prove our previous filter hypothesis transfers over!
+    -- Could be lemma'd if slow?
+    obtain ⟨Hfa, Hfb, Hfc⟩ := (filter_window3_getElem_and _ _ _ _ _).mp Hf
+    rw [filter_window3_getElem_and]
+
+    split_ands
+    <;> grind only [List.IsPrefix.getElem, filter_window_prefix, usr List.take_prefix]
+
 theorem move_buffer_forward_legal :
   ∀ old max : D, ∀ n,
     old <+: max →
@@ -1310,53 +1357,13 @@ theorem refines' :
           use (intermediate_states naA naB naC new_fs_s)
           have Hfs_feq : filtered_eq (filter_window3 3 naA naB naC) (adcb naA naB naC).2 new_fs_s
           := by
-            -- We could potentially simplify this proof
-            -- By swapping our delay-xor combo into a List.take + the full length
-            -- But that'd be annoying to juggle with lengths
-            -- So we first prove lengths, then match individual values.
-            split_ands
-            . subst new_fs_s tlen naA naB naC
-              unfold delay List.xor
-              simp only [List.length_filter_window3, List.length_cons, length_adcb_2, List.length_take, List.length_zipWith, List.length_zip]
-              grind only
-            . rw [List.length_filter_window3, length_adcb_2]
-            . intros i Hf
-              rw [getElem?_eq_some_iff] at Hf
-              obtain ⟨Hi, Hf⟩ := Hf
+            apply filtered_eq_impl_out
+            all_goals try solve |apply List.take_prefix |assumption
 
-              -- Simplify our i bounds
-              unfold naA naB naC at Hi
-              simp only [List.length_filter_window3, List.length_take, Nat.lt_min] at Hi
-              obtain ⟨⟨Hitlen, Hia⟩, ⟨-, Hib⟩, ⟨-, Hic⟩⟩ := Hi
-
-              -- Go from [i]? to [i]
-              rw [
-                (getElem?_pos _ _ (by grind only [length_adcb_2, List.length_take, min_def])),
-                (getElem?_pos _ _ (by grind only [List.length_take, min_def]))
-              ]
-              rw [Option.some.injEq]
-
-              subst new_fs_s
-              rw [List.getElem_take]
-
-              -- Generalize arguments to their longest form
-              -- We're accessing a single value, so who cares about lengths
-              rw [getElem_delay_xor_agrees_r _ _ _ _ Hl1s]
-              rw [adcb_snd_agrees_1 _ _ _ oA   _ (by apply List.take_prefix)]
-              rw [adcb_snd_agrees_2 _ _ _ oB   _ (by apply List.take_prefix)]
-              rw [adcb_snd_agrees_3 _ _ _ lCin _ (by apply List.take_prefix)]
-
-              -- Actually prove they match!
-              apply (sum_pad_agree_at_stable _ _ _ _ (by rw [length_filter_window3]; omega))
-
-              -- Last condition: the filter must be true here for them to agree
-              -- Just gotta prove our previous filter hypothesis transfers over!
-              -- Could be lemma'd if slow?
-              obtain ⟨Hfa, Hfb, Hfc⟩ := (filter_window3_getElem_and _ _ _ _ _).mp Hf
-              rw [filter_window3_getElem_and]
-
-              split_ands
-              <;> grind only [List.IsPrefix.getElem, filter_window_prefix, usr List.take_prefix]
+            subst new_fs_s tlen naA naB naC
+            unfold delay List.xor
+            simp only [List.length_filter_window3, List.length_cons, length_adcb_2, List.length_take, List.length_zipWith, List.length_zip]
+            grind only
 
           apply And.intro
           . -- There are 3 buffer -> FA transitions, and 1 FA -> fs transition
@@ -1391,7 +1398,6 @@ theorem refines' :
               -- Also that the input of the FA is always a sublist of the full input?
               indexed_rule_or_rfl 3 (fs_s = new_fs_s)
               simp
-
               apply And.intro
               . assumption
               . rw [List.strict_prefix_iff_prefix_neq]
@@ -1419,9 +1425,11 @@ theorem refines' :
               omega
             . unfold φ
               with_reducible split_ands <;> try rfl
-              all_goals try assumption
-              all_goals try apply List.take_prefix
-              all_goals try (rw [List.length_take]; apply Nat.min_le_left)
+
+              all_goals try solve
+                |assumption
+                |apply List.take_prefix
+                |rw [List.length_take]; apply Nat.min_le_left
         . sorry -- Outputting cout
       . sorry
     . -- Internals
