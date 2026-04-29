@@ -18,18 +18,6 @@ namespace Graphiti.CombModule
 namespace List
 variable {α : Type _}
 
-lemma take_zipWith_l {α : Type _} {β : Type _} {γ : Type _} {f : α → β → γ} {l : List α} {l' : List β} {i : ℕ}
-  : List.take i (List.zipWith f l l') = List.zipWith f (List.take i l) l'
-  := by
-  induction l generalizing l' i with
-  | nil => simp
-  | cons hd tl hl =>
-    cases l'
-    · simp
-    · cases i
-      · simp
-      · simp [hl]
-
 def filter_window [BEq α] (delay: Nat) (a : List α): List Bool :=
   -- I'd use a List.finRange if it had enough theorems on it but
   -- I'm not good enough with that kind of type manipulation to do it quickly
@@ -1146,35 +1134,16 @@ lemma sum_pad_agree_at_stable (a b cin : List Bool)
       rw [List.getElem_map, List.getElem_zip, List.getElem_zip]
       grind only [= List.getElem_cons, = List.getElem_zipWith]
 
-lemma adcb_snd_agrees_1 (a b c a' : D) (i: Nat)
-  (h_mid : a <+: a')
+lemma adcb_snd_agrees (a b c a' b' c' : D) (i: Nat)
+  (h_a: a <+: a') (h_b: b <+: b') (h_c: c <+: c')
   (h_lhs : i < (adcb a b c).2.length)
-  : (adcb a b c).2[i] = (adcb a' b c).2[i]'(by rw [length_adcb_2] at *; grind only [= min_def, usr List.IsPrefix.length_le])
+  : (adcb a b c).2[i] = (adcb a' b' c').2[i]'(by rw [length_adcb_2] at *; grind only [= min_def, usr List.IsPrefix.length_le])
   := by
   unfold adcb
   simp only [List.getElem_map, List.getElem_zip]
   unfold BitVec.adcb
-  grind only [List.IsPrefix.getElem h_mid]
+  grind only [List.IsPrefix.getElem]
 
-lemma adcb_snd_agrees_2 (a b c b' : D) (i: Nat)
-  (h_mid : b <+: b')
-  (h_lhs : i < (adcb a b c).2.length)
-  : (adcb a b c).2[i] = (adcb a b' c).2[i]'(by rw [length_adcb_2] at *; grind only [= min_def, usr List.IsPrefix.length_le])
-  := by
-  unfold adcb
-  simp only [List.getElem_map, List.getElem_zip]
-  unfold BitVec.adcb
-  grind only [List.IsPrefix.getElem h_mid]
-
-lemma adcb_snd_agrees_3 (a b c c' : D) (i: Nat)
-  (h_mid : c <+: c')
-  (h_lhs : i < (adcb a b c).2.length)
-  : (adcb a b c).2[i] = (adcb a b c').2[i]'(by rw [length_adcb_2] at *; grind only [= min_def, usr List.IsPrefix.length_le])
-  := by
-  unfold adcb
-  simp only [List.getElem_map, List.getElem_zip]
-  unfold BitVec.adcb
-  grind only [List.IsPrefix.getElem h_mid]
 
 lemma getElem_delay_xor_agrees_r (a b l : D) (i: Nat)
   (h_mid : a <+: b)
@@ -1245,9 +1214,11 @@ lemma filtered_eq_impl_out (a b c a' b' c' h h' : D)
     -- Generalize arguments to their longest form
     -- We're accessing a single value, so who cares about lengths
     rw [getElem_delay_xor_agrees_r _ _ _ _ Hmid]
-    rw [adcb_snd_agrees_1 _ _ _ a _ (by assumption)]
-    rw [adcb_snd_agrees_2 _ _ _ b _ (by assumption)]
-    rw [adcb_snd_agrees_3 _ _ _ c _ (by assumption)]
+    rw [
+      adcb_snd_agrees _ _ _
+        a b c _
+        (by assumption) (by assumption) (by assumption)
+    ]
 
     -- Actually prove they match!
     apply (sum_pad_agree_at_stable _ _ _ _ (by rw [length_filter_window3]; grind only [= min_def, usr List.IsPrefix.length_le]))
@@ -1431,7 +1402,7 @@ theorem refines' :
                 |apply List.take_prefix
                 |rw [List.length_take]; apply Nat.min_le_left
         . sorry -- Outputting cout
-      . sorry
+      . exfalso; exact (PortMap.getIO_not_contained_false a HContains)
     . -- Internals
       sorry
 
