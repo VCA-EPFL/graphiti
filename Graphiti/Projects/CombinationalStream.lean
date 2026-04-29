@@ -1415,7 +1415,7 @@ theorem refines' :
                 |assumption
                 |apply List.take_prefix
                 |rw [List.length_take]; apply Nat.min_le_left
-        . sorry -- Outputting cout
+        . named_sorry cin_output_sorry
       . exfalso; exact (PortMap.getIO_not_contained_false a HContains)
     . -- Internals
       intro rule ⟨⟨oA, oB⟩, ⟨oCin, oha1s⟩, ⟨oha1c, oha2c⟩⟩ Hin Ha
@@ -1515,6 +1515,8 @@ theorem refines_init :
 
 theorem refines :
   full_adder_imp ⊑ full_adder_spec := ⟨inferInstance, φ, refines', refines_init⟩
+
+#print axioms refines
 
 end FullAdder
 
