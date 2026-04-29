@@ -1297,7 +1297,7 @@ theorem refines' :
           . -- Our new transition is valid
             rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]
             dsimp [Module.liftR, Module.liftL]
-            grind only
+            trivial
           . -- Our new state maintains φ
             -- We use the same state with no internal rules
             use ⟨fs_s, ⟨aA, aB, aC⟩, ⟨s, aA⟩, ⟨oB, aB⟩, ⟨oCin, aC⟩, fs_c⟩
@@ -1483,12 +1483,38 @@ theorem refines' :
           | assumption
           | apply List.prefix_rfl
 
+theorem refines_init :
+  Module.refines_initial full_adder_imp full_adder_spec φ := by
+  unfold Module.refines_initial; intro i hi
+  obtain ⟨⟨a, b⟩, ⟨c, d⟩, ⟨e, f⟩⟩ := i
+  unfold full_adder_imp half_adder_m or_m at hi
+  dsimp at hi
+  obtain ⟨⟨⟩, ⟨⟩, ⟨⟩⟩ := hi
+  use ⟨default, default⟩
+  apply And.intro
+  . unfold full_adder_spec buffer_spec_m future_sight_m full_adder_spec_m
+    dsimp
+    trivial
+  . unfold φ
+    dsimp
+    with_reducible split_ands
 
-
-
+    all_goals try solve
+    | rfl
+    | apply List.nil_prefix
+    | unfold default instInhabitedList; dsimp; omega
+    -- We could use some lemmas but this is fine too
+    unfold default instInhabitedList adcb
+    dsimp
+    split_ands
+    . omega
+    . unfold filter_window3 filter_window
+      dsimp
+    . intros
+      rfl
 
 theorem refines :
-  full_adder_imp ⊑ full_adder_spec_m := by sorry
+  full_adder_imp ⊑ full_adder_spec := ⟨inferInstance, φ, refines', refines_init⟩
 
 end FullAdder
 
