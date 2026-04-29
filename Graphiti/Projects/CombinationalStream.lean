@@ -138,22 +138,24 @@ theorem length_filter_window3 [BEq α] :
     grind only [List.length_zipWith, List.length_filter_window]
 
 lemma zipWith_prefix.{u, v, w} {α : Type u} {β : Type v} {γ : Type w} :
-  ∀f: α → β → γ, ∀ a a': List α, ∀ b : List β,
-  a <+: a' → List.zipWith f a b <+: List.zipWith f a' b
+  ∀f: α → β → γ, ∀ a a': List α, ∀ b b' : List β,
+  a <+: a' → b <+: b' → List.zipWith f a b <+: List.zipWith f a' b'
   := by
-  intros f a a' b H
-  revert a' b
+  intros f a a' b b' Ha Hb
+  revert a' b b'
   induction a with
   | nil => simp
   | cons hd tl iH =>
-    intro a' b H
-    rw [List.cons_prefix_iff] at H
-    obtain ⟨tl', Ha', H⟩ := H
+    intro a' b b' Ha Hb
+    rw [List.cons_prefix_iff] at Ha
+    obtain ⟨tl', Ha', Ha⟩ := Ha
     subst_vars
     unfold List.zipWith
     cases b
     . simp
     . rename_i bHd bTl
+      rw [List.cons_prefix_iff] at Hb
+      obtain ⟨btl', Hb', Hb⟩ := Hb
       simp
       grind
 
@@ -167,6 +169,7 @@ lemma zipWith_strict_prefix.{u, v, w} {α : Type u} {β : Type v} {γ : Type w} 
   . apply zipWith_prefix
     apply strict_prefix_is_prefix
     assumption
+    apply List.prefix_rfl
   . intro Hzip
     obtain ⟨H, Hneq⟩ := (strict_prefix_iff_prefix_length a a').mp H
     have H : (List.zipWith f a b).length = (List.zipWith f a' b).length := by rw [Hzip]
@@ -183,6 +186,7 @@ theorem filter_window3_prefix_1 [BEq α] :
   generalize (List.zipWith Bool.and (filter_window delay b) (filter_window delay c)) = v
   apply zipWith_prefix
   assumption
+  apply List.prefix_rfl
 
 def is_filtered_prefix (filter : List Bool) (s1 s2 : List α) : Prop :=
   s1.length <= s2.length ∧ s2.length <= filter.length ∧
@@ -1174,6 +1178,7 @@ lemma extension_length {α : Type _}
     omega
   . apply List.take_append_drop
 
+
 lemma delay_xor_prefix_l (l l' r : D)
   : l <+: l' → (delay false (List.xor l r)) <+: (delay false (List.xor l' r))
   := by
@@ -1181,7 +1186,16 @@ lemma delay_xor_prefix_l (l l' r : D)
   unfold List.xor delay
   rw [List.prefix_cons_inj]
   apply List.zipWith_prefix
-  assumption
+  assumption; apply List.prefix_rfl
+
+lemma delay_xor_prefix_r (l r r' : D)
+  : r <+: r' → (delay false (List.xor l r)) <+: (delay false (List.xor l r'))
+  := by
+  intro H
+  unfold List.xor delay
+  rw [List.prefix_cons_inj]
+  apply List.zipWith_prefix
+  apply List.prefix_rfl; assumption
 
 lemma filtered_eq_impl_out (a b c a' b' c' h h' : D)
   (Ha: a' <+: a) (Hb: b' <+: b) (Hc: c' <+: c)
@@ -1404,7 +1418,74 @@ theorem refines' :
         . sorry -- Outputting cout
       . exfalso; exact (PortMap.getIO_not_contained_false a HContains)
     . -- Internals
-      sorry
+      intro rule ⟨⟨oA, oB⟩, ⟨oCin, oha1s⟩, ⟨oha1c, oha2c⟩⟩ Hin Ha
+      rw [List.mem_iff_getElem] at Hin
+      obtain ⟨i, Hidx, Hin⟩ := Hin
+      dsimp [full_adder_imp, half_adder_m, or_m] at Hidx
+      rcases i with z | o | t | i
+      rotate_right; contradiction
+
+      all_goals (
+        dsimp [full_adder_imp] at Hin
+        subst Hin
+        dsimp [Module.liftL, Module.liftR, Named] at Ha
+        simp at Ha
+        destruct_ands_eqs
+      )
+
+      . -- Rule 0
+        use (fs_s, (aA, aB, aC), (oA, aA), (oB, aB), (oCin, aC), fs_c)
+        apply And.intro; apply existSR_reflexive
+
+        -- Length stuff for easier proofs later
+        have Hlen1s := List.IsPrefix.length_le Hl1s
+        unfold List.xor delay at HφAF HφBF HφCF Hlen1s
+        rw [List.length_cons, List.length_zipWith] at HφAF HφBF HφCF Hlen1s
+
+        unfold φ
+        dsimp
+        with_reducible split_ands <;> try solve
+          | rfl
+          | assumption
+          | apply List.prefix_rfl
+
+        -- The hard case
+        rotate_right
+        apply List.IsPrefix.trans
+        exact HφFSD
+        apply delay_xor_prefix_r
+        assumption
+
+        all_goals (
+          unfold List.xor delay
+          rw [List.length_cons, List.length_zipWith]
+          rw [List.length_cons, List.length_zipWith]
+          omega
+        )
+      . -- Rule 1
+        use (fs_s, (aA, aB, aC), (oA, aA), (oB, aB), (oCin, aC), fs_c)
+        apply And.intro; apply existSR_reflexive
+
+        unfold φ
+        dsimp
+        with_reducible split_ands <;> try solve
+          | rfl
+          | assumption
+          | apply List.prefix_rfl
+      . -- Rule 2
+        use (fs_s, (aA, aB, aC), (oA, aA), (oB, aB), (oCin, aC), fs_c)
+        apply And.intro; apply existSR_reflexive
+
+        unfold φ
+        dsimp
+        with_reducible split_ands <;> try solve
+          | rfl
+          | assumption
+          | apply List.prefix_rfl
+
+
+
+
 
 theorem refines :
   full_adder_imp ⊑ full_adder_spec_m := by sorry
