@@ -880,12 +880,18 @@ def buffer_spec_m (s : String := "") : StringModule (Named s (D × D)) :=
   init_state := λ s => s = default
  }
 
+def sink_m : StringModule Unit :=
+  { inputs := [(↑"in", ⟨ D, λ s tt s' => True ⟩)].toAssocList,
+    outputs := ∅
+    init_state := λ s => s = default
+  }
+
  def buffered_full_adder_m := [graphEnv|
   a [type="io"];
   b [type="io"];
   cin [type="io"];
   s [type="io"];
-  cout [type="io"];
+  -- cout [type="io"];
 
   b_a [type="b_a", typeImp=$(⟨_, buffer_spec_m "b_a"⟩)];
   b_b [type="b_b", typeImp=$(⟨_, buffer_spec_m "b_b"⟩)];
@@ -894,6 +900,7 @@ def buffer_spec_m (s : String := "") : StringModule (Named s (D × D)) :=
   fa [type="fa", typeImp=$(⟨_, full_adder_spec_m "fa"⟩)];
   fs_1 [type="fs_1", typeImp=$(⟨_, future_sight_m "fs_1" 3⟩)];
   fs_2 [type="fs_2", typeImp=$(⟨_, future_sight_m "fs_2" 3⟩)];
+  sink [type="sink", typeImp=$(⟨_, sink_m⟩)];
 
   a -> b_a [to="in"];
   b -> b_b [to="in"];
@@ -906,7 +913,10 @@ def buffer_spec_m (s : String := "") : StringModule (Named s (D × D)) :=
   fa -> fs_1 [from="s", to="in"];
   fa -> fs_2 [from="cout", to="in"];
   fs_1 -> s [from="out"];
-  fs_2 -> cout [from="out"];
+  -- Disconnected for proof simplicity; we'd need to divide
+  -- The full adder into 2 to prove outputting on this.
+  fs_2 -> sink [from="out", to="in"];
+  -- fs_2 -> cout [from="out"];
  ]
 
 def buffered_full_adder_m_lowered := buffered_full_adder_m.1.lower_TR |>.get rfl
@@ -919,6 +929,7 @@ def env_bfam := buffered_full_adder_m.2
 @[drenv] theorem find?_b_c_m : (Batteries.AssocList.find? "b_c" env_bfam) = .some ⟨_, buffer_spec_m "b_c"⟩ := rfl
 @[drenv] theorem find?_fs1_m : (Batteries.AssocList.find? "fs_1" env_bfam) = .some ⟨_, future_sight_m "fs_1" 3⟩ := rfl
 @[drenv] theorem find?_fs2_m : (Batteries.AssocList.find? "fs_2" env_bfam) = .some ⟨_, future_sight_m "fs_2" 3⟩ := rfl
+@[drenv] theorem find?_sink_s_m : (Batteries.AssocList.find? "sink" env_bfam) = .some ⟨_, sink_m⟩ := rfl
 
 seal env_bfam in
 def_module full_adder_spec_t : Type :=
@@ -960,11 +971,12 @@ def full_adder_s := [graphEnv|
     b [type="io"];
     cin [type="io"];
     s [type="io"];
-    cout [type="io"];
+    -- cout [type="io"];
 
     ha1 [type="ha_1", typeImp=$(⟨_, half_adder_m "ha_1"⟩)];
     ha2 [type="ha_2", typeImp=$(⟨_, half_adder_m "ha_2"⟩)];
     or [type="or", typeImp=$(⟨_, or_m⟩)];
+    sink [type="sink", typeImp=$(⟨_, sink_m⟩)];
 
     a -> ha1 [to="a"];
     b -> ha1 [to="b"];
@@ -973,16 +985,18 @@ def full_adder_s := [graphEnv|
     ha2 -> s [from="s"];
     ha2 -> or [from="c",to="a"];
     ha1 -> or [from="c",to="b"];
-    or -> cout [from="c"];
+    or -> sink [from="c",to="in"];
+    -- or -> cout [from="c"];
   ]
 
 def full_adder_s_lowered := full_adder_s.1.lower_TR |>.get rfl
 
 def env_fas := full_adder_s.2
 
-@[drenv] theorem find?_nand1_m : (Batteries.AssocList.find? "ha_1" env_fas) = .some ⟨_, half_adder_m "ha_1"⟩ := rfl
-@[drenv] theorem find?_nand2_m : (Batteries.AssocList.find? "ha_2" env_fas) = .some ⟨_, half_adder_m "ha_2"⟩ := rfl
-@[drenv] theorem find?_nand3_m : (Batteries.AssocList.find? "or" env_fas) = .some ⟨_, or_m⟩ := rfl
+@[drenv] theorem find?_ha1_m : (Batteries.AssocList.find? "ha_1" env_fas) = .some ⟨_, half_adder_m "ha_1"⟩ := rfl
+@[drenv] theorem find?_ha2_m : (Batteries.AssocList.find? "ha_2" env_fas) = .some ⟨_, half_adder_m "ha_2"⟩ := rfl
+@[drenv] theorem find?_or_m : (Batteries.AssocList.find? "or" env_fas) = .some ⟨_, or_m⟩ := rfl
+@[drenv] theorem find?_sink_i_m : (Batteries.AssocList.find? "sink" env_fas) = .some ⟨_, sink_m⟩ := rfl
 
 seal env_fas in
 def_module full_adder_imp_t : Type :=
@@ -1030,8 +1044,9 @@ def φ (lhs: full_adder_imp_t) (rhs : full_adder_spec_t) : Prop :=
   - fs_? are the future-sight modules
   - aA/aB/aC are the right A B and Cin inputs into the spec calculator
   -/
-  let ((lA, lB), (lCin, ha1s), (ha1c, ha2c)) := lhs
-  let (fs_s, (aA, aB, aC), (ba_in, ba_out), (bb_in, bb_out), (bc_in, bc_out), fs_c) := rhs
+  -- Unit added for sink on both
+  let ((lA, lB), (), (lCin, ha1s), (ha1c, ha2c)) := lhs
+  let (fs_s, (aA, aB, aC), (), (ba_in, ba_out), (bb_in, bb_out), (bc_in, bc_out), fs_c) := rhs
   let lenS := (delay false (xor lCin ha1s)).length
   let filter := (filter_window3 3 aA aB aC)
   -- Input states must be equivalent
@@ -1272,14 +1287,15 @@ theorem refines' :
   full_adder_imp ⊑_{φ} full_adder_spec := by
     unfold Module.refines_φ
     intro init_i init_s Hφ
-    obtain ⟨⟨lA, lB⟩, ⟨lCin, ha1s⟩, ⟨ha1c, ha2c⟩⟩ := init_i
-    obtain ⟨fs_s, ⟨aA, aB, aC⟩, ⟨ba_in, ba_out⟩, ⟨bb_in, bb_out⟩, ⟨bc_in, bc_out⟩, fs_c⟩ := init_s
+    -- Sinks added everywhere for sink module
+    obtain ⟨⟨lA, lB⟩, ⟨⟩, ⟨lCin, ha1s⟩, ⟨ha1c, ha2c⟩⟩ := init_i
+    obtain ⟨fs_s, ⟨aA, aB, aC⟩, ⟨⟩, ⟨ba_in, ba_out⟩, ⟨bb_in, bb_out⟩, ⟨bc_in, bc_out⟩, fs_c⟩ := init_s
     obtain ⟨HlLA, HlLB, HlLCin, Hl1s, HrLA, HrLB, HrLC, HφBA, HφBB, HφBC, HφFSE, HφAF, HφBF, HφCF, HφFSD⟩ := Hφ
     subst HlLA HlLB HlLCin HrLA HrLB HrLC
 
     apply Module.comp_refines.mk
     . -- Inputs
-      intro ident ⟨⟨oA, oB⟩, ⟨oCin, oha1s⟩, ⟨oha1c, oha2c⟩⟩ s a
+      intro ident ⟨⟨oA, oB⟩, ⟨⟩, ⟨oCin, oha1s⟩, ⟨oha1c, oha2c⟩⟩ s a
 
       -- The ident has to resolve to something
       by_cases HContains: (full_adder_imp.inputs.contains ident)
@@ -1287,12 +1303,58 @@ theorem refines' :
         -- Split by cases on the port
         unfold full_adder_imp at HContains; simp at HContains
         rcases HContains with h | h | h
-        <;> subst_vars <;> simp <;> rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at a <;> simp at a
+        <;> subst_vars <;> simp <;> rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at a <;> simp [Module.liftL, Module.liftR] at a
         . -- Input accepted: a.
           destruct_ands_eqs
           rename_i accept
           -- Swap out rA in our previous state's definition
-          use ⟨fs_s, ⟨aA, aB, aC⟩, ⟨s, aA⟩, ⟨oB, aB⟩, ⟨oCin, aC⟩, fs_c⟩
+          use ⟨fs_s, ⟨aA, aB, aC⟩, ⟨⟩, ⟨s, aA⟩, ⟨oB, aB⟩, ⟨oCin, aC⟩, fs_c⟩
+          apply And.intro
+          . -- Our new transition is valid
+            rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]
+            trivial
+          . -- Our new state maintains φ
+            -- We use the same state with no internal rules
+            use ⟨fs_s, ⟨aA, aB, aC⟩, ⟨⟩, ⟨s, aA⟩, ⟨oB, aB⟩, ⟨oCin, aC⟩, fs_c⟩
+            apply And.intro
+            . exact existSR_reflexive
+            . unfold φ
+              with_reducible split_ands <;> try rfl
+              all_goals try solve
+              | assumption
+              . apply List.IsPrefix.trans Hl1s
+                  (delay_xor_prefix_l _ _ _
+                    (List.strict_prefix_is_prefix _ _ accept)
+                  )
+              . exact List.IsPrefix.trans HφBA (strict_prefix_is_prefix _ _ accept)
+        . -- Input accepted: b.
+          destruct_ands_eqs
+          rename_i accept
+          -- Swap out rB in our previous state's definition
+          use ⟨fs_s, ⟨aA, aB, aC⟩, ⟨⟩, ⟨oA, aA⟩, ⟨s, aB⟩, ⟨oCin, aC⟩, fs_c⟩
+          apply And.intro
+          . -- Our new transition is valid
+            rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]
+            trivial
+          . -- Our new state maintains φ
+            -- We use the same state with no internal rules
+            use ⟨fs_s, ⟨aA, aB, aC⟩, ⟨⟩, ⟨oA, aA⟩, ⟨s, aB⟩, ⟨oCin, aC⟩, fs_c⟩
+            apply And.intro
+            . exact existSR_reflexive
+            . unfold φ
+              with_reducible split_ands <;> try rfl
+              all_goals try solve
+              | assumption
+              . apply List.IsPrefix.trans Hl1s
+                  (delay_xor_prefix_r _ _ _
+                    (List.strict_prefix_is_prefix _ _ accept)
+                  )
+              . exact List.IsPrefix.trans HφBB (strict_prefix_is_prefix _ _ accept)
+        . -- Input accepted: cin
+          destruct_ands_eqs
+          rename_i accept
+          -- Swap out rB in our previous state's definition
+          use ⟨fs_s, ⟨aA, aB, aC⟩, ⟨⟩, ⟨oA, aA⟩, ⟨oB, aB⟩, ⟨s, aC⟩, fs_c⟩
           apply And.intro
           . -- Our new transition is valid
             rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]
@@ -1300,21 +1362,28 @@ theorem refines' :
             trivial
           . -- Our new state maintains φ
             -- We use the same state with no internal rules
-            use ⟨fs_s, ⟨aA, aB, aC⟩, ⟨s, aA⟩, ⟨oB, aB⟩, ⟨oCin, aC⟩, fs_c⟩
+            use ⟨fs_s, ⟨aA, aB, aC⟩, ⟨⟩, ⟨oA, aA⟩, ⟨oB, aB⟩, ⟨s, aC⟩, fs_c⟩
             apply And.intro
             . exact existSR_reflexive
             . unfold φ
+              unfold delay List.xor at HφAF HφBF HφCF
+              rw [List.length_cons, List.length_zipWith] at HφAF HφBF HφCF
+              have Hlen := ((strict_prefix_iff_prefix_length _ _).mp accept).right
+
               with_reducible split_ands <;> try rfl
-              all_goals try assumption
-              . apply List.IsPrefix.trans Hl1s
-                apply delay_xor_prefix_l
-                apply List.strict_prefix_is_prefix _ _ accept
-              . exact List.IsPrefix.trans HφBA (strict_prefix_is_prefix _ _ accept)
-        . sorry -- Input accepted: b
-        . sorry -- Input accepted: cin
+              all_goals try solve
+              | assumption
+              | unfold delay List.xor; rw [List.length_cons, List.length_zipWith]; omega
+
+              apply List.IsPrefix.trans HφBC
+                (strict_prefix_is_prefix _ _ accept)
+              apply List.IsPrefix.trans HφFSD
+                  (delay_xor_prefix_l _ _ _
+                    (List.strict_prefix_is_prefix _ _ accept)
+                  )
       . exfalso; exact (PortMap.getIO_not_contained_false a HContains)
     . -- Outputs
-      intro ident ⟨⟨oA, oB⟩, ⟨oCin, oha1s⟩, ⟨oha1c, oha2c⟩⟩ s a
+      intro ident ⟨⟨oA, oB⟩, ⟨⟩, ⟨oCin, oha1s⟩, ⟨oha1c, oha2c⟩⟩ s a
       -- The ident has to resolve to something
       by_cases HContains: (full_adder_imp.outputs.contains ident)
       . -- Unpack initial states for both modules
@@ -1323,7 +1392,7 @@ theorem refines' :
         rcases HContains with h | h | h
         <;> subst_vars <;> simp <;> rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at a <;> simp at a
         . -- Extracting sum
-          dsimp [Module.liftL] at a
+          dsimp [Module.liftL, Module.liftR] at a
           destruct_ands_eqs
           -- Compute the new state
           -- 1. All of the inputs to the FA module need to be caught up
@@ -1338,7 +1407,7 @@ theorem refines' :
           let naC := List.take tlen lCin
           let new_fs_s := (List.take (min oA.length (min oB.length lCin.length)) (delay false (xor lCin ha1s)))
           let intermediate_states : D → D → D → D → full_adder_spec_t :=
-            fun a b c fs => ⟨fs, ⟨a, b, c⟩, ⟨oA, a⟩, ⟨oB, b⟩, ⟨lCin, c⟩, fs_c⟩
+            fun a b c fs => ⟨fs, ⟨a, b, c⟩, ⟨⟩, ⟨oA, a⟩, ⟨oB, b⟩, ⟨lCin, c⟩, fs_c⟩
           use (intermediate_states naA naB naC new_fs_s)
           have Hfs_feq : filtered_eq (filter_window3 3 naA naB naC) (adcb naA naB naC).2 new_fs_s
           := by
@@ -1415,14 +1484,13 @@ theorem refines' :
                 |assumption
                 |apply List.take_prefix
                 |rw [List.length_take]; apply Nat.min_le_left
-        . named_sorry cin_output_sorry
       . exfalso; exact (PortMap.getIO_not_contained_false a HContains)
     . -- Internals
-      intro rule ⟨⟨oA, oB⟩, ⟨oCin, oha1s⟩, ⟨oha1c, oha2c⟩⟩ Hin Ha
+      intro rule ⟨⟨oA, oB⟩, ⟨⟩, ⟨oCin, oha1s⟩, ⟨oha1c, oha2c⟩⟩ Hin Ha
       rw [List.mem_iff_getElem] at Hin
       obtain ⟨i, Hidx, Hin⟩ := Hin
       dsimp [full_adder_imp, half_adder_m, or_m] at Hidx
-      rcases i with z | o | t | i
+      rcases i with z | o | t | sink | i
       rotate_right; contradiction
 
       all_goals (
@@ -1434,7 +1502,7 @@ theorem refines' :
       )
 
       . -- Rule 0
-        use (fs_s, (aA, aB, aC), (oA, aA), (oB, aB), (oCin, aC), fs_c)
+        use (fs_s, (aA, aB, aC), (), (oA, aA), (oB, aB), (oCin, aC), fs_c)
         apply And.intro; apply existSR_reflexive
 
         -- Length stuff for easier proofs later
@@ -1463,7 +1531,7 @@ theorem refines' :
           omega
         )
       . -- Rule 1
-        use (fs_s, (aA, aB, aC), (oA, aA), (oB, aB), (oCin, aC), fs_c)
+        use (fs_s, (aA, aB, aC), (), (oA, aA), (oB, aB), (oCin, aC), fs_c)
         apply And.intro; apply existSR_reflexive
 
         unfold φ
@@ -1473,7 +1541,7 @@ theorem refines' :
           | assumption
           | apply List.prefix_rfl
       . -- Rule 2
-        use (fs_s, (aA, aB, aC), (oA, aA), (oB, aB), (oCin, aC), fs_c)
+        use (fs_s, (aA, aB, aC), (), (oA, aA), (oB, aB), (oCin, aC), fs_c)
         apply And.intro; apply existSR_reflexive
 
         unfold φ
@@ -1482,14 +1550,22 @@ theorem refines' :
           | rfl
           | assumption
           | apply List.prefix_rfl
+      . -- Rule 3 (due to sink)
+        use (fs_s, (aA, aB, aC), (), (oA, aA), (oB, aB), (oCin, aC), fs_c)
+        apply And.intro; apply existSR_reflexive
+        unfold φ
+        dsimp
+        with_reducible split_ands <;> try solve
+        | rfl
+        | assumption
 
 theorem refines_init :
   Module.refines_initial full_adder_imp full_adder_spec φ := by
   unfold Module.refines_initial; intro i hi
-  obtain ⟨⟨a, b⟩, ⟨c, d⟩, ⟨e, f⟩⟩ := i
-  unfold full_adder_imp half_adder_m or_m at hi
+  obtain ⟨⟨a, b⟩, ⟨⟩, ⟨c, d⟩, ⟨e, f⟩⟩ := i
+  unfold full_adder_imp half_adder_m or_m sink_m at hi
   dsimp at hi
-  obtain ⟨⟨⟩, ⟨⟩, ⟨⟩⟩ := hi
+  obtain ⟨⟨⟩, ⟨⟩, ⟨⟩, ⟨⟩⟩ := hi
   use ⟨default, default⟩
   apply And.intro
   . unfold full_adder_spec buffer_spec_m future_sight_m full_adder_spec_m
@@ -1515,8 +1591,6 @@ theorem refines_init :
 
 theorem refines :
   full_adder_imp ⊑ full_adder_spec := ⟨inferInstance, φ, refines', refines_init⟩
-
-#print axioms refines
 
 end FullAdder
 
