@@ -16,7 +16,7 @@ open Batteries (AssocList)
 namespace Graphiti.CombModule
 
 namespace List
-variable {α : Type _}
+variable {α : Type _} {β : Type _}
 
 def filter_window [BEq α] (delay: Nat) (a : List α): List Bool :=
   -- I'd use a List.finRange if it had enough theorems on it but
@@ -320,6 +320,45 @@ lemma select_from_filter_prefix_of_agree
 def delay (d: α) (s: List α) := d :: s
 def delayN (n: Nat) (d: α) (s: List α) := (List.replicate n d) ++ s
 
+/-- Stateful scan: like scanl but drops the initial element, so the output
+    has the same length as the input. Each output element depends on the
+    previous state and the current input. -/
+def scanl_drop (f : β → α → β) (init : β) (l : List α) : List β :=
+  (l.scanl f init).drop 1
+
+theorem length_scanl_drop (f : β → α → β) (init : β) (l : List α) :
+    (scanl_drop f init l).length = l.length := by
+  unfold scanl_drop; simp [List.length_drop, List.length_scanl]
+
+theorem scanl_drop_prefix (f : β → α → β) (init : β) (l l' : List α) :
+    l <+: l' → scanl_drop f init l <+: scanl_drop f init l' := by
+  intro h
+  unfold scanl_drop
+  obtain ⟨t, ht⟩ := h; subst ht
+  rw [List.scanl_append]
+  simp only [List.drop_one, ne_eq, List.scanl_ne_nil, not_false_eq_true, List.tail_append_of_ne_nil,
+    List.prefix_append]
+
+theorem scanl_drop_nil (f : β → α → β) (init : β) :
+    scanl_drop f init [] = [] := by
+  unfold scanl_drop; simp
+
+theorem scanl_drop_cons (f : β → α → β) (init : β) (a : α) (l : List α) :
+    scanl_drop f init (a :: l) = f init a :: scanl_drop f (f init a) l := by
+  unfold scanl_drop
+  simp [List.scanl_cons, List.drop_cons]
+  rw [←@List.cons_head_tail _ (List.scanl f (f init a) l)  (by apply List.scanl_ne_nil)]
+  rw [List.head_scanl, List.tail_cons]
+
+theorem scanl_drop_getElem (f : β → α → β) (init : β) (l : List α)
+    (i : Nat) (hi : i < (scanl_drop f init l).length) :
+    (scanl_drop f init l)[i] = (List.take (i + 1) l).foldl f init := by
+  unfold scanl_drop
+  simp only [List.getElem_drop, List.length_scanl] at *
+  -- Kinda silly but whatever
+  conv => enter [1, 2]; rw [Nat.add_comm]
+  rw [List.getElem_scanl]
+
 def not (s : List Bool) : List Bool := s.map Bool.not
 def and (s1 s2 : List Bool) : List Bool := List.zipWith Bool.and s1 s2
 def or (s1 s2 : List Bool) : List Bool := List.zipWith Bool.or s1 s2
@@ -329,6 +368,30 @@ def nand (s1 s2 : List Bool) : List Bool := not <| and s1 s2
 def and3 (s1 s2 s3 : List Bool) : List Bool := List.zipWith Bool.and s1 (List.zipWith Bool.and s2 s3)
 def xor3 (s1 s2 s3 : List Bool) : List Bool := List.zipWith Bool.xor s1 (List.zipWith Bool.xor s2 s3)
 def nand3 (s1 s2 s3 : List Bool) : List Bool := not <| and3 s1 s2 s3
+
+theorem zip_prefix {γ : Type _} (l₁ l₁' : List α) (l₂ l₂' : List γ) :
+    l₁ <+: l₁' → l₂ <+: l₂' → List.zip l₁ l₂ <+: List.zip l₁' l₂' := by
+  intro h₁ h₂
+  obtain ⟨t₁, ht₁⟩ := h₁; obtain ⟨t₂, ht₂⟩ := h₂; subst ht₁ ht₂
+  induction l₁ generalizing l₂ t₂ with
+  | nil => simp only [List.zip_nil_left, List.nil_append, List.nil_prefix]
+  | cons hd₁ tl₁ iH =>
+    obtain _ | ⟨hd₂, tl₂⟩ := l₂
+    . simp only [List.zip_nil_right, List.cons_append, List.nil_prefix]
+    . rw [List.cons_append, List.cons_append, List.zip_cons_cons, List.zip_cons_cons]
+      rw [List.prefix_cons_inj]
+      apply iH
+
+theorem dropLast_both_prefix (l l' : List α) :
+    l <+: l' → l.dropLast <+: l'.dropLast := by
+  intro h
+  obtain ⟨t, ht⟩ := h; subst ht
+  simp only [List.dropLast_append, List.isEmpty_iff]
+  cases t <;> dsimp
+  . exact List.prefix_rfl
+  . apply List.IsPrefix.trans
+    . apply List.dropLast_prefix
+    . apply List.prefix_append
 
 end List
 
@@ -434,7 +497,7 @@ def fork3_sm := fork3_m.stringify
 
 def env : IdentMap String VerilogTemplate :=
   [("sink_m", sink_m_template), ("and_m", and_m_template), ("nand_m", nand_m_template), ("nand3_m", nand3_m_template), ("fork_m", fork_m_template), ("fork3_m", fork3_m_template), ("not_m", not_m_template)].toAssocList
-/-
+
 namespace FlipFlop
 
 def d_latch'_m := [graphEnv|
@@ -575,11 +638,35 @@ def et_flip_flop_m := [graphEnv|
     n6F -> q_bar [from="out2"];
   ]
 
-#check ExprHigh
-#eval repr <| et_flip_flop_m.1
-#eval repr <| et_flip_flop_m.2.toList.map Prod.fst
-
 def env' := env.cons "d_latch_m" d_latch_m_template
+
+def dff_step (st : Bool × Bool) (pair : Bool × Bool) : Bool × Bool :=
+  let (q, prev_c) := st
+  let (c, x) := pair
+  (if c && !prev_c then x else q, c)
+
+def d_flip_flop_raw (d clk : D) : D :=
+  (scanl_drop dff_step (false, false) (List.zip clk d)).map (·.1)
+
+def delay_filter_step (delay : Nat) (countdown : Nat) (pair : Bool × Bool) : Nat :=
+  let (c, prev_c) := pair
+  if c && !prev_c then delay
+  else if countdown = 0 then 0
+  else countdown - 1
+
+/-- Step function for the error filter. State is (current_level, ticks_at_level, has_error).
+    If the clock transitions before min_pulse ticks at the current level, we latch to error permanently. -/
+def error_filter_step (min_pulse : Nat) (state : Bool × (Nat × Bool)) (c : Bool) : Bool × (Nat × Bool) :=
+  let (level, ticks, error) := (state.1, state.2.1, state.2.2)
+  if error then (level, (ticks, true))
+  else if c = level then (level, (ticks + 1, false))
+  else if ticks < min_pulse then (c, (1, true))
+  else (c, (1, false))
+
+/-- Error filter: true until a minimum pulse width violation is detected, then false forever.
+    Assumes the clock was stable at its initial level for at least min_pulse ticks before the stream. -/
+def error_filter (min_pulse : Nat) (clk : D) : List Bool :=
+  (scanl_drop (error_filter_step min_pulse) (false, (min_pulse, false)) clk).map (fun s => !s.2.2)
 
 def et_flip_flop_spec : StringModule (D × D) :=
   { inputs := [ (↑"clk", ⟨ D, λ s tt s' => True ⟩)
@@ -714,112 +801,8 @@ theorem refines :
 end Refinement
 
 end FlipFlop
--/
 
-namespace HalfAdder
-
-open List
-
-/--
-Equivalent to just xor.
--/
-def half_adder_s := [graphEnv|
-    a [type="io"];
-    b [type="io"];
-    s [type="io"];
-
-    n1 [type="nand_m_1", typeImp=$(⟨_, nand_sm "nand_1"⟩)];
-    n2 [type="nand_m_2", typeImp=$(⟨_, nand_sm "nand_2"⟩)];
-    n3 [type="nand_m_3", typeImp=$(⟨_, nand_sm "nand_3"⟩)];
-    n4 [type="nand_m_4", typeImp=$(⟨_, nand_sm "nand_4"⟩)];
-
-    a_f [type="fork_m_1", typeImp=$(⟨_, fork_sm "a_f"⟩)];
-    b_f [type="fork_m_2", typeImp=$(⟨_, fork_sm "b_f"⟩)];
-    n1_f [type="fork_m_3", typeImp=$(⟨_, fork_sm "n1_f"⟩)];
-
-    a -> a_f [to="in1"];
-    b -> b_f [to="in1"];
-    n1 -> n1_f [from="out1",to="in1"];
-
-    a_f -> n1 [from="out2",to="in1"];
-    b_f -> n1 [from="out1",to="in2"];
-    a_f -> n2 [from="out1",to="in1"];
-    b_f -> n3 [from="out2",to="in2"];
-
-    n1_f -> n2 [from="out1",to="in2"];
-    n1_f -> n3 [from="out2",to="in1"];
-
-    n2 -> n4 [from="out1",to="in1"];
-    n3 -> n4 [from="out1",to="in2"];
-
-    n4 -> s [from="out1"];
-  ]
-
-def half_adder_s_lowered := half_adder_s.1.lower_TR |>.get rfl
-
-def xor_with_delay : StringModule (D × D) where
-  inputs := [ (↑"a", ⟨ D, λ s tt s' => s.1 <<: tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩)
-            , (↑"b", ⟨ D, λ s tt s' => s.2 <<: tt ∧ s'.2 = tt ∧ s'.1 = s.1 ⟩)
-            ].toAssocList
-  outputs := [ (↑"s", ⟨ D, λ s tt s' => tt = delayN 4 false (List.xor s.1 s.2) ∧ s = s' ⟩)].toAssocList
-  internals := []
-  init_state s := s = ([], [])
-
-def env := half_adder_s.2
-
-@[drenv] theorem find?_nand1_m : (Batteries.AssocList.find? "nand_m_1" env) = .some ⟨_, nand_sm "nand_1"⟩ := rfl
-@[drenv] theorem find?_nand2_m : (Batteries.AssocList.find? "nand_m_2" env) = .some ⟨_, nand_sm "nand_2"⟩ := rfl
-@[drenv] theorem find?_nand3_m : (Batteries.AssocList.find? "nand_m_3" env) = .some ⟨_, nand_sm "nand_3"⟩ := rfl
-@[drenv] theorem find?_nand4_m : (Batteries.AssocList.find? "nand_m_4" env) = .some ⟨_, nand_sm "nand_4"⟩ := rfl
-@[drenv] theorem find?_fork1_m : (Batteries.AssocList.find? "fork_m_1" env) = .some ⟨_, fork_sm "a_f"⟩ := rfl
-@[drenv] theorem find?_fork2_m : (Batteries.AssocList.find? "fork_m_2" env) = .some ⟨_, fork_sm "b_f"⟩ := rfl
-@[drenv] theorem find?_fork3_m : (Batteries.AssocList.find? "fork_m_3" env) = .some ⟨_, fork_sm "n1_f"⟩ := rfl
-
-seal env in
-def_module half_adder_m_t : Type :=
-  [T| half_adder_s_lowered, env.find? ]
-reduction_by
-  dsimp [half_adder_s_lowered]
-  dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
-  dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
-  dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
-  simp only [drenv]
-  dsimp
-
-seal env in
-def_module half_adder_m : StringModule half_adder_m_t :=
-  [e| half_adder_s_lowered, env.find? ]
-reduction_by
-       dsimp [half_adder_s_lowered]
-       (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
-        dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
-        dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
-        rw [rw_opaque (by simp only [drenv]; rfl)]; dsimp
-        dsimp [Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts, Module.mapInputPorts, reduceAssocListfind?]
-        simp (disch := decide) only [AssocList.bijectivePortRenaming_invert]
-        dsimp [Module.product]
-        dsimp only [reduceModuleconnect'2]
-        dsimp only [reduceEraseAll]
-        dsimp; dsimp [reduceAssocListfind?]
-
-        unfold Module.connect''
-        dsimp [toString]
-        )
-
-instance : MatchInterface half_adder_m xor_with_delay := by
-  dsimp [half_adder_m, xor_with_delay]
-  solve_match_interface
-
-axiom φ : half_adder_m_t → (D × D) → Prop
-
-theorem refines' :
-  half_adder_m ⊑_{φ} xor_with_delay := by sorry
-
-theorem refines :
-  half_adder_m ⊑ xor_with_delay := by sorry
-
-end HalfAdder
-
+/- Disabled for speed when working above.
 namespace FullAdder
 
 -- TODO maybe: move monotonicity directly to the outputs of the impl module
@@ -1593,5 +1576,6 @@ theorem refines :
   full_adder_imp ⊑ full_adder_spec := ⟨inferInstance, φ, refines', refines_init⟩
 
 end FullAdder
+-/
 
 end Graphiti.CombModule
