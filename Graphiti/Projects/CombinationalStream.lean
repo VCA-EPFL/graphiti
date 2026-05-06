@@ -645,34 +645,68 @@ def dff_step (st : Bool × Bool) (pair : Bool × Bool) : Bool × Bool :=
   let (c, x) := pair
   (if c && !prev_c then x else q, c)
 
-def d_flip_flop_raw (d clk : D) : D :=
+def dff_raw (d clk : D) : D :=
   (scanl_drop dff_step (false, false) (List.zip clk d)).map (·.1)
 
-def delay_filter_step (delay : Nat) (countdown : Nat) (pair : Bool × Bool) : Nat :=
-  let (c, prev_c) := pair
-  if c && !prev_c then delay
-  else if countdown = 0 then 0
-  else countdown - 1
+-- Not sure about this. Can we make some other kind of delay filter?
+-- With a map or something?
+-- It's hard to state what it "means", but other stuff is iffier :/
+def delay_filter_step (delay : Nat) (state : (Bool × Nat)) (c : Bool) : (Bool × Nat) :=
+  let (prev_c, countdown) := state
+  (c,
+    if c && !prev_c then delay
+    else if countdown = 0 then 0
+    else countdown - 1
+  )
 
-/-- Step function for the error filter. State is (current_level, ticks_at_level, has_error).
-    If the clock transitions before min_pulse ticks at the current level, we latch to error permanently. -/
-def error_filter_step (min_pulse : Nat) (state : Bool × (Nat × Bool)) (c : Bool) : Bool × (Nat × Bool) :=
-  let (level, ticks, error) := (state.1, state.2.1, state.2.2)
-  if error then (level, (ticks, true))
-  else if c = level then (level, (ticks + 1, false))
-  else if ticks < min_pulse then (c, (1, true))
-  else (c, (1, false))
+-- Becomes false for 4 ticks after a rising edge, to let the implementation catch up.
+def delay_filter (clk : D) : D :=
+  (scanl_drop (delay_filter_step 4) (false, 4) clk).map (·.2 == 0)
 
-/-- Error filter: true until a minimum pulse width violation is detected, then false forever.
-    Assumes the clock was stable at its initial level for at least min_pulse ticks before the stream. -/
-def error_filter (min_pulse : Nat) (clk : D) : List Bool :=
-  (scanl_drop (error_filter_step min_pulse) (false, (min_pulse, false)) clk).map (fun s => !s.2.2)
+
+def error_filter_step (time : Nat) (state : (Bool × Option Nat)) (c : Bool) : (Bool × Option Nat) :=
+  let (prev_c, timer) := state
+  (c, match timer with
+  | some timer =>
+      if c == prev_c then some (timer - 1)
+      else if timer = 0 then some (time - 1)
+      else none
+  | none => none)
+
+-- If the clock switches from 0 to 1 or back without at least 3 steps of the previous value,
+-- error out forever (we could probably reset at the next legal step, but this works too).
+-- This is to prevent strange internal states. We need enough space before the falling edge too,
+-- because that's still important to one of the loops.
+def error_filter (clk : D) : D :=
+  (scanl_drop (error_filter_step 3) (false, some 0) clk).map (·.2.isSome)
+
+-- def setup_hold_filter_step (hold : Nat) (filtered_d : D) (state : (Bool × Bool × Nat)) (clk : Bool) : (Bool × Bool × Nat) :=
+--  let (clean, prev_c, last_rising) := state
+--
+-- Since our hold is 1, we can simplify our stuff a bit!
+
+def setup_hold_filter_step (state : (Bool × Bool)) (c_fd : (Bool × Bool)) : (Bool × Bool) :=
+  let (prev_c, allowed) := state
+  let (c, fd) := c_fd
+  (c, if c && !prev_c then fd else allowed)
+
+-- Setup/hold filter:
+-- Whenever a clock rises, N ticks later, we check if there is a setup/hold time on the data.
+-- If not, latch to error until the next clock rise.
+-- We latch after the end of the hold, under the assumption that it will be blocked by the delay filter otherwise
+-- This is because it's simpler to implement, though harder to state...
+def setup_hold_filter (d clk : D) : D :=
+  -- 3 = 2 + 1 of setup/hold
+  (scanl_drop setup_hold_filter_step (false, false) (clk.zip (filter_window 3 d))).map (·.2)
+
+def dff_filter (d clk : D) : D :=
+  List.and3 (delay_filter clk) (error_filter clk) (setup_hold_filter d clk)
 
 def et_flip_flop_spec : StringModule (D × D) :=
-  { inputs := [ (↑"clk", ⟨ D, λ s tt s' => True ⟩)
-              , (↑"d", ⟨ D, λ s tt s' => True ⟩)].toAssocList,
-    outputs := [ (↑"q", ⟨ D, λ s tt s' => True ⟩)
-               , (↑"q_bar", ⟨ D, λ s tt s' => True ⟩)].toAssocList,
+  { inputs := [ (↑"clk", ⟨ D, λ s tt s' => s.1 <<: tt ∧ s'.1 = tt ∧ s.2 = s'.2 ⟩)
+              , (↑"d", ⟨ D, λ s tt s' => s.2 <<: tt ∧ s'.2 = tt ∧ s.1 = s'.1 ⟩)].toAssocList,
+    outputs := [ (↑"q", ⟨ D, λ s tt s' => filtered_eq (dff_filter s.1 s.2) (dff_raw s.1 s.2) tt ∧ s = s' ⟩)
+               , (↑"q_bar", ⟨ D, λ s tt s' => filtered_eq (dff_filter s.1 s.2) (List.not (dff_raw s.1 s.2)) tt ∧ s = s' ⟩)].toAssocList,
     init_state := λ s => s = default
   }
 
