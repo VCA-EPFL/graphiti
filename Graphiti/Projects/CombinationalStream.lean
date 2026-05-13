@@ -18,6 +18,19 @@ namespace Graphiti.CombModule
 namespace List
 variable {α : Type _} {β : Type _}
 
+theorem zipWith_take {γ : Type _} (l₁ : List α) (l₂ : List β) (n₁ n₂ : ℕ) (f : α → β → γ)
+  : List.zipWith f (l₁.take n₁) (l₂.take n₂) = List.take (min n₁ n₂) (List.zipWith f l₁ l₂)
+  := by
+  rw [List.ext_getElem_iff]
+  split_ands
+  . grind only [= List.length_zipWith, = List.length_take]
+  . intro i h₁ h₂
+    simp only [List.getElem_zipWith, List.getElem_take]
+
+lemma zip_take (l₁ : List α) (l₂ : List β) (n₁ n₂ : ℕ)
+  : List.zip (l₁.take n₁) (l₂.take n₂) = List.take (min n₁ n₂) (l₁.zip l₂)
+  := by unfold List.zip; apply zipWith_take
+
 def filter_window [BEq α] (delay: Nat) (a : List α): List Bool :=
   -- I'd use a List.finRange if it had enough theorems on it but
   -- I'm not good enough with that kind of type manipulation to do it quickly
@@ -34,15 +47,16 @@ theorem filter_window_nil [BEq α] (delay : Nat) :
 
 theorem filter_window_get [BEq α] (delay : Nat) (a : List α) (i : Nat)
     (hi : i < a.length) :
-    (filter_window delay a)[i]? = some (Bool.and (i >= delay) (((a.take (i + 1)).drop (i + 1 - delay)).all
+    (filter_window delay a)[i]'(by rw [length_filter_window]; assumption) = (Bool.and (i >= delay) (((a.take (i + 1)).drop (i + 1 - delay)).all
       (fun v => some v == a[i]?))) := by
         unfold filter_window; grind;
 
 theorem filter_window_get_prefix [BEq α] (delay : Nat) (s1 s2 : List α)
     (h : s1 <+: s2) (i : Nat) (hi : i < s1.length) :
-    (filter_window delay s1)[i]? = (filter_window delay s2)[i]? := by
+    (filter_window delay s1)[i]'(by rw [length_filter_window]; assumption) = (filter_window delay s2)[i]'(by rw [length_filter_window]; apply List.IsPrefix.length_le at h; omega) := by
       obtain ⟨t, ht⟩ := h;
-      rw [ ← ht, filter_window_get, filter_window_get ];
+      conv => enter [2, 1]; rw [← ht]
+      rw [ filter_window_get, filter_window_get ];
       · rw [ List.take_append_of_le_length ];
         · grind;
         · grind;
@@ -63,6 +77,20 @@ theorem filter_window_prefix [BEq α] :
           · grind;
           · grind;
       exact h_filter_eq_take ▸ List.take_prefix _ _
+
+theorem filter_window_take [BEq α] (l : List α) (delay i : ℕ)
+  : (filter_window delay (List.take i l)) = List.take i (filter_window delay l)
+  := by
+  rw [List.ext_getElem_iff]
+  split_ands
+  . simp only [List.length_take, List.length_filter_window]
+  . intro i' h₁ h₂
+    rw [List.getElem_take]
+    apply filter_window_get_prefix
+    . apply List.take_prefix
+    . rw [List.length_take, List.length_filter_window] at h₂
+      rw [List.length_take]
+      assumption
 
 def strict_prefix (s1 s2 : List α) : Prop :=
   s1.length < s2.length ∧ s1 = s2.take s1.length
@@ -369,6 +397,18 @@ def and3 (s1 s2 s3 : List Bool) : List Bool := List.zipWith Bool.and s1 (List.zi
 def xor3 (s1 s2 s3 : List Bool) : List Bool := List.zipWith Bool.xor s1 (List.zipWith Bool.xor s2 s3)
 def nand3 (s1 s2 s3 : List Bool) : List Bool := not <| and3 s1 s2 s3
 
+theorem not_prefix (l₁ l₁': List Bool) (h : l₁ <+: l₁')
+  : not l₁ <+: not l₁' := List.IsPrefix.map _ h
+
+theorem nand_prefix (l₁ l₁' l₂ l₂' : List Bool)
+  : l₁ <+: l₁' → l₂ <+: l₂' → (nand l₁ l₂) <+: (nand l₁' l₂')
+  := by
+  intro h1 h2
+  unfold nand
+  apply not_prefix
+  apply zipWith_prefix
+  <;> assumption
+
 theorem zip_prefix {γ : Type _} (l₁ l₁' : List α) (l₂ l₂' : List γ) :
     l₁ <+: l₁' → l₂ <+: l₂' → List.zip l₁ l₂ <+: List.zip l₁' l₂' := by
   intro h₁ h₂
@@ -590,14 +630,14 @@ def et_flip_flop_m := [graphEnv|
     clk [type="io"];
     d [type="io"];
     q [type="io"];
-    q_bar [type="io"];
+    -- q_bar [type="io"];
 
     n1 [type="nand_m1", typeImp = $(⟨_, nand_sm "nand1"⟩)];
     n2 [type="nand_m2", typeImp = $(⟨_, nand_sm "nand2"⟩)];
     n3 [type="nand3_m", typeImp = $(⟨_, nand3_sm⟩)];
-    n4 [type="nand_m3", typeImp = $(⟨_, nand_sm "nand3"⟩)];
-    n5 [type="nand_m4", typeImp = $(⟨_, nand_sm "nand4"⟩)];
-    n6 [type="nand_m5", typeImp = $(⟨_, nand_sm "nand5"⟩)];
+    n4 [type="nand_m4", typeImp = $(⟨_, nand_sm "nand4"⟩)];
+    n5 [type="nand_m5", typeImp = $(⟨_, nand_sm "nand5"⟩)];
+    n6 [type="nand_m6", typeImp = $(⟨_, nand_sm "nand6"⟩)];
 
     clkF [type="clkF", typeImp = $(⟨_, fork_sm "clkF"⟩)];
     n2F [type="fork3_m", typeImp = $(⟨_, fork3_sm⟩)];
@@ -605,6 +645,7 @@ def et_flip_flop_m := [graphEnv|
     n4F [type="n4_f", typeImp = $(⟨_, fork_sm "n4_f"⟩)];
     n5F [type="n5_f", typeImp = $(⟨_, fork_sm "n5_f"⟩)];
     n6F [type="n6_f", typeImp = $(⟨_, fork_sm "n6_f"⟩)];
+    sink [type="sink", typeImp=$(⟨_, sink_sm⟩)];
 
     n2 -> n2F [from="out1", to="in1"];
     n3 -> n3F [from="out1", to="in1"];
@@ -635,7 +676,8 @@ def et_flip_flop_m := [graphEnv|
     n6F -> n5 [from="out1", to="in2"];
 
     n5F -> q [from="out1"];
-    n6F -> q_bar [from="out2"];
+    -- Disabled for now
+    n6F -> sink [from="out2", to="in1"];
   ]
 
 def env' := env.cons "d_latch_m" d_latch_m_template
@@ -647,6 +689,20 @@ def dff_step (st : Bool × Bool) (pair : Bool × Bool) : Bool × Bool :=
 
 def dff_raw (d clk : D) : D :=
   (scanl_drop dff_step (false, false) (List.zip clk d)).map (·.1)
+
+theorem length_dff_raw (d clk : D) : (dff_raw d clk).length = min clk.length d.length
+  := by unfold dff_raw; rw [List.length_map, List.length_scanl_drop, List.length_zip]
+
+theorem dff_raw_take (d clk : D) (a b i : ℕ) (h: i < min (min a clk.length) (min b d.length)) :
+  (dff_raw (List.take b d) (List.take a clk))[i]'(by simp only [length_dff_raw, List.length_take]; assumption) = (dff_raw d clk)[i]'(by rw [length_dff_raw]; omega)
+  := by
+  unfold dff_raw scanl_drop
+  rw [List.getElem_map, List.getElem_map]
+  rw [List.getElem_drop, List.getElem_drop]
+  rw [List.getElem_scanl, List.getElem_scanl]
+  rw [List.zip_take, List.take_take]
+  congr
+  omega
 
 -- Not sure about this. Can we make some other kind of delay filter?
 -- With a map or something?
@@ -702,6 +758,31 @@ def setup_hold_filter (d clk : D) : D :=
 def dff_filter (d clk : D) : D :=
   List.and3 (delay_filter clk) (error_filter clk) (setup_hold_filter d clk)
 
+theorem length_dff_filter (d clk : D) : (dff_filter d clk).length = min clk.length d.length
+  := by
+  unfold dff_filter delay_filter error_filter and3 setup_hold_filter
+  simp only [List.length_zipWith, List.length_map, List.length_scanl_drop, List.length_zip, List.length_filter_window]
+  simp only [inf_le_left, inf_of_le_right]
+
+theorem dff_filter_take (d clk : D) (a b i : ℕ) (h : i < min (min a clk.length) (min b d.length))
+  : (dff_filter (List.take b d) (List.take a clk))[i]'(by simp only [length_dff_filter, List.length_take]; assumption) = (dff_filter d clk)[i]'(by rw [length_dff_filter]; omega)
+  := by
+  unfold dff_filter and3
+  repeat rw [List.getElem_zipWith]
+  apply congrArg₂ Bool.and
+  <;> try apply congrArg₂ Bool.and
+
+  all_goals (
+    unfold delay_filter error_filter setup_hold_filter scanl_drop
+    simp only [
+      List.getElem_map, List.getElem_drop, List.getElem_scanl,
+      List.filter_window_take, List.zip_take,
+      List.take_take
+    ]
+    congr
+    omega
+  )
+
 def et_flip_flop_spec : StringModule (D × D) :=
   { inputs := [ (↑"clk", ⟨ D, λ s tt s' => s.1 <<: tt ∧ s'.1 = tt ∧ s.2 = s'.2 ⟩)
               , (↑"d", ⟨ D, λ s tt s' => s.2 <<: tt ∧ s'.2 = tt ∧ s.1 = s'.1 ⟩)].toAssocList,
@@ -709,6 +790,44 @@ def et_flip_flop_spec : StringModule (D × D) :=
                , (↑"q_bar", ⟨ D, λ s tt s' => filtered_eq (dff_filter s.1 s.2) (List.not (dff_raw s.1 s.2)) tt ∧ s = s' ⟩)].toAssocList,
     init_state := λ s => s = default
   }
+
+def future_sight_m (s : String := "") (n : Nat) : StringModule (Named s D) :=
+  {
+    inputs := [(↑"in", ⟨ Named s!"{s}.in" D, λ s tt s' => s <<: tt ∧ s' = tt⟩)].toAssocList,
+    outputs := [(↑"out", ⟨ Named s!"{s}.out" D, λ s tt s' => s = s' ∧ (∃x, x.length <= n ∧ s ++ x = tt)⟩)].toAssocList,
+    init_state := λ s => s = default
+  }
+
+def buffer_spec_m (s : String := "") : StringModule (Named s (D × D)) :=
+  {
+    inputs := [(↑"in", ⟨ Named s!"{s}.in" D, λ s tt s' => s.1 <<: tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩)].toAssocList,
+    outputs := [(↑"out", ⟨ Named s!"{s}.out" D, λ s tt s' => s.2 <<: tt ∧ s'.2 = tt ∧ tt <+: s.1 ∧ s'.1 = s.1⟩)].toAssocList,
+    init_state := λ s => s = default
+  }
+
+def et_ff_buffered_s := [graphEnv|
+  clk [type="io"];
+  d [type="io"];
+  q [type="io"];
+
+  b_clk [type="b_clk", typeImp=$(⟨_, buffer_spec_m "b_clk"⟩)];
+  b_d [type="b_d", typeImp=$(⟨_, buffer_spec_m "b_d"⟩)];
+  dff [type="dff", typeImp=$(⟨_, et_flip_flop_spec⟩)];
+  fs [type="fs", typeImp=$(⟨_, future_sight_m "fs" 3⟩)];
+  sink [type="sink", typeImp=$(⟨_, sink_sm⟩)];
+
+  clk -> b_clk [to="in"];
+  d -> b_d [to="in"];
+
+  b_clk -> dff [from="out", to="clk"];
+  b_d -> dff [from="out", to="d"];
+
+  dff -> fs [from="q", to="in"];
+  fs -> q [from="out"];
+  -- Disconnected for proof simplicity; we'd need to divide
+  -- The DFF into 2 modules, or have another buffer, to prove outputting on this.
+  dff -> sink [from="q_bar", to="in1"];
+ ]
 
 def et_ms_flip_flop_m := [graphEnv|
     clk [type="io"];
@@ -738,26 +857,18 @@ def et_ms_flip_flop_m := [graphEnv|
     latch2 -> q_bar [from="q_bar"];
   ]
 
-#eval IO.print <| build_verilog_module "d_latch_m" env d_latch_m.1 (simple_interface ["d", "clk"] ["q", "q_bar"])
--- #guard_msgs (drop info) in
-#eval IO.print <| build_verilog_module "et_flip_flop_m" env et_flip_flop_m.1 (simple_interface ["d", "clk"] ["q", "q_bar"])
-#guard_msgs (drop info) in
-#eval IO.print <| build_verilog_module "et_ms_flip_flop_m" env' et_ms_flip_flop_m.1 (simple_interface ["d", "clk"] ["q", "q_bar"])
-
 namespace Refinement
 
 def et_flip_flop_m_lowered := et_flip_flop_m.1.lower_TR |>.get rfl
-
-#eval et_flip_flop_m_lowered
-#check ExprLow
+def et_ff_buffered_s_lowered := et_ff_buffered_s.1.lower_TR |>.get rfl
 
 def env := (et_flip_flop_m).2
 
 @[drenv] theorem find?_nand1_m : (Batteries.AssocList.find? "nand_m1" env) = .some ⟨_, nand_sm "nand1"⟩ := rfl
 @[drenv] theorem find?_nand2_m : (Batteries.AssocList.find? "nand_m2" env) = .some ⟨_, nand_sm "nand2"⟩ := rfl
-@[drenv] theorem find?_nand3_m : (Batteries.AssocList.find? "nand_m3" env) = .some ⟨_, nand_sm "nand3"⟩ := rfl
-@[drenv] theorem find?_nand4_m : (Batteries.AssocList.find? "nand_m4" env) = .some ⟨_, nand_sm "nand4"⟩ := rfl
-@[drenv] theorem find?_nand5_m : (Batteries.AssocList.find? "nand_m5" env) = .some ⟨_, nand_sm "nand5"⟩ := rfl
+@[drenv] theorem find?_nand3_m : (Batteries.AssocList.find? "nand_m4" env) = .some ⟨_, nand_sm "nand4"⟩ := rfl
+@[drenv] theorem find?_nand4_m : (Batteries.AssocList.find? "nand_m5" env) = .some ⟨_, nand_sm "nand5"⟩ := rfl
+@[drenv] theorem find?_nand5_m : (Batteries.AssocList.find? "nand_m6" env) = .some ⟨_, nand_sm "nand6"⟩ := rfl
 @[drenv] theorem find?_nand_3_m : (Batteries.AssocList.find? "nand3_m" env) = .some ⟨_, nand3_sm⟩ := rfl
 @[drenv] theorem find?_clkF_m : (Batteries.AssocList.find? "clkF" env) = .some ⟨_, fork_sm "clkF"⟩ := rfl
 @[drenv] theorem find?_n3_f_m : (Batteries.AssocList.find? "n3_f" env) = .some ⟨_, fork_sm "n3_f"⟩ := rfl
@@ -766,6 +877,7 @@ def env := (et_flip_flop_m).2
 @[drenv] theorem find?_n6_f_m : (Batteries.AssocList.find? "n6_f" env) = .some ⟨_, fork_sm "n6_f"⟩ := rfl
 -- @[drenv] theorem find?_fork_m : (Batteries.AssocList.find? "fork_m" env) = .some ⟨_, fork_sm⟩ := rfl
 @[drenv] theorem find?_fork3_m : (Batteries.AssocList.find? "fork3_m" env) = .some ⟨_, fork3_sm⟩ := rfl
+@[drenv] theorem find?_sink_m : (Batteries.AssocList.find? "sink" env) = .some ⟨_, sink_sm⟩ := rfl
 
 seal env in
 def_module lhsModuleType : Type :=
@@ -799,35 +911,357 @@ reduction_by
         )
         /- dsimp [Module.liftL, Module.liftR, drcomponents]) -/
 
-instance : MatchInterface lhsModule et_flip_flop_spec := by
-  dsimp [lhsModule, et_flip_flop_spec]
+
+def env_s := (et_ff_buffered_s).2
+
+@[drenv] theorem find?_bclk_s : (Batteries.AssocList.find? "b_clk" env_s) = .some ⟨_, buffer_spec_m "b_clk"⟩ := rfl
+@[drenv] theorem find?_bd_s : (Batteries.AssocList.find? "b_d" env_s) = .some ⟨_, buffer_spec_m "b_d"⟩ := rfl
+@[drenv] theorem find?_sink_s : (Batteries.AssocList.find? "sink" env_s) = .some ⟨_, sink_sm⟩ := rfl
+@[drenv] theorem find?_fs_s : (Batteries.AssocList.find? "fs" env_s) = .some ⟨_, future_sight_m "fs" 3⟩ := rfl
+@[drenv] theorem find?_dff_s : (Batteries.AssocList.find? "dff" env_s) = .some ⟨_, et_flip_flop_spec⟩ := rfl
+
+seal env_s in
+def_module rhsModuleType : Type :=
+  [T| et_ff_buffered_s_lowered, env_s.find? ]
+reduction_by
+  dsimp [et_ff_buffered_s_lowered]
+  dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
+  dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
+  dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
+  simp only [drenv]
+  dsimp
+
+seal env_s in
+def_module rhsModule : StringModule rhsModuleType :=
+  [e| et_ff_buffered_s_lowered, env_s.find? ]
+reduction_by
+       dsimp [et_ff_buffered_s_lowered]
+       (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
+        dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
+        dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
+        rw [rw_opaque (by simp only [drenv]; rfl)]; dsimp
+        dsimp [Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts, Module.mapInputPorts, reduceAssocListfind?]
+        simp (disch := decide) only [AssocList.bijectivePortRenaming_invert]
+        dsimp [Module.product]
+        dsimp only [reduceModuleconnect'2]
+        dsimp only [reduceEraseAll]
+        dsimp; dsimp [reduceAssocListfind?]
+
+        unfold Module.connect''
+        dsimp [toString]
+        )
+        /- dsimp [Module.liftL, Module.liftR, drcomponents]) -/
+
+macro "destruct_ands_eqs" : tactic =>
+  `(tactic| with_reducible (repeat cases ‹_ ∧ _›); subst_vars; with_reducible (repeat cases ‹_ = _›))
+
+
+theorem existSR_zero_single_step {S : Type _} (rules : List (S → S → Prop)):
+  ∀ s s', ∀ rule ∈ rules, s = s' ∨ rule s s' → existSR rules s s' := by
+  intros s s' rule Hin H
+  rcases H with h | h
+  . subst h
+    exact existSR_reflexive
+  . exact (existSR_single_step _ _ _ _ Hin h)
+
+macro "indexed_rule_or_rfl" n:num t:term : tactic =>
+  `(tactic| (apply existSR_zero_single_step
+             apply @List.getElem_mem _ _ $n
+              (by unfold rhsModule Module.internals; dsimp; omega)
+
+             unfold rhsModule Module.internals Module.liftR Module.liftL Named; dsimp
+
+             by_cases Hneq: $t
+             (left; subst Hneq; rfl)
+             right
+            ))
+
+def lhs_wf (lhs: lhsModuleType) : Prop :=
+  let (n2, n2f, n6, n5, n4f, n3f, n4, n6f, clkf, n3, n1, (), n5f) := lhs
+  -- Outputs
+  n2.1 <+: (delay false (nand n1.1 n1.2)) ∧ n2f <+: (delay false (nand n2.1 n2.2)) ∧
+  n3f <+: (delay false (nand3 n3.1 n3.2.1 n3.2.2)) ∧ n4f <+: (delay false (nand n4.1 n4.2)) ∧
+  n5f <+: (delay false (nand n5.1 n5.2)) ∧ n6f <+: (delay false (nand n6.1 n6.2)) ∧
+  -- Inputs
+  n1.1 <+: n4f ∧ n1.2 <+: n2f ∧
+  n2.2 <+: clkf ∧
+  n3.1 <+: n2f ∧ n3.2.1 <+: clkf ∧ n3.2.2 <+: n4f ∧
+  n4.1 <+: n3f ∧
+  n5.1 <+: n2f ∧ n5.2 <+: n6f ∧
+  n6.1 <+: n5f ∧ n6.2 <+: n3f
+
+@[reducible] def d_from_lhs (lhs: lhsModuleType) : D := lhs.2.2.2.2.2.2.1.2
+@[reducible] def clk_from_lhs (lhs: lhsModuleType) : D := lhs.2.2.2.2.2.2.2.2.1
+@[reducible] def out_from_lhs (lhs: lhsModuleType) : D := lhs.2.2.2.2.2.2.2.2.2.2.2.2
+
+theorem lhs_wf_eq (lhs: lhsModuleType) (h_wf: lhs_wf lhs) (i: ℕ)
+  (h_clk: i < (clk_from_lhs lhs).length)
+  (h_d: i < (d_from_lhs lhs).length)
+  (h_out: i < (out_from_lhs lhs).length)
+  : (dff_filter (clk_from_lhs lhs) (d_from_lhs lhs))[i]'(by rw [length_dff_filter]; omega) → (dff_raw (clk_from_lhs lhs) (d_from_lhs lhs))[i]'(by rw [length_dff_raw]; omega) = (out_from_lhs lhs)[i]
+  := by
+  sorry
+
+theorem lhs_wf_len (lhs: lhsModuleType) (h_wf: lhs_wf lhs)
+  : min (List.length (d_from_lhs lhs)) (List.length (clk_from_lhs lhs)) + 3 ≥ List.length (out_from_lhs lhs)
+  := by
+  sorry
+
+lemma extension_length {α : Type _}
+  (l: List α) (n: Nat)
+  : n + 3 >= l.length → ∃x, x.length <= 3 ∧ (List.take n l) ++ x = l
+  := by
+  intro H
+  use (List.drop n l)
+  apply And.intro
+  . rw [List.length_drop]
+    omega
+  . apply List.take_append_drop
+
+
+instance : MatchInterface lhsModule rhsModule := by
+  dsimp [lhsModule, et_ff_buffered_s]
   solve_match_interface
-def φ : lhsModuleType → (D × D) → Prop :=
-  λ (_, _, _, _, (_, dataL), _, _, _, _, clkL, _) (clk, data) =>
+def φ (lhs: lhsModuleType) (rhs: rhsModuleType) : Prop :=
+  let (n2, n2f, n6, n5, n4f, n3f, n4, n6f, clkf, n3, n1, (), n5f) := lhs
+  let ((bd_in, bd_out), (bclk_in, bclk_out), (), fs, (rhsClk, rhsD)) := rhs
+  -- The inputs of lhs and rhs must match
+  clkf = bclk_in ∧ bd_in = n4.2 ∧
+  -- The internal state of lhs must be sensical
+  lhs_wf lhs ∧
+  -- Main state invariant
+  fs <+: n5f ∧
+  -- Our spec doesn't move ahead of the impl
+  rhsD.length <= n5f.length ∧ rhsClk.length <= n5f.length ∧
+  -- The internal state of rhs must be sensical
+  bd_out = rhsD ∧ bclk_out = rhsClk ∧
+  bd_out <+: bd_in ∧ bclk_out <+: bclk_in ∧
+  -- Follows from filtered eq, but is much simpler and is all we need.
+  fs.length = min rhsClk.length rhsD.length
+
+  -- Outdated
+  --λ (_, _, _, _, (_, dataL), _, _, _, _, clkL, _) (clk, data) =>
     -- First, extract the state
-    dataL = data /\ clkL = clk
+    --dataL = data /\ clkL = clk
     -- Second, invariants
     -- Non-mathematically, our current ideas are the following two invariants:
     -- 1: the output state is at most the length of the input + delay
     -- 2: the function defined by the input is more defined than the output
 
+lemma nand_no_int (s: String) : (nand_sm s).internals = []
+  := by
+  unfold nand_sm nand_m NatModule.stringify Module.mapIdent
+  dsimp
+
+-- TODO: some interesting tactics/lemmas could be simplifiers for length calculations
+-- basically: simp with length_take, length_zip, length_* theorems, then
+-- canonicalize the mins using commutativity and associativity and such (dunno how easy that is)
+-- there's a lot of that stuff where I use grind.
 theorem refines' :
-  lhsModule ⊑_{φ} et_flip_flop_spec := by
+  lhsModule ⊑_{φ} rhsModule := by
     intro lhsModule rhsModule inv
     unfold φ at inv
-    let (n2, n4, n5, n4_f, (n3i1, dataL), n3_f, n6_f, n1, n3_1, clkL, n5_f) := lhsModule
-    let (clk, data) := rhsModule
-    clear lhsModule rhsModule
-    simp at inv
+    obtain ⟨n2, n2f, n6, n5, n4f, n3f, ⟨n4_1, n4_2⟩, n6f, clkf, n3, n1, ⟨⟩, n5f⟩ := lhsModule
+    obtain ⟨⟨bd_in, bd_out⟩, ⟨bclk_in, bclk_out⟩, ⟨⟩, fs, ⟨rhsClk, rhsD⟩⟩ := rhsModule
+    dsimp at inv
+    obtain ⟨HclkEq, HdEq, HlWF, HφFS, HφD, HφClk, HrDeq, HrClkEq, HrBD, HrBClk, HrFS⟩ := inv
+
+    unfold Named at *
     apply Module.comp_refines.mk
     . -- Inputs
-      intros inport targetLhs invalue h
-      -- unfold lhsModuleType at lhsState
-      sorry
+      intro ident ⟨on2, on2f, on6, on5, on4f, on3f, ⟨on4_1, on4_2⟩, on6f, oclkf, orest⟩ v h
+      by_cases HContains: (lhsModule.inputs.contains ident)
+      . -- Split by cases on the port
+        unfold lhsModule at HContains; simp at HContains
+        rcases HContains with h | h
+        <;> subst_vars <;> dsimp <;> rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at h <;> simp [Module.liftL, Module.liftR] at h
+        . -- data line
+          destruct_ands_eqs
+          rename_i Hstrict_less
+          use ⟨(v, rhsD), (oclkf, rhsClk), (), fs, (rhsClk, rhsD)⟩
+          use ⟨(v, rhsD), (oclkf, rhsClk), (), fs, (rhsClk, rhsD)⟩
+          unfold Named at *
+          with_reducible split_ands
+          . -- Our new transition is valid
+            rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]
+            trivial
+          . -- Trivial transition
+            exact existSR_reflexive
+          . -- φ is still valid
+            unfold φ
+            dsimp
+
+            -- Unwrap the basic consistency stuff
+            unfold lhs_wf at ⊢ HlWF
+            destruct_ands_eqs
+
+            with_reducible split_ands
+            <;> try trivial
+
+            -- lhs is still consistent
+            . apply List.IsPrefix.trans
+              assumption
+
+              unfold delay
+              rw [List.prefix_cons_inj]
+              apply List.nand_prefix
+              . apply List.prefix_rfl
+              . apply (List.strict_prefix_is_prefix _ _ Hstrict_less)
+            -- rhs is still consistent
+            . apply List.strict_prefix_is_prefix at Hstrict_less
+              apply List.IsPrefix.trans <;> assumption
+        . -- clock line
+          destruct_ands_eqs
+          rename_i Hstrict_less
+          use ⟨(on4_2, rhsD), (v, rhsClk), (), fs, (rhsClk, rhsD)⟩
+          use ⟨(on4_2, rhsD), (v, rhsClk), (), fs, (rhsClk, rhsD)⟩
+          with_reducible split_ands
+          . -- Our new transition is valid
+            rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]
+            trivial
+          . -- Trivial transition
+            exact existSR_reflexive
+          . -- φ is still valid
+            unfold φ
+            dsimp
+
+            -- Unwrap the basic consistency stuff
+            unfold lhs_wf at ⊢ HlWF
+            destruct_ands_eqs
+
+            with_reducible split_ands
+            <;> try trivial
+            -- lhs is still valid
+            . apply List.strict_prefix_is_prefix at Hstrict_less
+              apply List.IsPrefix.trans <;> assumption
+            . apply List.IsPrefix.trans
+              assumption
+              apply (List.strict_prefix_is_prefix _ _ Hstrict_less)
+            -- rhs is still valid
+            . apply List.strict_prefix_is_prefix at Hstrict_less
+              apply List.IsPrefix.trans <;> assumption
+      . exfalso; exact (PortMap.getIO_not_contained_false h HContains)
     . -- Outputs
-      sorry
+      intro ident ⟨on2, on2f, on6, on5, on4f, on3f, ⟨on4_1, on4_2⟩, on6f, oclkf, on3, on1, ⟨⟩, on5f⟩ v h
+      unfold Named at *
+      by_cases HContains: (lhsModule.outputs.contains ident)
+      . unfold lhsModule at HContains; simp at HContains
+        rcases HContains with h | h
+        <;> subst_vars <;> dsimp <;> rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at h <;> simp [Module.liftL, Module.liftR] at h
+        . -- the output q
+          -- Little trick to get rid of v in the right direction
+          -- v = n5f because forks always output themselves
+          have Hvs : n5f = v := by destruct_ands_eqs; rfl
+          subst Hvs
+          destruct_ands_eqs
+          -- on5f = v, easier intuition
+          rename D => v
+          let tlen := v.length
+          let nD := List.take tlen on4_2
+          let nClk := List.take tlen oclkf
+          let nFs := List.take (min on4_2.length oclkf.length) v
+          use ⟨(on4_2, nD), (oclkf, nClk), (), nFs, (nClk, nD)⟩
+          use ⟨(on4_2, nD), (oclkf, nClk), (), nFs, (nClk, nD)⟩
+          with_reducible split_ands
+          . -- We can go from our old state to our new state
+            apply (existSR_transitive _ _ ((on4_2, nD), (oclkf, nClk), (), fs, (nClk, nD)))
+            apply (existSR_transitive _ _ ((on4_2, rhsD), (oclkf, nClk), (), fs, (nClk, rhsD)))
+            . -- Update the clock line
+              indexed_rule_or_rfl 0 (rhsClk = nClk)
+              rename_i Hneq
+              simp
+              rw [and_comm, and_self_left]
+              -- TODO: extract to lemma
+              apply And.intro
+              . rw [List.strict_prefix_iff_prefix_neq]
+                apply And.intro _ Hneq
+
+                rw [List.prefix_iff_eq_take] at HrBClk
+                rw [List.prefix_iff_eq_take, List.take_take, HrBClk]
+                congr
+                grind only [= min_def]
+              . apply List.take_prefix
+            . -- Update the data line
+              indexed_rule_or_rfl 1 (rhsD = nD)
+              rename_i Hneq
+              simp
+              rw [and_comm, and_self_left]
+              -- TODO: extract to lemma
+              apply And.intro
+              . rw [List.strict_prefix_iff_prefix_neq]
+                apply And.intro _ Hneq
+
+                rw [List.prefix_iff_eq_take] at HrBD
+                rw [List.prefix_iff_eq_take, List.take_take, HrBD]
+                congr
+                grind only [= min_def]
+              . apply List.take_prefix
+            . -- Update the future-sight line
+              indexed_rule_or_rfl 2 (fs = nFs)
+              rename_i Hneq
+              simp
+              unfold filtered_eq
+              with_reducible split_ands
+              . rw [length_dff_raw]
+                repeat rw [List.length_take]
+                omega
+              . rw [length_dff_filter, length_dff_raw]
+              . intro i
+                intro H
+                apply List.getElem_of_getElem? at H
+                obtain ⟨Hi, H⟩ := H
+                rw [length_dff_filter] at Hi
+                rw [List.getElem?_eq_getElem (by rw [length_dff_raw]; exact Hi)]
+                rw [List.getElem?_eq_getElem (by grind only [List.length_take])]
+                unfold nFs nClk nD
+                rw [Option.some_inj, List.getElem_take]
+                rw [dff_raw_take _ _ _ _ _ (by grind only [= List.length_take])]
+                apply lhs_wf_eq _ HlWF _
+                  (by grind only [= List.length_take, = min_def])
+                  (by grind only [= List.length_take, = min_def])
+                  (by grind only [= List.length_take, = min_def])
+
+                dsimp [clk_from_lhs, d_from_lhs]
+                rw [←H]
+                rw [dff_filter_take]
+                grind only [= List.length_take]
+              . rw [List.strict_prefix_iff_prefix_neq]
+                apply And.intro _ Hneq
+                unfold nFs
+
+                rw [List.prefix_iff_eq_take] at HφFS
+                rw [List.prefix_iff_eq_take, List.take_take, HφFS]
+                apply List.IsPrefix.length_le at HrBD
+                apply List.IsPrefix.length_le at HrBClk
+                congr
+                grind only [= min_def]
+          . -- Our output is valid (in practice: nFs is behind by a certain amount at most)
+            rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]
+            dsimp [Module.liftL, Module.liftR]
+            split_ands <;> try rfl
+            apply extension_length
+            apply lhs_wf_len _ HlWF
+          . -- Our phi is still true after
+            unfold nD nClk tlen
+            unfold φ; with_reducible split_ands
+            <;> try trivial
+            all_goals try (repeat rw [List.length_take]); omega
+            all_goals try apply List.take_prefix
+      . exfalso; exact (PortMap.getIO_not_contained_false h HContains)
     . -- Internals
-      sorry
+      intro rule ⟨(on2_1, on2_2), on2f, (on6_1, on6_2), (on5_1, on5_2), on4f, on3f, ⟨on4_1, on4_2⟩, on6f, oclkf, (on3_1, on3_2, on3_3), (on1_1, on1_2), (), on5f⟩ Hin Ha
+      rw [List.mem_iff_getElem] at Hin
+      obtain ⟨i, Hidx, Hin⟩ := Hin
+      dsimp [lhsModule, nand_sm, nand_m, nand3_sm, nand3_m, fork_sm, fork_m, fork3_sm, fork3_m, sink_sm, sink_m,
+        NatModule.stringify, Module.mapIdent] at Hidx
+
+      obtain ⟨n2_1, n2_2⟩ := n2; obtain ⟨n6_1, n6_2⟩ := n6;
+      obtain ⟨n5_1, n5_2⟩ := n5; obtain ⟨n3_1, n3_2, n3_3⟩ := n3
+      obtain ⟨n1_1, n1_2⟩ := n1
+      use ((bd_in, bd_out), (bclk_in, bclk_out), PUnit.unit, fs, rhsClk, rhsD)
+
+      sorry -- 18 internal rules; prove that well-formedness holds
+      -- Can mostly be grinded away, but we gotta split all the cases and that's annoying
 
 theorem refines :
   lhsModule ⊑ et_flip_flop_spec := by sorry
@@ -1078,29 +1512,6 @@ def φ (lhs: full_adder_imp_t) (rhs : full_adder_spec_t) : Prop :=
   aA.length <= lenS ∧ aB.length <= lenS ∧ aC.length <= lenS ∧
   fs_s <+: (delay false (xor lCin ha1s))
 
-macro "destruct_ands_eqs" : tactic =>
-  `(tactic| with_reducible repeat cases ‹_ ∧ _›; subst_vars; with_reducible repeat cases ‹_ = _›)
-
-
-theorem existSR_zero_single_step {S : Type _} (rules : List (S → S → Prop)):
-  ∀ s s', ∀ rule ∈ rules, s = s' ∨ rule s s' → existSR rules s s' := by
-  intros s s' rule Hin H
-  rcases H with h | h
-  . subst h
-    exact existSR_reflexive
-  . exact (existSR_single_step _ _ _ _ Hin h)
-
-macro "indexed_rule_or_rfl" n:num t:term : tactic =>
-  `(tactic| (apply existSR_zero_single_step
-             apply @List.getElem_mem _ _ $n
-              (by unfold full_adder_spec Module.internals; dsimp; omega)
-
-             unfold full_adder_spec Module.internals Module.liftR Module.liftL Named; dsimp
-
-             by_cases Hneq: $t
-             (left; subst Hneq; rfl)
-             right
-            ))
 
 -- === BEGIN REFINEMENT LEMMAS ===
 
@@ -1198,17 +1609,6 @@ lemma getElem_delay_xor_agrees_r (a b l : D) (i: Nat)
       rw [List.getElem_zipWith, List.getElem_zipWith]
       rw [Bool.xor_right_inj]
       apply List.IsPrefix.getElem h_mid
-
-lemma extension_length {α : Type _}
-  (l: List α) (n: Nat)
-  : n + 3 >= l.length → ∃x, x.length <= 3 ∧ (List.take n l) ++ x = l
-  := by
-  intro H
-  use (List.drop n l)
-  apply And.intro
-  . rw [List.length_drop]
-    omega
-  . apply List.take_append_drop
 
 
 lemma delay_xor_prefix_l (l l' r : D)
