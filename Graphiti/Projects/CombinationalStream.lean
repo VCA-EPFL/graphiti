@@ -51,6 +51,33 @@ theorem filter_window_get [BEq α] (delay : Nat) (a : List α) (i : Nat)
       (fun v => some v == a[i]?))) := by
         unfold filter_window; grind;
 
+theorem filter_window_get_true [BEq α] [LawfulBEq α] (delay : Nat) (a : List α) (i : Nat)
+  (hi: i < a.length)
+  (h_fw : (filter_window delay a)[i]'(by rw [length_filter_window]; assumption) = true)
+  : delay ≤ i ∧ (∀ k, i - delay < k → k ≤ i → a[k]? = a[i]?)
+  := by
+  have Hfw_get := filter_window_get delay a i hi
+  rw [Hfw_get] at h_fw
+  simp only [ge_iff_le, Bool.and_eq_true, decide_eq_true_eq, List.all_eq_true] at h_fw
+  simp only [getElem?_pos, true_and, h_fw, hi]
+  intro k
+  intro Hgt Hle
+  have Hget := h_fw.right (a[k])
+    (by
+      rw [List.mem_iff_getElem?]
+      use k - (i + 1 - delay)
+      rw [List.getElem?_drop, List.getElem?_take]
+      simp only [Option.ite_none_right_eq_some]
+      split_ands
+      . omega
+      . rw [List.getElem?_eq_getElem]
+        congr
+        omega
+        omega
+    )
+  rw [beq_iff_eq] at Hget
+  grind only [usr getElem?_pos, = getElem?_pos]
+
 theorem filter_window_get_prefix [BEq α] (delay : Nat) (s1 s2 : List α)
     (h : s1 <+: s2) (i : Nat) (hi : i < s1.length) :
     (filter_window delay s1)[i]'(by rw [length_filter_window]; assumption) = (filter_window delay s2)[i]'(by rw [length_filter_window]; apply List.IsPrefix.length_le at h; omega) := by
@@ -687,14 +714,14 @@ def dff_step (st : Bool × Bool) (pair : Bool × Bool) : Bool × Bool :=
   let (c, x) := pair
   (if c && !prev_c then x else q, c)
 
-def dff_raw (d clk : D) : D :=
-  (scanl_drop dff_step (false, false) (List.zip clk d)).map (·.1)
+def dff_raw (clk d : D) : D :=
+  (scanl_drop dff_step (false, false) (List.zip clk d )).map (·.1)
 
-theorem length_dff_raw (d clk : D) : (dff_raw d clk).length = min clk.length d.length
+theorem length_dff_raw (clk d : D) : (dff_raw clk d).length = min clk.length d.length
   := by unfold dff_raw; rw [List.length_map, List.length_scanl_drop, List.length_zip]
 
-theorem dff_raw_take (d clk : D) (a b i : ℕ) (h: i < min (min a clk.length) (min b d.length)) :
-  (dff_raw (List.take b d) (List.take a clk))[i]'(by simp only [length_dff_raw, List.length_take]; assumption) = (dff_raw d clk)[i]'(by rw [length_dff_raw]; omega)
+theorem dff_raw_take (clk d : D) (a b i : ℕ) (h: i < min (min a clk.length) (min b d.length)) :
+  (dff_raw (List.take a clk) (List.take b d))[i]'(by simp only [length_dff_raw, List.length_take]; assumption) = (dff_raw clk d)[i]'(by rw [length_dff_raw]; omega)
   := by
   unfold dff_raw scanl_drop
   rw [List.getElem_map, List.getElem_map]
@@ -751,21 +778,21 @@ def setup_hold_filter_step (state : (Bool × Bool)) (c_fd : (Bool × Bool)) : (B
 -- If not, latch to error until the next clock rise.
 -- We latch after the end of the hold, under the assumption that it will be blocked by the delay filter otherwise
 -- This is because it's simpler to implement, though harder to state...
-def setup_hold_filter (d clk : D) : D :=
+def setup_hold_filter (clk d : D) : D :=
   -- 3 = 2 + 1 of setup/hold
   (scanl_drop setup_hold_filter_step (false, false) (clk.zip (filter_window 3 d))).map (·.2)
 
-def dff_filter (d clk : D) : D :=
-  List.and3 (delay_filter clk) (error_filter clk) (setup_hold_filter d clk)
+def dff_filter (clk d : D) : D :=
+  List.and3 (delay_filter clk) (error_filter clk) (setup_hold_filter clk d)
 
-theorem length_dff_filter (d clk : D) : (dff_filter d clk).length = min clk.length d.length
+theorem length_dff_filter (clk d : D) : (dff_filter clk d).length = min clk.length d.length
   := by
   unfold dff_filter delay_filter error_filter and3 setup_hold_filter
   simp only [List.length_zipWith, List.length_map, List.length_scanl_drop, List.length_zip, List.length_filter_window]
   simp only [inf_le_left, inf_of_le_right]
 
-theorem dff_filter_take (d clk : D) (a b i : ℕ) (h : i < min (min a clk.length) (min b d.length))
-  : (dff_filter (List.take b d) (List.take a clk))[i]'(by simp only [length_dff_filter, List.length_take]; assumption) = (dff_filter d clk)[i]'(by rw [length_dff_filter]; omega)
+theorem dff_filter_take (clk d : D) (a b i : ℕ) (h : i < min (min a clk.length) (min b d.length))
+  : (dff_filter (List.take a clk) (List.take b d))[i]'(by simp only [length_dff_filter, List.length_take]; assumption) = (dff_filter clk d)[i]'(by rw [length_dff_filter]; omega)
   := by
   unfold dff_filter and3
   repeat rw [List.getElem_zipWith]
@@ -994,16 +1021,391 @@ def lhs_wf (lhs: lhsModuleType) : Prop :=
 @[reducible] def clk_from_lhs (lhs: lhsModuleType) : D := lhs.2.2.2.2.2.2.2.2.1
 @[reducible] def out_from_lhs (lhs: lhsModuleType) : D := lhs.2.2.2.2.2.2.2.2.2.2.2.2
 
+-- Good lemma: lengths of all the lists given well-formedness?
+
+/-!
+# Proving correspondence
+
+Our core lemma states "well-formed inputs correspond to the ideal case in some timesteps".
+
+Proving this is really hard, so we define and use a simpler circuit simulation without the same
+trick for delays; it's treated as a single unit, and we prove equivalence to the others.
+-/
+
+/-! ### Circuit simulation -/
+/-- The state of the 6 internal NAND gate outputs at a single time step. -/
+structure CircuitState where
+  n1 : Bool  -- NAND(n4f, n2f)
+  n2 : Bool  -- NAND(n1f, clk)
+  n3 : Bool  -- NAND3(n2f, clk, n4f)
+  n4 : Bool  -- NAND(n3f, data)
+  n5 : Bool  -- NAND(n2f, n6f) — DFF output Q
+  n6 : Bool  -- NAND(n5f, n3f)
+  deriving DecidableEq, Repr
+def CircuitState.initial : CircuitState := ⟨false, false, false, false, false, false⟩
+/-- One simulation step: each gate computes NAND of its inputs from
+    the previous state (modeling the 1-tick gate delay). -/
+def circuit_step (st : CircuitState) (inp : Bool × Bool) : CircuitState :=
+  let (clk, data) := inp
+  { n1 := !(st.n4 && st.n2),
+    n2 := !(st.n1 && clk),
+    n3 := !(st.n2 && clk && st.n4),
+    n4 := !(st.n3 && data),
+    n5 := !(st.n2 && st.n6),
+    n6 := !(st.n5 && st.n3) }
+
+/-- Full deterministic simulation of the circuit. -/
+def circuit_sim (clk data : D) : List CircuitState :=
+  List.scanl circuit_step CircuitState.initial (List.zip clk data)
+theorem length_circuit_sim (clk data : D) :
+    (circuit_sim clk data).length = min clk.length data.length + 1 := by
+  unfold circuit_sim; rw [List.length_scanl, List.length_zip]
+
+/-! ### Layer 1: Well-formed circuit matches simulation -/
+@[reducible] def option_mb_eq (o: Option Bool) (b: Bool) : Prop := o = some b ∨ o = none
+
+lemma split_option_mb_eq (o: Option Bool) (b: Bool)
+  (c: (∀ v, o = some v → v = b))
+  : option_mb_eq o b
+  := by
+  cases o with
+  | none => right; rfl
+  | some v =>
+    specialize c v (by rfl)
+    subst c
+    left; rfl
+
+@[reducible] def lhs_eq_circuit (lhs: lhsModuleType) (i: Nat) (c: CircuitState) : Prop
+  :=
+  let (n2, n2f, n6, n5, n4f, n3f, n4, n6f, clkf, n3, n1, (), n5f) := lhs
+  option_mb_eq n2.1[i]? c.n1 ∧ option_mb_eq n2f[i]? c.n2 ∧ option_mb_eq n3f[i]? c.n3 ∧
+    option_mb_eq n4f[i]? c.n4 ∧ option_mb_eq n5f[i]? c.n5 ∧ option_mb_eq n6f[i]? c.n6
+
+lemma option_mb_eq_rfl {ls: D} {i: ℕ} {h: i < ls.length}
+  : option_mb_eq ls[i]? ls[i]
+  := by
+  left; rw [getElem?_pos]
+
+lemma option_mb_eq_nand {a b: D} {ra rb: Bool} {i: ℕ}
+  (h_a: option_mb_eq a[i]? ra)
+  (h_b: option_mb_eq b[i]? rb)
+  : option_mb_eq (nand a b)[i]? !(ra && rb)
+  := by
+  simp only [nand, List.not, List.and, List.getElem?_map, List.getElem?_zipWith]
+  grind only [= Option.map_some, = Option.map_none]
+
+lemma option_mb_eq_nand3 {a b c: D} {ra rb rc: Bool} {i: ℕ}
+  (h_a: option_mb_eq a[i]? ra)
+  (h_b: option_mb_eq b[i]? rb)
+  (h_c: option_mb_eq c[i]? rc)
+  : option_mb_eq (nand3 a b c)[i]? !(ra && rb && rc)
+  := by
+  simp only [nand3, List.not, List.and3, List.getElem?_map, List.getElem?_zipWith]
+  grind only [= Option.map_some, = Option.map_none]
+
+-- Bit messy of a proof but w/e
+lemma option_mb_eq_prefix {a b: D} {rhs: Bool} {i: ℕ}
+  (h_pre: a <+: b)
+  : option_mb_eq b[i]? rhs → option_mb_eq a[i]? rhs
+  := by
+  intro H
+  apply split_option_mb_eq
+  intro v Hv
+  rw [List.getElem?_eq_some_iff] at Hv
+  obtain ⟨Hlen, Hv⟩ := Hv
+  subst Hv
+  rw [List.IsPrefix.getElem h_pre]
+  grind only [= getElem?_pos, usr List.IsPrefix.length_le]
+
+lemma option_mb_eq_prefix_delay {a b: D} {rhs: Bool} {i: ℕ}
+  (h_pre: a <+: (delay false b))
+  : option_mb_eq b[i]? rhs → option_mb_eq a[i+1]? rhs
+  := by
+  intro H
+  apply split_option_mb_eq
+  intro v Hv
+  rw [List.getElem?_eq_some_iff] at Hv
+  obtain ⟨Hlen, Hv⟩ := Hv
+  subst Hv
+  rw [List.IsPrefix.getElem h_pre]
+  simp only [delay, List.getElem_cons_succ]
+  grind only [= getElem?_pos]
+
+lemma option_mb_eq_eq {lhs: D} {rhs: Bool} {i: ℕ} {h_len: i < lhs.length}
+  (h: option_mb_eq lhs[i]? rhs)
+  : lhs[i] = rhs
+  := by grind only [List.getElem?_eq_getElem]
+
+lemma lhs_eq_sim (lhs : lhsModuleType) (h_wf : lhs_wf lhs)
+  (i : Nat)
+  (h_circuit : i < (circuit_sim (clk_from_lhs lhs) (d_from_lhs lhs)).length)
+  : lhs_eq_circuit lhs i ((circuit_sim (clk_from_lhs lhs) (d_from_lhs lhs))[i])
+  := by
+  induction i with
+  | zero =>
+      unfold circuit_sim circuit_step
+      rw [List.getElem_scanl]
+      obtain ⟨n2, n2f, n6, n5, n4f, n3f, n4, n6f, clkf, n3, n1, unit, n5f⟩ := lhs
+      unfold lhs_wf at h_wf
+      dsimp at h_wf
+      destruct_ands_eqs
+      unfold lhs_eq_circuit clk_from_lhs d_from_lhs CircuitState.initial
+      dsimp
+      have getElem_zero_prefix_delay (x y: D) (h: x <+: (delay false y))
+      : option_mb_eq (x[0]?) false
+      := by
+        apply option_mb_eq_prefix
+        assumption
+        unfold delay
+        rw [List.getElem?_cons_zero]
+        left
+        rfl
+      split_ands
+
+      all_goals (apply getElem_zero_prefix_delay; assumption)
+  | succ i H =>
+      obtain ⟨n2, n2f, n6, n5, n4f, n3f, n4, n6f, clkf, n3, n1, unit, n5f⟩ := lhs
+      unfold clk_from_lhs d_from_lhs
+      dsimp at *
+      -- Shuffle things around to end up with a circuit sim up to i, then a single-step
+      unfold circuit_sim
+      simp only [length_circuit_sim, clk_from_lhs, d_from_lhs] at h_circuit
+      rw [List.getElem_scanl, ←List.take_append_getElem (by rw [List.length_zip]; omega)]
+      rw [List.foldl_append]
+      rw [←List.getElem_scanl (by rw [List.length_scanl, List.length_zip]; grind only [=min_def])]
+      rw [List.foldl_cons, List.foldl_nil]
+      specialize H (by omega)
+      dsimp [clk_from_lhs, d_from_lhs] at H
+      conv => rhs; lhs; arg 1; change circuit_sim clkf n4.2
+
+      destruct_ands_eqs
+      split_ands <;> (
+        unfold circuit_step
+        dsimp
+        try rw [List.getElem_zip]; dsimp
+
+        unfold lhs_wf at h_wf
+        destruct_ands_eqs
+        apply option_mb_eq_prefix_delay (by assumption)
+        first
+        | apply option_mb_eq_nand3
+        | apply option_mb_eq_nand
+      )
+
+      all_goals try first
+      | assumption
+      | apply option_mb_eq_rfl
+      | apply option_mb_eq_prefix (by assumption) (by assumption)
+      | apply option_mb_eq_prefix (by assumption) (by apply option_mb_eq_rfl)
+
+lemma lhs_output_eq_sim (lhs : lhsModuleType) (h_wf : lhs_wf lhs)
+    (i : Nat)
+    (h_out : i < (out_from_lhs lhs).length)
+    (h_circuit : i < (circuit_sim (clk_from_lhs lhs) (d_from_lhs lhs)).length)
+  : (out_from_lhs lhs)[i] =
+      ((circuit_sim (clk_from_lhs lhs) (d_from_lhs lhs))[i]).n5
+  := by
+  have H := lhs_eq_sim lhs h_wf i h_circuit
+  obtain ⟨n2, n2f, n6, n5, n4f, n3f, n4, n6f, clkf, n3, n1, unit, n5f⟩ := lhs
+  dsimp [d_from_lhs, clk_from_lhs, out_from_lhs] at *
+  dsimp [lhs_eq_circuit] at H
+  destruct_ands_eqs
+  rename_i Himp _
+  grind only [= getElem?_pos, = Option.all_some]
+
+
+/-! ### Layer 2: Filter characterization -/
+
+/-- A rising edge at position `r`: clock transitions from false to true.
+    Uses `getElem?` to avoid proof obligations in the definition. -/
+def is_rising_edge (clk : D) (r : Nat) : Prop :=
+  0 < r ∧ clk[r - 1]? = some false ∧ clk[r]? = some true
+
+/-- No rising edge in the half-open interval `(lo, hi]`. -/
+def no_rising_edge_in (clk : D) (lo hi : Nat) : Prop :=
+  ∀ j, lo < j → j ≤ hi → ¬is_rising_edge clk j
+
+/-- `is_rising_edge` implies the index is within bounds. -/
+lemma is_rising_edge_lt {clk : D} {r : Nat} (h : is_rising_edge clk r)
+  : r < clk.length
+  := by
+  obtain ⟨_, _, hr⟩ := h
+  by_contra hc; simp only [not_lt] at hc
+  rw [List.getElem?_eq_none (by omega)] at hr
+  exact absurd hr (by simp)
+
+-- TODO: make "there was a rising edge at some point" a hypothesis for simplification
+/-
+When `delay_filter clk` is true at position `i`, either no rising
+    edge has occurred, or the most recent one was ≥ 4 ticks ago.
+-/
+lemma delay_filter_characterization (clk : D) (i : Nat)
+    (hi : i < clk.length)
+    (hd : (delay_filter clk)[i]'(by
+      unfold delay_filter; simp [List.length_map, length_scanl_drop]; assumption) = true)
+  : (∀ r, r ≤ i → ¬is_rising_edge clk r) ∨
+    (∃ r, is_rising_edge clk r ∧ r + 4 ≤ i ∧ no_rising_edge_in clk r i)
+  := by sorry
+
+/-- When `error_filter clk` is true at position `i`, every clock
+    transition up to `i` was preceded by ≥ 3 ticks of the same value. -/
+lemma error_filter_characterization (clk : D) (i : Nat)
+    (hi : i < clk.length)
+    (he : (error_filter clk)[i]'(by
+      unfold error_filter; simp [List.length_map, length_scanl_drop]; assumption) = true)
+  : ∀ t, 0 < t → t ≤ i → t < clk.length →
+      clk[t]? ≠ clk[t - 1]? →
+      (∀ k, t - 3 ≤ k → k < t → clk[k]? = clk[t - 1]?)
+  := by sorry
+
+/-- When `setup_hold_filter data clk` is true at position `i`, the data
+    was stable (filter_window 3) at the most recent rising edge. -/
+lemma setup_hold_filter_characterization (clk data : D) (i : Nat)
+    (hi_c : i < clk.length) (hi_d : i < data.length)
+    (hs : (setup_hold_filter data clk)[i]'(by
+      unfold setup_hold_filter; simp [List.length_map, length_scanl_drop, List.length_zip,
+        List.length_filter_window]; omega) = true)
+  : ∀ r, is_rising_edge clk r → no_rising_edge_in clk r i →
+      (hr : r < data.length) →
+      (filter_window 3 data)[r]'(by rw [List.length_filter_window]; exact hr) = true
+  := by sorry
+
+/-! ### Layer 3: Simulation correctness -/
+
+lemma dff_filter_implies_rising_edge (clk data : D) (i : Nat)
+    (h_i_c : i < clk.length) (h_i_d : i < data.length)
+    (h_filt : (dff_filter clk data)[i]'(by rw [length_dff_filter]; omega) = true)
+  : ∃ r, is_rising_edge clk r ∧ r + 4 ≤ i ∧ no_rising_edge_in clk r i
+  := by sorry
+
+lemma dff_filter_implies_clock_stable (clk data : D) (i : Nat)
+  (h_i_c : i < clk.length) (h_i_d : i < data.length)
+  (h_filt : (dff_filter clk data)[i]'(by rw [length_dff_filter]; omega) = true)
+  : ∀ t, 0 < t → t ≤ i → t < clk.length →
+      clk[t]? ≠ clk[t - 1]? →
+      (∀ k, t - 3 ≤ k → k < t → clk[k]? = clk[t - 1]?)
+  := by sorry
+
+lemma dff_filter_implies_setup_hold (clk data : D) (i : Nat)
+  (h_i_c : i < clk.length) (h_i_d : i < data.length)
+  (h_filt : (dff_filter clk data)[i]'(by rw [length_dff_filter]; omega) = true)
+  : ∀ r, is_rising_edge clk r → no_rising_edge_in clk r i →
+      (hr : r < data.length) →
+      (filter_window 3 data)[r]'(by rw [List.length_filter_window]; exact hr) = true
+  := by sorry
+
+/-
+Extract `h_low_before` from error_filter_characterization applied at the rising edge.
+-/
+lemma low_before_from_error_filter (clk : D) (r i : Nat)
+    (h_rise : is_rising_edge clk r)
+    (h_clock_stable : ∀ t, 0 < t → t ≤ i → t < clk.length →
+          clk[t]? ≠ clk[t - 1]? →
+          (∀ k, t - 3 ≤ k → k < t → clk[k]? = clk[t - 1]?))
+    : ∀ k, r - 3 ≤ k → k < r → clk[k]? = some false
+    := by sorry
+
+lemma dff_raw_at_rising_edge (clk data : D) (i r : Nat)
+    (h_i_c : i < clk.length) (h_i_d : i < data.length)
+    (h_r_le_i : r ≤ i)
+    (h_rise : is_rising_edge clk r)
+    (h_no_rise : no_rising_edge_in clk r i)
+    : (dff_raw clk data)[i]'(by rw [length_dff_raw]; omega) =
+      data[r]'(by omega)
+    := by sorry
+
+/-- The circuit invariant: n5=D, n6=!D, and when clock is high,
+    n2=!D and n3=D. This captures the steady-state behavior. -/
+def sim_good (S : CircuitState) (D c : Bool) : Prop :=
+  S.n5 = D ∧ S.n6 = !D ∧ (c = true → S.n2 = !D ∧ S.n3 = D)
+
+lemma sim_good_all (clk data : D) (r i : Nat)
+    (h_rise : is_rising_edge clk r)
+    (h_r_ge_3 : 3 ≤ r)
+    (h_no_rise : ∀ t, r < t → t ≤ i → ¬is_rising_edge clk t)
+    (h_low_before : ∀ k, r - 3 ≤ k → k < r → clk[k]? = some false)
+    (h_data_stable : ∀ k, r - 3 < k → k ≤ r → data[k]? = data[r]?)
+    (h_rj : r + 3 ≤ i)
+    (h_len_c : i < clk.length) (h_len_d : i < data.length)
+    (h_r1 : clk[r + 1]'(by omega) = true)
+    (h_r2 : clk[r + 2]'(by omega) = true)
+    (k : Nat) (hk1 : r + 2 ≤ k) (hk2 : k ≤ i)
+    : sim_good ((circuit_sim clk data)[k]'(by rw [length_circuit_sim]; omega))
+      (data[r]'(by omega)) (clk[k]'(by omega))
+    := by sorry
+
+lemma circuit_sim_correct_after_rise (clk data : D) (r i : Nat)
+    (h_rise : is_rising_edge clk r)
+    (h_r_ge_3 : 3 ≤ r)
+    (h_no_rise : no_rising_edge_in clk r i)
+    (h_low_before : ∀ k, r - 3 ≤ k → k < r → clk[k]? = some false)
+    (h_data_stable : ∀ k, r - 3 < k → k ≤ r → data[k]? = data[r]?)
+    (h_clock_stable : ∀ t, 0 < t → t ≤ i → t < clk.length →
+          clk[t]? ≠ clk[t - 1]? →
+          (∀ k, t - 3 ≤ k → k < t → clk[k]? = clk[t - 1]?))
+    (h_delay : r + 4 ≤ i)
+    (h_len_c : i < clk.length)
+    (h_len_d : i < data.length)
+  : ((circuit_sim clk data)[i]'(by
+        rw [length_circuit_sim]; omega)).n5 =
+      data[r]'(by omega)
+  := by sorry
+
+-- Aristotle-generated lemma
+-- The approach is... pretty damn good, honestly.
+/-
+**Simulation matches dff_raw when all filters pass.**
+
+    This combines:
+    1. `dff_filter_implies_rising_edge` → find most recent rising edge r
+    2. `error_filter_characterization` → clock regularity (3-tick periods)
+    3. `setup_hold_characterization` → data was stable at r
+    4. `circuit_sim_correct_after_rise` → sim output = data[r] for all j ≥ r+4
+    5. `dff_raw_at_rising_edge` → dff_raw[i] = data[r]
+    6. Conclude sim[i].n5 = dff_raw[i]
+
+    Uses `error_filter_characterization` to provide the `h_clock_stable`
+    hypothesis to `circuit_sim_correct_after_rise`. Uses
+    `setup_hold_characterization` + `filter_window 3` to extract data
+    stability and `h_low_before` for `circuit_sim_correct_after_rise`.
+    Uses `delay_filter_characterization` to extract `h_low_before`.
+-/
+lemma sim_eq_dff_raw_when_filtered (clk data : D) (i : Nat)
+    (h_i_c : i < clk.length) (h_i_d : i < data.length)
+  : (dff_filter clk data)[i]'(by rw [length_dff_filter]; omega) = true →
+    ((circuit_sim clk data)[i]'(by rw [length_circuit_sim]; omega)).n5 =
+    (dff_raw clk data)[i]'(by rw [length_dff_raw]; omega)
+  := by
+  intro h_filt
+  -- Apply `dff_filter_implies_rising_edge` to get a rising edge r with r+4 ≤ i and no_rising_edge_in clk r i.
+  have ⟨r, hr⟩ := dff_filter_implies_rising_edge clk data i h_i_c h_i_d h_filt
+  -- Apply `error_filter_characterization` and `low_before_from_error_filter` to get clock stability.
+  have h_clock_stable := dff_filter_implies_clock_stable clk data i h_i_c h_i_d h_filt
+  -- Extract h_low_before: clock was false for 3 ticks before the rising edge.
+  -- Apply h_clock_stable at t=r (satisfies r ≤ i since r+4 ≤ i) to learn clk[k] = clk[r-1] = false.
+  have h_low_before := low_before_from_error_filter clk r i (by grind only) h_clock_stable
+  -- Apply `dff_filter_setup_hold` to get setup_hold_filter[i] = true.
+  have h_setup_hold := dff_filter_implies_setup_hold clk data i h_i_c h_i_d h_filt
+  have h_filter_window := h_setup_hold r hr.left hr.right.right (by sorry)
+  -- Apply `filter_window_3_implies_stable` to get r ≥ 3 and data stability.
+  have ⟨hr_ge_3, hr_data_stable⟩ := filter_window_get_true _ data r ( by sorry ) h_filter_window
+  rw [ circuit_sim_correct_after_rise clk data r i hr.1 hr_ge_3 hr.2.2 h_low_before hr_data_stable h_clock_stable ( by sorry ) ( by sorry ) ( by sorry )]
+  rw [ dff_raw_at_rising_edge clk data i r h_i_c h_i_d ( by sorry ) hr.1 hr.2.2 ]
+
 theorem lhs_wf_eq (lhs: lhsModuleType) (h_wf: lhs_wf lhs) (i: ℕ)
   (h_clk: i < (clk_from_lhs lhs).length)
   (h_d: i < (d_from_lhs lhs).length)
   (h_out: i < (out_from_lhs lhs).length)
   : (dff_filter (clk_from_lhs lhs) (d_from_lhs lhs))[i]'(by rw [length_dff_filter]; omega) → (dff_raw (clk_from_lhs lhs) (d_from_lhs lhs))[i]'(by rw [length_dff_raw]; omega) = (out_from_lhs lhs)[i]
   := by
-  sorry
+  intro h_filt
+  -- Step 1: The LHS output matches the deterministic simulation
+  rw [lhs_output_eq_sim lhs h_wf i h_out (by rw [length_circuit_sim]; omega)]
+  -- Step 2: The simulation matches dff_raw when filters pass
+  rw [sim_eq_dff_raw_when_filtered (clk_from_lhs lhs) (d_from_lhs lhs) i h_clk h_d h_filt]
 
 theorem lhs_wf_len (lhs: lhsModuleType) (h_wf: lhs_wf lhs)
-  : min (List.length (d_from_lhs lhs)) (List.length (clk_from_lhs lhs)) + 3 ≥ List.length (out_from_lhs lhs)
+  : min (List.length (clk_from_lhs lhs)) (List.length (d_from_lhs lhs)) + 3 ≥ List.length (out_from_lhs lhs)
   := by
   sorry
 
@@ -1038,20 +1440,6 @@ def φ (lhs: lhsModuleType) (rhs: rhsModuleType) : Prop :=
   bd_out <+: bd_in ∧ bclk_out <+: bclk_in ∧
   -- Follows from filtered eq, but is much simpler and is all we need.
   fs.length = min rhsClk.length rhsD.length
-
-  -- Outdated
-  --λ (_, _, _, _, (_, dataL), _, _, _, _, clkL, _) (clk, data) =>
-    -- First, extract the state
-    --dataL = data /\ clkL = clk
-    -- Second, invariants
-    -- Non-mathematically, our current ideas are the following two invariants:
-    -- 1: the output state is at most the length of the input + delay
-    -- 2: the function defined by the input is more defined than the output
-
-lemma nand_no_int (s: String) : (nand_sm s).internals = []
-  := by
-  unfold nand_sm nand_m NatModule.stringify Module.mapIdent
-  dsimp
 
 -- TODO: some interesting tactics/lemmas could be simplifiers for length calculations
 -- basically: simp with length_take, length_zip, length_* theorems, then
@@ -1159,7 +1547,7 @@ theorem refines' :
           let tlen := v.length
           let nD := List.take tlen on4_2
           let nClk := List.take tlen oclkf
-          let nFs := List.take (min on4_2.length oclkf.length) v
+          let nFs := List.take (min oclkf.length on4_2.length) v
           use ⟨(on4_2, nD), (oclkf, nClk), (), nFs, (nClk, nD)⟩
           use ⟨(on4_2, nD), (oclkf, nClk), (), nFs, (nClk, nD)⟩
           with_reducible split_ands
