@@ -81,6 +81,28 @@ following format:
 ]
 ```
 
+## Citing Graphiti
+
+If you use Graphiti in any way or are comparing against it, please cite our ASPLOS'26 paper:
+
+```bibtex
+@inproceedings{10.1145/3779212.3790166,
+author = {Herklotz, Yann and Elakhras, Ayatallah and Camaioni, Martina and Ienne, Paolo and Josipovi\'{c}, Lana and Bourgeat, Thomas},
+title = {Graphiti: Formally Verified Out-of-Order Execution in Dataflow Circuits},
+year = {2026},
+isbn = {9798400723599},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+doi = {10.1145/3779212.3790166},
+booktitle = {Proceedings of the 31st ACM International Conference on Architectural Support for Programming Languages and Operating Systems, Volume 2},
+pages = {821–837},
+numpages = {17},
+keywords = {high-level synthesis, interactive theorem proving, lean 4},
+location = {USA},
+series = {ASPLOS '26}
+}
+```
+
 ## Code structure
 
 The repository follows the structure proposed by the [Research Codebase Manifesto](https://www.moderndescartes.com/essays/research_code/).
