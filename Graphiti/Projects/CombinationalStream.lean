@@ -39,7 +39,7 @@ def filter_window [BEq α] (delay: Nat) (a : List α): List Bool :=
   -- I'd use a List.finRange if it had enough theorems on it but
   -- I'm not good enough with that kind of type manipulation to do it quickly
   (List.range a.length).map
-    (fun i => i >= delay ∧ ((a.take (i + 1)).drop (i + 1 - delay)).all (fun v => some v == a[i]?))
+    (fun i => i >= delay ∧ ((a.take (i + 1)).drop (i - delay)).all (fun v => some v == a[i]?))
 
 theorem length_filter_window [BEq α] (delay : Nat) (a : List α) :
     (filter_window delay a).length = a.length := by
@@ -51,14 +51,14 @@ theorem filter_window_nil [BEq α] (delay : Nat) :
 
 theorem filter_window_get [BEq α] (delay : Nat) (a : List α) (i : Nat)
     (hi : i < a.length) :
-    (filter_window delay a)[i]'(by rw [length_filter_window]; assumption) = (Bool.and (i >= delay) (((a.take (i + 1)).drop (i + 1 - delay)).all
+    (filter_window delay a)[i]'(by rw [length_filter_window]; assumption) = (Bool.and (i >= delay) (((a.take (i + 1)).drop (i - delay)).all
       (fun v => some v == a[i]?))) := by
         unfold filter_window; grind;
 
 theorem filter_window_get_true [BEq α] [LawfulBEq α] (delay : Nat) (a : List α) (i : Nat)
   (hi: i < a.length)
   (h_fw : (filter_window delay a)[i]'(by rw [length_filter_window]; assumption) = true)
-  : delay ≤ i ∧ (∀ k, i - delay < k → k ≤ i → a[k]? = a[i]?)
+  : delay ≤ i ∧ (∀ k, i - delay ≤ k → k ≤ i → a[k]? = a[i]?)
   := by
   have Hfw_get := filter_window_get delay a i hi
   rw [Hfw_get] at h_fw
@@ -69,7 +69,7 @@ theorem filter_window_get_true [BEq α] [LawfulBEq α] (delay : Nat) (a : List �
   have Hget := h_fw.right (a[k])
     (by
       rw [List.mem_iff_getElem?]
-      use k - (i + 1 - delay)
+      use k - (i - delay)
       rw [List.getElem?_drop, List.getElem?_take]
       simp only [Option.ite_none_right_eq_some]
       split_ands
@@ -790,8 +790,7 @@ def setup_hold_filter_step (state : (Bool × Bool)) (c_fd : (Bool × Bool)) : (B
 -- We latch after the end of the hold, under the assumption that it will be blocked by the delay filter otherwise
 -- This is because it's simpler to implement, though harder to state...
 def setup_hold_filter (clk d : D) : D :=
-  -- 3 = 2 + 1 of setup/hold
-  (scanl_drop setup_hold_filter_step (false, false) (clk.zip (filter_window 3 d))).map (·.2)
+  (scanl_drop setup_hold_filter_step (false, false) (clk.zip (filter_window 2 d))).map (·.2)
 
 def dff_filter (clk d : D) : D :=
   List.and3 (delay_filter clk) (error_filter clk) (setup_hold_filter clk d)
@@ -1292,7 +1291,7 @@ lemma error_filter_induct (clk : D) (i j : Nat)
 lemma error_filter_characterization_raw (clk : D) (i cnt : Nat) (v: Bool)
   (hi : i < clk.length)
   (H: (scanl_drop (error_filter_step 3) (false, some 0) clk)[i]'(by rw [List.length_scanl_drop]; assumption) = (v, some cnt))
-  : 0 < cnt ∧ ∀ k, i + 1 - cnt ≤ k → k ≤ i → clk[k]? = some v
+  : 0 < cnt ∧ cnt ≤ i + 1 ∧ ∀ k, i + 1 - cnt ≤ k → k ≤ i → clk[k]? = some v
   := by
   revert v cnt
   induction i with
@@ -1333,7 +1332,7 @@ lemma error_filter_characterization (clk : D) (i : Nat)
       unfold error_filter; simp [List.length_map, length_scanl_drop]; assumption) = true)
   : ∀ t, 0 < t → t ≤ i →
       clk[t]? ≠ clk[t - 1]? →
-      (∀ k, t - 3 ≤ k → k < t → clk[k]? = clk[t - 1]?)
+      (∀ k, t - 3 ≤ k → k < t → clk[k]? = clk[t - 1]?) ∧ 3 ≤ t
   := by
   intro t Htmin Htmax1 Hedge
   have Hpt := error_filter_induct _ _ (t-1) hi (by omega) he
@@ -1343,9 +1342,9 @@ lemma error_filter_characterization (clk : D) (i : Nat)
     with ⟨v, _ | cnt⟩
   <;> rw [Hv] at Hpt <;> simp only [Option.isSome_none, Option.isSome_some, Bool.false_eq_true] at Hpt
   clear Hpt
-  have ⟨Hcnt, Hraw⟩ := error_filter_characterization_raw clk (t-1) cnt v (by omega) Hv
+  have ⟨Hcnt, Hmin, Hraw⟩ := error_filter_characterization_raw clk (t-1) cnt v (by omega) Hv
   rw [Nat.sub_one_add_one (by omega)] at Hraw
-  intro k Hkmin Hkmax
+  rw [Nat.sub_one_add_one (by omega)] at Hmin
 
   have Ht := error_filter_induct _ _ t hi (by omega) he
   unfold error_filter at Ht
@@ -1359,6 +1358,10 @@ lemma error_filter_characterization (clk : D) (i : Nat)
     have Ht1_eq := Hraw (t-1) (by omega) (by omega)
     grind only [= getElem?_pos]
   . clear Ht
+    apply And.intro
+    case pos.right => omega
+
+    intro k Hkmin Hkmax
     have Ht1_eq := Hraw (t-1) (by omega) (by omega)
     rw [Hraw (t-1) (by omega) (by omega)]
     apply Hraw _ (by omega) (by omega)
@@ -1385,7 +1388,7 @@ lemma setup_hold_filter_characterization (clk data : D) (i : Nat)
       unfold setup_hold_filter; simp [List.length_map, length_scanl_drop, List.length_zip,
         List.length_filter_window]; omega) = true)
   : ∃r, ∃(hr: r ≤ i), is_rising_edge clk r ∧ no_rising_edge_in clk r i ∧
-      (filter_window 3 data)[r]'(by rw [List.length_filter_window]; omega) = true
+      (filter_window 2 data)[r]'(by rw [List.length_filter_window]; omega) = true
   := by
   induction i with
   | zero =>
@@ -1399,7 +1402,7 @@ lemma setup_hold_filter_characterization (clk data : D) (i : Nat)
       unfold setup_hold_filter_step
       dsimp
     simp at hs
-    have H := (List.filter_window_get_true 3 data 0 (by omega) hs.right).left
+    have H := (List.filter_window_get_true 2 data 0 (by omega) hs.right).left
     contradiction
   | succ i iH =>
     specialize iH (by omega) (by omega)
@@ -1442,7 +1445,8 @@ lemma dff_filter_implies_rising_edge (clk data : D) (i : Nat)
 lemma dff_filter_implies_clock_stable (clk data : D) (i : Nat)
   (h_i_c : i < clk.length) (h_i_d : i < data.length)
   (h_filt : (dff_filter clk data)[i]'(by rw [length_dff_filter]; omega) = true)
-  : ∀ (t : ℕ), 0 < t → t ≤ i → clk[t]? ≠ clk[t - 1]? → ∀ (k : ℕ), t - 3 ≤ k → k < t → clk[k]? = clk[t - 1]?
+  : ∀ (t : ℕ), 0 < t → t ≤ i → clk[t]? ≠ clk[t - 1]? →
+    (∀ (k : ℕ), t - 3 ≤ k → k < t → clk[k]? = clk[t - 1]?)
   := by
   unfold dff_filter and3 at h_filt
   rw [List.getElem_zipWith, List.getElem_zipWith] at h_filt
@@ -1450,7 +1454,24 @@ lemma dff_filter_implies_clock_stable (clk data : D) (i : Nat)
   obtain ⟨h_err, h_sh⟩ := (Bool.and_eq_true _ _).mp h_esh
   clear h_esh
 
-  exact error_filter_characterization clk i h_i_c h_err
+  have H := error_filter_characterization clk i h_i_c h_err
+  intro t Ha Hb Hc
+  exact (H t Ha Hb Hc).left
+
+lemma dff_filter_implies_rising_ge_3 (clk data : D) (i r : Nat)
+  (h_i_c : i < clk.length) (h_i_d : i < data.length) (h_r_i : r ≤ i)
+  (h_filt : (dff_filter clk data)[i]'(by rw [length_dff_filter]; omega) = true)
+  (h_rising : is_rising_edge clk r)
+  : 3 ≤ r
+  := by
+  unfold dff_filter and3 at h_filt
+  rw [List.getElem_zipWith, List.getElem_zipWith] at h_filt
+  obtain ⟨h_clk, h_esh⟩ := (Bool.and_eq_true _ _).mp h_filt
+  obtain ⟨h_err, h_sh⟩ := (Bool.and_eq_true _ _).mp h_esh
+  clear h_esh
+
+  have ⟨Hrmin, Hbf, Hat⟩ := h_rising
+  exact (error_filter_characterization clk i h_i_c h_err r Hrmin h_r_i (by rw [Hbf, Hat]; trivial)).right
 
 
 lemma dff_filter_implies_low_before_rising (clk data : D) (i r : Nat)
@@ -1488,7 +1509,7 @@ lemma dff_filter_implies_re_stable(clk data : D) (i : Nat)
   (h_filt : (dff_filter clk data)[i]'(by rw [length_dff_filter]; omega) = true)
   : ∀ r, is_rising_edge clk r → no_rising_edge_in clk r i →
       (hr : r < i) →
-      (filter_window 3 data)[r]'(by rw [List.length_filter_window]; omega) = true
+      (filter_window 2 data)[r]'(by rw [List.length_filter_window]; omega) = true
   := by
   unfold dff_filter and3 at h_filt
   rw [List.getElem_zipWith, List.getElem_zipWith] at h_filt
@@ -1597,7 +1618,7 @@ Base case: sim_good holds at r+3.
 lemma sim_good_at_r_plus_3 (clk data : D) (r : Nat)
     (h_r_ge_3 : 3 ≤ r)
     (h_low_before : ∀ k, r - 3 ≤ k → k < r → clk[k]? = some false)
-    (h_data_stable : ∀ k, r - 3 < k → k ≤ r → data[k]? = data[r]?)
+    (h_data_stable : ∀ k, r - 2 ≤ k → k ≤ r → data[k]? = data[r]?)
     (h_len_c : r + 3 < clk.length) (h_len_d : r + 3 < data.length)
     (h_r0_true : clk[r]'(by omega)     = true)
     (h_r1_true : clk[r + 1]'(by omega) = true)
@@ -1645,7 +1666,7 @@ lemma sim_good_all (clk data : D) (r i : Nat)
     (h_r_ge_3 : 3 ≤ r)
     (h_no_rise : ∀ t, r < t → t ≤ i → ¬is_rising_edge clk t)
     (h_low_before : ∀ k, r - 3 ≤ k → k < r → clk[k]? = some false)
-    (h_data_stable : ∀ k, r - 3 < k → k ≤ r → data[k]? = data[r]?)
+    (h_data_stable : ∀ k, r - 2 ≤ k → k ≤ r → data[k]? = data[r]?)
     (h_rj : r + 3 ≤ i)
     (h_len_c : i < clk.length) (h_len_d : i < data.length)
     (h_r0 : clk[r]'(by omega)     = true)
@@ -1698,12 +1719,13 @@ lemma sim_eq_dff_raw_when_filtered (clk data : D) (i : Nat)
   -- Apply `dff_filter_implies_re_stable` to get setup_hold_filter[i] = true.
   have h_filter_window := (dff_filter_implies_re_stable clk data i h_i_c h_i_d h_filt)
     r h_rising h_no_r (by omega) -- We only care about this rising edge.
-  -- Apply `filter_window_get_true` to get r ≥ 3 and data stability.
-  have ⟨hr_ge_3, hr_data_stable⟩ := filter_window_get_true _ data r ( by omega ) h_filter_window
+  -- Apply `filter_window_get_true` to get data stability.
+  have hr_data_stable := (filter_window_get_true _ data r ( by omega ) h_filter_window).right
 
-  -- Clock is low before and high after the rising edge
+  -- Clock is low before and high after the rising edge, which is ≥ 3
   have hr_low_before := dff_filter_implies_low_before_rising clk data i r h_i_c h_i_d (by omega) h_filt h_rising
   have hr_high_after := dff_filter_implies_high_after_rising clk data i r h_i_c h_i_d (by omega) h_filt h_rising
+  have hr_ge_3 := dff_filter_implies_rising_ge_3 clk data i r h_i_c h_i_d (by omega) h_filt h_rising
 
   have h_sim_good := sim_good_all clk data r i
     hr_ge_3 h_no_r -- Information about rising edges
@@ -1731,6 +1753,7 @@ theorem lhs_wf_len (lhs: lhsModuleType) (h_wf: lhs_wf lhs)
   := by
   obtain ⟨n2, n2f, n6, n5, n4f, n3f, n4, n6f, clkf, n3, n1, _, n5f⟩ := lhs
   dsimp [clk_from_lhs, d_from_lhs, out_from_lhs]
+  -- Yeah this is kinda awful but it's faster and more readable than applying it via a macro.
   have ⟨H1, H2, H3, H4, H5, H6, H7, H8, H9, HA, HB, HC, HD, HE, HF, HG, HH⟩ := h_wf
   apply List.IsPrefix.length_le at H1
   apply List.IsPrefix.length_le at H2
@@ -2052,7 +2075,7 @@ end Refinement
 
 end FlipFlop
 
-/- Disabled for speed when working above.
+-- Disabled for speed when working above.
 namespace FullAdder
 
 -- TODO maybe: move monotonicity directly to the outputs of the impl module
@@ -2460,6 +2483,18 @@ lemma filtered_eq_impl_out (a b c a' b' c' h h' : D)
     split_ands
     <;> grind only [List.IsPrefix.getElem, filter_window_prefix, usr List.take_prefix]
 
+lemma extension_length {α : Type _}
+  (l: List α) (n: Nat)
+  : n + 3 >= l.length → ∃x, x.length <= 3 ∧ (List.take n l) ++ x = l
+  := by
+  intro H
+  use (List.drop n l)
+  apply And.intro
+  . rw [List.length_drop]
+    omega
+  . apply List.take_append_drop
+
+
 theorem move_buffer_forward_legal :
   ∀ old max : D, ∀ n,
     old <+: max →
@@ -2481,6 +2516,27 @@ theorem move_buffer_forward_legal :
       . apply List.IsPrefix.length_le
         assumption
   . assumption
+
+
+theorem existSR_zero_single_step {S : Type _} (rules : List (S → S → Prop)):
+  ∀ s s', ∀ rule ∈ rules, s = s' ∨ rule s s' → existSR rules s s' := by
+  intros s s' rule Hin H
+  rcases H with h | h
+  . subst h
+    exact existSR_reflexive
+  . exact (existSR_single_step _ _ _ _ Hin h)
+
+macro "indexed_rule_or_rfl" n:num t:term : tactic =>
+  `(tactic| (apply existSR_zero_single_step
+             apply @List.getElem_mem _ _ $n
+              (by unfold full_adder_spec Module.internals; dsimp; omega)
+
+             unfold full_adder_spec Module.internals Module.liftR Module.liftL Named; dsimp
+
+             by_cases Hneq: $t
+             (left; subst Hneq; rfl)
+             right
+            ))
 
 theorem refines' :
   full_adder_imp ⊑_{φ} full_adder_spec := by
@@ -2792,6 +2848,6 @@ theorem refines :
   full_adder_imp ⊑ full_adder_spec := ⟨inferInstance, φ, refines', refines_init⟩
 
 end FullAdder
--/
+
 
 end Graphiti.CombModule
