@@ -48,6 +48,57 @@ scoped syntax (name := dot_graphEnv) "[graphEnv| " dot_stmnt_list " ]" : term
 open Lean.Meta Lean.Elab Term Lean.Syntax
 
 open Lean in
+def normalizePortName (name : Expr) : MetaM Expr := do
+  if name.isAppOfArity ``NatModule.stringify_input 1 then
+    if let some n ← getNatValue? name.appArg! then
+      return .lit (.strVal s!"in{n + 1}")
+  if name.isAppOfArity ``NatModule.stringify_output 1 then
+    if let some n ← getNatValue? name.appArg! then
+      return .lit (.strVal s!"out{n + 1}")
+  withTransparency .all <| whnf name
+
+open Lean in
+def internalPortDefEq (lhs rhs : Expr) : MetaM Bool := do
+  let lhs ← withTransparency .all <| whnf lhs
+  let rhs ← withTransparency .all <| whnf rhs
+  unless lhs.isAppOfArity ``InternalPort.mk 3 && rhs.isAppOfArity ``InternalPort.mk 3 do
+    return ← withTransparency .all <| isDefEq lhs rhs
+  let lhsArgs := lhs.getAppArgs
+  let rhsArgs := rhs.getAppArgs
+  unless ← withTransparency .all <| isDefEq lhsArgs[1]! rhsArgs[1]! do
+    return false
+  let lhsName ← normalizePortName lhsArgs[2]!
+  let rhsName ← normalizePortName rhsArgs[2]!
+  withTransparency .all <| isDefEq lhsName rhsName
+
+open Lean in
+partial def assocListFindDefEq (key map : Expr) : MetaM (Option Expr) := do
+  let map ← withTransparency .all <| whnf map
+  if map.isAppOfArity ``Batteries.AssocList.nil 2 then
+    return none
+  else if map.isAppOfArity ``Batteries.AssocList.cons 5 then
+    let args := map.getAppArgs
+    if ← internalPortDefEq key args[2]! then
+      return some args[3]!
+    else
+      assocListFindDefEq key args[4]!
+  else
+    throwError "Could not reduce association list: {map}"
+
+open Lean in
+def assocListContainsDefEq (key map : Expr) : MetaM Bool := do
+  return (← assocListFindDefEq key map).isSome
+
+open Lean in
+def portType (key map : Expr) : MetaM Expr := do
+  let some entry ← assocListFindDefEq key map
+    | throwError "Port not present in module"
+  let entry ← withTransparency .all <| whnf entry
+  unless entry.isAppOfArity ``Sigma.mk 4 do
+    throwError "Could not reduce port entry: {entry}"
+  return entry.getArg! 2
+
+open Lean in
 def isFrom : Syntax -> Bool
 | `(dot_value| from) => true
 | _ => false
@@ -540,8 +591,11 @@ def checkInputPresent (inInst : Q(TModule1 String)) (inP : Option String)
   | .some inP =>
     let inputS : Q(Type) := q(($inInst).fst)
     let inputMap : Q(PortMap String (Σ T : Type, ($inputS → T → $inputS → Prop))) := q(($inInst).snd.inputs)
-    let expr : Q(Bool) := q(Batteries.AssocList.contains (InternalPort.mk .top $inP) $inputMap)
-    unless ← isDefEq expr q(true) do
+    let contains : Q(Bool) := q(Batteries.AssocList.contains (InternalPort.mk .top $inP) $inputMap)
+    if ← withTransparency .all <| isDefEq contains q(true) then
+      return ()
+    let key : Q(InternalPort String) := q(InternalPort.mk .top $inP)
+    unless ← assocListContainsDefEq key inputMap do
       throwError "Input not present in Module"
   | .none => return ()
 
@@ -552,8 +606,11 @@ def checkOutputPresent (outInst : Q(TModule1 String)) (outP : Option String)
   | .some outP =>
     let outputS : Q(Type) := q(($outInst).fst)
     let outputMap : Q(PortMap String (Σ T : Type, ($outputS → T → $outputS → Prop))) := q(($outInst).snd.outputs)
-    let expr : Q(Bool) := q(Batteries.AssocList.contains (InternalPort.mk .top $outP) $outputMap)
-    unless ← isDefEq expr q(true) do
+    let contains : Q(Bool) := q(Batteries.AssocList.contains (InternalPort.mk .top $outP) $outputMap)
+    if ← withTransparency .all <| isDefEq contains q(true) then
+      return ()
+    let key : Q(InternalPort String) := q(InternalPort.mk .top $outP)
+    unless ← assocListContainsDefEq key outputMap do
       throwError "Output not present in Module"
   | .none => return ()
 
@@ -590,8 +647,15 @@ def checkTypeErrors (envMap : Std.HashMap Q(String) Expr) (maps : InstMaps') (co
   let outputMap : Q(PortMap String (Σ T : Type, (($outInstExpr).fst → T → ($outInstExpr).fst → Prop))) := q(($outInstExpr).snd.outputs)
   let inputMap : Q(PortMap String (Σ T : Type, (($inInstExpr).fst → T → ($inInstExpr).fst → Prop))) := q(($inInstExpr).snd.inputs)
 
-  let inputType : Q(Type) := q(($inputMap).getIO (InternalPort.mk .top $inP) |>.fst)
-  let outputType : Q(Type) := q(($outputMap).getIO (InternalPort.mk .top $outP) |>.fst)
+  let inputTypeFast : Q(Type) := q(($inputMap).getIO (InternalPort.mk .top $inP) |>.fst)
+  let outputTypeFast : Q(Type) := q(($outputMap).getIO (InternalPort.mk .top $outP) |>.fst)
+  if ← withTransparency .all <| isDefEq inputTypeFast outputTypeFast then
+    return ()
+
+  let inputKey : Q(InternalPort String) := q(InternalPort.mk .top $inP)
+  let outputKey : Q(InternalPort String) := q(InternalPort.mk .top $outP)
+  let inputType ← portType inputKey inputMap
+  let outputType ← portType outputKey outputMap
 
   unless ← isDefEq inputType outputType do
     throwError "Types of input and output port do not match (output ≠ input):\n  {← whnf outputType} ≠ {← whnf inputType}"
