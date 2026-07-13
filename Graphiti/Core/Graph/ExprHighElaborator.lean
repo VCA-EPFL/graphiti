@@ -126,7 +126,7 @@ def findExpr (n : Name) (stx : Array Syntax) (t : Option Expr) : TermElabM (Opti
   let mut out := none
   for pair in stx do
     if checkName n pair[0] then
-      out ← elabTerm pair[2] t
+      out := some (← elabTerm pair[2] t)
   return out
 
 open Lean in

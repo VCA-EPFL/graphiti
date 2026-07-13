@@ -386,7 +386,7 @@ theorem gcompf_output_trace_contains_output {T f g} (st1 st2 st3: State _ _) (io
       rename_i Inp  int trans iH
       simp at *
       have iH_ := iH h_noinp h_input h_output
-      simp at *; clear iH
+      clear iH
       cases s1_steps_s2
       rename_i s4Fst req s4Snd; rcases req; subst_vars
       cases int with

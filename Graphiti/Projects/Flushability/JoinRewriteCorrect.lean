@@ -208,7 +208,7 @@ instance: OutputPreservesFlushability (lhsModule T₁ T₂ T₃) := by
     repeat
       cases ‹_ ∧ _›; simp at *
     subst_vars
-    cases hpf <;> constructor
+    cases hpf <;> simp_all <;> constructor
   . exfalso; exact (PortMap.getIO_not_contained_false (by assumption) HContains)
 
 end Flushability
@@ -808,7 +808,7 @@ theorem refines₀: rhsModule T₁ T₂ T₃ ⊑_{φ} lhsModule T₁ T₂ T₃ :
           obtain ⟨hrvall, _⟩ := hrval
           . subst_vars
             apply Exists.intro ⟨ ⟨ _, _ ⟩, _, _ ⟩
-            and_intros <;> dsimp
+            and_intros <;> try dsimp
             · rewrite [product_is_list_zip sj2l, hlval, hrvall]; rfl
             · apply lengthify at hlval; simp at hlval
               apply lengthify at hrvall; simp [hlval, add_comm _ 1, add_right_inj, add_assoc] at hrvall
@@ -839,7 +839,7 @@ theorem refines₀: rhsModule T₁ T₂ T₃ ⊑_{φ} lhsModule T₁ T₂ T₃ :
           obtain ⟨hlvall, hlvalr⟩ := hlval
           . subst_vars
             apply Exists.intro ⟨ ⟨ _, _ ⟩, _, _ ⟩
-            . and_intros <;> dsimp
+            . and_intros <;> try dsimp
               . rewrite [product_is_list_zip sj2l, hrval, hlvall]; rfl
               . apply lengthify at hrval; simp at hrval
                 apply lengthify at hlvall; simp [hrval, add_comm _ 1, add_right_inj, add_assoc] at hlvall

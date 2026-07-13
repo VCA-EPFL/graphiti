@@ -21,7 +21,7 @@ namespace Graphiti.Projects.Noc.Buffer
         output_rel  := λ rid s flit s' => s = flit :: s'
       }
 
-    @[drunfold_defs]
+    @[reducible, drunfold_defs]
     def bag : Buffer netsz Flit :=
       {
         State       := List Flit

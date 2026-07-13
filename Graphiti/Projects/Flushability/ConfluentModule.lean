@@ -205,8 +205,9 @@ by
 
 -- TODO: This proof relies on the fact that the module has a single internal rule
 --       Actually, deterministic → GloballyConfluent in that case
---       This instance is useless because of the implicit argument
-instance [dm: Deterministic mod] {sr: mod.internals.length = 1}: QuasiConfluent mod := {
+--       This cannot be an instance because the single-rule proof cannot be inferred
+@[reducible] def quasiConfluentOfDeterministic [dm: Deterministic mod]
+    (sr: mod.internals.length = 1): QuasiConfluent mod := {
   inputs    := by
     intros _ _ _ s₂ s₃ _ _
     use s₂

@@ -185,7 +185,7 @@ theorem gcompf_ind_wf {T} {f g: T → T} : ∀ z, @gcompf_wf_P T f g z := by
           have weight2 := gcompf_with_out_step_decreases f g weight1; clear weight1; simp at weight2
           have news_reachable := reachable_and_star_imp_reachable f g s_is_reachable full_step; simp at news_reachable
           have iH := iHn_ { state := ([], (List.map g tail).append [] ++ List.map g [],IOEvent.output 0 ⟨T, g head⟩ :: hist), module := NatModule.gcompfHist T f g }; simp at iH
-          have iH_ := iH weight2 ( t0 ++ [IOEvent.output 0 ⟨ T, g head ⟩]); clear iHn_; simp at *
+          have iH_ := iH weight2 ( t0 ++ [IOEvent.output 0 ⟨ T, g head ⟩]); clear iHn_
           have iH__ := iH_ news_reachable; clear iH iH_
           repeat rcases iH__; rename_i s1 prop
           repeat rcases prop;
@@ -204,8 +204,8 @@ theorem gcompf_ind_wf {T} {f g: T → T} : ∀ z, @gcompf_wf_P T f g z := by
           have weight1 := @gcompf_with_empt_step_remains T f g hist head tail (h:: t) (n+1) weight_is_nonzero
           have weight2 := gcompf_with_out_step_decreases f g weight1; clear weight1 weight_is_nonzero; simp at weight2
           have news_reachable := reachable_and_star_imp_reachable f g s_is_reachable full_step; simp at news_reachable
-          have iH := iHn_ { state := ([], t ++ g head :: List.map g tail, IOEvent.output 0 ⟨T, h⟩ :: hist),module := NatModule.gcompfHist T f g } ; simp at iH
-          have iH_ := iH weight2 ( t0 ++ [IOEvent.output 0 ⟨ T, h ⟩]); clear iHn_; simp at *
+          have iH := iHn_ { state := ([], t ++ g head :: List.map g tail, IOEvent.output 0 ⟨T, h⟩ :: hist),module := NatModule.gcompfHist T f g }
+          have iH_ := iH weight2 ( t0 ++ [IOEvent.output 0 ⟨ T, h ⟩]); clear iHn_
           have iH__ := iH_ news_reachable; clear iH
           repeat rcases iH__; rename_i s1 prop
           repeat rcases prop;
@@ -256,20 +256,20 @@ theorem lemma_step {T}
     rename_i ip st s1fst Tpe
     rcases s1 with ⟨ ⟨ st11, st12, st1hist ⟩, mod1 ⟩; rcases st with ⟨ s1, s2, s1hist ⟩ ; simp at *; subst_vars
     rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
-    split at trans
+    by_cases prop : 0 = ip
     . subst_vars
       simp at *
       rcases trans with ⟨a, b, c⟩; subst_vars
       simp [count_in, count_out, gcompfHistWeight] at *
       rw [assum]
       ac_rfl
-    . rename_i prop
+    .
       rw [PortMap.rw_rule_execution (by simp [drunfold, prop]; rfl)] at trans; simp at *
   | output trans TpeEq =>
     rename_i ip st s1fst Tpe
     rcases s1 with ⟨ ⟨ st11, st12, st1hist ⟩, mod1 ⟩; rcases st with ⟨ s1, s2, s1hist ⟩ ; simp at *; subst_vars
     rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
-    split at trans
+    by_cases prop : 0 = ip
     . subst_vars
       simp at *
       rcases trans with ⟨a, b, c⟩; cases st12 <;> try (simp at b; rcases b )
@@ -278,7 +278,7 @@ theorem lemma_step {T}
       simp [count_in, count_out, gcompfHistWeight] at *
       rw [assum]
       ac_rfl
-    . rename_i prop
+    .
       exfalso
       simp at *
       rw [PortMap.rw_rule_execution (by simp [drunfold, prop]; rfl)] at trans; simp at *
@@ -373,7 +373,7 @@ theorem gcomfhist_steps_gcompfhistfun {T}
     rename_i ip st2 modFun Tpe stTrans TpeEq
     rcases Tpe with ⟨G, x⟩; rcases TpeEq with ⟨ eq1, eq2 ⟩ ; rcases s1 with ⟨ ⟨ s11, s12, s13⟩, mod1 ⟩; simp; subst_vars
     rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
-    split  at stTrans
+    by_cases prop : 0 = ip
     . simp at *
       subst_vars
       constructor <;> try rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
@@ -383,15 +383,13 @@ theorem gcomfhist_steps_gcompfhistfun {T}
       . simp [History.generate_history, NatModule.gcompfHist] at *
         constructor
     . exfalso
-      rename_i prop
       rw [PortMap.rw_rule_execution (by simp [drunfold, prop]; rfl)] at stTrans; simp at *
   | output =>
     rename_i ip st2 modFun Tpe stTrans TpeEq
     rcases Tpe with ⟨G, x⟩; rcases TpeEq with ⟨ eq1, eq2 ⟩ ; rcases s1 with ⟨ ⟨ s11, s12, s13⟩, mod1 ⟩; simp; subst_vars
     rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
-    split  at stTrans
+    by_cases prop : 0 = ip
     . simp at *
-      rename_i prop
       subst_vars; simp at stTrans
       rcases stTrans with ⟨ eq1, eq2, eq3 ⟩ ; cases s12; simp at eq2; rename_i head tail
       rcases st2 with ⟨ s21, s22, s23 ⟩; simp at eq1 eq2 eq3; rcases eq2 with ⟨ eq21, eq22 ⟩
@@ -403,7 +401,6 @@ theorem gcomfhist_steps_gcompfhistfun {T}
       . simp [History.generate_history, NatModule.gcompfHist] at *
         constructor
     . exfalso
-      rename_i prop
       rw [PortMap.rw_rule_execution (by simp [drunfold, prop]; rfl)] at stTrans; simp at *
   | internal =>
     rename_i relI s2 s2Mod relApp
@@ -561,25 +558,23 @@ theorem gcompf_in_eq_out_plus_n_step {T}
     rename_i ip st2 modFun Tpe stTrans TpeEq
     rcases Tpe with ⟨G, x⟩; rcases TpeEq with ⟨ eq1, eq2 ⟩ ; rcases s1 with ⟨ ⟨ s11, s12, s13⟩, mod1 ⟩; simp; subst_vars
     rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
-    split  at stTrans
+    by_cases prop : 0 = ip
     . simp at *
       subst_vars
       simp at ⊢ assum
       grind
     . exfalso
-      rename_i prop
       rw [PortMap.rw_rule_execution (by simp [drunfold, prop]; rfl)] at stTrans; simp at *
   | output =>
     rename_i ip st2 modFun Tpe stTrans TpeEq
     rcases Tpe with ⟨G, x⟩; rcases TpeEq with ⟨ eq1, eq2 ⟩ ; rcases s1 with ⟨ ⟨ s11, s12, s13⟩, mod1 ⟩; simp; subst_vars
     rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
-    split  at stTrans
+    by_cases prop : 0 = ip
     . simp at *
       subst_vars
       simp at stTrans
       grind
     . exfalso
-      rename_i prop
       rw [PortMap.rw_rule_execution (by simp [drunfold, prop]; rfl)] at stTrans; simp at *
   | internal =>
     rename_i relI s2 s2Mod relApp

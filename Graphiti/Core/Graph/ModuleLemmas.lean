@@ -1043,9 +1043,9 @@ theorem refines_φ_transitive {J} (smod' : Module Ident J) {φ₁ φ₂}
     specialize h2inp _ _ _ hrule₁
     obtain ⟨ mid_mid_s, mid_s, hrule₂, hexists₂, hphi₂ ⟩ := h2inp
     obtain ⟨ mid_s₃, hexists₃, hphi₃ ⟩ := refines_φ_multistep _ _ _ h2 _ _ hphi₂ _ hexists₁
-    refine ⟨ ?_, mid_s₃, ?inp.and1, ?inp.and2, mid_j, ?_, ?_ ⟩
-    case and1 => convert hrule₂; simp
-    case and2 => solve_by_elim [existSR_transitive]
+    refine ⟨ mid_mid_s, mid_s₃, ?inp.and1, ?inp.and2, mid_j, ?_, ?_ ⟩
+    case and1 => simpa using hrule₂
+    case and2 => exact existSR_transitive _ _ _ _ hexists₂ hexists₃
     all_goals assumption
   · clear h1inp h2inp h1int h2int h2out
     intro ident mid_i v Hrule
@@ -1197,11 +1197,10 @@ theorem refines_φ_product {J K} {imod₂ : Module Ident J} {smod₂ : Module Id
       have hcontains₂ : AssocList.contains ident imod.inputs := by
         apply AssocList.contains_some2; rw [h]; rfl
       have hrule₂ : (imod.inputs.getIO ident).snd init_i (cast2.mp hgetio) mid_i := by
-        have : imod.inputs.getIO ident = rule' := by
+        have hrule' : imod.inputs.getIO ident = rule' := by
           dsimp [PortMap.getIO]; rw [h]; rfl
-        rw [PortMap.rw_rule_execution this]
-        simp; convert hrule; exact this.symm
-        simp [cast]
+        subst rule'
+        simpa [cast] using hrule
       specialize href_in ident mid_i (cast2.mp hgetio) hrule₂
       rcases href_in with ⟨almost_mid_s, mid_s, hrule₃, hexists, hφ₃⟩
       refine ⟨ (almost_mid_s, ‹_›), (mid_s, ‹_›), ?_, ?_, ?_, ?_ ⟩
@@ -1236,11 +1235,10 @@ theorem refines_φ_product {J K} {imod₂ : Module Ident J} {smod₂ : Module Id
       have hcontains₂ : AssocList.contains ident imod₂.inputs := by
         apply AssocList.contains_some2; rw [h]; rfl
       have hrule₂ : (imod₂.inputs.getIO ident).snd init_i₂ (cast2.mp hgetio) mid_i₂ := by
-        have : imod₂.inputs.getIO ident = rule' := by
+        have hrule' : imod₂.inputs.getIO ident = rule' := by
           dsimp [PortMap.getIO]; rw [h]; rfl
-        rw [PortMap.rw_rule_execution this]
-        simp; convert hrule; exact this.symm
-        simp [cast]
+        subst rule'
+        simpa [cast] using hrule
       specialize href_in ident mid_i₂ (cast2.mp hgetio) hrule₂
       rcases href_in with ⟨almost_mid_s, mid_s, hrule₃, hexists, hφ₃⟩
       refine ⟨ (‹_›, almost_mid_s), (‹_›, mid_s), ?_, ?_, ?_, ?_ ⟩
@@ -1288,11 +1286,10 @@ theorem refines_φ_product {J K} {imod₂ : Module Ident J} {smod₂ : Module Id
       have hcontains₂ : AssocList.contains ident imod.outputs := by
         apply AssocList.contains_some2; rw [h]; rfl
       have hrule₂ : (imod.outputs.getIO ident).snd init_i (cast2.mp hgetio) mid_i := by
-        have : imod.outputs.getIO ident = rule' := by
+        have hrule' : imod.outputs.getIO ident = rule' := by
           dsimp [PortMap.getIO]; rw [h]; rfl
-        rw [PortMap.rw_rule_execution this]
-        simp; convert hrule; exact this.symm
-        simp [cast]
+        subst rule'
+        simpa [cast] using hrule
       specialize href_out ident mid_i (cast2.mp hgetio) hrule₂
       rcases href_out with ⟨almost_mid_s, mid_s, hstep, hrule₃, hφ₃⟩
       refine ⟨ (almost_mid_s, ‹_›), (mid_s, ‹_›), ?_, ?_, ?_, ?_ ⟩
@@ -1328,11 +1325,10 @@ theorem refines_φ_product {J K} {imod₂ : Module Ident J} {smod₂ : Module Id
       have hcontains₂ : AssocList.contains ident imod₂.outputs := by
         apply AssocList.contains_some2; rw [h]; rfl
       have hrule₂ : (imod₂.outputs.getIO ident).snd init_i₂ (cast2.mp hgetio) mid_i₂ := by
-        have : imod₂.outputs.getIO ident = rule' := by
+        have hrule' : imod₂.outputs.getIO ident = rule' := by
           dsimp [PortMap.getIO]; rw [h]; rfl
-        rw [PortMap.rw_rule_execution this]
-        simp; convert hrule; exact this.symm
-        simp [cast]
+        subst rule'
+        simpa [cast] using hrule
       specialize href_out ident mid_i₂ (cast2.mp hgetio) hrule₂
       rcases href_out with ⟨almost_mid_s, mid_s, hstep, hrule₃, hφ₃⟩
       refine ⟨ (‹_›, almost_mid_s), (‹_›, mid_s), ?_, ?_, ?_, ?_ ⟩

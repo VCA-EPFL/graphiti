@@ -51,7 +51,7 @@ namespace Graphiti.Projects.Noc
           cases h2
           apply And.intro <;> rfl
 
-  @[simp, drcomponents]
+  @[implicit_reducible, simp, drcomponents]
   def noc' (noc : Noc Data netsz) :=
     { noc with buffer := Buffer.Unbounded.bag netsz noc.routing_policy.Flit }
 
@@ -266,7 +266,6 @@ namespace Graphiti.Projects.Noc
                     noc', RoutingPolicy.Flit, Flit', Noc.State,
                     Vector.getElem_toList, Vector.getElem_map
                   ]
-                  rfl
               simp only [drunfold_defs, noc', RoutingPolicy.Flit, Flit', drcomponents] at this ⊢
               rw [this, list_take_sum]
               apply list_take_sum_le
@@ -434,7 +433,6 @@ namespace Graphiti.Projects.Noc
       subst rule
       dsimp [drcomponents] at Hrule
       obtain ⟨val, midest_i, ⟨out_val, H1, ⟨H2, ⟨H3, H4, H5⟩⟩, H6⟩, H7, H8⟩ := Hrule
-      dsimp [drunfold_defs] at val midest_i out_val H1 H2 H3 H4 H5 H6 H7 H8
       apply Exists.intro s
       · and_intros
         · constructor
