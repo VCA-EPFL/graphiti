@@ -304,7 +304,7 @@ theorem wf_product {e₁ e₂}:
 theorem wf_connect {e c}:
   wf ε (e.connect c) ↔ wf ε e := by
   constructor
-  · intro hwf; simp [well_formed] at hwf; assumption
+  · intro hwf; assumption
   · intro hwf; simpa [well_formed]
 
 end ExprLowLemmas
@@ -2042,10 +2042,10 @@ theorem well_typed_comm_connect2 {e1 e2 : ExprLow Ident Typ} {c} :
   rw [heq1] at hfi1; rw [heq2] at hfi2
   constructor; exists T; and_intros
   · assumption
-  · dsimp; rw [AssocList.append_find_right] at hfi1; assumption
+  · rw [AssocList.append_find_right] at hfi1; assumption
     apply AssocList.contains_none; rw [findInput_iff_contains_interface (m := m1)] at hf1 <;> try assumption
     grind
-  · dsimp; rw [AssocList.append_find_right] at hfi2; assumption
+  · rw [AssocList.append_find_right] at hfi2; assumption
     apply AssocList.contains_none; rw [findOutput_iff_contains_interface (m := m1)] at hf2 <;> try assumption
     grind
 
@@ -2733,7 +2733,7 @@ theorem well_formed_fix_point_opt {wfc : ExprLow Ident Typ → Prop} {wfc' : Exp
   | succ n ih =>
     intro he h hwf hwt
     dsimp [fix_point_opt] at *
-    split at hwt <;> simp at * <;> grind
+    split at hwt <;> grind
 
 theorem wf_foldr' {wfc : ExprLow Ident Typ → Prop} {wfc' : ExprLow Ident Typ → Bool} {ε} {α} {e'} {l : List α} (f : α → ExprLow Ident Typ → ExprLow Ident Typ) :
     (∀ e a, wfc' e → ([e| f a e, ε ] ⊑ ([e| e, ε ])) ∧ wfc' (f a e)) →
@@ -2839,7 +2839,6 @@ theorem renamePorts_well_typed2' [DecidableEq Typ] {ε : Env Ident Typ} {iexpr e
     obtain ⟨iexpr', hmap, hconn⟩ := mapPorts2_unfold_connect hrename; subst_vars
     obtain ⟨hwt1, mi, T, hbuild, hf1, hf2⟩ := hwt
     dsimp [well_typed]; and_intros; solve_by_elim
-    dsimp at *
     obtain ⟨mod, hbuild', hb2⟩ := build_module_build_module_interface' hbuild; subst_vars
     replace hwf := well_formed_connect.mp hwf
     obtain ⟨mod', hb1⟩ := Option.isSome_iff_exists.mp (well_formed_builds_module hwf)

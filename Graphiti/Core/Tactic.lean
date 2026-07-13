@@ -7,6 +7,7 @@ Authors: Yann Herklotz
 module
 
 public import Lean
+public meta import Lean.Elab.Tactic.ElabTerm
 public import Qq
 public import Batteries.Tactic.SeqFocus
 public import Batteries.Data.AssocList

@@ -573,7 +573,6 @@ theorem eraseAll_Nodup' {α β} [DecidableEq α] {p : AssocList α β} {k} :
       and_intros
       · intro hin
         apply hnodup.left
-        simp only [←keysList_contains_iff] at *
         apply in_eraseAll_list'; assumption
       · grind
 
