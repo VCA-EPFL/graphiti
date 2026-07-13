@@ -1467,7 +1467,7 @@ theorem refine:
           subst_vars
           rename_i hh1 hh2 hh3 hh4 hh5 hh6
           simp at hh1; simp at hh2; simp at hh3; simp at hh4; simp at hh5; simp at hh6
-          constructor <;> (try rfl) <;> dsimp
+          constructor <;> (try rfl) <;> try dsimp
           . let ⟨ branch, _, _, split⟩ := x'2
             let ⟨ _, _ ⟩ := split
             let ⟨ _, _ ⟩ := branch
@@ -1478,7 +1478,7 @@ theorem refine:
             simp at hh6; rw[hh6] at h1
             rw[List.mem_append] at h1
             cases h1 <;> rename_i h1
-            . simp at h1
+            . try simp at h1
               rename_i Hh _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
               specialize H2 elem h1; assumption
             . simp only [List.mem_singleton] at h1
@@ -1554,7 +1554,7 @@ theorem refine:
             simp at hh6; rw[hh6] at h1
             rw[List.mem_append] at h1
             cases h1 <;> rename_i h1
-            . simp at h1
+            . try simp at h1
               rename_i Hh _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
               specialize Hh elem h1; assumption
             . simp only [List.mem_singleton] at h1

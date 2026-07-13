@@ -495,9 +495,9 @@ def et_flip_flop_m := [graphEnv|
     n6F -> q_bar [from="out2"];
   ]
 
-#check ExprHigh
-#eval repr <| et_flip_flop_m.1
-#eval repr <| et_flip_flop_m.2.toList.map Prod.fst
+/- #check ExprHigh
+ - #eval repr <| et_flip_flop_m.1
+ - #eval repr <| et_flip_flop_m.2.toList.map Prod.fst -/
 
 def env' := env.cons "d_latch_m" d_latch_m_template
 
@@ -537,8 +537,9 @@ def et_ms_flip_flop_m := [graphEnv|
     latch2 -> q_bar [from="q_bar"];
   ]
 
+#guard_msgs (drop info) in
 #eval IO.print <| build_verilog_module "d_latch_m" env d_latch_m.1 (simple_interface ["d", "clk"] ["q", "q_bar"])
--- #guard_msgs (drop info) in
+#guard_msgs (drop info) in
 #eval IO.print <| build_verilog_module "et_flip_flop_m" env et_flip_flop_m.1 (simple_interface ["d", "clk"] ["q", "q_bar"])
 #guard_msgs (drop info) in
 #eval IO.print <| build_verilog_module "et_ms_flip_flop_m" env' et_ms_flip_flop_m.1 (simple_interface ["d", "clk"] ["q", "q_bar"])
@@ -547,8 +548,8 @@ namespace Refinement
 
 def et_flip_flop_m_lowered := et_flip_flop_m.1.lower_TR |>.get rfl
 
-#eval et_flip_flop_m_lowered
-#check ExprLow
+/- #eval et_flip_flop_m_lowered
+ - #check ExprLow -/
 
 def env := (et_flip_flop_m).2
 
