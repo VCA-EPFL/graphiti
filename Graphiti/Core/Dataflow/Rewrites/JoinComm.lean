@@ -29,6 +29,7 @@ def identMatcher (s : String) : Pattern String (String × Nat) 1 := fun g => do
 def matcher : Pattern String (String × Nat) 1 := fun g => do
   throw (.error s!"{decl_name%}: matcher not implemented")
 
+@[drunfold_defs]
 def lhs : ExprHigh String (String × Nat) := [graph|
     i_0 [type = "io"];
     i_1 [type = "io"];
@@ -42,10 +43,13 @@ def lhs : ExprHigh String (String × Nat) := [graph|
     join -> o_out [from = "out1"];
   ]
 
+@[drunfold_defs]
 def lhs_extract := (lhs T).extract ["join"] |>.get rfl
 theorem double_check_empty_snd : (lhs_extract T).snd = ExprHigh.mk ∅ ∅ := by rfl
-def lhsLower := (lhs_extract T).fst.lower.get rfl
+@[drunfold_defs]
+def lhsLower := (lhs_extract T).fst.lower_TR.get rfl
 
+@[drunfold_defs]
 def rhs : ExprHigh String (String × Nat) := [graph|
     i_0 [type = "io"];
     i_1 [type = "io"];
@@ -62,8 +66,10 @@ def rhs : ExprHigh String (String × Nat) := [graph|
     pure -> o_out [from = "out1"];
   ]
 
+@[drunfold_defs]
 def rhs_extract := (rhs M).extract ["join", "pure"] |>.get rfl
-def rhsLower := (rhs_extract M).fst.lower.get rfl
+@[drunfold_defs]
+def rhsLower := (rhs_extract M).fst.lower_TR.get rfl
 def findRhs mod := (rhs_extract 0).fst.modules.find? mod |>.map Prod.fst
 
 def rewrite : Rewrite String (String × Nat) :=
