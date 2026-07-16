@@ -4,9 +4,13 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Martina Camaioni
 -/
 
-import Graphiti.Core.Rewriter
-import Graphiti.Core.Graph.ExprHighElaborator
-import Graphiti.Core.Dataflow.Component
+module
+
+public import Graphiti.Core.Rewriter
+public meta import Graphiti.Core.Graph.ExprHighElaborator
+public import Graphiti.Core.Dataflow.Component
+
+@[expose] public section
 
 namespace Graphiti.JoinRewrite
 
