@@ -14,6 +14,12 @@ examples/build_dir
 examples/testbench-dynamic
 examples/testbench-static
 
+*.vcd
+
 .vscode/
 *.data
 /docs/public
+
+__pycache__/
+pandoc-docs/
+pollen-docs/
