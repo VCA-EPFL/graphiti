@@ -93,7 +93,7 @@ theorem getIO_map' {S : Type _}
     cases Hlt
     · simp [*, getIO, AssocList.find?_cons_eq]
     · unfold getIO at *
-      dsimp; rw [AssocList.find?_cons_neq]
+      simp only [List.map_cons, List.toAssocList]; rw [AssocList.find?_cons_neq]
       apply ih <;> try assumption
       cases Hnodup; assumption
       cases Hnodup

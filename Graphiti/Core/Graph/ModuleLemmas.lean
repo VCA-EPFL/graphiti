@@ -1869,11 +1869,15 @@ theorem foldr_connect' (l : List α) (acc : TModule Ident) (f g : α → Interna
     | cons hd tl HR =>
       dsimp; rw [HR]; dsimp [Module.connect']; congr 2
       · rw [AssocList.eraseAll_eraseAllP]
-        simp only [List.mem_cons, Bool.decide_or]
         congr
+        funext k v
+        simp [List.map_cons, List.mem_cons, Bool.decide_or]
+        grind
       · rw [AssocList.eraseAll_eraseAllP]
-        simp only [List.mem_cons, Bool.decide_or]
         congr
+        funext k v
+        simp [List.map_cons, List.mem_cons, Bool.decide_or]
+        grind
       · rw [erase_decide_map, erase_decide_map]; repeat assumption
       · simp at Hdup; simpa [Hdup]
 

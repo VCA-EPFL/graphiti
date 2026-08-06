@@ -80,7 +80,7 @@ theorem filter_window_get_true [BEq α] [LawfulBEq α] (delay : Nat) (a : List �
         omega
     )
   rw [beq_iff_eq] at Hget
-  grind only [usr getElem?_pos, = getElem?_pos]
+  grind only [= getElem?_pos]
 
 theorem filter_window_get_prefix [BEq α] (delay : Nat) (s1 s2 : List α)
     (h : s1 <+: s2) (i : Nat) (hi : i < s1.length) :
@@ -104,9 +104,10 @@ theorem filter_window_prefix [BEq α] :
         · rw [ List.length_take, length_filter_window, length_filter_window ];
           rw [ Nat.min_eq_left ( hs1s2.length_le ) ];
         · intro n hn hn';
-          convert filter_window_get_prefix delay s1 s2 hs1s2 n _;
-          · grind;
-          · grind;
+          simp only [length_filter_window] at hn
+          convert filter_window_get_prefix delay s1 s2 hs1s2 n (by assumption);
+          · simp_all [length_filter_window]
+          · simp_all [length_filter_window]
       exact h_filter_eq_take ▸ List.take_prefix _ _
 
 theorem filter_window_take [BEq α] (l : List α) (delay i : ℕ)
@@ -1255,7 +1256,7 @@ lemma delay_filter_characterization_raw (clk : D) (i cnt : Nat) (v: Bool)
     intro cnt v H
     rw [List.getElem_succ_scanl_drop] at H
     simp [delay_filter_step] at H
-    grind only [usr getElem?_pos, is_rising_edge, = getElem?_pos]
+    grind only [= getElem?_pos, is_rising_edge]
 
 /-
 When `delay_filter clk` is true at position `i`, then there's no rising edge within 4 steps.
@@ -1317,12 +1318,12 @@ lemma error_filter_characterization_raw (clk : D) (i cnt : Nat) (v: Bool)
       rw [Option.some_inj] at H
       subst Hb1 H clkV
       specialize iH (by omega) prevCnt clk[i+1] Hprev
-      grind only [usr getElem?_pos]
+      grind only [= getElem?_pos]
     . -- Second case: mismatches, but legal. cnt is 1
       rw [Option.some_inj] at H
       subst H
 
-      grind only [usr getElem?_pos]
+      grind only [= getElem?_pos]
     -- No third case, we assumed `some`
 
 /-- When `error_filter clk` is true at position `i`, every clock
@@ -1557,7 +1558,7 @@ lemma dff_raw_at_rising_edge (clk data : D) (i r : Nat)
     . rw [scanl_dff_step_clk _ _ _ _ (by omega) (by omega)] at H
       specialize h_no_rise (i + 1) (by grind only) (by omega)
       simp only [is_rising_edge, Nat.zero_lt_succ, Nat.add_one_sub_one, true_and, not_and] at h_no_rise
-      grind only [usr getElem?_pos]
+      grind only [= getElem?_pos]
     . rw [←List.getElem_map Prod.fst]
       . apply ih <;> try omega
         unfold no_rising_edge_in
@@ -1616,7 +1617,18 @@ lemma sim_good_at_r_plus_3 (clk data : D) (r : Nat)
     -- Automatically calculate the useful values
     simp_all +decide only [Nat.le_add_right, Std.le_refl, Nat.lt_add_right_iff_pos,
       Nat.add_lt_add_iff_left, Nat.add_le_add_iff_right, Nat.lt_add_one];
-    unfold circuit_step sim_good; grind
+    unfold circuit_step sim_good
+    have hc0 := h_low_before setup (by omega) (by omega)
+    have hc1 := h_low_before (setup + 1) (by omega) (by omega)
+    have hc2 := h_low_before (setup + 2) (by omega) (by omega)
+    have hd1 := h_data_stable (setup + 1) (by omega) (by omega)
+    have hd2 := h_data_stable (setup + 2) (by omega) (by omega)
+    have hc0' : clk[setup] = false := by grind only [= getElem?_pos]
+    have hc1' : clk[setup + 1] = false := by grind only [= getElem?_pos]
+    have hc2' : clk[setup + 2] = false := by grind only [= getElem?_pos]
+    have hd1' : data[setup + 1] = data[setup + 3] := by grind only [= getElem?_pos]
+    have hd2' : data[setup + 2] = data[setup + 3] := by grind only [= getElem?_pos]
+    simp_all +decide <;> grind only [= List.getElem?_eq_getElem]
 
 /-
 Weakened version of sim_good_step: only needs n2/n3 from predecessor,
@@ -1704,12 +1716,17 @@ lemma sim_eq_dff_raw_when_filtered (clk data : D) (i : Nat)
   -- Clock is low before and high after the rising edge
   have hr_low_before := dff_filter_implies_low_before_rising clk data i r h_i_c h_i_d (by omega) h_filt h_rising
   have hr_high_after := dff_filter_implies_high_after_rising clk data i r h_i_c h_i_d (by omega) h_filt h_rising
+  have hr0 := hr_high_after r (by omega) (by omega)
+  have hr1 := hr_high_after (r + 1) (by omega) (by omega)
+  have hr2 := hr_high_after (r + 2) (by omega) (by omega)
 
   have h_sim_good := sim_good_all clk data r i
     hr_ge_3 h_no_r -- Information about rising edges
     hr_low_before hr_data_stable -- Stability/consistency information
     (by omega) h_i_c h_i_d -- Data legality requirements
-    (by grind [hr_high_after r]) (by grind [hr_high_after (r + 1)]) (by grind [hr_high_after (r + 2)]) -- Clock stays high
+    (by grind)
+    (by grind)
+    (by grind) -- Clock stays high
     i (by omega) (by omega) -- Specialization to our case
   rw [h_sim_good.1]
   rw [ dff_raw_at_rising_edge clk data i r h_i_c h_i_d ( by omega ) h_rising h_no_r ]
@@ -1959,7 +1976,10 @@ theorem refines' :
 
       -- Split all 18 internal transitions
       rcases i with H | H | H | H | H | H | H | H | H | H | H | H | H | H | H | H | H | H | rest
-      rotate_right; omega -- Eliminate an impossible case
+      rotate_right
+      simp only [List.length_append, List.length_map, List.length_nil, List.length_cons,
+        Nat.add_zero, Nat.zero_add] at Hidx
+      omega -- Eliminate an impossible case
 
       -- Simplify the internal transitions' meaning
       all_goals (

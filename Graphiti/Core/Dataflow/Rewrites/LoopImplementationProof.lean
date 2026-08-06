@@ -578,7 +578,6 @@ theorem state_relation_preserve:
       obtain ⟨⟨ newCT, newCD⟩, newCN, newCDI⟩ := newC
       subst x_merge'
       simp only [List.map_append,←List.eraseIdx_map,List.map_map] at h1 ⊢
-      dsimp [Function.comp] at h1 ⊢
       ac_nf at h1 ⊢
       by_cases helem : elem = (newCT, newCDI)
       · apply List.mem_append_left; grind

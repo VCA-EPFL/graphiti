@@ -744,7 +744,7 @@ theorem bijectivePortRenaming_same {α} {β} [DecidableEq α] (f : β → α) (l
   | cons a b ih =>
     ext j; dsimp [bijectivePortRenaming]
     split <;> try rfl
-    simp only [filterId_cons_eq, inverse_cons]
+    simp only [List.map_cons, List.toAssocList, inverse_cons, filterId_cons_eq]
     have := invertible_cons ‹_›
     unfold bijectivePortRenaming at ih
     rw (occs := [3]) [show j = id j by rfl]
