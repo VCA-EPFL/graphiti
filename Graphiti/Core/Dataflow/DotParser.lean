@@ -323,11 +323,21 @@ def dotToExprHigh (d : Parser.DotGraph) : Except String (ExprHigh String String 
 
   return (⟨ maps'.instTypeMap.toList.toAssocList, conns ⟩, assoc)
 
-def to_typed_exprhigh (s : ExprHigh String String) : Except String (ExprHigh String (String × Nat) × Nat) := do
+/--
+Take the first word in the type string as being the new type.
+-/
+def take_first_word_in_type {α} (s : ExprHigh α String) : Except String (ExprHigh α String) := do
   let mods ← s.modules.foldlM (fun st k v => do
-    let typ ← v.2.splitOn.head?.toExcept s!"could not find type: {k}"
-    return (st.1.cons k (v.1, (typ, st.2)), st.2+1)) (∅, 0)
-  return ({s with modules := mods.1}, mods.2)
+    let typ ← v.2.splitOn.head?.toExcept s!"could not find type: {v.2}"
+    return st.cons k (v.1, typ)) ∅
+  return {s with modules := mods}
+
+/--
+Turns a graph without abstract type identifiers into one with initial and unique type identifiers.
+-/
+def to_typed_exprhigh {α β} (s : ExprHigh α β) : ExprHigh α (β × Nat) × Nat :=
+  let mods := s.modules.foldl (fun st k v => (st.1.cons k (v.1, (v.2, st.2)), st.2+1)) (∅, 0)
+  ({s with modules := mods.1}, mods.2)
 
 end Graphiti
 

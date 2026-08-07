@@ -396,7 +396,8 @@ def main (args : List String) : IO Unit := timeit "Total: " do
 
   let (exprHigh, assoc, name_mapping) ← IO.ofExcept fileContents.toExprHigh
 
-  let (exprHigh, m) ← IO.ofExcept <| to_typed_exprhigh exprHigh
+  let exprHigh ← IO.ofExcept <| take_first_word_in_type exprHigh
+  let (exprHigh, m) := to_typed_exprhigh exprHigh
 
   let mut rewrittenExprHigh := exprHigh
   let mut st : RewriteState String (String × Nat) :=
