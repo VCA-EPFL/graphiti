@@ -63,10 +63,6 @@ theorem EStateM.map_eq_ok {ε σ α β} {f : α → β} {o : EStateM ε σ α} {
   unfold EStateM.map; split <;> (intros h; cases h)
   constructor; constructor; and_intros <;> solve | assumption | rfl
 
-axiom refines_higherSS {e : ExprLow String String} {e' : ExprHigh String String} :
-  e.higherSS = .some e' →
-  e'.lower = .some e
-
 theorem higher_correct_products_correct {Ident Typ} {f} {e₂ : ExprLow Ident Typ} {v'} :
   e₂.higher_correct_products f = some v' →
   List.foldr ExprHigh.generate_product none v'.toList = some e₂ := by
@@ -523,6 +519,10 @@ theorem run'_refines {b} {ε_global : FinEnv String (String × Nat)}
   apply ExprLow.refines_subset_right
   apply FinEnv.subset_of_union
   assumption
+
+/-- info: 'Graphiti.run'_refines' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms run'_refines
 
 theorem run'_preserves_well_formed {b} {ε_global : FinEnv String (String × Nat)}
   {g g' : ExprHigh String (String × Nat)}
