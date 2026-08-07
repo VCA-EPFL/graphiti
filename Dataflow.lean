@@ -413,7 +413,7 @@ def main (args : List String) : IO Unit := timeit "Total: " do
   writeLogFile parsed st
   let name_mapping' := renameAssocAll name_mapping st.1
 
-  let .some g' := rewrittenExprHigh.renameModules name_mapping'
+  let .some g' := rewrittenExprHigh.renameModules name_mapping' |>.normaliseNames_fast
     | throw <| .userError s!"{decl_name%}: failed to undo name_mapping"
   rewrittenExprHigh := g'
 

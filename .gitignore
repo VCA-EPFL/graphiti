@@ -23,3 +23,7 @@ examples/testbench-static
 __pycache__/
 pandoc-docs/
 pollen-docs/
+
+# Emacs
+\#*
+.\#*

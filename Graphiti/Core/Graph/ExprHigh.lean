@@ -8,7 +8,7 @@ module
 
 public import Lean
 public import Graphiti.Core.Graph.ExprLow
-public import Graphiti.Core.Basic
+public import Graphiti.Core.Types
 
 @[expose] public section
 
@@ -291,12 +291,20 @@ def renamePorts_fast (g : ExprHigh Ident Typ) (p : PortMapping Ident) :=
   else
     .none
 
+/--
+Renames all the internal ports to match the name of the module.  This is really only useful for pretty printing as a dot
+graph.
+-/
 def normaliseNames {α} [DecidableEq α] (e : ExprHigh String α) : Option (ExprHigh String α) :=
   let renameMap := e.modules.toList.map (λ (x, (inst, typ)) =>
     inst.mapKeys (λ keyPort bodyPort => if e.portIsIO bodyPort then bodyPort else ⟨.internal x, keyPort.name⟩))
       |> PortMapping.combinePortMapping
   e.renamePorts (λ x => PortMapping.getInstanceName x |>.getD default) renameMap
 
+/--
+Renames all the internal ports to match the name of the module.  This is really only useful for pretty printing as a dot
+graph.
+-/
 def normaliseNames_fast {α} (e : ExprHigh String α) : Option (ExprHigh String α) :=
   let renameMap := e.modules.toList.map (λ (x, (inst, typ)) =>
     inst.mapPM1 (λ m => m.foldl (fun st keyPort bodyPort => if e.portIsIO bodyPort then st else st.cons bodyPort ⟨.internal x, keyPort.name⟩) ∅))
@@ -304,9 +312,12 @@ def normaliseNames_fast {α} (e : ExprHigh String α) : Option (ExprHigh String 
     e.renamePorts_fast r
   ) e
 
+/--
+Rename all the modules using a renaming map and then normalise internal connections.
+-/
 def renameModules {α} [DecidableEq α] (e : ExprHigh String α) (map : Batteries.AssocList String String) :=
   let newModules := e.modules.mapKey (λ k => map.find? k |>.getD k)
-  {e with modules := newModules}.normaliseNames_fast
+  {e with modules := newModules}
 
 def asDot {α} [ToString α] (a : ExprHigh String α) : Option String := do
   let a ← a.normaliseNames_fast
@@ -357,6 +368,31 @@ Standardise the names of the nodes in the graph so that they match with what the
 -/
 def standardiseNames {α} [DecidableEq α] (grph : ExprHigh String α) :=
   grph.lower >>= ExprLow.higher
+
+/--
+Take the first word in the type string as being the new type.
+-/
+def take_first_word_in_type {α} (s : ExprHigh α String) : Except String (ExprHigh α String) := do
+  let mods ← s.modules.foldlM (fun st k v => do
+    let typ ← v.2.splitOn.head?.toExcept s!"could not find type: {v.2}"
+    return st.cons k (v.1, typ)) ∅
+  return {s with modules := mods}
+
+/--
+Turns a graph without abstract type identifiers into one with initial and unique type identifiers.
+-/
+def to_typed_exprhigh {α β} (s : ExprHigh α β) : ExprHigh α (β × Nat) × Nat :=
+  let mods := s.modules.foldl (fun st k v => (st.1.cons k (v.1, (v.2, st.2)), st.2+1)) (∅, 0)
+  ({s with modules := mods.1}, mods.2)
+
+structure WithId (α : Type _) where
+  name : String
+  attr : α
+
+def hash_portmappings {β} (e : ExprHigh String β) : ExprHigh String β × Batteries.AssocList String String :=
+  let hashed_names_e := {e with modules := e.modules.mapKey' λ x y => y.1.hashPortMapping}
+  let name_mapping := ((hashed_names_e.modules.toList.map Prod.fst).zip (e.modules.toList.map Prod.fst)).toAssocList
+  (hashed_names_e, name_mapping)
 
 end ExprHigh
 

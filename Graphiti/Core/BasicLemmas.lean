@@ -10,7 +10,7 @@ public import Lean
 
 public import Graphiti.Core.AssocList
 public import Graphiti.Core.Simp
-public import Graphiti.Core.Basic
+public import Graphiti.Core.Types
 
 @[expose] public section
 

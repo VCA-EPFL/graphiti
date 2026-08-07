@@ -41,13 +41,6 @@ def EntryType.startMarker? (entry : EntryType) : Bool := entry == .marker "rev-s
 
 def EntryType.stopMarker? (entry : EntryType) : Bool := entry == .marker "rev-stop"
 
-deriving instance Lean.ToJson for InstIdent
-deriving instance Lean.ToJson for InternalPort
-
-instance {Ident} [ToString Ident] [Lean.ToJson Ident] : Lean.ToJson (PortMapping Ident) where
-  toJson a :=
-    Lean.Json.mkObj [("input", Lean.toJson a.input), ("output", Lean.toJson a.output)]
-
 structure Node where
   name : Ident
   ports : PortMapping Ident

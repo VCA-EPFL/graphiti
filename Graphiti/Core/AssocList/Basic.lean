@@ -9,6 +9,7 @@ module
 public import Batteries.Data.AssocList
 
 public meta import Graphiti.Core.Simp
+public import Graphiti.Core.Basic
 public import Lean.Data.Json.FromToJson.Extra
 
 @[expose] public section
@@ -149,5 +150,20 @@ def squash {α β} [DecidableEq α] (l : AssocList α β) : AssocList α β → 
 instance {α β} [ToString α] [Lean.ToJson β] : Lean.ToJson (AssocList α β) where
   toJson r :=
     Lean.toJson <| Std.TreeMap.ofList (r.mapKey toString).toList
+
+def fromTreeMap {α β cmp} (t : Std.TreeMap α β cmp) : AssocList α β :=
+  t.toList |>.toAssocList
+
+def fromTreeMapRaw {α β cmp} (t : Std.TreeMap.Raw α β cmp) : AssocList α β :=
+  t.toList |>.toAssocList
+
+instance {α β} [Graphiti.FromString α] [Lean.FromJson β] : Lean.FromJson (AssocList α β) where
+  fromJson? r := do
+    let obj ← r.getObj?
+    (fromTreeMapRaw obj).foldlM (fun st k v => do
+      let k ← Graphiti.FromString.fromString? k
+      let v ← Lean.FromJson.fromJson? v
+      return st.cons k v
+    ) ∅
 
 end Batteries.AssocList

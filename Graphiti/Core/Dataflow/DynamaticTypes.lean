@@ -7,7 +7,7 @@ Authors: Yann Herklotz
 module
 
 public import Graphiti.Core.AssocList
-public import Graphiti.Core.Basic
+public import Graphiti.Core.Types
 
 public section
 

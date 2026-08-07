@@ -7,7 +7,7 @@ Authors: Yann Herklotz
 module
 
 public import Graphiti.Core.Simp
-public import Graphiti.Core.Basic
+public import Graphiti.Core.Types
 public import Graphiti.Core.AssocList
 
 @[expose] public section
