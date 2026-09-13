@@ -334,13 +334,28 @@ abbrev NatModule := Module Nat
 
 abbrev StringModule := Module String
 
+/--
+Port names of the first 20 ports are hard-coded, because `toString` on `Nat` does not reduce in modules (`Nat.repr` is
+not exposed).  This allows the port names to be computed by `rfl` and `whnf`.
+-/
 @[drcomponents]
-def NatModule.stringify_input (n : Nat) :=
-  s!"in{n + 1}"
+def NatModule.stringify_input : Nat → String
+  | 0 => "in1" | 1 => "in2" | 2 => "in3" | 3 => "in4" | 4 => "in5"
+  | 5 => "in6" | 6 => "in7" | 7 => "in8" | 8 => "in9" | 9 => "in10"
+  | 10 => "in11" | 11 => "in12" | 12 => "in13" | 13 => "in14" | 14 => "in15"
+  | 15 => "in16" | 16 => "in17" | 17 => "in18" | 18 => "in19" | 19 => "in20"
+  | n => s!"in{n + 1}"
 
+/--
+See `NatModule.stringify_input`.
+-/
 @[drcomponents]
-def NatModule.stringify_output (n : Nat) :=
-  s!"out{n + 1}"
+def NatModule.stringify_output : Nat → String
+  | 0 => "out1" | 1 => "out2" | 2 => "out3" | 3 => "out4" | 4 => "out5"
+  | 5 => "out6" | 6 => "out7" | 7 => "out8" | 8 => "out9" | 9 => "out10"
+  | 10 => "out11" | 11 => "out12" | 12 => "out13" | 13 => "out14" | 14 => "out15"
+  | 15 => "out16" | 16 => "out17" | 17 => "out18" | 18 => "out19" | 19 => "out20"
+  | n => s!"out{n + 1}"
 
 @[drunfold, drcomponents]
 def NatModule.stringify {T} (m : NatModule T) : StringModule T :=

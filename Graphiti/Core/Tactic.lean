@@ -102,7 +102,9 @@ elab "precomputeTac " t:term " by " tac:tacticSeq : tactic => Tactic.withMainCon
   let exprType ← inferType expr
   let opaqueExpr ← mkAppOptM ``Opaque #[exprType, expr]
   let m ← mkFreshExprMVar opaqueExpr
-  let (l :: s) ← evalTacticAt tac m.mvarId!
+  -- Only the reduced term is kept, so the tactic does not need to run in the exporting scope of a module.  Otherwise
+  -- `by` blocks are delayed until their goal contains no metavariables, which breaks `rw [rw_opaque (by ...)]`.
+  let (l :: s) ← withoutExporting <| evalTacticAt tac m.mvarId!
     | logError "No mvar returned"
   let r := (← l.getDecl).type.getArg!' 1
   (← getMainGoal).assign r

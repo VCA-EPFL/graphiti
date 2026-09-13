@@ -4,11 +4,15 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yann Herklotz
 -/
 
-import Graphiti.Core.Dataflow.Component
-import Graphiti.Core.Graph.ExprLowLemmas
-import Graphiti.Core.Graph.ExprHighElaborator
-import Graphiti.Core.Graph.ModuleReduction
-import Graphiti.Core.RewriterLemmas
+module
+
+public import Graphiti.Core.Dataflow.Component
+public import Graphiti.Core.Graph.ExprLowLemmas
+public import Graphiti.Core.Graph.ExprHighElaborator
+public import Graphiti.Core.Graph.ModuleReduction
+public import Graphiti.Core.RewriterLemmas
+
+@[expose] public section
 
 namespace Graphiti.LoopRewrite
 
@@ -332,7 +336,7 @@ theorem ghost_rhs_wf : (rhsGhostLower e.max_type).well_formed ε_rhs_ghost.toEnv
   dsimp [ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
   dsimp [ExprLow.well_formed]
   simp only [drenv]
-  simp; and_intros <;> (try decide) <;> (try simp [AssocList.keysList, drcomponents, List.range, List.range.loop]; decide)
+  simp; and_intros <;> (try decide) <;> (try simp [AssocList.keysList, drcomponents, List.range, List.range.loop]) <;> (try decide)
 
 theorem ghost_rhs_wt : (rhsGhostLower e.max_type).well_typed ε_rhs_ghost.toEnv := by
   dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]

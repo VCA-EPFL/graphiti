@@ -3,8 +3,12 @@ Copyright (c) 2026 VCA Lab, EPFL.
 SPDX-License-Identifier: Apache-2.0
 -/
 
-import Graphiti.Core.Graph.ExprHigh
-import Graphiti.Core.Graph.ExprHighElaborator
+module
+
+public import Graphiti.Core.Graph.ExprHigh
+public import Graphiti.Core.Graph.ExprHighElaborator
+
+@[expose] public section
 
 open Batteries (AssocList)
 

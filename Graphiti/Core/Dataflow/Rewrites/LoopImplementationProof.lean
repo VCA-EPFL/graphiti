@@ -4,9 +4,13 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Martina Camaioni, Yann Herklotz
 -/
 
-import Graphiti.Core.Graph.ExprLowLemmas
-import Graphiti.Core.Dataflow.Rewrites.LoopRewriteCorrect
-import Mathlib
+module
+
+public import Graphiti.Core.Graph.ExprLowLemmas
+public import Graphiti.Core.Dataflow.Rewrites.LoopRewriteCorrect
+public import Mathlib
+
+@[expose] public section
 
 namespace Graphiti.LoopRewrite
 

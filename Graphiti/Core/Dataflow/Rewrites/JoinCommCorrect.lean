@@ -2,12 +2,16 @@
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
 
-import Graphiti.Core.Dataflow.Component
-import Graphiti.Core.Graph.ExprLowLemmas
-import Graphiti.Core.Graph.ExprHighElaborator
-import Graphiti.Core.Graph.ModuleReduction
-import Graphiti.Core.RewriterLemmas
-import Graphiti.Core.Dataflow.Rewrites.JoinComm
+module
+
+public import Graphiti.Core.Dataflow.Component
+public import Graphiti.Core.Graph.ExprLowLemmas
+public import Graphiti.Core.Graph.ExprHighElaborator
+public import Graphiti.Core.Graph.ModuleReduction
+public import Graphiti.Core.RewriterLemmas
+public import Graphiti.Core.Dataflow.Rewrites.JoinComm
+
+@[expose] public section
 
 open Batteries (AssocList)
 

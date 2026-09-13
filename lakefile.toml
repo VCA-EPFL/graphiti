@@ -16,7 +16,6 @@ weak.linter.style.cdot = false
 weak.linter.style.dollarSyntax = false
 weak.linter.style.lambdaSyntax = false
 weak.aesop.warn.applyIff = false
-backward.isDefEq.respectTransparency = false
 
 [[require]]
 name = "mathlib"
