@@ -3,6 +3,11 @@
   {{ with .Page }}
     {{ $pages = $pages | append . }}
   {{ end }}
+  {{ range .Children }}
+    {{ with .Page }}
+      {{ $pages = $pages | append . }}
+    {{ end }}
+  {{ end }}
 {{ end }}
 {{ $pages = $pages.Reverse }}
 <nav class="sitenav">

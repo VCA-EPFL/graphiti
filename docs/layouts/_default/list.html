@@ -5,6 +5,16 @@
   </h1>
   <article>
     {{ .Content }}
+    {{ with .Pages.ByWeight }}
+    <ul class="section-pages">
+      {{ range . }}
+      <li>
+        <a href="{{ .RelPermalink }}">{{ .Title }}</a>
+        {{ with .Description }}<p>{{ . }}</p>{{ end }}
+      </li>
+      {{ end }}
+    </ul>
+    {{ end }}
   </article>
 </main>
 {{ end }}

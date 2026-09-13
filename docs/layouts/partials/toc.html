@@ -1,0 +1,22 @@
+{{- $current := . }}
+<div class="table-of-contents">
+  <ul>
+    {{- range site.Menus.main }}
+    <li{{ if or ($current.IsMenuCurrent "main" .) ($current.HasMenuCurrent "main" .) }} class="current"{{ end }}>
+      <a href="{{ .URL }}">{{ .Name }}</a>
+      {{- if .HasChildren }}
+      <ul>
+        {{- range .Children }}
+        <li{{ if $current.IsMenuCurrent "main" . }} class="current"{{ end }}>
+          <a href="{{ .URL }}">{{ .Name }}</a>
+          {{- if $current.IsMenuCurrent "main" . }}
+          {{ $current.TableOfContents }}
+          {{- end }}
+        </li>
+        {{- end }}
+      </ul>
+      {{- end }}
+    </li>
+    {{- end }}
+  </ul>
+</div>

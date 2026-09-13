@@ -37,18 +37,7 @@
       <img src="/img/graphiti-logo.svg" />
     </picture>
   </a>
-  <div class="table-of-contents">
-    <ul>
-      {{- range site.Menus.main }}
-      <li>
-        <a href="{{ .URL }}">
-          {{ .Name }}
-        </a>
-        {{ .Page.TableOfContents }}
-      </li>
-      {{- end }}
-    </ul>
-  </div>
+  {{- partial "toc.html" . }}
 </div>
 
 <nav
@@ -62,16 +51,5 @@
       <img src="/img/graphiti-logo.svg" />
     </picture>
   </a>
-  <div class="table-of-contents">
-    <ul>
-      {{- range site.Menus.main }}
-      <li>
-        <a href="{{ .URL }}">
-          {{ .Name }}
-        </a>
-        {{ .Page.TableOfContents }}
-      </li>
-      {{- end }}
-    </ul>
-  </div>
+  {{- partial "toc.html" . }}
 </nav>
