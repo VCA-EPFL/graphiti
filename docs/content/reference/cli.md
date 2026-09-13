@@ -33,7 +33,7 @@ Exactly one input file is required.
 | `--bluespec-dot` | | off | Print a DOT graph annotated with Bluespec types and skip the output conversion script. |
 | `--no-python` | | off | Skip both conversion scripts. The input file is parsed as it is. |
 | `--python` | `CMD` | `uv run` | Command used to run the scripts. It is split on spaces and must accept `--project DIR` after it. |
-| `--oracle` | `PATH` | `$GRAPHITI_REPO/bin/graphiti_oracle` | Oracle executable. The help text says the default is `graphiti_oracle`, but the code uses the path shown here. |
+| `--oracle` | `PATH` | `$GRAPHITI_REPO/bin/graphiti_oracle` | Oracle executable. |
 | `--parse-only` | | off | Parse and print the input without rewriting it. |
 | `--fast` | | off | Use the abstraction-based pipeline, `rewriteGraphAbs`, instead of `rewriteGraphAll`. The help text describes it as fast but unverified. |
 | `--no-reverse` | | | Do not undo the rewrites marked for undo. |

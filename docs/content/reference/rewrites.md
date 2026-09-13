@@ -52,14 +52,13 @@ Each rewrite lives in its own file under `Graphiti/Core/Dataflow/Rewrites/` and 
 | --- | --- | --- |
 | `pure-constant` | `PureRewrites.Constant` | `constant` |
 | `pure-constant-nat` | `PureRewrites.ConstantNat` | `constantNat` |
-| `pure-constant-nat` | `PureRewrites.ConstantBool` | `constantBool` |
+| `pure-constant-bool` | `PureRewrites.ConstantBool` | `constantBool` |
 | `pure-operator1` to `pure-operator3` | `PureRewrites.Operator1` to `Operator3` | `operator1` to `operator3` |
 | `pure-cond_operator1`, `pure-cond_operator2` | `PureRewrites.CondOperator1`, `CondOperator2` | `cond_operator1`, `cond_operator2` |
 | `pure-fork` | `PureRewrites.Fork` | `fork2` |
 
-`ConstantBool` reuses the name `pure-constant-nat`. The `matcher` in every namespace of this file throws an error
-saying it is not implemented. `PureRewrites.specialisedPureRewrites p` returns copies whose patterns take the first node
-found by `p`.
+The `matcher` in every namespace of this file throws an error saying it is not implemented.
+`PureRewrites.specialisedPureRewrites p` returns copies whose patterns take the first node found by `p`.
 
 ## Rewrites with a targeted pattern
 

@@ -3,6 +3,7 @@ help:
 	@echo "make setup: setup mathlib 4 cache."
 	@echo "make build: build the proof."
 	@echo "make build-exe: build the executable.  This requires cargo to be installed."
+	@echo "make test: run the lake tests and the dynamatic benchmarks."
 
 .PHONY: ci
 ci:
@@ -26,8 +27,9 @@ bin/graphiti_oracle:
 	cargo install --git https://github.com/VCA-EPFL/OracleGraphiti --locked --root .
 
 .PHONY: lake-test
+lake-test:
 	lake test
 
 .PHONY: test
 test: lake-test
-	$(MAKE) $(MAKEFLAGS) -B -C benchmarks/dynamatic
+	$(MAKE) -B -C benchmarks/dynamatic

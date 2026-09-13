@@ -173,7 +173,7 @@ def rewrite : Rewrite String (String × Nat) where
   params := 1
   pattern := matcher
   rewrite := λ l n => ⟨lhsLower (l.map (·.2)), rhsLower n.2⟩
-  name := .some "pure-constant-nat"
+  name := .some "pure-constant-bool"
   transformedNodes := [findRhs "const" |>.get rfl]
   fresh_types := fun x => (x.1, x.2+1)
 

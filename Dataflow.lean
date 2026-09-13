@@ -153,7 +153,8 @@ OPTIONS
   --bluespec-dot      output a dot with BlueSpec types
   --no-python         do not run python scripts
   --no-reverse        do not undo rewrites
-  --oracle            path to the oracle executable (default: graphiti_oracle)
+  --oracle            path to the oracle executable
+                      (default: $GRAPHITI_REPO/bin/graphiti_oracle)
   --parse-only        only parse the input without performing rewrites
   --python            python interpreter (default: uv run)
   --fast              use the fast but unverified rewrite approach
@@ -396,8 +397,8 @@ def main (args : List String) : IO Unit := timeit "Total: " do
 
   let (exprHigh, assoc, name_mapping) ← IO.ofExcept fileContents.toExprHigh
 
-  let exprHigh ← IO.ofExcept <| take_first_word_in_type exprHigh
-  let (exprHigh, m) := to_typed_exprhigh exprHigh
+  let exprHigh ← IO.ofExcept <| ExprHigh.take_first_word_in_type exprHigh
+  let (exprHigh, m) := ExprHigh.to_typed_exprhigh exprHigh
 
   let mut rewrittenExprHigh := exprHigh
   let mut st : RewriteState String (String × Nat) :=

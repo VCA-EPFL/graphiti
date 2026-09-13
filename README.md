@@ -26,11 +26,13 @@ The oracle will be installed under `./bin/graphiti_oracle`.
 
 ## Executing the rewriter
 
-Graphiti can be executed using:
+Graphiti can be executed on one of the bundled Dynamatic benchmarks using:
 
 ```shell
-lake exe graphiti --oracle ./bin/graphiti_oracle ./benchmarks/correct/gcd.dot -o out.dot -l out.json --no-dynamatic-dot
+lake exe graphiti --oracle ./bin/graphiti_oracle -o out.dot -l out.json --mids phi_1 --tag-nums 10 -- ./benchmarks/dynamatic/gsum_single.dot
 ```
+
+The loop head mux IDs and the tag count for each benchmark are listed in the `.json` file next to its `.dot` file.
 
 ```text
 $ lake exe graphiti --help
@@ -40,13 +42,22 @@ FORMAT
   graphiti [OPTIONS...] FILE
 
 OPTIONS
-  -h, --help          Print this help text
-  -o, --output FILE   Set output file
-  -l, --log FILE      Set JSON log output
-  --log-stdout        Set JSON log output to STDOUT
-  --no-dynamatic-dot  Don't output dynamatic DOT, instead output the raw
-                      dot that is easier for debugging purposes.
-  --parse-only        Only parse the input without performing rewrites.
+  -h, --help          print this help text
+  -o, --output FILE   set output file
+  -l, --log FILE      set JSON log output
+  -m, --mids          a list of mux IDs to transform
+  -t, --tag-nums      number of tags to allocate to all taggers
+  --log-stdout        set JSON log output to STDOUT
+  --no-dynamatic-dot  don't output dynamatic DOT, instead output the raw
+                      dot that is easier for debugging purposes
+  --bluespec-dot      output a dot with BlueSpec types
+  --no-python         do not run python scripts
+  --no-reverse        do not undo rewrites
+  --oracle            path to the oracle executable
+                      (default: $GRAPHITI_REPO/bin/graphiti_oracle)
+  --parse-only        only parse the input without performing rewrites
+  --python            python interpreter (default: uv run)
+  --fast              use the fast but unverified rewrite approach
 ```
 
 It will read a DOT graph from the input FILE, and then rewrite it using the internal rewrites.  It will then print it as
@@ -59,21 +70,25 @@ following format:
 // List of objects, each representing a rewrite.
 [
   {
-    // name of the rewrite
+    // type of entry, one of rewrite, abstraction, concretisation, debug or marker "..."
+    "type": "Graphiti.EntryType.rewrite",
+    // name of the rewrite, or null
     "name": "combine-mux",
-    // type of rewrite, one of rewrite, abstraction or concretisation
-    "type": "Graphiti.RewriteType.rewrite",
-    // input dot graph that was received by the rewrite
-    "input_graph": "digraph { ... }",
-    // output dot graph that was produced by the rewrite
-    "output_graph": "digraph { ... }",
+    // input graph that was received by the rewrite
+    "input_graph": "{ modules := Batteries.AssocList.cons ... }",
+    // output graph that was produced by the rewrite
+    "output_graph": "{ modules := Batteries.AssocList.cons ... }",
     // a list of nodes making up the subgraph that was matched
     "matched_subgraph": ["node1", "node2"],
+    // the types of the matched nodes, in the same order
+    "matched_subgraph_types": [["mux", 3], ["fork2", 7]],
     // nodes that were untouched but renamed when going from input to output
     // a null value means the node was removed
     "renamed_input_nodes": {"a": "b", "c": "d", "e": null},
     // name of nodes that were added to the output
     "new_output_nodes": ["x", "y", "z"],
+    // fresh type counter after the rewrite
+    "fresh_types": ["", 40],
     // optional debug information
     "debug": null
   },
