@@ -309,13 +309,13 @@ theorem append_find_right_disjoint {α β} [DecidableEq α] {a b : AssocList α 
   (a ++ b).eraseAllP p = (a.eraseAllP p) ++ (b.eraseAllP p) := by
     induction a with
     | nil => rfl
-    | cons k v tl ih => dsimp; rw [ih] <;> cases p k v <;> dsimp
+    | cons k v tl ih => by_cases h : p k v <;> simp [ih, h]
 
 @[simp] theorem eraseAllP_map_comm {α β γ} [DecidableEq α] {a : AssocList α β} {p : α → Bool} {f : α → β → γ} :
   (a.eraseAllP (λ k _ => p k)).mapVal f = (a.mapVal f).eraseAllP (λ k _ => p k) := by
   induction a with
   | nil => rfl
-  | cons k v xs ih => dsimp <;> cases p k <;> dsimp <;> rw [ih] <;> dsimp
+  | cons k v xs ih => by_cases h : p k <;> simp [*]
 
 @[simp] theorem eraseAll_map_comm {α β γ} [DecidableEq α] {a : AssocList α β} {ident} {f : α → β → γ} :
   (a.eraseAll ident).mapVal f = (a.mapVal f).eraseAll ident := by
@@ -418,13 +418,7 @@ theorem contains_eraseAll {α β} [DecidableEq α] {a : AssocList α β} {i i'} 
 theorem eraseAll_not_contains {α β} [DecidableEq α] (a : AssocList α β) (i : α) :
   ¬a.contains i → a.eraseAll i = a := by
     intros H
-    induction a <;> simp [eraseAll]
-    rename_i k v a' HR
-    cases Heq: (k == i)
-    · simp; rw [←eraseAllP_TR_eraseAll]; apply HR; intros Hcontains; apply H; simp; right;
-      simp at Hcontains; assumption
-    · exfalso; apply H
-      simp; left; simp at Heq; assumption
+    induction a <;> simp_all [eraseAll, eraseAllP_TR_eraseAll]
 
 theorem eraseAll_not_contains2 {α β} [DecidableEq α] (a : AssocList α β) (i : α) :
   ¬ (a.eraseAll i).contains i := by
@@ -446,7 +440,7 @@ theorem eraseAll_append {α β} [DecidableEq α] {l1 l2 : AssocList α β} {i}:
   AssocList.eraseAll i l1 ++ AssocList.eraseAll i l2 := by
     induction l1 <;> simp [eraseAll, append]
     rename_i k _ _ _
-    cases k == i <;> simp [eraseAllP_TR_eraseAll, eraseAll] at * <;> simpa [append, eraseAll]
+    by_cases k = i <;> simp_all [eraseAllP_TR_eraseAll, eraseAll]
 
 @[simp, drcompute] theorem eraseAll_concat_eq {α β} [DecidableEq α] {a : AssocList α β} {ident val} :
   ((a.concat ident val).eraseAll ident) = a.eraseAll ident := by
@@ -544,7 +538,7 @@ theorem bijectivePortRenaming_invert {α} [DecidableEq α] {p : AssocList α α}
       obtain ht := ht ha
       grind
     · have : decide (k = Ta) = false := by simp [*]
-      rw [this] at ha; dsimp at ha
+      simp [this] at ha
       grind
 
 @[simp] theorem in_eraseAll_list' {α β} {Ta : α} {elem : (α × β)} [DecidableEq α] {a : AssocList α β}:

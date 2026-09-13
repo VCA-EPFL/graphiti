@@ -46,18 +46,7 @@ theorem eraseAll_comm_mapKey {α β γ} [DecidableEq α] [DecidableEq γ] {f : �
     induction m
     · simpa [eraseAll]
     · rename_i k v tl H
-      cases Hfeq: f k == f i
-      · simp only [eraseAll, eraseAllP, eraseAllP_TR_eraseAll] at *
-        dsimp [eraseAll, eraseAllP]
-        rw [Hfeq]
-        dsimp
-        cases Heq : k == i
-        · simpa
-        · simp [beq_iff_eq] at Heq Hfeq
-          subst i
-          contradiction
-      · simp [beq_iff_eq] at Hfeq
-        simpa [Hinj Hfeq]
+      by_cases k = i <;> simp_all [eraseAll, eraseAllP_TR_eraseAll, Hinj.eq_iff]
 
 theorem bijectivePortRenaming_involutive {α} [DecidableEq α] {p : AssocList α α} :
   Function.Involutive p.bijectivePortRenaming := by
