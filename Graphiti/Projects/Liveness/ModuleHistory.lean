@@ -40,31 +40,17 @@ theorem generate_history_correct1_base {m : Module Ident S} {t : Trace Ident} :
     cases h_step
     case input _ ip a b c d =>
       rw [← List.append_assoc]
-      generalize h1 : (Batteries.AssocList.find? ip m.inputs) = og_inputs at *
-      have h: st1hist ++ [IOEvent.input ip b] = st2hist := by
-        rw [PortMap.rw_rule_execution (by simp [generate_history]; rfl)] at *
-        simp [PortMap.getIO] at d
-        rw [PortMap.rw_rule_execution (by rw [Batteries.AssocList.find?_mapVal, h1])] at *
-        rw [PortMap.rw_rule_execution (by simp [Option.map, Option.getD]; rfl)] at *
-        cases h_og : (Batteries.AssocList.find? ip m.inputs) <;> try subst_eqs; rw [PortMap.rw_rule_execution (by rw [h_og])] at *; simp at d
-        grind [PortMap.getIO, generate_history, Batteries.AssocList.find?_mapVal]
-      rw [h]
-      simp at *
-      assumption
+      generalize hg : (generate_history m).inputs.getIO ip = g at a c d
+      subst c
+      cases h : m.inputs.find? ip <;> simp [generate_history, PortMap.getIO, Batteries.AssocList.find?_mapVal, h, -Batteries.AssocList.find?_eq] at hg <;> subst hg <;> simp at d
+      grind
 
     case output _ ip a b c d =>
       rw [← List.append_assoc]
-      generalize h1 : (Batteries.AssocList.find? ip m.outputs) = og_outputs at *
-      have h: st1hist ++ [IOEvent.output ip b] = st2hist := by
-        rw [PortMap.rw_rule_execution (by simp [generate_history]; rfl)] at *
-        simp [PortMap.getIO] at d
-        rw [PortMap.rw_rule_execution (by rw [Batteries.AssocList.find?_mapVal, h1])] at *
-        rw [PortMap.rw_rule_execution (by simp [Option.map, Option.getD]; rfl)] at *
-        cases h_og : (Batteries.AssocList.find? ip m.outputs) <;> try subst_eqs; rw [PortMap.rw_rule_execution (by rw [h_og])] at *; simp at d
-        grind [PortMap.getIO, generate_history, Batteries.AssocList.find?_mapVal]
-      rw [h]
-      simp at *
-      assumption
+      generalize hg : (generate_history m).outputs.getIO ip = g at a c d
+      subst c
+      cases h : m.outputs.find? ip <;> simp [generate_history, PortMap.getIO, Batteries.AssocList.find?_mapVal, h, -Batteries.AssocList.find?_eq] at hg <;> subst hg <;> simp at d
+      grind
     case internal _ r relInt h_step =>
       simp at ih
       simp [generate_history] at relInt
@@ -117,49 +103,31 @@ theorem generate_history_correct2_star {m : Module Ident S} {s2} {t : Trace Iden
       have h_step' : @StateTransition.step _ _ (Module.state_transition (generate_history m)) s1' t1  { state := (hist1 ++ t1, s_2.state), module := s1'.module } := by
         cases h_step
         case input ip s_2 type_i i h_rel h_i =>
-          cases hip_avail : s_1.module.inputs.find? ip with
-          | none =>
-            unfold PortMap.getIO at h_rel; rw [PortMap.rw_rule_execution (by rw [hip_avail])] at h_rel
-            contradiction
-          | some ipval =>
-            unfold PortMap.getIO at h_rel; rw [PortMap.rw_rule_execution (by rw [hip_avail])] at h_rel; dsimp at h_rel
-            unfold StateTransition.step
-            unfold Module.state_transition
-            obtain ⟨s_1_s, s_1_m⟩ := s_1
-            obtain ⟨s1'_s, s1'_m⟩ := s1'
-            subst_vars
-            apply Module.step.input (v := ((match_interface s_1_m).input_types ip).mp type_i)
-            unfold PortMap.getIO; rw [PortMap.rw_rule_execution
-              (by
-                unfold generate_history
-                rewrite [Batteries.AssocList.find?_mapVal]
-                rewrite [hip_avail]
-                dsimp)]
-            and_intros
-            simp [*]; simp [-Batteries.AssocList.find?_eq]; rw [hip_avail]; rfl
-            simp; apply (match_interface s_1_m).input_types ip
+          unfold StateTransition.step
+          unfold Module.state_transition
+          obtain ⟨s_1_s, s_1_m⟩ := s_1
+          obtain ⟨s1'_s, s1'_m⟩ := s1'
+          subst_vars
+          have hg : (generate_history s_1_m).inputs.getIO ip =
+              ⟨_, fun s i s' => (s_1_m.inputs.getIO ip).snd s.2 i s'.2 ∧ s'.1 = s.1.concat (IOEvent.input ip ⟨_, i⟩)⟩ := by
+            simp only [generate_history, PortMap.getIO, Batteries.AssocList.find?_mapVal]
+            cases s_1_m.inputs.find? ip <;> simp
+          apply Module.step.input (v := ((match_interface s_1_m).input_types ip).mp type_i)
+          · rw [PortMap.rw_rule_execution hg]; simpa
+          · simp; apply (match_interface s_1_m).input_types ip
         case output ip s_2 type_i i h_rel h_i =>
-          cases hip_avail : s_1.module.outputs.find? ip with
-          | none =>
-            unfold PortMap.getIO at h_rel; rw [PortMap.rw_rule_execution (by rw [hip_avail])] at h_rel
-            contradiction
-          | some ipval =>
-            unfold PortMap.getIO at h_rel; rw [PortMap.rw_rule_execution (by rw [hip_avail])] at h_rel; dsimp at h_rel
-            unfold StateTransition.step
-            unfold Module.state_transition
-            obtain ⟨s_1_s, s_1_m⟩ := s_1
-            obtain ⟨s1'_s, s1'_m⟩ := s1'
-            subst_vars
-            apply Module.step.output (v := ((match_interface s_1_m).output_types ip).mp type_i)
-            unfold PortMap.getIO; rw [PortMap.rw_rule_execution
-              (by
-                unfold generate_history
-                rewrite [Batteries.AssocList.find?_mapVal]
-                rewrite [hip_avail]
-                dsimp)]
-            and_intros
-            simp [*]; simp [-Batteries.AssocList.find?_eq]; rw [hip_avail]; rfl
-            simp; apply (match_interface s_1_m).output_types ip
+          unfold StateTransition.step
+          unfold Module.state_transition
+          obtain ⟨s_1_s, s_1_m⟩ := s_1
+          obtain ⟨s1'_s, s1'_m⟩ := s1'
+          subst_vars
+          have hg : (generate_history s_1_m).outputs.getIO ip =
+              ⟨_, fun s i s' => (s_1_m.outputs.getIO ip).snd s.2 i s'.2 ∧ s'.1 = s.1.concat (IOEvent.output ip ⟨_, i⟩)⟩ := by
+            simp only [generate_history, PortMap.getIO, Batteries.AssocList.find?_mapVal]
+            cases s_1_m.outputs.find? ip <;> simp
+          apply Module.step.output (v := ((match_interface s_1_m).output_types ip).mp type_i)
+          · rw [PortMap.rw_rule_execution hg]; simpa
+          · simp; apply (match_interface s_1_m).output_types ip
         case internal r s_2 rel h_rel =>
           simp
           unfold StateTransition.step

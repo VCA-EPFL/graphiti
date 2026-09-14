@@ -164,7 +164,7 @@ noncomputable def f : T → T × Bool := cast_f available2.2.2.2.1.choose.2.2
   · exact available3.2.2.1
   · exact available3.2.1
   · exact available3.2.2.1
-  · simp [f, cast_f]
+  · simp [f, cast_f]; grind [cast_heq]
 @[drenv] theorem lhs_ε_find5 : e.ε.find? ("split", e.types[3]) = some ⟨_, split T Bool⟩ := by
   rewrite [available2.2.2.2.2.1.choose_spec,available3.2.2.2.1,available3.2.2.2.2.1]; rfl
 @[drenv] theorem lhs_ε_find6 : e.ε.find? ("branch", e.types[2]) = some ⟨_, branch T⟩ := by
@@ -189,7 +189,7 @@ noncomputable def ε_rhs : FinEnv String (String × Nat) :=
 @[drenv] theorem rhs_ε_find5 : ε_rhs.find? ("pure", e.max_type+5) = some ⟨_, StringModule.pure (liftF (γ := TagT) f)⟩ := by simp [ε_rhs]
 
 seal T f in
-def_module lhsType : Type :=
+@[reducible] def_module lhsType : Type :=
   [T| (lhsLower e.types), e.ε.find? ]
 reduction_by
   dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
@@ -217,7 +217,7 @@ reduction_by
    dsimp [Module.liftL, Module.liftR, drcomponents])
 
 seal T f ε_rhs in
-def_module rhsModuleType : Type :=
+@[reducible] def_module rhsModuleType : Type :=
   [T| (rhsLower e.max_type), ε_rhs.find? ]
 reduction_by
   dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
@@ -351,7 +351,7 @@ theorem ghost_rhs_wt : (rhsGhostLower e.max_type).well_typed ε_rhs_ghost.toEnv 
     · dsimp [reduceEraseAll, reduceAssocListfind?]
 
 seal T f ε_rhs_ghost in
-def_module rhsGhostType : Type :=
+@[reducible] def_module rhsGhostType : Type :=
   [T| (rhsGhostLower e.max_type), ε_rhs_ghost.toEnv ]
 reduction_by
   dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]

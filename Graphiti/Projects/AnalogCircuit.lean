@@ -245,7 +245,7 @@ def env_vr (E R : ℝ) := (vr_circuit E R).2
 
 -- Type extraction: TODO do a tactic for that
 seal env_vr in
-def_module vr_module_t (E R: ℝ): Type :=
+@[reducible] def_module vr_module_t (E R: ℝ): Type :=
   [T| vr_lowered, (env_vr 0 0).find? ]
 reduction_by
   dsimp [vr_lowered]
@@ -278,7 +278,7 @@ def env_vrc (E R C : ℝ) := (vrc_circuit E R C).2
 
 seal env_vrc in
 -- Type extraction: TODO do a tactic for that
-def_module vrc_module_t : Type :=
+@[reducible] def_module vrc_module_t : Type :=
   [T| vrc_lowered, (env_vrc 0 0 0).find? ]
 reduction_by
   dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
@@ -315,7 +315,7 @@ def env_nand (Vdd R Vth : ℝ) := (nand_circuit Vdd R Vth).2
 
 seal env_nand in
 -- Type extraction: TODO do a tactic for that
-def_module nand_module_t : Type :=
+@[reducible] def_module nand_module_t : Type :=
   [T| nand_lowered, (env_nand 0 0 0).find? ]
 reduction_by
   dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]

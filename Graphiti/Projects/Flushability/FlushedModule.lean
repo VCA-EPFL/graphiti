@@ -569,8 +569,8 @@ variable [MatchInterface mod₁ mod₂]
 instance [sr: SimulationRelation φ mod₁ mod₂]: SimulationRelation φ (flushed mod₁) (flushed mod₂) := {
   inputs_preserved    := by
     intros ident i₁ i₂ v s₁ s₂ h₁ h₂ h₃
-    rw [PortMap.rw_rule_execution (flushed_inputs_are_rflushed _ _)] at h₂
-    rw [PortMap.rw_rule_execution (flushed_inputs_are_rflushed _ _)] at h₃
+    rw [PortMap.rw_rule_execution (by rw [flushed_inputs_are_rflushed, rflushed])] at h₂
+    rw [PortMap.rw_rule_execution (by rw [flushed_inputs_are_rflushed, rflushed])] at h₃
     obtain ⟨w₁, _, _, _⟩ := h₂
     obtain ⟨w₂, _, _, _⟩ := h₃
     simp at *
@@ -610,9 +610,8 @@ by
   intros ident _ _ s₂ _
   obtain ⟨s₃, _⟩ := f.flushable s₂
   use s₃
-  have := flushed_inputs_are_rflushed mod ident
-  rw [PortMap.rw_rule_execution this]
-  simp [rflushed]
+  rw [PortMap.rw_rule_execution (by rw [flushed_inputs_are_rflushed, rflushed])]
+  simp
   use s₂
 
 lemma fm_imp_m: ∀ ident s₁ v s₂,
@@ -620,9 +619,8 @@ lemma fm_imp_m: ∀ ident s₁ v s₂,
   → ∃ s₃, (mod.inputs.getIO ident).snd s₁ (flushed_preserves_input_over_getIO.mp v) s₃ :=
 by
   intros ident _ _ _ h
-  have := flushed_inputs_are_rflushed mod ident
-  rw [PortMap.rw_rule_execution this] at h
-  simp [rflushed] at h
+  rw [PortMap.rw_rule_execution (by rw [flushed_inputs_are_rflushed, rflushed])] at h
+  simp at h
   obtain ⟨s₃, _, _⟩ := h
   simp
   use s₃
@@ -674,8 +672,8 @@ private theorem flushed_refinesφ_nonflushed:
   -- input rules
   . intro ident mid_i v h
     simp only [eq_mp_eq_cast, exists_and_left, exists_eq_right']
-    rw [PortMap.rw_rule_execution (flushed_inputs_are_rflushed _ _)] at h
-    dsimp [rflushed] at h
+    rw [PortMap.rw_rule_execution (by rw [flushed_inputs_are_rflushed, rflushed])] at h
+    simp at h
     obtain ⟨s', _, h⟩ := h
     apply flushesTo_implies_reachable at h
     use s'
@@ -739,9 +737,8 @@ by
     and_intros
     . assumption
     . apply existSR_reflexive
-    . have := flushed_inputs_are_rflushed mod ident
-      rw [PortMap.rw_rule_execution this] at h₃
-      simp [rflushed] at h₃ <;> clear this
+    . rw [PortMap.rw_rule_execution (by rw [flushed_inputs_are_rflushed, rflushed])] at h₃
+      simp at h₃
       obtain ⟨s₅, _, _, _⟩ := h₃
       constructor
       . apply existSR_transitive _ _ s₄ _

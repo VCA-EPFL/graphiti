@@ -413,7 +413,7 @@ theorem scanl_drop_cons (f : β → α → β) (init : β) (a : α) (l : List α
 theorem getElem_scanl_drop (f : β → α → β) (init : β) (l : List α)
     (i : Nat) (hi : i < (scanl_drop f init l).length) :
     (scanl_drop f init l)[i] = (List.take (i + 1) l).foldl f init := by
-  unfold scanl_drop
+  simp only [scanl_drop]
   simp only [List.getElem_drop, List.length_scanl] at *
   -- Kinda silly but whatever
   conv => enter [1, 2]; rw [Nat.add_comm]
@@ -423,7 +423,7 @@ lemma getElem_succ_scanl_drop (f : β → α → β) (init : β) (l : List α)
     (i : Nat) (hi : i + 1 < (scanl_drop f init l).length)
   : (scanl_drop f init l)[i + 1] = f ((scanl_drop f init l)[i]) (l[i + 1]'(by grind only [length_scanl_drop]))
   := by
-  unfold scanl_drop
+  simp only [scanl_drop]
   rw [List.getElem_drop, List.getElem_drop]
   conv => lhs; lhs; rw [Nat.add_comm]
   conv => rhs; lhs; lhs; rw [Nat.add_comm]
@@ -919,7 +919,7 @@ def env := (et_flip_flop_m).2
 @[drenv] theorem find?_sink_m : (Batteries.AssocList.find? "sink" env) = .some ⟨_, sink_sm⟩ := rfl
 
 seal env in
-def_module lhsModuleType : Type :=
+@[reducible] def_module lhsModuleType : Type :=
   [T| et_flip_flop_m_lowered, env.find? ]
 reduction_by
   dsimp [et_flip_flop_m_lowered]
@@ -960,7 +960,7 @@ def env_s := (et_ff_buffered_s).2
 @[drenv] theorem find?_dff_s : (Batteries.AssocList.find? "dff" env_s) = .some ⟨_, et_flip_flop_spec⟩ := rfl
 
 seal env_s in
-def_module rhsModuleType : Type :=
+@[reducible] def_module rhsModuleType : Type :=
   [T| et_ff_buffered_s_lowered, env_s.find? ]
 reduction_by
   dsimp [et_ff_buffered_s_lowered]
@@ -1155,7 +1155,7 @@ lemma lhs_eq_sim (lhs : lhsModuleType) (h_wf : lhs_wf lhs)
   := by
   induction i with
   | zero =>
-      unfold circuit_sim circuit_step
+      simp only [circuit_sim, circuit_step]
       rw [List.getElem_scanl]
       obtain ⟨n2, n2f, n6, n5, n4f, n3f, n4, n6f, clkf, n3, n1, unit, n5f⟩ := lhs
       unfold lhs_wf at h_wf
@@ -1180,7 +1180,7 @@ lemma lhs_eq_sim (lhs : lhsModuleType) (h_wf : lhs_wf lhs)
       unfold clk_from_lhs d_from_lhs
       dsimp at *
       -- Shuffle things around to end up with a circuit sim up to i, then a single-step
-      unfold circuit_sim
+      simp only [circuit_sim]
       simp only [length_circuit_sim, clk_from_lhs, d_from_lhs] at h_circuit
       rw [List.getElem_scanl, ←List.take_append_getElem (by rw [List.length_zip]; omega)]
       rw [List.foldl_append]
@@ -1852,7 +1852,7 @@ theorem refines' :
       . -- Split by cases on the port
         unfold lhsModule at HContains; simp at HContains
         rcases HContains with h | h
-        <;> subst_vars <;> dsimp <;> rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at h <;> simp [Module.liftL, Module.liftR] at h
+        <;> subst_vars <;> dsimp [reducePortMapgetIO] at v h <;> simp [Module.liftL, Module.liftR] at h
         . -- data line
           destruct_ands_eqs
           rename_i Hstrict_less
@@ -1983,7 +1983,7 @@ theorem refines' :
 
       -- Simplify the internal transitions' meaning
       all_goals (
-        dsimp [lhsModule] at Hin
+        simp only [lhsModule, List.getElem_cons_succ, List.getElem_cons_zero] at Hin
         subst Hin
         dsimp [Module.liftL, Module.liftR, Named] at Ha
         simp only [↓existsAndEq, and_true, Prod.exists, Prod.mk.injEq, true_and, exists_const,
@@ -2185,7 +2185,7 @@ def env_bfam := buffered_full_adder_m.2
 @[drenv] theorem find?_sink_s_m : (Batteries.AssocList.find? "sink" env_bfam) = .some ⟨_, sink_m⟩ := rfl
 
 seal env_bfam in
-def_module full_adder_spec_t : Type :=
+@[reducible] def_module full_adder_spec_t : Type :=
   [T| buffered_full_adder_m_lowered, env_bfam.find? ]
 reduction_by
   dsimp [buffered_full_adder_m_lowered]
@@ -2252,7 +2252,7 @@ def env_fas := full_adder_s.2
 @[drenv] theorem find?_sink_i_m : (Batteries.AssocList.find? "sink" env_fas) = .some ⟨_, sink_m⟩ := rfl
 
 seal env_fas in
-def_module full_adder_imp_t : Type :=
+@[reducible] def_module full_adder_imp_t : Type :=
   [T| full_adder_s_lowered, env_fas.find? ]
 reduction_by
   dsimp [full_adder_s_lowered]

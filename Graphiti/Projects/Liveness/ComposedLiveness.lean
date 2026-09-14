@@ -55,7 +55,7 @@ theorem gcompf_output_spec {T f g} (st1: List T × List T) (io: T):
   constructor <;> try rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
   . simp at *
     constructor
-  . simp [NatModule.gcompf] at *
+  . simp [NatModule.gcompf] at *; rfl
 
 
 
@@ -67,7 +67,7 @@ theorem gcompf_input_spec {T f g} (st1: List T × List T) (io: T):
   constructor <;> try rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
   . simp at *
     constructor
-  . simp [NatModule.gcompf] at *
+  . simp [NatModule.gcompf] at *; rfl
 
 
 
@@ -184,7 +184,6 @@ theorem gcompf_steps_holds_ {T f g} (s1 s2: State ℕ (List T × List T)) (t: Li
       simp at *
       rcases h_out_eval with ⟨ n_is_zero, G_is_T ⟩
       subst_vars
-      simp at *
       rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
       rcases TpeEq with ⟨ left, right ⟩
       rcases st3 with ⟨st3fst_, st3snd ⟩
@@ -196,24 +195,14 @@ theorem gcompf_steps_holds_ {T f g} (s1 s2: State ℕ (List T × List T)) (t: Li
       cases iH_ with
       | inl st3_stars_st5 =>
         left
-        cases st3snd with
-        | nil => simp at eq2
-        | cons head tail =>
-          rcases eq2 with ⟨ eq1, eq2 ⟩
-          subst_vars
-          have fst_step := @star.plus_one _ _ (state_transition (NatModule.gcompf G f g)) _ _ _  (@gcompf_output_spec G f g ([],  st4.snd ++ (map g st4.fst ++ [g (f io)])) head); simp at fst_step st3_stars_st5
-          have fin := @star.trans_star _ _ (state_transition (NatModule.gcompf G f g)) { state := (st1.fst ++ [f io], st1.snd), module := NatModule.gcompf G f g }  _ _ _ _   st3_stars_st5 fst_step
-          exact fin
+        have fst_step := @star.plus_one _ _ (state_transition (NatModule.gcompf G f g)) _ _ _  (@gcompf_output_spec G f g ([],  st4.snd ++ (map g st4.fst ++ [g (f io)])) el); simp at fst_step st3_stars_st5
+        have fin := @star.trans_star _ _ (state_transition (NatModule.gcompf G f g)) { state := (st1.fst ++ [f io], st1.snd), module := NatModule.gcompf G f g }  _ _ _ _   st3_stars_st5 fst_step
+        exact fin
       | inr st3_stars_st5 =>
         right
-        cases st3snd with
-        | nil => simp at eq2
-        | cons head tail =>
-          rcases eq2 with ⟨ eq1, eq2 ⟩
-          subst_vars
-          have fst_step := @star.plus_one _ _ (state_transition (NatModule.gcompf G f g)) _ _ _  (@gcompf_output_spec G f g (st4.fst ++ [f io],  st4.snd) head); simp at fst_step st3_stars_st5
-          have fin := @star.trans_star _ _ (state_transition (NatModule.gcompf G f g)) { state := (st1.fst ++ [f io], st1.snd), module := NatModule.gcompf G f g }  _ _ _ _   st3_stars_st5 fst_step
-          exact fin
+        have fst_step := @star.plus_one _ _ (state_transition (NatModule.gcompf G f g)) _ _ _  (@gcompf_output_spec G f g (st4.fst ++ [f io],  st4.snd) el); simp at fst_step st3_stars_st5
+        have fin := @star.trans_star _ _ (state_transition (NatModule.gcompf G f g)) { state := (st1.fst ++ [f io], st1.snd), module := NatModule.gcompf G f g }  _ _ _ _   st3_stars_st5 fst_step
+        exact fin
     | internal st3fst TpeEq =>
       intro io
       rename_i n

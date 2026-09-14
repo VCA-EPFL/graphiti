@@ -33,11 +33,9 @@ theorem rw_rule_execution {S : Type _} {a b : Σ (T : Type _), S → T → S →
 theorem rule_contains {S} {a : PortMap Ident (Σ T, S → T → S → Prop)} {ident init_i v new_i}:
   (a.getIO ident).2 init_i v new_i →
   a.contains ident := by
-  unfold PortMap.getIO
   intro H
   cases h : (AssocList.find? ident a)
-  · have : ((AssocList.find? ident a).getD ⟨PUnit.{u_3 + 1}, fun x x x => False⟩) = ⟨PUnit.{u_3 + 1}, fun x x x => False⟩ := by
-      rw [h]; rfl
+  · have : a.getIO ident = ⟨PUnit, fun _ _ _ => False⟩ := by simp only [PortMap.getIO, h, Option.getD_none]
     rw [rw_rule_execution this] at H; simp at H
   · rw [← AssocList.contains_find?_iff]
     exact Exists.intro _ h

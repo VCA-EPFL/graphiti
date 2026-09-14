@@ -94,7 +94,7 @@ theorem gcompf_input_spec {T f g} (st1: List T × List T × Trace ℕ) (io: T):
   constructor <;> try rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
   . simp at *
     constructor <;> exact rfl
-  . simp [NatModule.gcompfHist] at *
+  . simp [NatModule.gcompfHist] at *; rfl
 
 theorem gcompf_empty_spec {T f g} (st1: List T × List T × Trace ℕ) :
 @step _ _ _ ⟨(st1.fst, st1.snd.fst, st1.snd.snd), NatModule.gcompfHist T f g ⟩ []
@@ -114,7 +114,7 @@ theorem gcompf_output_spec {T f g} (st1: List T × List T × Trace ℕ) (io: T):
   constructor <;> try rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
   . simp at *
     constructor <;> exact rfl
-  . simp [NatModule.gcompfHist] at *
+  . simp [NatModule.gcompfHist] at *; rfl
 
 
 
@@ -379,7 +379,7 @@ theorem gcomfhist_steps_gcompfhistfun {T}
       constructor <;> try rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
       . simp at *
         constructor <;> try exact rfl
-        simp
+        simp; rfl
       . simp [History.generate_history, NatModule.gcompfHist] at *
         constructor
     . exfalso
@@ -397,7 +397,7 @@ theorem gcomfhist_steps_gcompfhistfun {T}
       constructor <;> try rw [PortMap.rw_rule_execution (by simp [drunfold]; rfl)] at *
       . simp at *
         constructor <;> try exact rfl
-        simp
+        simp; rfl
       . simp [History.generate_history, NatModule.gcompfHist] at *
         constructor
     . exfalso

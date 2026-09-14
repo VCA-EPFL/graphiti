@@ -191,6 +191,7 @@ namespace Graphiti.Projects.Noc
             rw [vec_set_toList]
             rw [list_set_flatten (hidx := by simpa)]
             rw [←List.insertIdx_length_self]
+            conv => rhs; erw [eq_mp_eq_cast, eq_mp_eq_cast, cast_cast]
             apply list_Perm_insertIdx (hidx2 := by simpa)
             · apply List.Perm.trans _ Hrf2
               rw [←vec_set_toList, ←vec_set_map]
@@ -228,7 +229,7 @@ namespace Graphiti.Projects.Noc
                       rw [heq] at tmp3 tmp4
                       dsimp at tmp3 tmp4
                       simp [drunfold_defs, drcomponents, noc'] at heq
-                      simp [heq]
+                      erw [heq]
                       rw [tmp3, tmp4]
               simp only [noc', RoutingPolicy.Flit, Flit',
                 Buffer.Unbounded.bag.eq_1, RouterID', List.remove.eq_1,
@@ -236,6 +237,7 @@ namespace Graphiti.Projects.Noc
                 routing_function_reconstruct
               ] at ⊢ this
               rw [this]
+              rfl
             · simp [drcomponents, drunfold_defs]
               rw [←Vector.toList_map]
               rw [←Vector.mapIdx_eq_map]
@@ -336,7 +338,7 @@ namespace Graphiti.Projects.Noc
                 simp at f2
                 rw [Hrule1] at f2
                 injection f2 with _ f2
-                rw [←f2]
+                rw [←f2]; rfl
       obtain ⟨sidx, Hsidx⟩ := in_list_idx Hvin
       exists s, (List.remove s sidx)
       and_intros
@@ -347,7 +349,7 @@ namespace Graphiti.Projects.Noc
         and_intros
         · rfl
         · simp [drunfold_defs, drcomponents] at Hsidx
-          simpa only [cast_cast, Hsidx]
+          simp only [Hsidx]; erw [eq_mp_eq_cast, eq_mp_eq_cast, cast_cast]; rfl
       · -- We do not need to take extra care for the routing function:
         -- we have less element in the router, so everything in it was also
         -- exactly at the same place in the other router, which in turn means
@@ -417,8 +419,7 @@ namespace Graphiti.Projects.Noc
               subst dst_flit
               dsimp at Hx
               rw [Hx] at Hidx'2
-              simp only [Hidx'2]
-              rfl
+              rw [Hidx'2]
           · apply List.Perm.trans _ Hrf2
             rw [←vec_set_toList, ←vec_set_map, Vector.set_getElem_self]
             exact List.Perm.rfl

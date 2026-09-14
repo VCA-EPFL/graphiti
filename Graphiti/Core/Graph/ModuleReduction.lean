@@ -246,6 +246,17 @@ dsimproc [] reduceExprHighLower (ExprHigh.lower_TR _) := reduceAssocListfind?Imp
 dsimproc [] reduceExprHighLowerConnTR (ExprHigh.lower'_conn_TR _ _) := reduceAssocListfind?Imp
 dsimproc [] reduceExprHighLowerProdTR (ExprHigh.lower'_prod_TR _ _) := reduceAssocListfind?Imp
 
+open Lean Meta in
+/--
+Reduce `Option.get (some a) h` to `a` without checking the type of `h`.  After unfolding definitions such as `lhs` in
+`(lhs T).extract [...] |>.get rfl`, the type of the proof only matches by unfolding `lhs`, so `Option.get_some` does not
+apply.
+-/
+dsimproc [simp] reduceOptionGetSome (Option.get (some _) _) := fun e => do
+  let_expr Option.get _ x _ := e | return .continue
+  let_expr some _ a := x | return .continue
+  return .visit a
+
 macro "dr_reduce_module" : tactic =>
   `(tactic|
        (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]

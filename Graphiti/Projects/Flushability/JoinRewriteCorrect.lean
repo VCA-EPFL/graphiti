@@ -85,7 +85,7 @@ def environmentRhs : IdentMap String (TModule1 String) := rhs T₁ T₂ T₃ S�
 variable (T₁ T₂ T₃) in
 include T₁ T₂ T₃ in
 seal environmentLhs in
-def_module lhsModuleType : Type :=
+@[reducible] def_module lhsModuleType : Type :=
   [T| (rewriteLhsRhs S₁ S₂ S₃).input_expr, (@environmentLhs T₁ T₂ T₃ S₁ S₂ S₃).find? ]
 reduction_by
   dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
@@ -115,7 +115,7 @@ reduction_by
 
 variable (T₁ T₂ T₃) in
 seal environmentRhs in
-def_module rhsModuleType : Type :=
+@[reducible] def_module rhsModuleType : Type :=
   [T| (rewriteLhsRhs S₁ S₂ S₃).output_expr, (@environmentRhs T₁ T₂ T₃ S₁ S₂ S₃).find? ]
 reduction_by
   dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
@@ -203,8 +203,7 @@ instance: OutputPreservesFlushability (lhsModule T₁ T₂ T₃) := by
   apply partially_flushed_is_pf
   by_cases HContains: ((lhsModule T₁ T₂ T₃).outputs.contains ident)
   . simp [lhsModule] at HContains <;> subst HContains
-    dsimp [lhsModule] at h₁
-    rw [PortMap.rw_rule_execution] at h₁
+    rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at h₁
     repeat
       cases ‹_ ∧ _›; simp at *
     subst_vars
@@ -331,13 +330,11 @@ by
   . simp [rhsModule] at HContains
     rcases HContains with h | h | h <;> subst h
     . --
-      unfold lhsModule at h₃
-      rw [PortMap.rw_rule_execution] at h₃
+      rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at h₃
       simp at h₃
       obtain ⟨⟨_, _⟩, _, _⟩ := h₃
       --
-      unfold rhsModule at h₂
-      rw [PortMap.rw_rule_execution] at h₂
+      rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at h₂
       simp at h₂
       obtain ⟨⟨_, _⟩, ⟨_, _⟩, _⟩ := h₂
       --
@@ -352,14 +349,12 @@ by
       . assumption
       . rfl
     . --
-      unfold lhsModule at h₃
-      rw [PortMap.rw_rule_execution] at h₃
+      rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at h₃
       simp at h₃
       obtain ⟨⟨_, _⟩, _, _⟩ := h₃
       --
       --
-      unfold rhsModule at h₂
-      rw [PortMap.rw_rule_execution] at h₂
+      rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at h₂
       simp at h₂
       obtain ⟨⟨⟨_, _⟩, _⟩, ⟨_, _⟩, _⟩ := h₂
       --
@@ -372,14 +367,12 @@ by
         congr
       . rfl
     . --
-      unfold lhsModule at h₃
-      rw [PortMap.rw_rule_execution] at h₃
+      rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at h₃
       simp at h₃
       obtain ⟨⟨_, _⟩, _, _⟩ := h₃
       --
       --
-      unfold rhsModule at h₂
-      rw [PortMap.rw_rule_execution] at h₂
+      rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at h₂
       simp at h₂
       obtain ⟨⟨⟨_, _⟩, _⟩, ⟨_, _⟩, _⟩ := h₂
       --
@@ -403,12 +396,10 @@ by
   intro ident ⟨⟨_, _⟩, ⟨_, _⟩, _⟩ ⟨⟨_, _⟩, ⟨_, _⟩, _⟩ v ⟨⟨_, _⟩, ⟨_, _⟩⟩ ⟨⟨_, _⟩, ⟨_, _⟩⟩ h₁ h₂ h₃
   by_cases HContains: ((rhsModule T₁ T₂ T₃).outputs.contains ident)
   . simp [rhsModule] at HContains; subst HContains
-    unfold rhsModule at h₂
-    rw [PortMap.rw_rule_execution] at h₂; simp at h₂
+    rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at h₂ h₃; simp at h₂ h₃
     repeat
       cases ‹_ ∧ _›
     simp at *
-    cases ‹_ ∧ _›
     subst_vars
 
     dsimp [ψ]
@@ -440,14 +431,13 @@ by
   . simp [lhsModule] at HContains
     rcases HContains with h | h | h <;> subst h
     all_goals
-      dsimp [lhsModule] at h₁ h₂
-      rw [PortMap.rw_rule_execution] at h₁ h₂
+      rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at h₁ h₂
       dsimp at h₁ h₂
       repeat
         cases ‹_ ∧ _›
         try simp at *
         try subst_vars
-      rfl
+      simp
   . exfalso; exact (PortMap.getIO_not_contained_false (by assumption) HContains)
 
 private theorem internal_rules_deterministic:
@@ -463,7 +453,7 @@ by
     cases ‹_ ∧ _›
     try simp at *
     try subst_vars
-  rfl
+  simp
 
 private theorem output_rules_deterministic: ∀ ident s₁ v s₂ s₃,
   ((lhsModule T₁ T₂ T₃).outputs.getIO ident).snd s₁ v s₂
@@ -473,14 +463,13 @@ by
   intro ident ⟨⟨_ , _⟩, ⟨_ , _⟩⟩ _ ⟨⟨_ , _⟩, ⟨_ , _⟩⟩ ⟨⟨_ , _⟩, ⟨_ , _⟩⟩ h₁ h₂
   by_cases HContains: ((lhsModule T₁ T₂ T₃).outputs.contains ident)
   . simp [lhsModule] at HContains; subst HContains
-    dsimp [lhsModule] at h₁ h₂
-    rw [PortMap.rw_rule_execution] at h₁ h₂
+    rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at h₁ h₂
     dsimp at h₁ h₂
     repeat
       cases ‹_ ∧ _›
       try simp at *
       try subst_vars
-    rfl
+    simp
   . exfalso; exact (PortMap.getIO_not_contained_false (by assumption) HContains)
 
 instance: Deterministic (lhsModule T₁ T₂ T₃) :=
@@ -534,8 +523,7 @@ by
   .
     simp [rhsModule] at HContains <;> subst HContains
     --
-    unfold rhsModule at h₃
-    rw [PortMap.rw_rule_execution] at h₃
+    rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at h₃
     simp at h₃
     obtain ⟨⟨_, _, _⟩, _, _⟩ := h₃
     obtain ⟨_, _, _⟩ := h₁
@@ -563,8 +551,7 @@ by
   by_cases HContains: (rhsModule T₁ T₂ T₃).outputs.contains ident
   . simp [rhsModule] at HContains <;> subst HContains
     --
-    unfold rhsModule at h₃
-    rw [PortMap.rw_rule_execution] at h₃
+    rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at h₃
     simp at h₃
     obtain ⟨⟨_, _, _⟩, _, _⟩ := h₃
     subst_vars
@@ -572,8 +559,7 @@ by
     cases h₂
     obtain ⟨_, _, _⟩ := h₁
     apply Exists.intro ⟨⟨_, _⟩, ⟨_, _⟩⟩
-    unfold lhsModule
-    rw [PortMap.rw_rule_execution]
+    rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]
     simp
     and_intros
     . rw [List.map_cons, List.map_cons] at *
@@ -600,8 +586,7 @@ by
   rcases h with h | h | h <;> subst h
   all_goals
     apply Exists.intro ⟨⟨_ , _⟩, ⟨_ , _⟩⟩
-    dsimp [lhsModule]
-    rw [PortMap.rw_rule_execution]
+    rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]
     simp <;> and_intros <;> rfl
 
 -- NOTE: To generalize this statement, the underlying module must:
@@ -695,7 +680,7 @@ theorem refines₀: rhsModule T₁ T₂ T₃ ⊑_{φ} lhsModule T₁ T₂ T₃ :
       unfold rhsModule at HContains; simp at HContains
 
       rcases HContains with h | h | h
-        <;> subst_vars <;> simp <;> rw [PortMap.rw_rule_execution] at a <;> simp at a
+        <;> subst_vars <;> simp [-Prod.exists] <;> rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at a <;> simp at a
       . obtain ⟨⟨_, _⟩, ⟨_, _⟩, _⟩ := a
         subst_vars
         have_hole heq : ((rhsModule T₁ T₂ T₃).inputs.getIO { inst := InstIdent.top, name := "i_0" }).fst = _ := by dsimp [reducePortMapgetIO]
@@ -704,7 +689,7 @@ theorem refines₀: rhsModule T₁ T₂ T₃ ⊑_{φ} lhsModule T₁ T₂ T₃ :
         apply And.intro
         . -- verify that the rule holds
           rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]
-          simp only [eq_mp_eq_cast, cast_eq, List.concat_eq_append, and_self]
+          simp
         . -- verify that the invariant holds when we flush the system
           obtain ⟨s', ⟨_, _⟩⟩ := flhs.flushable ⟨⟨sj2l, sj2r⟩, sj1l ++ [heq.mp s], sj1r⟩ -- We flush the system to reach s'
           use s'
@@ -726,17 +711,17 @@ theorem refines₀: rhsModule T₁ T₂ T₃ ⊑_{φ} lhsModule T₁ T₂ T₃ :
             . apply pf_is_partially_flushed <;> assumption
       . obtain ⟨⟨⟨_, _⟩, _⟩, ⟨_, _⟩, _⟩ := a
         subst_vars
-        reduce at s
-        use ⟨⟨sj2l, sj2r⟩, ⟨sj1l, sj1r ++ [s]⟩⟩
+        have_hole heq : ((rhsModule T₁ T₂ T₃).inputs.getIO { inst := InstIdent.top, name := "i_1" }).fst = _ := by dsimp [reducePortMapgetIO]
+        use ⟨⟨sj2l, sj2r⟩, ⟨sj1l, sj1r ++ [heq.mp s]⟩⟩
         apply And.intro
         . rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]; simp
-        . obtain ⟨s', ⟨_, _⟩⟩ := flhs.flushable ⟨⟨sj2l, sj2r⟩, sj1l, sj1r ++ [s]⟩
+        . obtain ⟨s', ⟨_, _⟩⟩ := flhs.flushable ⟨⟨sj2l, sj2r⟩, sj1l, sj1r ++ [heq.mp s]⟩
           use s'
           apply And.intro
           . assumption
           . unfold φ at *
             apply And.intro
-            . apply ψ_holds_over_internals_spec _ (⟨sj2l, sj2r⟩, sj1l, sj1r ++ [s]) s'
+            . apply ψ_holds_over_internals_spec _ (⟨sj2l, sj2r⟩, sj1l, sj1r ++ [heq.mp s]) s'
               . obtain ⟨Hψ, _⟩ := Hφ
                 unfold ψ at *; simp at *
                 obtain ⟨_, _, _⟩ := Hψ
@@ -750,17 +735,17 @@ theorem refines₀: rhsModule T₁ T₂ T₃ ⊑_{φ} lhsModule T₁ T₂ T₃ :
             . apply pf_is_partially_flushed <;> assumption
       . obtain ⟨⟨⟨_, _⟩, _⟩, ⟨_, _⟩, _⟩ := a
         subst_vars
-        reduce at s
-        use ⟨⟨sj2l, sj2r ++ [s]⟩, ⟨sj1l, sj1r⟩⟩
+        have_hole heq : ((rhsModule T₁ T₂ T₃).inputs.getIO { inst := InstIdent.top, name := "i_2" }).fst = _ := by dsimp [reducePortMapgetIO]
+        use ⟨⟨sj2l, sj2r ++ [heq.mp s]⟩, ⟨sj1l, sj1r⟩⟩
         apply And.intro
         . rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]; simp
-        . obtain ⟨s', ⟨_, _⟩⟩ := flhs.flushable ⟨⟨sj2l, sj2r ++ [s]⟩, sj1l, sj1r⟩
+        . obtain ⟨s', ⟨_, _⟩⟩ := flhs.flushable ⟨⟨sj2l, sj2r ++ [heq.mp s]⟩, sj1l, sj1r⟩
           use s'
           apply And.intro
           . assumption
           . unfold φ at *
             apply And.intro
-            . apply ψ_holds_over_internals_spec _ (⟨sj2l, sj2r  ++ [s]⟩, sj1l, sj1r) s'
+            . apply ψ_holds_over_internals_spec _ (⟨sj2l, sj2r  ++ [heq.mp s]⟩, sj1l, sj1r) s'
               . obtain ⟨Hψ, _⟩ := Hφ
                 unfold ψ at *; simp at *
                 obtain ⟨_, _, _⟩ := Hψ
@@ -784,77 +769,15 @@ theorem refines₀: rhsModule T₁ T₂ T₃ ⊑_{φ} lhsModule T₁ T₂ T₃ :
         obtain ⟨⟨ij2l', ij2r'⟩, ⟨ij1l', ij1r'⟩, ip'⟩ := i
         unfold rhsModule at HContains; simp at HContains
         rcases HContains with h <;> subst_vars <;> simp
-        rw [PortMap.rw_rule_execution (by simp [PortMap.getIO]; rfl)] at hrule <;>
+        rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at hrule <;>
         simp at hrule
         obtain ⟨⟨_, _⟩, ⟨_, _⟩, _⟩ := hrule
         repeat cases ‹_∧_›
         subst_vars
         rename_i hlval hrval hpf
-        dsimp at *
-        rename_i htmp; cases htmp
-        cases hpf
-        · simp at hlval; simp at *
-          rw [<- List.take_append_drop ij2l.length (List.map Prod.fst ij2r ++ ij1l)] at hrval
-          --rw [<- List.append_assoc (List.map (Prod.snd ∘ Prod.fst) ip')] at hrval
-          --rw [<- List.append.eq_2 _ _ ((List.map (Prod.snd ∘ Prod.fst) ip' ++ List.take ij2l.length (List.map Prod.fst ij2r' ++ ij1l'))] at hrval
-          rw [show v.1.2 ::
-              (List.map (Prod.snd ∘ Prod.fst) ip' ++
-                (List.take ij2l.length (List.map Prod.fst ij2r ++ ij1l) ++
-                  List.drop ij2l.length (List.map Prod.fst ij2r ++ ij1l))) = v.1.2 ::
-              (List.map (Prod.snd ∘ Prod.fst) ip' ++
-                List.take ij2l.length (List.map Prod.fst ij2r ++ ij1l)) ++
-                  List.drop ij2l.length (List.map Prod.fst ij2r ++ ij1l) by simp] at hrval
-          rw [append_iff] at hrval
-          obtain ⟨hrvall, _⟩ := hrval
-          . subst_vars
-            apply Exists.intro ⟨ ⟨ _, _ ⟩, _, _ ⟩
-            and_intros <;> try dsimp
-            · rewrite [product_is_list_zip sj2l, hlval, hrvall]; rfl
-            · apply lengthify at hlval; simp at hlval
-              apply lengthify at hrvall; simp [hlval, add_comm _ 1, add_right_inj, add_assoc] at hrvall
-              rw [List.append_nil, <- List.zip_eq_zipWith, List.map_fst_zip]
-              simp [hrvall] -- lia + assumption in context
-            . apply lengthify at hlval; simp at hlval
-              apply lengthify at hrvall; simp [hlval, add_comm _ 1, add_right_inj, add_assoc] at hrvall
-              rewrite [<- List.zip_eq_zipWith, List.map_snd_zip]
-              . simp only [List.append_assoc, List.take_append_drop]
-              . simp only [List.length_append, List.length_map, List.length_take, add_le_add_iff_left, inf_le_left]
-            · rewrite [List.append_assoc]; rfl
-            · constructor
-          . apply lengthify at hlval; simp at hlval
-            apply lengthify at hrval; simp [hlval, add_comm _ 1, add_right_inj, add_assoc] at hrval
-            simp only [hlval, List.length_map, List.length_cons, List.length_append, List.length_take,
-              add_left_inj, add_right_inj, left_eq_inf] -- lengthify the goal
-            simp only [le_iff_exists_add, <- hrval, add_right_inj, exists_eq'] -- lia
-        . simp at hrval; simp at *
-          rw [<- List.take_append_drop (ij2r.length + ij1l.length) ij2l] at hlval
-          rw [show v.1.1 ::
-              (List.map (Prod.fst ∘ Prod.fst) ip' ++
-                (List.take (ij2r.length + ij1l.length) ij2l ++
-                  List.drop (ij2r.length + ij1l.length) ij2l)) = v.1.1 ::
-              (List.map (Prod.fst ∘ Prod.fst) ip' ++
-                List.take (ij2r.length + ij1l.length) ij2l) ++
-                  List.drop (ij2r.length + ij1l.length) ij2l by simp] at hlval
-          rw [append_iff] at hlval
-          obtain ⟨hlvall, hlvalr⟩ := hlval
-          . subst_vars
-            apply Exists.intro ⟨ ⟨ _, _ ⟩, _, _ ⟩
-            . and_intros <;> try dsimp
-              . rewrite [product_is_list_zip sj2l, hrval, hlvall]; rfl
-              . apply lengthify at hrval; simp at hrval
-                apply lengthify at hlvall; simp [hrval, add_comm _ 1, add_right_inj, add_assoc] at hlvall
-                simp [<- List.zip_eq_zipWith, List.map_fst_zip, hlvall]
-              . apply lengthify at hrval; simp at hrval
-                apply lengthify at hlvall; simp [hrval, add_comm _ 1, add_right_inj, add_assoc] at hlvall
-                rewrite [<- List.zip_eq_zipWith, List.map_snd_zip]
-                . simp
-                . simp [hlvall]
-              . simp
-              . constructor
-          . apply lengthify at hrval; simp [add_comm _ 1, add_right_inj, add_assoc] at hrval
-            apply lengthify at hlval; simp [hrval, add_comm _ 1, add_left_inj, add_assoc] at hlval
-            simp only [hrval, List.length_map, List.length_cons, add_comm _ 1, add_right_inj, List.length_append, List.length_take, left_eq_inf] -- lengthify the goal
-            simp only [le_iff_exists_add, <- hlval, add_right_inj, exists_eq', add_assoc] -- lia
+        have_hole hio : (lhsModule T₁ T₂ T₃).outputs.getIO { inst := InstIdent.top, name := "o_out" } = _ := by dsimp [reducePortMapgetIO]
+        simp only [PortMap.rw_rule_execution hio]
+        cases hpf <;> cases sj2l <;> simp_all [φ, ψ, partially_flushed.lhs, partially_flushed.rhs, Prod.ext_iff]
     . exfalso; exact (PortMap.getIO_not_contained_false hrule HContains)
   -- internal rules
   . intros rule mid_i _ _
@@ -908,8 +831,7 @@ by
   by_cases HContains: ((lhsModule T₁ T₂ T₃).outputs.contains ident)
   . -- fetch the single output port ident
     simp [lhsModule] at HContains; subst HContains
-    unfold lhsModule at h₂
-    rw [PortMap.rw_rule_execution] at h₂
+    rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at h₂
     dsimp at h₂
     simp at h₂
     repeat
@@ -941,8 +863,7 @@ by
     obtain ⟨_, _, _⟩ := hψ
     subst_vars
     -- work on h₃
-    unfold rhsModule at h₃
-    rw [PortMap.rw_rule_execution] at h₃
+    rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at h₃
     simp at h₃
     repeat
       cases ‹_ ∧ _›
@@ -966,15 +887,14 @@ by
   intro ident ⟨⟨_, _⟩,⟨_, _⟩⟩ ⟨⟨_, _⟩,⟨_, _⟩⟩ _ ⟨⟨_, _⟩,⟨_, _⟩⟩ h₁ h₂ h₃
   by_cases HContains: ((rhsModule T₁ T₂ T₃).outputs.contains ident)
   . simp [rhsModule] at HContains; subst HContains
-    unfold rhsModule at h₃; rw [PortMap.rw_rule_execution] at h₃; simp at h₃
+    rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at h₃; simp at h₃
     cases h₂
     dsimp [ψ] at h₁
     repeat
       cases ‹_ ∧ _›
     subst_vars
-    unfold lhsModule
     apply Exists.intro ⟨⟨_, _⟩,⟨_, _⟩⟩
-    rw [PortMap.rw_rule_execution]; dsimp
+    rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]; dsimp
     and_intros
     . simp at *
       iterate 2 cases ‹_ ∧ _›
@@ -997,9 +917,8 @@ theorem refines₃: rhsModule T₁ T₂ T₃ ⊑_{φ₃} lhsModule T₁ T₂ T�
       obtain ⟨⟨_, _⟩, ⟨_, _⟩, _⟩ := i
 
       unfold rhsModule at HContains; simp at HContains
-      rcases HContains with h | h | h <;> subst_vars <;> simp
-      . unfold rhsModule at a
-        rw [PortMap.rw_rule_execution] at a
+      rcases HContains with h | h | h <;> subst_vars <;> simp [-Prod.exists]
+      . rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at a
         dsimp at a
         obtain ⟨⟨_, _⟩, ⟨_, _⟩⟩ := a
         subst_vars
@@ -1018,12 +937,11 @@ theorem refines₃: rhsModule T₁ T₂ T₃ ⊑_{φ₃} lhsModule T₁ T₂ T�
             obtain ⟨⟨h, _, _⟩, hₑ⟩ := Hψ
             dsimp [φ₃, ψ]
             and_intros
-            . rw [<- List.append_assoc, <- List.append_assoc, h]
+            . simp [← List.append_assoc, h]
             . assumption
             . assumption
             . cases hₑ; constructor
-      . unfold rhsModule at a
-        rw [PortMap.rw_rule_execution] at a
+      . rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at a
         dsimp at a
         obtain ⟨⟨⟨_, _⟩, _⟩, ⟨_, _⟩⟩ := a
         subst_vars
@@ -1040,11 +958,10 @@ theorem refines₃: rhsModule T₁ T₂ T₃ ⊑_{φ₃} lhsModule T₁ T₂ T�
             dsimp [φ₃, ψ]
             and_intros
             . assumption
-            . rw [<- List.append_assoc, <- List.append_assoc, h]
+            . simp [← List.append_assoc, h]
             . rfl
             . cases hₑ; constructor
-      . unfold rhsModule at a
-        rw [PortMap.rw_rule_execution] at a
+      . rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at a
         dsimp at a
         obtain ⟨⟨⟨_, _⟩, _⟩, ⟨_, _⟩⟩ := a
         subst_vars
@@ -1062,7 +979,7 @@ theorem refines₃: rhsModule T₁ T₂ T₃ ⊑_{φ₃} lhsModule T₁ T₂ T�
             and_intros
             . assumption
             . assumption
-            . rw [<- List.append_assoc]
+            . simp
             . cases hₑ; constructor
     . exfalso; exact (PortMap.getIO_not_contained_false a HContains)
   -- output rules
@@ -1141,8 +1058,8 @@ by
     . apply And.intro
       . apply existSR_reflexive
       . unfold φ₄; apply And.intro
-        . rw [PortMap.rw_rule_execution (flushed_inputs_are_rflushed _ _)] at h₁
-          rw [PortMap.rw_rule_execution (flushed_inputs_are_rflushed _ _)] at h₂
+        . rw [PortMap.rw_rule_execution (by simp only [flushed_inputs_are_rflushed, rflushed]; rfl)] at h₁
+          rw [PortMap.rw_rule_execution (by simp only [flushed_inputs_are_rflushed, rflushed]; rfl)] at h₂
           obtain ⟨s₁, _, h₁⟩ := h₁
           obtain ⟨s₂, _, h₂⟩ := h₂
           obtain ⟨_, _⟩ := Hψ -- TODO: This can be removed if we go down to ψ instead of φ₄

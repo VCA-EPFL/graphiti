@@ -592,9 +592,10 @@ theorem rule_product_associative_input {J} (jmod : Module Ident J) {i₁ i₂ i�
           rewrite [AssocList.append_find_right, AssocList.find?_mapVal, h3]; rfl
           rewrite [AssocList.find?_mapVal, AssocList.append_find_right, AssocList.find?_mapVal, h2]; rfl
           rewrite [AssocList.find?_mapVal, h1]; rfl
+        dsimp [liftR, liftL] at imp spec
         rewrite [PortMap.rw_rule_execution (by rw [spec])]
         rewrite [PortMap.rw_rule_execution (by rw [imp])] at rule
-        dsimp [liftR] at *
+        dsimp at *
         obtain ⟨⟨rule, r2⟩, r3⟩ := rule; subst_vars
         constructor <;> try rfl
         convert rule; simp
@@ -609,9 +610,10 @@ theorem rule_product_associative_input {J} (jmod : Module Ident J) {i₁ i₂ i�
         rewrite [AssocList.append_find_left]; rfl
         rewrite [AssocList.find?_mapVal, AssocList.append_find_right, AssocList.find?_mapVal, h2]; rfl
         rewrite [AssocList.find?_mapVal, h1]; rfl
+      dsimp [liftR, liftL] at imp spec
       rewrite [PortMap.rw_rule_execution (by rw [spec])]
       rewrite [PortMap.rw_rule_execution (by rw [imp])] at rule
-      dsimp [liftR] at *
+      dsimp at *
       obtain ⟨⟨rule, r2⟩, r3⟩ := rule; subst_vars
       constructor <;> try rfl
       convert rule; simp
@@ -625,9 +627,10 @@ theorem rule_product_associative_input {J} (jmod : Module Ident J) {i₁ i₂ i�
       rewrite [AssocList.append_find_left]; rfl
       rewrite [AssocList.find?_mapVal, AssocList.append_find_left]; rfl
       rewrite [AssocList.find?_mapVal, h1]; rfl
+    dsimp [liftR, liftL] at imp spec
     rewrite [PortMap.rw_rule_execution (by rw [spec])]
     rewrite [PortMap.rw_rule_execution (by rw [imp])] at rule
-    dsimp [liftR, liftL] at *
+    dsimp at *
     obtain ⟨rule, r3⟩ := rule; subst_vars
     cases r3
     constructor <;> try rfl
@@ -662,9 +665,10 @@ theorem rule_product_associative_output {J} (jmod : Module Ident J) {i₁ i₂ i
           rewrite [AssocList.append_find_right, AssocList.find?_mapVal, h3]; rfl
           rewrite [AssocList.find?_mapVal, AssocList.append_find_right, AssocList.find?_mapVal, h2]; rfl
           rewrite [AssocList.find?_mapVal, h1]; rfl
+        dsimp [liftR, liftL] at imp spec
         rewrite [PortMap.rw_rule_execution (by rw [spec])]
         rewrite [PortMap.rw_rule_execution (by rw [imp])] at rule
-        dsimp [liftR] at *
+        dsimp at *
         obtain ⟨⟨rule, r2⟩, r3⟩ := rule; subst_vars
         constructor <;> try rfl
         convert rule; simp
@@ -679,9 +683,10 @@ theorem rule_product_associative_output {J} (jmod : Module Ident J) {i₁ i₂ i
         rewrite [AssocList.append_find_left]; rfl
         rewrite [AssocList.find?_mapVal, AssocList.append_find_right, AssocList.find?_mapVal, h2]; rfl
         rewrite [AssocList.find?_mapVal, h1]; rfl
+      dsimp [liftR, liftL] at imp spec
       rewrite [PortMap.rw_rule_execution (by rw [spec])]
       rewrite [PortMap.rw_rule_execution (by rw [imp])] at rule
-      dsimp [liftR] at *
+      dsimp at *
       obtain ⟨⟨rule, r2⟩, r3⟩ := rule; subst_vars
       constructor <;> try rfl
       convert rule; simp
@@ -695,9 +700,10 @@ theorem rule_product_associative_output {J} (jmod : Module Ident J) {i₁ i₂ i
       rewrite [AssocList.append_find_left]; rfl
       rewrite [AssocList.find?_mapVal, AssocList.append_find_left]; rfl
       rewrite [AssocList.find?_mapVal, h1]; rfl
+    dsimp [liftR, liftL] at imp spec
     rewrite [PortMap.rw_rule_execution (by rw [spec])]
     rewrite [PortMap.rw_rule_execution (by rw [imp])] at rule
-    dsimp [liftR, liftL] at *
+    dsimp at *
     obtain ⟨rule, r3⟩ := rule; subst_vars
     cases r3
     constructor <;> try rfl
@@ -732,9 +738,10 @@ theorem rule_product_associative'_input {J} (jmod : Module Ident J) {i₁ i₂ i
           rewrite [AssocList.append_find_right, AssocList.find?_mapVal, h3]; rfl
           rewrite [AssocList.find?_mapVal, AssocList.append_find_right, AssocList.find?_mapVal, h2]; rfl
           rewrite [AssocList.find?_mapVal, h1]; rfl
+        dsimp [liftR, liftL] at imp spec
         rewrite [PortMap.rw_rule_execution (by rw [imp])]
         rewrite [PortMap.rw_rule_execution (by rw [spec])] at rule
-        dsimp [liftR, liftL] at *
+        dsimp at *
         obtain ⟨rule, r3⟩ := rule; subst_vars; cases r3
         constructor <;> try rfl
         convert rule; simp
@@ -749,9 +756,10 @@ theorem rule_product_associative'_input {J} (jmod : Module Ident J) {i₁ i₂ i
         rewrite [AssocList.append_find_left]; rfl
         rewrite [AssocList.find?_mapVal, AssocList.append_find_right, AssocList.find?_mapVal, h2]; rfl
         rewrite [AssocList.find?_mapVal, h1]; rfl
+      dsimp [liftR, liftL] at imp spec
       rewrite [PortMap.rw_rule_execution (by rw [imp])]
       rewrite [PortMap.rw_rule_execution (by rw [spec])] at rule
-      dsimp [liftR, liftL] at *
+      dsimp at *
       obtain ⟨⟨rule, r2⟩, r3⟩ := rule; subst_vars
       constructor <;> try rfl
       convert rule; simp
@@ -765,9 +773,10 @@ theorem rule_product_associative'_input {J} (jmod : Module Ident J) {i₁ i₂ i
       rewrite [AssocList.append_find_left]; rfl
       rewrite [AssocList.find?_mapVal, AssocList.append_find_left]; rfl
       rewrite [AssocList.find?_mapVal, h1]; rfl
+    dsimp [liftR, liftL] at imp spec
     rewrite [PortMap.rw_rule_execution (by rw [imp])]
     rewrite [PortMap.rw_rule_execution (by rw [spec])] at rule
-    dsimp [liftR, liftL] at *
+    dsimp at *
     obtain ⟨⟨rule, r2⟩, r3⟩ := rule; subst_vars
     constructor <;> try rfl
     convert rule; simp
@@ -801,9 +810,10 @@ theorem rule_product_associative'_output {J} (jmod : Module Ident J) {i₁ i₂ 
           rewrite [AssocList.append_find_right, AssocList.find?_mapVal, h3]; rfl
           rewrite [AssocList.find?_mapVal, AssocList.append_find_right, AssocList.find?_mapVal, h2]; rfl
           rewrite [AssocList.find?_mapVal, h1]; rfl
+        dsimp [liftR, liftL] at imp spec
         rewrite [PortMap.rw_rule_execution (by rw [imp])]
         rewrite [PortMap.rw_rule_execution (by rw [spec])] at rule
-        dsimp [liftR, liftL] at *
+        dsimp at *
         obtain ⟨rule, r3⟩ := rule; subst_vars; cases r3
         constructor <;> try rfl
         convert rule; simp
@@ -818,9 +828,10 @@ theorem rule_product_associative'_output {J} (jmod : Module Ident J) {i₁ i₂ 
         rewrite [AssocList.append_find_left]; rfl
         rewrite [AssocList.find?_mapVal, AssocList.append_find_right, AssocList.find?_mapVal, h2]; rfl
         rewrite [AssocList.find?_mapVal, h1]; rfl
+      dsimp [liftR, liftL] at imp spec
       rewrite [PortMap.rw_rule_execution (by rw [imp])]
       rewrite [PortMap.rw_rule_execution (by rw [spec])] at rule
-      dsimp [liftR, liftL] at *
+      dsimp at *
       obtain ⟨⟨rule, r2⟩, r3⟩ := rule; subst_vars
       constructor <;> try rfl
       convert rule; simp
@@ -834,9 +845,10 @@ theorem rule_product_associative'_output {J} (jmod : Module Ident J) {i₁ i₂ 
       rewrite [AssocList.append_find_left]; rfl
       rewrite [AssocList.find?_mapVal, AssocList.append_find_left]; rfl
       rewrite [AssocList.find?_mapVal, h1]; rfl
+    dsimp [liftR, liftL] at imp spec
     rewrite [PortMap.rw_rule_execution (by rw [imp])]
     rewrite [PortMap.rw_rule_execution (by rw [spec])] at rule
-    dsimp [liftR, liftL] at *
+    dsimp at *
     obtain ⟨⟨rule, r2⟩, r3⟩ := rule; subst_vars
     constructor <;> try rfl
     convert rule; simp
@@ -868,9 +880,10 @@ theorem rule_product_commutative_input {i₁ i₂} {mid_i mid_s} {ident} {v} (h 
         dsimp [Module.product, PortMap.getIO]
         rewrite [AssocList.append_find_left]; rfl
         rewrite [AssocList.find?_mapVal, h2]; rfl
+      dsimp [liftR, liftL] at imp spec
       rewrite [PortMap.rw_rule_execution (by rw [spec])]
       rewrite [PortMap.rw_rule_execution (by rw [imp])] at rule
-      dsimp [liftR, liftL] at *
+      dsimp at *
       obtain ⟨rule, r3⟩ := rule; subst_vars
       constructor <;> try rfl
       convert rule; simp
@@ -884,9 +897,10 @@ theorem rule_product_commutative_input {i₁ i₂} {mid_i mid_s} {ident} {v} (h 
       dsimp [Module.product, PortMap.getIO]
       rewrite [AssocList.append_find_right, AssocList.find?_mapVal, h1]; rfl
       rewrite [AssocList.find?_mapVal, hsmod]; rfl
+    dsimp [liftR, liftL] at imp spec
     rewrite [PortMap.rw_rule_execution (by rw [spec])]
     rewrite [PortMap.rw_rule_execution (by rw [imp])] at rule
-    dsimp [liftR, liftL] at *
+    dsimp at *
     obtain ⟨rule, r3⟩ := rule; subst_vars
     constructor <;> try rfl
     convert rule; simp
@@ -918,9 +932,10 @@ theorem rule_product_commutative_output {i₁ i₂} {mid_i mid_s} {ident} {v} (h
         dsimp [Module.product, PortMap.getIO]
         rewrite [AssocList.append_find_left]; rfl
         rewrite [AssocList.find?_mapVal, h2]; rfl
+      dsimp [liftR, liftL] at imp spec
       rewrite [PortMap.rw_rule_execution (by rw [spec])]
       rewrite [PortMap.rw_rule_execution (by rw [imp])] at rule
-      dsimp [liftR, liftL] at *
+      dsimp at *
       obtain ⟨rule, r3⟩ := rule; subst_vars
       constructor <;> try rfl
       convert rule; simp
@@ -934,9 +949,10 @@ theorem rule_product_commutative_output {i₁ i₂} {mid_i mid_s} {ident} {v} (h
       dsimp [Module.product, PortMap.getIO]
       rewrite [AssocList.append_find_right, AssocList.find?_mapVal, h1]; rfl
       rewrite [AssocList.find?_mapVal, hsmod]; rfl
+    dsimp [liftR, liftL] at imp spec
     rewrite [PortMap.rw_rule_execution (by rw [spec])]
     rewrite [PortMap.rw_rule_execution (by rw [imp])] at rule
-    dsimp [liftR, liftL] at *
+    dsimp at *
     obtain ⟨rule, r3⟩ := rule; subst_vars
     constructor <;> try rfl
     convert rule; simp
@@ -1191,8 +1207,9 @@ theorem refines_φ_product {J K} {imod₂ : Module Ident J} {smod₂ : Module Id
         dsimp [PortMap.getIO]; rw [hruleIn,h,liftL]; rfl
       have cast_rule : (imod.product imod₂).inputs.getIO ident = liftL (imod.inputs.getIO ident) := by
         dsimp [PortMap.getIO]; rw [hruleIn,h]; rfl
+      dsimp [liftL] at cast_rule
       rw [PortMap.rw_rule_execution cast_rule] at hrule
-      dsimp [liftL] at hrule; rcases hrule with ⟨hrule⟩; subst_vars
+      dsimp at hrule; rcases hrule with ⟨hrule⟩; subst_vars
       rcases href₁ with ⟨href_in, -, -⟩
       have hcontains₂ : AssocList.contains ident imod.inputs := by
         apply AssocList.contains_some2; rw [h]; rfl
@@ -1215,8 +1232,9 @@ theorem refines_φ_product {J K} {imod₂ : Module Ident J} {smod₂ : Module Id
         have s : (smod.product smod₂).inputs.getIO ident = liftL (smod.inputs.getIO ident) := by
           skip; dsimp [Module.product, PortMap.getIO]; rw [AssocList.append_find_left this]
           rw [HSrule]; rfl
+        dsimp [liftL] at s
         rw [PortMap.rw_rule_execution s]
-        dsimp [liftL]; refine ⟨?_, rfl⟩; convert hrule₃; simp
+        dsimp; refine ⟨?_, rfl⟩; convert hrule₃; simp
       · solve_by_elim [existSR_append_left, existSR_liftL']
       · assumption
       · apply hφ.right
@@ -1229,8 +1247,9 @@ theorem refines_φ_product {J K} {imod₂ : Module Ident J} {smod₂ : Module Id
         dsimp [PortMap.getIO]; rw [hruleIn,h,liftR]; rfl
       have cast_rule : (imod.product imod₂).inputs.getIO ident = liftR (imod₂.inputs.getIO ident) := by
         dsimp [PortMap.getIO]; rw [hruleIn,h]; rfl
+      dsimp [liftR] at cast_rule
       rw [PortMap.rw_rule_execution cast_rule] at hrule
-      dsimp [liftL] at hrule; rcases hrule with ⟨hrule⟩; subst_vars
+      dsimp at hrule; rcases hrule with ⟨hrule⟩; subst_vars
       rcases href₂ with ⟨href_in, -, -⟩
       have hcontains₂ : AssocList.contains ident imod₂.inputs := by
         apply AssocList.contains_some2; rw [h]; rfl
@@ -1263,8 +1282,9 @@ theorem refines_φ_product {J K} {imod₂ : Module Ident J} {smod₂ : Module Id
           rw [AssocList.append_find_right, this]
           · rw [HSrule]; rfl
           · rw [hrule_another]
+        dsimp [liftR] at s
         rw [PortMap.rw_rule_execution s]
-        dsimp [liftL]; refine ⟨?_, rfl⟩; convert hrule₃; simp
+        dsimp; refine ⟨?_, rfl⟩; convert hrule₃; simp
       · solve_by_elim [existSR_append_right, existSR_liftR']
       · apply hφ.left
       · assumption
@@ -1280,8 +1300,9 @@ theorem refines_φ_product {J K} {imod₂ : Module Ident J} {smod₂ : Module Id
         dsimp [PortMap.getIO]; rw [hruleIn,h,liftL]; rfl
       have cast_rule : (imod.product imod₂).outputs.getIO ident = liftL (imod.outputs.getIO ident) := by
         dsimp [PortMap.getIO]; rw [hruleIn,h]; rfl
+      dsimp [liftL] at cast_rule
       rw [PortMap.rw_rule_execution cast_rule] at hrule
-      dsimp [liftL] at hrule; rcases hrule with ⟨hrule⟩; subst_vars
+      dsimp at hrule; rcases hrule with ⟨hrule⟩; subst_vars
       rcases href₁ with ⟨-, href_out, -⟩
       have hcontains₂ : AssocList.contains ident imod.outputs := by
         apply AssocList.contains_some2; rw [h]; rfl
@@ -1306,8 +1327,9 @@ theorem refines_φ_product {J K} {imod₂ : Module Ident J} {smod₂ : Module Id
         have s : (smod.product smod₂).outputs.getIO ident = liftL (smod.outputs.getIO ident) := by
           skip; dsimp [Module.product, PortMap.getIO]; rw [AssocList.append_find_left this]
           rw [HSrule]; rfl
+        dsimp [liftL] at s
         rw [PortMap.rw_rule_execution s]
-        dsimp [liftL]; refine ⟨?_, rfl⟩; convert hrule₃; simp
+        dsimp; refine ⟨?_, rfl⟩; convert hrule₃; simp
       · assumption
       · apply hφ.right
     case inr =>
@@ -1319,8 +1341,9 @@ theorem refines_φ_product {J K} {imod₂ : Module Ident J} {smod₂ : Module Id
         dsimp [PortMap.getIO]; rw [hruleIn,h,liftR]; rfl
       have cast_rule : (imod.product imod₂).outputs.getIO ident = liftR (imod₂.outputs.getIO ident) := by
         dsimp [PortMap.getIO]; rw [hruleIn,h]; rfl
+      dsimp [liftR] at cast_rule
       rw [PortMap.rw_rule_execution cast_rule] at hrule
-      dsimp [liftL] at hrule; rcases hrule with ⟨hrule⟩; subst_vars
+      dsimp at hrule; rcases hrule with ⟨hrule⟩; subst_vars
       rcases href₂ with ⟨-, href_out, -⟩
       have hcontains₂ : AssocList.contains ident imod₂.outputs := by
         apply AssocList.contains_some2; rw [h]; rfl
@@ -1355,8 +1378,9 @@ theorem refines_φ_product {J K} {imod₂ : Module Ident J} {smod₂ : Module Id
           rw [AssocList.append_find_right, this]
           · rw [HSrule]; rfl
           · rw [hrule_another]
+        dsimp [liftR] at s
         rw [PortMap.rw_rule_execution s]
-        dsimp [liftL]; refine ⟨?_, rfl⟩; convert hrule₃; simp
+        dsimp; refine ⟨?_, rfl⟩; convert hrule₃; simp
       · apply hφ.left
       · assumption
   · intro rule ⟨mid_i₁, mid_i₂⟩ hruleIn hRule
@@ -1788,7 +1812,7 @@ theorem foldl_acc_plist_2 (acc : TModule Ident) (l : List α) (f : Type _ → α
     ⟩ := by
       induction l generalizing acc with
       | nil => rfl
-      | cons hd tl HR => simpa [HR]
+      | cons hd tl HR => simp only [List.foldl_cons, HR]
 
 @[simp] abbrev foldr_int {α} := dep_foldr (α := α) (β := acc_int)
 @[simp] abbrev foldr_io {α} := dep_foldr (α := α) (β := @acc_io Ident)

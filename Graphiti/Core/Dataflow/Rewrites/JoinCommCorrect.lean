@@ -41,7 +41,7 @@ noncomputable def ε_rhs : FinEnv String (String × Nat) :=
 @[drenv] theorem rhs_ε_find2 : ε_rhs.find? ("pure", e.max_type+2) = some ⟨_, @StringModule.pure (T2 × T1) (T1 × T2) λ (x, y) => (y, x)⟩ := by simp [ε_rhs]
 
 seal T1 T2 in
-def_module lhsType : Type :=
+@[reducible] def_module lhsType : Type :=
   [T| (lhsLower e.types), e.ε.find? ]
 reduction_by
   dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
@@ -65,7 +65,7 @@ reduction_by
    dsimp -failIfUnchanged [reduceAssocListfind?])
 
 seal T1 T2 ε_rhs in
-def_module rhsType : Type :=
+@[reducible] def_module rhsType : Type :=
   [T| (rhsLower e.max_type), ε_rhs.toEnv ]
 reduction_by
   dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]

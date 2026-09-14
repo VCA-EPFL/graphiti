@@ -1461,7 +1461,7 @@ theorem refine:
       with_reducible and_intros; any_goals apply existSR.done
       any_goals dsimp [Module.liftR, Module.liftL]
       · cases HPerm; constructor <;> try rfl;
-        · dsimp at Hcontains; grind
+        · dsimp [PortMap.getIO, reduceAssocListfind?] at Hcontains; grind
         · rename_i h _ _
           cases h
           rename_i H1 H2 H3 H4 H5 H6 H7 H8 _ _ _ _ _ _ _ HH _
