@@ -137,14 +137,21 @@ theorem refines_higher_correct {Ident Typ} [DecidableEq Ident] [DecidableEq Typ]
   rw [refines_higher_correct_connections] <;> try assumption
   apply ExprLow.refines_comm_bases
 
-structure VerifiedRewrite (rewrite : DefiniteRewrite String (String × Nat)) (ε : FinEnv String (String × Nat)) where
+structure VerifiedRewrite {n}
+          (pattern : Pattern String (String × Nat) n)
+          (rewrite : DefiniteRewrite String (String × Nat))
+          (ε : FinEnv String (String × Nat))
+where
   ε_ext : FinEnv String (String × Nat)
   ε_ext_wf : env_well_formed ε_ext.toEnv
   ε_independent : Env.independent ε_ext.toEnv ε.toEnv
   rhs_wf : rewrite.output_expr.well_formed ε_ext.toEnv
   rhs_wt : rewrite.output_expr.well_typed ε_ext.toEnv
   lhs_locally_wf : rewrite.input_expr.locally_wf
-  refinement : [e| rewrite.output_expr, (ε ++ ε_ext).toEnv ] ⊑ [e| rewrite.input_expr, ε.toEnv ]
+  refinement {g a} :
+    rewrite.input_expr.higher_correct (λ _ => default) = .some g →
+    pattern g = .ok a →
+    [e| rewrite.output_expr, (ε ++ ε_ext).toEnv ] ⊑ [e| rewrite.input_expr, ε.toEnv ]
 
 structure VerifiedConditionalRewrite (rewrite : DefiniteRewrite String (String × Nat)) (ε : FinEnv String (String × Nat)) where
   ε_ext : FinEnv String (String × Nat)
