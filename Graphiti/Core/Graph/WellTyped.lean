@@ -119,21 +119,11 @@ theorem build_module_interface_build_module_interface'' {e : ExprLow Ident Typ} 
   ∃ mi', e.build_module_interface' ε = some mi' := by
   induction e generalizing mi with
   | base inst typ => dsimp [build_module_interface, build_module_interface']; grind
-  | connect c e ih =>
-    intro hbuild
-    dsimp [build_module_interface, build_module_interface'] at *
-    rw [] at hbuild
-    obtain ⟨mi'', h1, h2⟩ := Option.bind_eq_some_iff.mp hbuild
-    cases h2
-    rw [h1] at hbuild; dsimp at hbuild; cases hbuild
-    solve_by_elim
+  | connect c e ih => dsimp [build_module_interface, build_module_interface']; grind [Option.bind_eq_some_iff]
   | product e1 e2 he1 he2 =>
     intro h1
-    have h1_2 := build_module_interface_product h1
-    obtain ⟨m1, m2, h1', h2', h3', h4'⟩ := h1_2
+    obtain ⟨m1, m2, h1', h2', h3', h4'⟩ := build_module_interface_product h1
     dsimp [build_module_interface', build_module_interface] at *
-    rw [h1'] at h1
-    rw [h2'] at h1; dsimp at h1; cases h1; cases h3'; cases h4'
     grind
 
 end BuildModule

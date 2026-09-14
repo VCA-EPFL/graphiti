@@ -20,43 +20,29 @@ theorem mapKey_find? {α β γ} [DecidableEq α] [DecidableEq γ] {a : AssocList
   (a.mapKey f).find? (f i) = a.find? i := by
   induction a with
   | nil => simp
-  | cons k v xs ih =>
-    dsimp
-    by_cases h : f k = f i
-    · have h' := hinj h; simpa [h']
-    · have h' := hinj.ne_iff.mp h;
-      rw [Batteries.AssocList.find?.eq_2]
-      rw [Batteries.AssocList.find?.eq_2]; rw [ih]
-      have t1 : (f k == f i) = false := by simpa [*]
-      have t2 : (k == i) = false := by simpa [*]
-      rw [t1, t2]
+  | cons k v xs ih => by_cases h : k = i <;> simp_all [hinj.eq_iff, mapKey_cons, -find?_eq]
 
 theorem mapKey_contains {α β γ} [DecidableEq α] [DecidableEq γ] {m : AssocList α β} {f : α → γ} {k} {hf : Function.Injective f} :
   m.contains k = (m.mapKey f).contains (f k) := by
-  cases h : contains k m <;> symm
-  · rw [← Bool.not_eq_true] at *; intro hcont; apply h; clear h
-    rw [←contains_find?_iff] at *; rcases hcont with ⟨v, hcont⟩; exists v
-    rwa [mapKey_find?] at hcont; assumption
-  · rw [←contains_find?_iff] at *; rcases h with ⟨v, h⟩; exists v
-    rwa [mapKey_find?]; assumption
+  rw [Bool.eq_iff_iff, ← contains_find?_isSome_iff, ← contains_find?_isSome_iff, mapKey_find? hf]
 
 theorem eraseAll_comm_mapKey {α β γ} [DecidableEq α] [DecidableEq γ] {f : α → γ}
   {Hinj : Function.Injective f} {i} {m : AssocList α β} :
   (m.mapKey f).eraseAll (f i) = (m.eraseAll i).mapKey f := by
-    induction m
-    · simpa [eraseAll]
-    · rename_i k v tl H
-      by_cases k = i <;> simp_all [eraseAll, eraseAllP_TR_eraseAll, Hinj.eq_iff]
+  induction m with
+  | nil => simp [eraseAll]
+  | cons k v tl H => by_cases k = i <;> simp_all [eraseAll, eraseAllP_TR_eraseAll, Hinj.eq_iff]
 
 theorem bijectivePortRenaming_involutive {α} [DecidableEq α] {p : AssocList α α} :
   Function.Involutive p.bijectivePortRenaming := by
-  unfold Function.Involutive
   intro i
   dsimp [bijectivePortRenaming]
-  split <;> try rfl
-  cases h' : (p.filterId ++ p.inverse.filterId).find? i; dsimp; rw [h']; rfl
-  dsimp
-  rw [invertibleMap]; rfl; assumption; assumption
+  split
+  next hinv =>
+    cases h' : (p.filterId ++ p.inverse.filterId).find? i with
+    | none => simp only [h', Option.getD_none]
+    | some v => simp only [h', Option.getD_some, invertibleMap hinv h']
+  next => rfl
 
 theorem bijectivePortRenaming_bijective {α} [DecidableEq α] {p : AssocList α α} :
   Function.Bijective p.bijectivePortRenaming :=
@@ -65,8 +51,6 @@ theorem bijectivePortRenaming_bijective {α} [DecidableEq α] {p : AssocList α 
 theorem mapKey_involutive {α β} {f : α → α} (a : AssocList α β) :
   Function.Involutive f →
   (a.mapKey f).mapKey f = a := by
-  intro hinv; rw [mapKey_mapKey]; dsimp [Function.Involutive] at hinv
-  have : (fun k => f (f k)) = id := by ext i; rw [hinv]; rfl
-  rw [this, mapKey_id]
+  intro hinv; induction a <;> simp_all [Function.Involutive, mapKey_cons, mapKey_nil]
 
 end Batteries.AssocList

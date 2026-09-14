@@ -889,26 +889,17 @@ def well_formed_alt {α} (ε : Env String (String × α)) : Prop :=
 
 theorem well_formed_alt_correct {α} {ε : Env String (String × α)} :
   well_formed ε ↔ well_formed_alt ε := by
+  dsimp [well_formed, well_formed_alt]
   constructor
-  · intro hwf
-    dsimp [well_formed, well_formed_alt] at *
-    intro s y hsome
-    specialize hwf _ (by rw [hsome]; rfl)
+  · intro hwf s y hsome
+    have := hwf s (by simp [hsome])
     dsimp [well_formed'', well_formed'] at *
-    split at hwf
-    all_goals
-      try obtain ⟨T, ht⟩ := hwf; exists T
-      grind
-  · intro hwf
-    dsimp [well_formed, well_formed_alt] at *
-    intro s hsome
-    have ⟨y, hsome'⟩ := Option.isSome_iff_exists.mp hsome
-    specialize hwf _ _ hsome'
+    split at this <;> (try obtain ⟨T, ht⟩ := this; exists T) <;> grind
+  · intro hwf s hsome
+    obtain ⟨y, hsome'⟩ := Option.isSome_iff_exists.mp hsome
+    have := hwf _ _ hsome'
     dsimp [well_formed'', well_formed'] at *
-    split at hwf
-    all_goals
-      try obtain ⟨T, ht⟩ := hwf; exists T
-      grind
+    split at this <;> (try obtain ⟨T, ht⟩ := this; exists T) <;> grind
 
 end Graphiti.Env
 

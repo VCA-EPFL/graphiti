@@ -255,18 +255,12 @@ noncomputable def ε_rhs_ghost : FinEnv String (String × Nat) :=
 theorem ε_rhs_ghost_gt {n} : (ε_rhs_ghost.find? n).isSome → e.max_type < n.2 := by simp [ε_rhs_ghost]; grind
 
 theorem ε_rhs_ghost_independent : e.ε.toEnv.independent ε_rhs_ghost.toEnv := by
-  obtain ⟨wf1, wf2⟩ := e.4
-  dsimp [Env.independent]
+  obtain ⟨-, wf2⟩ := e.4
   intro n m hfind
-  match h : Batteries.AssocList.find? n ε_rhs_ghost with
+  dsimp only [FinEnv.toEnv] at *
+  cases h : ε_rhs_ghost.find? n with
   | none => rfl
-  | some m' =>
-    exfalso
-    have h' := ε_rhs_ghost_gt (by rw [h]; rfl)
-    rw [FinEnv.max_typeD_none] at hfind
-    contradiction
-    assumption
-    assumption
+  | some m' => grind [FinEnv.max_typeD_none, ε_rhs_ghost_gt, Option.isSome_some]
 
 theorem ε_rhs_ghost_wf : ε_rhs_ghost.toEnv.well_formed := by
   rw [Env.well_formed_alt_correct]
@@ -275,12 +269,7 @@ theorem ε_rhs_ghost_wf : ε_rhs_ghost.toEnv.well_formed := by
   simp [ε_rhs_ghost] at hfind
   obtain ⟨a, b, hfind⟩ := hfind
   simp
-  rcases hfind with ⟨ha, hb, hfind⟩ | ⟨_, ⟨ha, hb⟩ | ⟨_, ⟨ha, hb⟩ | ⟨_, ⟨ha, hb⟩ | ⟨_, ⟨ha, hb⟩ | ⟨_, ⟨ha, hb⟩ | hfind⟩⟩⟩⟩⟩
-  · subst_vars; grind
-  · subst_vars; grind
-  · subst_vars; grind
-  · subst_vars; grind
-  · subst_vars; grind
+  casesm* _ ∨ _, _ ∧ _ <;> subst_vars <;> grind
 
 @[drunfold_defs]
 def rhsGhostLower max_type := (ghost_rhs_extract max_type |>.1).lower_TR.get rfl

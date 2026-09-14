@@ -9,7 +9,7 @@ import Graphiti.Core.Trace
 namespace Graphiti.Module
 
 /--
-info: 'Graphiti.Module.refines_implies_trace_inclusion' depends on axioms: [propext]
+info: 'Graphiti.Module.refines_implies_trace_inclusion' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs in
 #print axioms refines_implies_trace_inclusion

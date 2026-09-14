@@ -57,11 +57,8 @@ theorem existSR_implies_empty_steps {m : Module Ident S} {s1 s2} :
   intro h
   induction h with
   | done => apply @star.refl _ _ (state_transition m)
-  | step init mid final rule hin hrule hexists ih =>
-    rw [show [] = [] ++ [] by rfl]
-    apply @star.step _ _ (state_transition m)
-    rotate_left; apply ih
-    constructor <;> assumption
+  | step _ _ _ _ hin hrule _ ih =>
+    simpa using @star.step _ _ (state_transition m) _ _ _ [] [] (by constructor <;> assumption) ih
 
 end StateTransition
 
@@ -84,6 +81,25 @@ section Refinement
 
 variable [mm : MatchInterface imp spec]
 
+/-- A step followed by internal steps of `m` is a trace of `m`. -/
+private theorem star_step_existSR {m : Module Ident S} {st e s1 s2} :
+    (state_transition m).step st e ⟨s1, m⟩ → existSR m.internals s1 s2 →
+    @star _ _ (state_transition m) st e ⟨s2, m⟩ := by
+  intro h1 h2
+  simpa using @star.trans_star _ _ (state_transition m) _ _ _ _ []
+    (@star.plus_one _ _ (state_transition m) _ _ _ h1) (existSR_implies_empty_steps h2)
+
+/-- Internal steps of `m` followed by a step is a trace of `m`. -/
+private theorem star_existSR_step {m : Module Ident S} {s s1 e st} :
+    existSR m.internals s s1 → (state_transition m).step ⟨s1, m⟩ e st →
+    @star _ _ (state_transition m) ⟨s, m⟩ e st := by
+  intro h1 h2
+  simpa using @star.trans_star _ _ (state_transition m) _ _ _ [] _
+    (existSR_implies_empty_steps h1) (@star.plus_one _ _ (state_transition m) _ _ _ h2)
+
+private theorem sigma_mk_mp {α β : Type _} (h : α = β) (v : α) : (⟨α, v⟩ : Σ T, T) = ⟨β, h.mp v⟩ := by
+  subst h; rfl
+
 theorem refines_implies_step_preservation {φ} :
   imp ⊑_{φ} spec →
   ∀ i s i' e,
@@ -92,46 +108,21 @@ theorem refines_implies_step_preservation {φ} :
     ∃ s',
       @star _ _ (state_transition spec) ⟨s, spec⟩ e s'
       ∧ φ i'.state s'.state := by
-  intros href i s i' e hphi hstep
+  intro href i s i' e hphi hstep
+  have hr := href _ _ hphi
   cases hstep with
-  | @input ident i' v v' step =>
-    subst v'
-    dsimp at *; dsimp at v
-    rcases href _ _ hphi with ⟨inp, out, int⟩; clear href out int
-    obtain ⟨s1, s2, h1, h2, h3⟩ := inp ident i' v step; clear inp
-    exists ⟨s2, spec⟩
-    and_intros
-    · rw [show [IOEvent.input ident ⟨(imp.inputs.getIO ident).fst, v⟩] = [IOEvent.input ident ⟨(imp.inputs.getIO ident).fst, v⟩] ++ [] by rfl]
-      apply @star.trans_star _ _ (state_transition spec)
-      · apply @star.plus_one _ _ (state_transition spec)
-        constructor
-        · apply h1
-        · simp; apply MatchInterface.input_types
-      · apply existSR_implies_empty_steps; assumption
-    · assumption
-  | @output ident i' v v' step =>
-    subst v'
-    dsimp at *; dsimp at v
-    rcases href _ _ hphi with ⟨inp, out, int⟩; clear href inp int
-    obtain ⟨s1, s2, h1, h2, h3⟩ := out ident i' v step; clear out
-    exists ⟨s2, spec⟩
-    and_intros
-    · rw [show [IOEvent.output ident ⟨(imp.outputs.getIO ident).fst, v⟩] = [] ++ [IOEvent.output ident ⟨(imp.outputs.getIO ident).fst, v⟩] by rfl]
-      apply @star.trans_star _ _ (state_transition spec)
-      · apply existSR_implies_empty_steps; assumption
-      · apply @star.plus_one _ _ (state_transition spec)
-        constructor
-        · apply h2
-        · simp; apply MatchInterface.output_types
-    · assumption
-  | @internal r i' hin hrule =>
-    dsimp at *
-    rcases href _ _ hphi with ⟨inp, out, int⟩; clear href inp out
-    obtain ⟨s1, h1, h2⟩ := int r i' hin hrule; clear int
-    exists ⟨s1, spec⟩
-    and_intros
-    · apply existSR_implies_empty_steps <;> assumption
-    · assumption
+  | @input ident _ v _ hstep h =>
+    obtain ⟨s1, s2, h1, h2, h3⟩ := hr.inputs _ _ _ hstep
+    have := star_step_existSR (step.input (st := ⟨s, spec⟩) h1 (sigma_mk_mp _ v)) h2
+    grind
+  | @output ident _ v _ hstep h =>
+    obtain ⟨s1, s2, h1, h2, h3⟩ := hr.outputs _ _ _ hstep
+    have := star_existSR_step h1 (step.output (st := ⟨s1, spec⟩) h2 (sigma_mk_mp _ v))
+    grind
+  | internal hin hrule =>
+    obtain ⟨s1, h1, h2⟩ := hr.internals _ _ hin hrule
+    have := existSR_implies_empty_steps h1
+    grind
 
 theorem step_preserve_mod {i1 e i2} (h : (state_transition imp).step i1 e i2) :
   i2.module = i1.module := by
@@ -155,23 +146,15 @@ theorem refines_implies_star_preservation {φ} :
   intro href i s i' e hstar hmod hphi
   induction hstar generalizing s with
   | refl =>
-    exists ⟨s, spec⟩; and_intros
-    · apply @star.refl _ _ (state_transition spec)
-    · assumption
-  | step i1 i2 i3 ei1 ei2 Hi1 Hi2 HR =>
-    have hblee :
-      (state_transition imp).step ⟨i1.state, imp⟩ ei1 i2 := by
-        obtain ⟨_, _⟩ := i1; dsimp at *; subst imp; exact Hi1
-    obtain ⟨s2, Hs2, Hs2phi⟩ :=
-      refines_implies_step_preservation _ _ href i1.state s i2 ei1 hphi hblee
-    have Hi2imp := step_preserve_mod _ hblee
-    obtain ⟨s3, Hs3, Hs3phi⟩ := HR s2.state Hi2imp Hs2phi
-    exists s3
-    and_intros <;> try assumption
-    apply @star.trans_star _ _ (state_transition spec) _ _ _ _ _ Hs2
-    have hs2 : s2 = ⟨s2.state, spec⟩ := by
-      cases s2; dsimp; congr; exact steps_preserve_mod _ Hs2
-    rwa [hs2]
+    have := @star.refl _ _ (state_transition spec) ⟨s, spec⟩
+    grind
+  | step i1 i2 i3 e1 e2 hstep _ ih =>
+    obtain ⟨i1, _⟩ := i1; subst hmod
+    obtain ⟨⟨s2, m2⟩, hs2, hphi2⟩ := refines_implies_step_preservation _ _ href i1 s i2 e1 hphi hstep
+    obtain rfl : spec = m2 := (steps_preserve_mod _ hs2).symm
+    obtain ⟨s3, hs3, hphi3⟩ := ih s2 (step_preserve_mod _ hstep) hphi2
+    have := @star.trans_star _ _ (state_transition spec) _ _ _ _ _ hs2 hs3
+    grind
 
 end Refinement
 

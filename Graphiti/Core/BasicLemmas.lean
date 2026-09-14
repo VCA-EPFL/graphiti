@@ -34,11 +34,10 @@ theorem rule_contains {S} {a : PortMap Ident (Σ T, S → T → S → Prop)} {id
   (a.getIO ident).2 init_i v new_i →
   a.contains ident := by
   intro H
-  cases h : (AssocList.find? ident a)
+  cases h : AssocList.find? ident a
   · have : a.getIO ident = ⟨PUnit, fun _ _ _ => False⟩ := by simp only [PortMap.getIO, h, Option.getD_none]
     rw [rw_rule_execution this] at H; simp at H
-  · rw [← AssocList.contains_find?_iff]
-    exact Exists.intro _ h
+  · grind [AssocList.contains_some3]
 
 theorem getIO_none {S} (m : PortMap Ident ((T : Type _) × (S → T → S → Prop)))
         (ident : InternalPort Ident) :
@@ -88,15 +87,13 @@ theorem getIO_map' {S : Type _}
   induction l with
   | nil => contradiction
   | cons hd tl ih =>
-    cases Hlt
-    · simp [*, getIO, AssocList.find?_cons_eq]
-    · unfold getIO at *
-      simp only [List.map_cons, List.toAssocList]; rw [AssocList.find?_cons_neq]
-      apply ih <;> try assumption
-      cases Hnodup; assumption
-      cases Hnodup
-      rename_i h1 h2 h3
-      replace h3 := h3 _ h1; simp [*]
+    simp only [List.nodup_cons, List.mem_cons] at Hnodup Hlt
+    unfold getIO at *
+    by_cases h : hd = i
+    · subst h; simp [Heq]
+    · simp only [List.map_cons, List.toAssocList]
+      rw [AssocList.find?_cons_neq (by simp [h])]
+      grind
 
 theorem getIO_map {S : Type _}
   (i : Nat) (sz : Nat)
@@ -119,7 +116,7 @@ theorem getIO_not_contained_false {Ident} [DecidableEq Ident] {S}
 theorem getIO_not_contained_false' {Ident} [DecidableEq Ident] {S}
   {pm : PortMap Ident ((T : Type) × (S → T → S → Prop))} {x1 x2 x3 x4}:
  (pm.getIO x1).snd x2 x3 x4 → pm.contains x1 = false → False := by
-  intros; solve_by_elim [getIO_not_contained_false (Ident := Ident), ne_true_of_eq_false]
+  grind [getIO_not_contained_false]
 
 theorem getIO_cons_false
   {Ident} [DecidableEq Ident] {S}
@@ -127,14 +124,7 @@ theorem getIO_cons_false
     ¬ x1 = x2 →
     ¬ pm.contains x2→
     (PortMap.getIO (AssocList.cons x1 v pm) x2).snd x3 x4 x5 → False := by
-  revert x2 x3 x4 x5
-  generalize Hpm' : (AssocList.cons x1 v pm) = pm'
-  intros x2 x3 x4 x5 H1 H2 H3
-  have Hcontains : ¬ pm'.contains x2 := by
-    rw [←Hpm']; simp; and_intros
-    · exact H1
-    · simp at H2; exact H2
-  exact (getIO_not_contained_false H3 Hcontains)
+  intro h1 h2 h3; apply getIO_not_contained_false h3; simp_all
 
 theorem getIO_cons_nil_false
   {Ident} [DecidableEq Ident] {S}
@@ -144,8 +134,7 @@ theorem getIO_cons_nil_false
       (AssocList.cons x1 v
         (AssocList.nil : PortMap Ident ((T : Type) × (S → T → S → Prop))))
       x2).snd x3 x4 x5 → False := by
-  intros Hneq Hsnd
-  apply (getIO_cons_false Hneq (by simpa) Hsnd)
+  intro Hneq; apply getIO_cons_false Hneq (by simp)
 
 end PortMap
 
@@ -161,24 +150,6 @@ public def remove {α : Type _} (as : List α) (i : Fin as.length) : List α := 
 public theorem perm_erase {α : Type _} [DecidableEq α] (l₁ l₂ : List α) i:
   l₁.Perm l₂ →
   (l₁.erase i).Perm (l₂.erase i) := by
-  intro H; induction H generalizing i with
-  | nil => simp
-  | cons x l1 l2 =>
-    rename_i l1' l2'
-    rw [List.erase_cons]
-    rw [List.erase_cons]
-    split <;> simp [*]
-  | swap x y l =>
-    rw [List.erase_cons]
-    rw [List.erase_cons]
-    rw [List.erase_cons]
-    rw [List.erase_cons]
-    split <;> split <;> (try simp [*])
-    · simp [*] at *
-      rename_i H1 H2; rw [H1,H2]
-    · simp [*] at *; apply List.Perm.swap
-  | trans _ _ H1 H2 =>
-    rename_i l₃ _ _
-    apply Perm.trans; apply H1; simp [*]
+  intro H; grind [List.Perm.erase]
 
 end List

@@ -198,67 +198,26 @@ theorem liftR_connect {S I} {a b : Σ T, S → T → S → Prop}:
     · grind
   · grind
 
+private theorem getIO_append_liftR {S S'} {a : PortMap Ident (RelIO S)} {b : PortMap Ident (RelIO S')} {ident}
+    (h : ¬ a.contains ident) :
+    PortMap.getIO (a.mapVal (fun _ => liftL) ++ b.mapVal (fun _ => liftR)) ident = liftR (b.getIO ident) := by
+  unfold PortMap.getIO
+  rw [AssocList.append_find_right _ _ (by simp only [AssocList.find?_mapVal, AssocList.contains_none h, Option.map_none])]
+  simp only [AssocList.find?_mapVal]
+  cases b.find? ident <;> simp [liftR]
+
 theorem comm_conn_product_EqExt {I S} {m₁ : Module Ident I} {m₂ : Module Ident S} {o i}:
   ¬ (m₁.outputs.contains o) → ¬ (m₁.inputs.contains i) →
   (m₁.product (m₂.connect' o i)).EqExt ((m₁.product m₂).connect' o i) := by
   intro hcont1 hcont2
-  and_intros
-  · intro i'; dsimp [Module.connect', Module.product]
-    rw [AssocList.eraseAll_map_comm]
-    by_cases i = i'
-    · subst i'
-      rw [AssocList.append_find_right]
-      · simp only [AssocList.find?_eraseAll_eq]
-      · rw [← AssocList.find?_map_comm,AssocList.contains_none] <;> solve | rfl | assumption
-    · rw [AssocList.eraseAll_append]
-      rw (occs := [2]) [AssocList.eraseAll_not_contains]
-      intro hneg; apply hcont2
-      rw [←AssocList.contains_find?_iff]
-      rw [←AssocList.contains_find?_iff] at hneg
-      obtain ⟨v, hfind⟩ := hneg
-      rw [AssocList.find?_mapVal] at hfind; simp only [Option.map_eq_some_iff] at hfind
-      obtain ⟨a, hfind, hlift⟩ := hfind
-      exists a
-  · intro i'; dsimp [Module.connect', Module.product]
-    rw [AssocList.eraseAll_map_comm]
-    by_cases o = i'
-    · subst i'
-      rw [AssocList.append_find_right]
-      · simp only [AssocList.find?_eraseAll_eq]
-      · rw [← AssocList.find?_map_comm,AssocList.contains_none] <;> solve | rfl | assumption
-    · rw [AssocList.eraseAll_append]
-      rw (occs := [2]) [AssocList.eraseAll_not_contains]
-      intro hneg; apply hcont1
-      rw [←AssocList.contains_find?_iff]
-      rw [←AssocList.contains_find?_iff] at hneg
-      obtain ⟨v, hfind⟩ := hneg
-      rw [AssocList.find?_mapVal] at hfind; simp only [Option.map_eq_some_iff] at hfind
-      obtain ⟨a, hfind, hlift⟩ := hfind
-      exists a
-  · dsimp [product, connect']
-    suffices hfrom :
-      liftR' (connect'' (m₂.outputs.getIO o).snd (m₂.inputs.getIO i).snd)
-      = connect''
-          (PortMap.getIO (AssocList.mapVal (fun x => liftL) m₁.outputs ++ AssocList.mapVal (fun x => liftR) m₂.outputs)
-              o).snd
-          (PortMap.getIO (AssocList.mapVal (fun x => liftL) m₁.inputs ++ AssocList.mapVal (fun x => liftR) m₂.inputs)
-              i).snd by simp [←hfrom]
-    unfold PortMap.getIO
-    repeat1' rw [AssocList.append_find_right]
-    repeat1' rw [AssocList.find?_mapVal]
-    have : ⟨PUnit.{1}, fun (x : I × S) x x => False⟩ = liftR ⟨PUnit.{1}, fun (x : S) x _ => False⟩ := by
-      congr; simp
-    have this' : (Option.map liftR (AssocList.find? o m₂.outputs)).getD ⟨PUnit.{1}, fun (x : I × S) x x => False⟩
-                 = liftR ((AssocList.find? o m₂.outputs).getD ⟨PUnit.{1}, fun x x x => False⟩) := by
-      rw [this, Option.getD_map]
-    have this'' : (Option.map liftR (AssocList.find? i m₂.inputs)).getD ⟨PUnit.{1}, fun (x : I × S) x x => False⟩
-                 = liftR ((AssocList.find? i m₂.inputs).getD ⟨PUnit.{1}, fun x x x => False⟩) := by
-      rw [this, Option.getD_map]
-    rw [this', this'']
-    rw [liftR_connect]
-    rw [AssocList.contains_none] <;> trivial
-    rw [AssocList.contains_none] <;> trivial
-  · simpa [connect', product]
+  refine ⟨fun _ => ?_, fun _ => ?_, ?_, fun _ => Iff.rfl⟩
+  · simp only [connect', product, AssocList.lift_append, AssocList.eraseAll_map_comm, AssocList.eraseAll_append,
+      AssocList.eraseAll_not_contains _ _ (by simpa only [AssocList.contains_mapval] : ¬ (m₁.inputs.mapVal fun _ => liftL).contains i)]
+  · simp only [connect', product, AssocList.lift_append, AssocList.eraseAll_map_comm, AssocList.eraseAll_append,
+      AssocList.eraseAll_not_contains _ _ (by simpa only [AssocList.contains_mapval] : ¬ (m₁.outputs.mapVal fun _ => liftL).contains o)]
+  · simp only [connect', product, AssocList.lift_append]
+    rw [getIO_append_liftR hcont1, getIO_append_liftR hcont2, ← liftR_connect]
+    simp only [List.map_cons, List.perm_middle]
 
 theorem comm_conn_conn_EqExt {I} {m : Module Ident I} {o i o' i'}:
   o ≠ o' → i ≠ i' →
