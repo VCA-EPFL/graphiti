@@ -243,18 +243,9 @@ def env_vr (E R : ℝ) := (vr_circuit E R).2
 @[drenv] theorem env_vr_resistor (E R : ℝ) :
     Batteries.AssocList.find? "resistor" (env_vr E R) = .some ⟨_, resistor_sm R⟩ := rfl
 
--- Type extraction: TODO do a tactic for that
 seal env_vr in
 @[reducible] def_module vr_module_t (E R: ℝ): Type :=
   [T| vr_lowered, (env_vr 0 0).find? ]
-reduction_by
-  dsimp [vr_lowered]
-  dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
-  dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
-  dsimp [ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type,
-         ExprLow.build_module, ExprLow.build_module', toString]
-  simp only [drenv]
-  dsimp
 
 seal env_vr in
 noncomputable def_module vr_module (E R : ℝ) : StringModule (vr_module_t E R) :=
@@ -277,16 +268,8 @@ def env_vrc (E R C : ℝ) := (vrc_circuit E R C).2
     Batteries.AssocList.find? "capacitor" (env_vrc E R C) = .some ⟨_, capacitor_sm C⟩ := rfl
 
 seal env_vrc in
--- Type extraction: TODO do a tactic for that
 @[reducible] def_module vrc_module_t : Type :=
   [T| vrc_lowered, (env_vrc 0 0 0).find? ]
-reduction_by
-  dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
-  dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
-  dsimp [ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type,
-         ExprLow.build_module, ExprLow.build_module', toString]
-  simp only [drenv]
-  dsimp
 
 
 seal env_vrc in
@@ -314,16 +297,8 @@ def env_nand (Vdd R Vth : ℝ) := (nand_circuit Vdd R Vth).2
     Batteries.AssocList.find? "nmos2" (env_nand Vdd R Vth) = .some ⟨_, nmos_sm Vth⟩ := rfl
 
 seal env_nand in
--- Type extraction: TODO do a tactic for that
 @[reducible] def_module nand_module_t : Type :=
   [T| nand_lowered, (env_nand 0 0 0).find? ]
-reduction_by
-  dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
-  dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
-  dsimp [ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type,
-         ExprLow.build_module, ExprLow.build_module', toString]
-  simp only [drenv]
-  dsimp
 
 seal env_nand in
 /-- The NAND gate, obtained by lowering the graphEnv definition. -/
@@ -351,7 +326,7 @@ theorem vr_from_analogValid (E R : ℝ) (hR : R ≠ 0)
   obtain ⟨hinit, hint⟩ := h
   -- Unfold constitutive laws and internal rules
   dsimp [vr_module, vsource_sm, resistor_sm, vsource, resistor,
-         NatModule.stringify, Module.mapIdent] at *
+         NatModule.stringify, Module.mapIdent, Module.liftL, Module.liftR] at *
   obtain ⟨hvs, hres⟩ := hinit
   -- Apply hint to each internal rule; simp resolves the (T = T → …) guard.
   have h1 := hint _ (List.mem_cons_self ..)
@@ -374,7 +349,7 @@ theorem vrc_ode_from_analogValid (E R C : ℝ)
   obtain ⟨hinit, hint⟩ := h
   dsimp [vrc_module, vsource_sm, resistor_sm, capacitor_sm, probe_sm,
          vsource, resistor, capacitor, probe,
-         NatModule.stringify, Module.mapIdent] at *
+         NatModule.stringify, Module.mapIdent, Module.liftL, Module.liftR] at *
   obtain ⟨hvs, _, hres, _, hcap⟩ := hinit
   -- Four internal rules, one per connection.
   have h1 := hint _ (List.mem_cons_self ..)
@@ -430,7 +405,7 @@ theorem nand_both_high (Vdd R Vth : ℝ) (hR : R ≠ 0)
   obtain ⟨hinit, hint⟩ := h
   dsimp [nand_module, vsource_sm, resistor_sm, probe_sm, nmos_sm,
          vsource, resistor, probe, nmos,
-         NatModule.stringify, Module.mapIdent] at *
+         NatModule.stringify, Module.mapIdent, Module.liftL, Module.liftR] at *
   obtain ⟨⟨hn2_on, _⟩, _, ⟨hn1_on, _⟩, _, _⟩ := hinit
   -- Five internal rules, one per connection.
   have h1 := hint _ (List.mem_cons_self ..)
@@ -468,7 +443,7 @@ theorem nand_a_low (Vdd R Vth : ℝ)
   obtain ⟨hinit, hint⟩ := h
   dsimp [nand_module, vsource_sm, resistor_sm, probe_sm, nmos_sm,
          vsource, resistor, probe, nmos,
-         NatModule.stringify, Module.mapIdent] at *
+         NatModule.stringify, Module.mapIdent, Module.liftL, Module.liftR] at *
   obtain ⟨_, _, ⟨_, hn1_off⟩, _, hrpull⟩ := hinit
   have h1 := hint _ (List.mem_cons_self ..)
   have h2 := hint _ (List.mem_cons_of_mem _ (List.mem_cons_self ..))
@@ -511,7 +486,7 @@ theorem nand_b_low (Vdd R Vth : ℝ)
   obtain ⟨hinit, hint⟩ := h
   dsimp [nand_module, vsource_sm, resistor_sm, probe_sm, nmos_sm,
          vsource, resistor, probe, nmos,
-         NatModule.stringify, Module.mapIdent] at *
+         NatModule.stringify, Module.mapIdent, Module.liftL, Module.liftR] at *
   obtain ⟨⟨_, hn2_off⟩, _, _, _, hrpull⟩ := hinit
   have h1 := hint _ (List.mem_cons_self ..)
   have h2 := hint _ (List.mem_cons_of_mem _ (List.mem_cons_self ..))

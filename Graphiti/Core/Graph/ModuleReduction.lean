@@ -257,28 +257,44 @@ dsimproc [simp] reduceOptionGetSome (Option.get (some _) _) := fun e => do
   let_expr some _ a := x | return .continue
   return .visit a
 
+/--
+Reduce a module `[e| e, ε ]` or its state type `[T| e, ε ]` that has been wrapped into an `Opaque` goal by
+`precomputeTac`.  This is the reduction used by `def_module` when no `reduction_by` is given.
+
+The graph is first lowered and built, then the components are looked up in the environment using the
+`drenv` lemmas.  Afterwards the port renamings, products and connections are computed, and finally the
+components (`drcomponents`) are unfolded.  `Module.liftL` and `Module.liftR` are left folded.
+-/
 macro "dr_reduce_module" : tactic =>
   `(tactic|
-       (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
-        dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
-        dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
-        rw [rw_opaque (by simp only [drenv]; rfl)]; dsimp
-        dsimp [Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts, Module.mapInputPorts, reduceAssocListfind?]
-        simp (disch := decide) only [AssocList.bijectivePortRenaming_invert]
-        dsimp [Module.product]
-        dsimp only [reduceModuleconnect'2]
-        dsimp only [reduceEraseAll]
-        dsimp; dsimp -failIfUnchanged [reduceAssocListfind?]
-
-        unfold Module.connect''
-        dsimp [Module.liftL, Module.liftR, drcomponents]))
+     (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
+      dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
+      dsimp -failIfUnchanged [ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
+      first
+        | rw [rw_opaque (by simp only [drenv]; rfl)]
+        | simp only [drenv]
+      dsimp -failIfUnchanged
+      dsimp -failIfUnchanged [Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts, Module.mapInputPorts, reduceAssocListfind?]
+      simp -failIfUnchanged (disch := decide) only [AssocList.bijectivePortRenaming_invert]
+      dsimp -failIfUnchanged [Module.product]
+      dsimp -failIfUnchanged
+      dsimp -failIfUnchanged only [Module.connect']
+      dsimp -failIfUnchanged only [reduceEraseAll]
+      dsimp -failIfUnchanged
+      dsimp -failIfUnchanged [drcomponents]
+      dsimp -failIfUnchanged [PortMap.getIO, reduceAssocListfind?]
+      try unfold Module.connect''
+      dsimp -failIfUnchanged [toString, drcomponents]))
 
 /--
-Define a module by reducing it beforehand.
+Define a module by reducing it beforehand with a custom tactic.
 -/
 elab mods:declModifiers "def_module " name:ident l:optDeclSig " := " t:term "reduction_by " tac:tacticSeq : command => do
   elabCommand <|← `($mods:declModifiers def $name $l := by precomputeTac $t by $tac)
 
+/--
+Define a module by reducing it beforehand with `dr_reduce_module`.
+-/
 elab mods:declModifiers "def_module " name:ident l:optDeclSig " := " t:term : command => do
   elabCommand <|← `($mods:declModifiers def_module $name $l := $t reduction_by dr_reduce_module)
 

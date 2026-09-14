@@ -87,47 +87,27 @@ include T₁ T₂ T₃ in
 seal environmentLhs in
 @[reducible] def_module lhsModuleType : Type :=
   [T| (rewriteLhsRhs S₁ S₂ S₃).input_expr, (@environmentLhs T₁ T₂ T₃ S₁ S₂ S₃).find? ]
-reduction_by
-  dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
-  dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
-  dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
-  simp only [find?_join2_data, find?_join1_data]
-  dsimp
 
 variable (T₁ T₂ T₃) in
 seal environmentLhs in
 def_module lhsModule : StringModule (lhsModuleType T₁ T₂ T₃) :=
   [e| (rewriteLhsRhs S₁ S₂ S₃).input_expr, (@environmentLhs T₁ T₂ T₃ S₁ S₂ S₃).find? ]
 reduction_by
-       (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
-        dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
-        dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
-        rw [rw_opaque (by simp only [drenv]; rfl)]; dsimp
-        dsimp [Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts, Module.mapInputPorts, reduceAssocListfind?]
-        simp (disch := decide) only [AssocList.bijectivePortRenaming_invert]
-        dsimp [Module.product]
-        dsimp only [reduceModuleconnect'2]
-        dsimp only [reduceEraseAll]
-        dsimp; dsimp [reduceAssocListfind?]
-
-        unfold Module.connect''
-        dsimp [Module.liftL, Module.liftR, drcomponents])
+  dr_reduce_module
+  dsimp -failIfUnchanged [Module.liftL, Module.liftR]
 
 variable (T₁ T₂ T₃) in
 seal environmentRhs in
 @[reducible] def_module rhsModuleType : Type :=
   [T| (rewriteLhsRhs S₁ S₂ S₃).output_expr, (@environmentRhs T₁ T₂ T₃ S₁ S₂ S₃).find? ]
-reduction_by
-  dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
-  dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
-  dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
-  simp only [find?_pure_data2, find?_join2_data2, find?_join2_data, find?_join1_data, find?_join1_data2]
-  dsimp
 
 variable (T₁ T₂ T₃) in
 seal environmentRhs in
 def_module rhsModule : StringModule (rhsModuleType T₁ T₂ T₃) :=
   [e| (rewriteLhsRhs S₁ S₂ S₃).output_expr, (@environmentRhs T₁ T₂ T₃ S₁ S₂ S₃).find? ]
+reduction_by
+  dr_reduce_module
+  dsimp -failIfUnchanged [Module.liftL, Module.liftR]
 
 ---------------------------------------------------------------------------------------------------
 
@@ -148,7 +128,7 @@ private inductive partially_flushed: lhsModuleType T₁ T₂ T₃ -> Prop where
 private theorem pf_is_partially_flushed:
   ∀ s, pf (lhsModule T₁ T₂ T₃) s → partially_flushed s :=
 by
-  intro ⟨s1, s2, s3⟩ hr; dsimp [lhsModuleType, lhsModule] at *
+  intro ⟨s1, s2, s3⟩ hr; dsimp [lhsModuleType, lhsModule, Module.liftL, Module.liftR] at *
   specialize hr ?r (by simp; rfl)
   cases s2 <;> cases s3 <;> try constructor
   exfalso
@@ -165,7 +145,7 @@ by
   all_goals
     unfold pf
     intros rule hᵣ _ h
-    simp [lhsModule] at hᵣ <;> subst hᵣ
+    simp [lhsModule, Module.liftL, Module.liftR] at hᵣ <;> subst hᵣ
     simp at h
 
 instance: Flushable (lhsModule T₁ T₂ T₃) := by
@@ -188,7 +168,7 @@ instance: Flushable (lhsModule T₁ T₂ T₃) := by
       apply Exists.intro ⟨ ⟨ _, _ ⟩, _, _ ⟩
       constructor
       . apply existSR.step _ ⟨ ⟨ _, _ ⟩, _, _ ⟩ _
-        . unfold lhsModule; simp; rfl
+        . unfold lhsModule; simp [Module.liftL, Module.liftR]; rfl
         . repeat apply Exists.intro
           and_intros <;> rfl
         . assumption
@@ -267,7 +247,7 @@ by
   . assumption
   . rename_i init mid _ rule Hrule c _ Himpl
     apply Himpl; clear Himpl
-    unfold lhsModule at Hrule; simp at Hrule
+    unfold lhsModule at Hrule; simp [Module.liftL, Module.liftR] at Hrule
     subst_vars
     obtain ⟨_, _, _, _, _, _, _, _⟩ := c
     let ⟨⟨_, _⟩, ⟨_, _⟩⟩ := init
@@ -289,7 +269,7 @@ by
   . assumption
   . rename_i init mid _ rule Hrule c _ Himpl
     apply Himpl; clear Himpl
-    unfold rhsModule at Hrule; simp at Hrule
+    unfold rhsModule at Hrule; simp [Module.liftL, Module.liftR] at Hrule
     cases Hrule <;> subst_vars
     . let ⟨⟨_, _⟩, ⟨_, _⟩⟩ := init
       let ⟨⟨_, _⟩, ⟨_, _⟩⟩ := mid
@@ -444,7 +424,7 @@ private theorem internal_rules_deterministic:
   ∀ rule ∈ (lhsModule T₁ T₂ T₃).internals , ∀ s₁ s₂ s₃, rule s₁ s₂ → rule s₁ s₃ → s₂ = s₃ :=
 by
   intro _ _ ⟨⟨_ , _⟩, ⟨_ , _⟩⟩ ⟨⟨_ , _⟩, ⟨_ , _⟩⟩ ⟨⟨_ , _⟩, ⟨_ , _⟩⟩ h₁ h₂
-  simp [lhsModule] at *
+  simp [lhsModule, Module.liftL, Module.liftR] at *
   subst_vars
   dsimp at h₁ h₂
   obtain ⟨_, _, _, _, _, _, _⟩ := h₁
@@ -770,12 +750,12 @@ theorem refines₀: rhsModule T₁ T₂ T₃ ⊑_{φ} lhsModule T₁ T₂ T₃ :
         unfold rhsModule at HContains; simp at HContains
         rcases HContains with h <;> subst_vars <;> simp
         rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at hrule <;>
-        simp at hrule
+        simp [Module.liftL, Module.liftR] at hrule
         obtain ⟨⟨_, _⟩, ⟨_, _⟩, _⟩ := hrule
         repeat cases ‹_∧_›
         subst_vars
         rename_i hlval hrval hpf
-        have_hole hio : (lhsModule T₁ T₂ T₃).outputs.getIO { inst := InstIdent.top, name := "o_out" } = _ := by dsimp [reducePortMapgetIO]
+        have_hole hio : (lhsModule T₁ T₂ T₃).outputs.getIO { inst := InstIdent.top, name := "o_out" } = _ := by dsimp [reducePortMapgetIO, Module.liftL, Module.liftR]
         simp only [PortMap.rw_rule_execution hio]
         cases hpf <;> cases sj2l <;> simp_all [φ, ψ, partially_flushed.lhs, partially_flushed.rhs, Prod.ext_iff]
     . exfalso; exact (PortMap.getIO_not_contained_false hrule HContains)
@@ -810,7 +790,7 @@ theorem f': ∀ s₁ s₂, ∀ rule ∈ (lhsModule T₁ T₂ T₃).internals,
   → single_internal s₂ :=
 by
   intro ⟨⟨_, _⟩,⟨_, _⟩⟩ ⟨⟨_, _⟩,⟨_, _⟩⟩ rule h₁ h₂ h₃
-  simp [lhsModule] at h₁
+  simp [lhsModule, Module.liftL, Module.liftR] at h₁
   subst h₁
 
   cases h₂
@@ -869,7 +849,7 @@ by
       cases ‹_ ∧ _›
     subst_vars
     -- work on h₁
-    simp [lhsModule] at h₁; subst h₁
+    simp [lhsModule, Module.liftL, Module.liftR] at h₁; subst h₁
     dsimp
     apply Exists.intro ⟨⟨_, _⟩,⟨_, _⟩⟩
     repeat
@@ -942,10 +922,10 @@ theorem refines₃: rhsModule T₁ T₂ T₃ ⊑_{φ₃} lhsModule T₁ T₂ T�
             . assumption
             . cases hₑ; constructor
       . rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at a
-        dsimp at a
+        dsimp [Module.liftL, Module.liftR] at a
         obtain ⟨⟨⟨_, _⟩, _⟩, ⟨_, _⟩⟩ := a
         subst_vars
-        have_hole heq : ((rhsModule T₁ T₂ T₃).inputs.getIO { inst := InstIdent.top, name := "i_1" }).fst = _ := by dsimp [reducePortMapgetIO]
+        have_hole heq : ((rhsModule T₁ T₂ T₃).inputs.getIO { inst := InstIdent.top, name := "i_1" }).fst = _ := by dsimp [reducePortMapgetIO, Module.liftL, Module.liftR]
         use ⟨⟨sj2l, sj2r⟩, ⟨sj1l, sj1r ++ [heq.mp s]⟩⟩
         apply And.intro
         . rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]; simp
@@ -962,10 +942,10 @@ theorem refines₃: rhsModule T₁ T₂ T₃ ⊑_{φ₃} lhsModule T₁ T₂ T�
             . rfl
             . cases hₑ; constructor
       . rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at a
-        dsimp at a
+        dsimp [Module.liftL, Module.liftR] at a
         obtain ⟨⟨⟨_, _⟩, _⟩, ⟨_, _⟩⟩ := a
         subst_vars
-        have_hole heq : ((rhsModule T₁ T₂ T₃).inputs.getIO { inst := InstIdent.top, name := "i_2" }).fst = _ := by dsimp [reducePortMapgetIO]
+        have_hole heq : ((rhsModule T₁ T₂ T₃).inputs.getIO { inst := InstIdent.top, name := "i_2" }).fst = _ := by dsimp [reducePortMapgetIO, Module.liftL, Module.liftR]
         use ⟨⟨sj2l, sj2r ++ [heq.mp s]⟩, ⟨sj1l, sj1r⟩⟩
         apply And.intro
         . rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]; simp

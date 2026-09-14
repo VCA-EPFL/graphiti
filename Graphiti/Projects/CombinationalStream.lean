@@ -898,7 +898,9 @@ def et_ms_flip_flop_m := [graphEnv|
 
 namespace Refinement
 
+@[drunfold_defs]
 def et_flip_flop_m_lowered := et_flip_flop_m.1.lower_TR |>.get rfl
+@[drunfold_defs]
 def et_ff_buffered_s_lowered := et_ff_buffered_s.1.lower_TR |>.get rfl
 
 def env := (et_flip_flop_m).2
@@ -921,34 +923,10 @@ def env := (et_flip_flop_m).2
 seal env in
 @[reducible] def_module lhsModuleType : Type :=
   [T| et_flip_flop_m_lowered, env.find? ]
-reduction_by
-  dsimp [et_flip_flop_m_lowered]
-  dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
-  dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
-  dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
-  simp only [drenv]
-  dsimp
 
 seal env in
 def_module lhsModule : StringModule lhsModuleType :=
   [e| et_flip_flop_m_lowered, env.find? ]
-reduction_by
-       dsimp [et_flip_flop_m_lowered]
-       (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
-        dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
-        dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
-        rw [rw_opaque (by simp only [drenv]; rfl)]; dsimp
-        dsimp [Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts, Module.mapInputPorts, reduceAssocListfind?]
-        simp (disch := decide) only [AssocList.bijectivePortRenaming_invert]
-        dsimp [Module.product]
-        dsimp only [reduceModuleconnect'2]
-        dsimp only [reduceEraseAll]
-        dsimp; dsimp [reduceAssocListfind?]
-
-        unfold Module.connect''
-        dsimp [toString]
-        )
-        /- dsimp [Module.liftL, Module.liftR, drcomponents]) -/
 
 
 def env_s := (et_ff_buffered_s).2
@@ -962,34 +940,10 @@ def env_s := (et_ff_buffered_s).2
 seal env_s in
 @[reducible] def_module rhsModuleType : Type :=
   [T| et_ff_buffered_s_lowered, env_s.find? ]
-reduction_by
-  dsimp [et_ff_buffered_s_lowered]
-  dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
-  dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
-  dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
-  simp only [drenv]
-  dsimp
 
 seal env_s in
 def_module rhsModule : StringModule rhsModuleType :=
   [e| et_ff_buffered_s_lowered, env_s.find? ]
-reduction_by
-       dsimp [et_ff_buffered_s_lowered]
-       (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
-        dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
-        dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
-        rw [rw_opaque (by simp only [drenv]; rfl)]; dsimp
-        dsimp [Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts, Module.mapInputPorts, reduceAssocListfind?]
-        simp (disch := decide) only [AssocList.bijectivePortRenaming_invert]
-        dsimp [Module.product]
-        dsimp only [reduceModuleconnect'2]
-        dsimp only [reduceEraseAll]
-        dsimp; dsimp [reduceAssocListfind?]
-
-        unfold Module.connect''
-        dsimp [toString]
-        )
-        /- dsimp [Module.liftL, Module.liftR, drcomponents]) -/
 
 macro "destruct_ands_eqs" : tactic =>
   `(tactic| with_reducible (repeat cases ‹_ ∧ _›); subst_vars; with_reducible (repeat cases ‹_ = _›))
@@ -2172,6 +2126,7 @@ def sink_m : StringModule Unit :=
   -- fs_2 -> cout [from="out"];
  ]
 
+@[drunfold_defs]
 def buffered_full_adder_m_lowered := buffered_full_adder_m.1.lower_TR |>.get rfl
 
 def env_bfam := buffered_full_adder_m.2
@@ -2187,34 +2142,11 @@ def env_bfam := buffered_full_adder_m.2
 seal env_bfam in
 @[reducible] def_module full_adder_spec_t : Type :=
   [T| buffered_full_adder_m_lowered, env_bfam.find? ]
-reduction_by
-  dsimp [buffered_full_adder_m_lowered]
-  dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
-  dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
-  dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
-  simp only [drenv]
-  dsimp
 
 
 seal env_bfam in
 def_module full_adder_spec : StringModule full_adder_spec_t :=
   [e| buffered_full_adder_m_lowered, env_bfam.find? ]
-reduction_by
-       dsimp [buffered_full_adder_m_lowered]
-       (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
-        dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
-        dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
-        rw [rw_opaque (by simp only [drenv]; rfl)]; dsimp
-        dsimp [Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts, Module.mapInputPorts, reduceAssocListfind?]
-        simp (disch := decide) only [AssocList.bijectivePortRenaming_invert]
-        dsimp [Module.product]
-        dsimp only [reduceModuleconnect'2]
-        dsimp only [reduceEraseAll]
-        dsimp; dsimp [reduceAssocListfind?]
-
-        unfold Module.connect''
-        dsimp [toString]
-        )
 
 /--
 Equivalent to just xor.
@@ -2242,6 +2174,7 @@ def full_adder_s := [graphEnv|
     -- or -> cout [from="c"];
   ]
 
+@[drunfold_defs]
 def full_adder_s_lowered := full_adder_s.1.lower_TR |>.get rfl
 
 def env_fas := full_adder_s.2
@@ -2254,33 +2187,10 @@ def env_fas := full_adder_s.2
 seal env_fas in
 @[reducible] def_module full_adder_imp_t : Type :=
   [T| full_adder_s_lowered, env_fas.find? ]
-reduction_by
-  dsimp [full_adder_s_lowered]
-  dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
-  dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
-  dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
-  simp only [drenv]
-  dsimp
 
 seal env_fas in
 def_module full_adder_imp : StringModule full_adder_imp_t :=
   [e| full_adder_s_lowered, env_fas.find? ]
-reduction_by
-       dsimp [full_adder_s_lowered]
-       (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
-        dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
-        dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
-        rw [rw_opaque (by simp only [drenv]; rfl)]; dsimp
-        dsimp [Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts, Module.mapInputPorts, reduceAssocListfind?]
-        simp (disch := decide) only [AssocList.bijectivePortRenaming_invert]
-        dsimp [Module.product]
-        dsimp only [reduceModuleconnect'2]
-        dsimp only [reduceEraseAll]
-        dsimp; dsimp [reduceAssocListfind?]
-
-        unfold Module.connect''
-        dsimp [toString]
-        )
 
 instance : MatchInterface full_adder_imp full_adder_spec := by
   dsimp [full_adder_imp,full_adder_spec]

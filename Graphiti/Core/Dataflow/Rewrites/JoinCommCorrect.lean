@@ -43,53 +43,18 @@ noncomputable def ε_rhs : FinEnv String (String × Nat) :=
 seal T1 T2 in
 @[reducible] def_module lhsType : Type :=
   [T| (lhsLower e.types), e.ε.find? ]
-reduction_by
-  dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
-  dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
-  dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
-  simp only [drenv]
-  dsimp
 
 seal T1 T2 in
 noncomputable def_module lhsEvaled : StringModule lhsType :=
   [e| (lhsLower e.types), e.ε.find? ]
-reduction_by
-  (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
-   dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
-   dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
-   rw [rw_opaque (by simp only [drenv]; rfl)]; dsimp
-   dsimp [Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts, Module.mapInputPorts, reduceAssocListfind?]
-   simp (disch := decide) only [AssocList.bijectivePortRenaming_invert]
-   dsimp [Module.product]
-   dsimp [drcomponents]
-   dsimp -failIfUnchanged [reduceAssocListfind?])
 
 seal T1 T2 ε_rhs in
 @[reducible] def_module rhsType : Type :=
   [T| (rhsLower e.max_type), ε_rhs.toEnv ]
-reduction_by
-  dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
-  dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
-  dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
-  simp only [drenv]; dsimp
 
 seal T1 T2 ε_rhs in
 noncomputable def_module rhsEvaled : StringModule rhsType :=
   [e| (rhsLower e.max_type), ε_rhs.toEnv ]
-reduction_by
-  (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
-   dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
-   dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
-   rw [rw_opaque (by simp only [drenv]; rfl)]; dsimp
-   dsimp [Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts, Module.mapInputPorts, reduceAssocListfind?]
-   simp (disch := decide) only [AssocList.bijectivePortRenaming_invert]
-   dsimp [Module.product]
-   dsimp -failIfUnchanged
-   dsimp only [Module.connect']
-   dsimp only [reduceEraseAll]
-   dsimp; dsimp [PortMap.getIO, reduceAssocListfind?]
-   unfold Module.connect''
-   dsimp [drcomponents])
 
 instance : MatchInterface rhsEvaled lhsEvaled := by
   unfold rhsEvaled lhsEvaled

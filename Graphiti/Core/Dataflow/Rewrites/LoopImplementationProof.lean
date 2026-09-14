@@ -236,7 +236,7 @@ theorem state_relation_preserve_input:
     state_relation s ->
     (List.map Prod.snd s.2.2.2.1.1 ++ List.map Prod.fst s.2.2.2.1.2.2) = (List.map Prod.snd s'.2.2.2.1.1 ++ List.map Prod.fst s'.2.2.2.1.2.2) := by
   intro s s' rule hrulein hrule hstate
-  dsimp [rhsGhostEvaled] at hrulein
+  dsimp [rhsGhostEvaled, Module.liftL, Module.liftR] at hrulein
   fin_cases hrulein <;> try grind
 
 omit e in
@@ -271,8 +271,9 @@ theorem state_relation_preserve:
   let ⟨ x_module, ⟨x_branchD, x_branchB⟩, x_merge, ⟨x_tagT, x_tagM, x_tagD ⟩, ⟨x_splitD, x_splitB⟩⟩ := s
   let ⟨ x_module', ⟨x_branchD', x_branchB'⟩, x_merge', ⟨x_tagT', x_tagM', x_tagD' ⟩, ⟨x_splitD', x_splitB'⟩⟩ := s'
   fin_cases h1
-  . replace h2 := h2.1 rfl
-    simp only [List.concat_eq_append] at *
+  . dsimp only [Module.liftR, Module.liftL, cast_eq] at h2
+    replace h2 := h2.1 rfl
+    simp only [List.concat_eq_append, Module.liftR, Module.liftL] at *
     obtain ⟨cons, newC, h⟩ := h2
     obtain ⟨ x_module', ⟨x_branchD', x_branchB'⟩, x_merge', ⟨x_tagT', x_tagM', x_tagD' ⟩, ⟨x_splitD', x_splitB'⟩⟩ := cons
     dsimp at h
@@ -380,8 +381,9 @@ theorem state_relation_preserve:
         specialize Hnewnew (by simp)
         assumption
     · intros; apply Hnewnew; simp [*]
-  . replace h2 := h2.1 rfl
-    simp only [List.concat_eq_append] at *
+  . dsimp only [Module.liftR, Module.liftL, cast_eq] at h2
+    replace h2 := h2.1 rfl
+    simp only [List.concat_eq_append, Module.liftR, Module.liftL] at *
     obtain ⟨cons, newC, h⟩ := h2
     obtain ⟨ x_module', ⟨x_branchD', x_branchB'⟩, x_merge', ⟨x_tagT', x_tagM', x_tagD' ⟩, ⟨x_splitD', x_splitB'⟩⟩ := cons
     dsimp at h
@@ -589,8 +591,9 @@ theorem state_relation_preserve:
         intro helem2
         apply helem; cases helem2; rfl
         contradiction
-  . replace h2 := h2.1 rfl
-    simp only [List.concat_eq_append] at *
+  . dsimp only [Module.liftR, Module.liftL, cast_eq] at h2
+    replace h2 := h2.1 rfl
+    simp only [List.concat_eq_append, Module.liftR, Module.liftL] at *
     obtain ⟨cons, newC, h⟩ := h2
     obtain ⟨ x_module', ⟨x_branchD', x_branchB'⟩, x_merge', ⟨x_tagT', x_tagM', x_tagD' ⟩, ⟨x_splitD', x_splitB'⟩⟩ := cons
     repeat rw [Prod.mk.injEq] at *
@@ -657,8 +660,9 @@ theorem state_relation_preserve:
       (repeat rw [List.length_append])
       (repeat rw [List.length_append] at H13)
       rw[H13]; rfl
-  . replace h2 := h2.1 rfl
-    simp only [List.concat_eq_append] at *
+  . dsimp only [Module.liftR, Module.liftL, cast_eq] at h2
+    replace h2 := h2.1 rfl
+    simp only [List.concat_eq_append, Module.liftR, Module.liftL] at *
     obtain ⟨cons, newC, h⟩ := h2
     obtain ⟨ x_module', ⟨x_branchD', x_branchB'⟩, x_merge', ⟨x_tagT', x_tagM', x_tagD' ⟩, ⟨x_splitD', x_splitB'⟩⟩ := cons
     dsimp at h
@@ -706,8 +710,9 @@ theorem state_relation_preserve:
       rw[← List.singleton_append ] at H13
       (repeat rw [List.length_append] at H13)
       rw[← H13]; ac_nf
-  . replace h2 := h2.1 rfl
-    simp only [List.concat_eq_append] at *
+  . dsimp only [Module.liftR, Module.liftL, cast_eq] at h2
+    replace h2 := h2.1 rfl
+    simp only [List.concat_eq_append, Module.liftR, Module.liftL] at *
     obtain ⟨cons, newC, h⟩ := h2
     . obtain ⟨ x_module', ⟨x_branchD', x_branchB'⟩, x_merge', ⟨x_tagT', x_tagM', x_tagD' ⟩, ⟨x_splitD', x_splitB'⟩⟩ := cons
       dsimp at h
@@ -740,8 +745,8 @@ theorem state_relation_preserve:
         (repeat rw [List.length_append] at H13)
         rw[H13]
         ac_nf at *
-  . replace h2 := h2.1 rfl
-    simp only [List.concat_eq_append] at *
+  . dsimp only [Module.liftR, Module.liftL, cast_eq] at h2
+    replace h2 := h2.1 rfl
     obtain ⟨cons, newC, h⟩ := h2
     obtain ⟨ x_module', ⟨x_branchD', x_branchB'⟩, x_merge', ⟨x_tagT', x_tagM', x_tagD' ⟩, ⟨x_splitD', x_splitB'⟩⟩ := cons
     dsimp at h
@@ -807,8 +812,8 @@ theorem state_relation_preserve:
       (repeat rw [List.length_append] at H13)
       (repeat rw[List.length_singleton] at H13)
       omega
-  . replace h2 := h2.1 rfl
-    simp only [List.concat_eq_append, Module.liftR, Module.liftL] at *
+  . dsimp only [Module.liftR, Module.liftL, cast_eq] at h2
+    replace h2 := h2.1 rfl
     obtain ⟨cons, newC, h⟩ := h2
     obtain ⟨ x_module', ⟨x_branchD', x_branchB'⟩, x_merge', ⟨x_tagT', x_tagM', x_tagD' ⟩, ⟨x_splitD', x_splitB'⟩⟩ := cons
     dsimp at h
@@ -1450,12 +1455,12 @@ theorem refine:
   apply Module.comp_refines.mk
   . intro ident ⟨x'1, x'2⟩ v Hcontains
     unfold rhsGhostEvaled at *
-    dsimp at Hcontains v
+    dsimp [Module.liftR, Module.liftL] at Hcontains v
     by_cases heq : { inst := InstIdent.top, name := "i_in" } = ident
     . unfold PortMap.getIO
       subst ident
       rw[PortMap.rw_rule_execution (getIO_cons_eq (α := rhsGhostType))] at Hcontains
-      dsimp [reduceAssocListfind?]
+      dsimp [reduceAssocListfind?, Module.liftR, Module.liftL]
       apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
       apply Exists.intro (_, _, (_, _), _, (_, _), (_, _), (_, _), _, _, _)
       with_reducible and_intros; any_goals apply existSR.done
@@ -1581,7 +1586,7 @@ theorem refine:
       contradiction
   . intro ident ⟨x'1, x'2⟩ v Hcontains
     unfold rhsGhostEvaled at *
-    dsimp at Hcontains v
+    dsimp [Module.liftR, Module.liftL] at Hcontains v
     by_cases heq : { inst := InstIdent.top, name := "o_out" } = ident
     . unfold PortMap.getIO
       subst ident
