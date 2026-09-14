@@ -1653,7 +1653,7 @@ theorem refines_init :
 
 theorem refines : rhsGhostEvaled ⊑ lhsEvaled := ⟨inferInstance, φ, refine, refines_init⟩
 
-noncomputable def verified_rewrite : VerifiedRewrite Env.well_formed (rewrite.rewrite (e.types.map ("", ·)) ("", e.max_type)) e.ε where
+noncomputable def verified_rewrite : VerifiedRewrite Env.well_formed rewrite.pattern (rewrite.rewrite (e.types.map ("", ·)) ("", e.max_type)) e.ε where
   ε_ext := ε_rhs_ghost
   ε_ext_wf := ε_rhs_ghost_wf
   ε_independent := Env.independent_symm ε_rhs_ghost_independent
@@ -1661,6 +1661,7 @@ noncomputable def verified_rewrite : VerifiedRewrite Env.well_formed (rewrite.re
   rhs_wt := ghost_rhs_wt
   lhs_locally_wf := by dsimp [rewrite]; apply lhsLower_locally_wf
   refinement := by
+    intros
     apply Module.refines_eq_relax
     apply rhs_ghost_evaled_eq3.symm
     rotate_left

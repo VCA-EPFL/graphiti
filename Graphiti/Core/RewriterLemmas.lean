@@ -148,9 +148,16 @@ where
   rhs_wf : rewrite.output_expr.well_formed ε_ext.toEnv
   rhs_wt : rewrite.output_expr.well_typed ε_ext.toEnv
   lhs_locally_wf : rewrite.input_expr.locally_wf
-  refinement {g a} :
-    rewrite.input_expr.higher_correct (λ _ => default) = .some g →
-    pattern g = .ok a →
+  /--
+  The refinement only has to hold if `rewrite.input_expr` comes from a matched subgraph: `pattern` matched the nodes
+  `sub` in `g`, extracting `sub` from `g` produces `g₁`, and `rewrite.input_expr` is weakly α-equivalent to the lowered
+  `g₁`.
+  -/
+  refinement {g sub types g₁ g₂ e_sub mapping} :
+    pattern g = .ok (sub, types) →
+    g.extract sub = .some (g₁, g₂) →
+    g₁.lower = .some e_sub →
+    rewrite.input_expr.weak_beq e_sub = .ok mapping →
     [e| rewrite.output_expr, (ε ++ ε_ext).toEnv ] ⊑ [e| rewrite.input_expr, ε.toEnv ]
 
 structure VerifiedConditionalRewrite (rewrite : DefiniteRewrite String (String × Nat)) (ε : FinEnv String (String × Nat)) where
@@ -373,7 +380,7 @@ theorem run'_refines {b} {ε_global : FinEnv String (String × Nat)}
   {st _st'}
   {rw : Rewrite String (String × Nat)}
   {elems types}
-  {vrw : VerifiedRewrite env_well_formed (rw.rewrite types st.fresh_type) ε_global}:
+  {vrw : VerifiedRewrite env_well_formed rw.pattern (rw.rewrite types st.fresh_type) ε_global}:
   rw.pattern g = .ok (elems, types) →
   g.lower = some e_g →
   e_g.well_formed ε_global.toEnv →
@@ -494,7 +501,7 @@ theorem run'_refines {b} {ε_global : FinEnv String (String × Nat)}
     · assumption
     apply Module.refines_transitive
     apply Module.refines_renamePorts
-    apply vrw.refinement
+    apply vrw.refinement <;> assumption
     apply Module.refines_transitive
     apply Module.refines_renamePorts
     apply ExprLow.refines_subset_left
@@ -537,7 +544,7 @@ theorem run'_preserves_well_formed {b} {ε_global : FinEnv String (String × Nat
   {st _st'}
   {rw : Rewrite String (String × Nat)}
   {elems types}
-  {vrw : VerifiedRewrite env_well_formed (rw.rewrite types st.fresh_type) ε_global}:
+  {vrw : VerifiedRewrite env_well_formed rw.pattern (rw.rewrite types st.fresh_type) ε_global}:
   rw.pattern g = .ok (elems, types) →
   g.lower = some e_g →
   e_g.well_formed ε_global.toEnv →
@@ -636,7 +643,7 @@ theorem run'_preserves_well_typed {b} {ε_global : FinEnv String (String × Nat)
   {st _st'}
   {rw : Rewrite String (String × Nat)}
   {elems types}
-  {vrw : VerifiedRewrite env_well_formed (rw.rewrite types st.fresh_type) ε_global}:
+  {vrw : VerifiedRewrite env_well_formed rw.pattern (rw.rewrite types st.fresh_type) ε_global}:
   rw.pattern g = .ok (elems, types) →
   g.lower = some e_g →
   e_g.well_formed ε_global.toEnv →
@@ -741,7 +748,7 @@ theorem run'_preserves_well_typed {b} {ε_global : FinEnv String (String × Nat)
       · assumption
       apply Module.refines_transitive
       apply Module.refines_renamePorts
-      apply vrw.refinement
+      apply vrw.refinement <;> assumption
       apply Module.refines_transitive
       apply Module.refines_renamePorts
       apply ExprLow.refines_subset_left
