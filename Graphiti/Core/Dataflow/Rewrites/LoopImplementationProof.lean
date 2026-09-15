@@ -1199,7 +1199,7 @@ theorem refines : rhsGhostEvaled ⊑ lhsEvaled := ⟨inferInstance, φ, refine, 
 noncomputable def verified_rewrite : VerifiedRewrite Env.well_formed rewrite.pattern (rewrite.rewrite (e.types.map ("", ·)) ("", e.max_type)) e.ε where
   ε_ext := ε_rhs_ghost
   ε_ext_wf := ε_rhs_ghost_wf
-  ε_independent := Env.independent_symm ε_rhs_ghost_independent
+  ε_compatible := FinEnv.independent_subset_of_union ε_rhs_ghost_independent
   rhs_wf := ghost_rhs_wf
   rhs_wt := ghost_rhs_wt
   lhs_locally_wf := by dsimp [rewrite]; apply lhsLower_locally_wf

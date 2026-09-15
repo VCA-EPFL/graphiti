@@ -119,13 +119,15 @@ Lemmas used throughout the proofs:
 
 ## Rewrite correctness
 
-Defined in `RewriterLemmas.lean`, with `env_well_formed : Env String (String × Nat) → Prop` as a parameter.
+Defined in `RewriterLemmas.lean`, with `env_well_formed` as a parameter. `WellFormedEnv` and `Environment` take
+`env_well_formed : Env String (String × Nat) → Prop`. `VerifiedRewrite` and the `run'_*` theorems work for any node type
+`Typ` with `env_well_formed : Env String Typ → Prop`.
 
 | Name | Definition |
 | --- | --- |
 | `WellFormedEnv env_well_formed ε max_type` | `ε` satisfies `env_well_formed` and `ε.max_typeD ≤ max_type`. |
 | `Environment env_well_formed lhs` | Class giving `ε`, `max_type`, `types`, and proofs that `lhs types` is well formed and well typed in `ε`. |
-| `VerifiedRewrite env_well_formed rw ε` | `ε_ext`, `ε_ext_wf`, `ε_independent`, `rhs_wf`, `rhs_wt`, `lhs_locally_wf` and `refinement`. |
+| `VerifiedRewrite env_well_formed pattern rw ε` | `ε_ext`, `ε_ext_wf`, `ε_compatible`, `rhs_wf`, `rhs_wt`, `lhs_locally_wf` and `refinement`. |
 | `VerifiedConditionalRewrite` | Same fields as `VerifiedRewrite`. |
 | `run'_refines` | Under a match, a well-formed and well-typed lowering and a `VerifiedRewrite`, the result of `Rewrite.run'` refines the input graph. |
 | `run'_preserves_well_formed`, `run'_preserves_well_typed` | The result lowers to a term that is again well formed and well typed, in `ε_global ++ ε_ext`. |

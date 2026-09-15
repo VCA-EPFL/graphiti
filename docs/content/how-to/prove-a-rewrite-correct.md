@@ -131,21 +131,24 @@ Build a `VerifiedRewrite` for the rewrite, instantiated at the environment's typ
 
 ```lean
 noncomputable def verified_rewrite :
-    VerifiedRewrite Env.well_formed (rewrite.rewrite (e.types.map ("", ·)) ("", e.max_type)) e.ε where
+    VerifiedRewrite Env.well_formed rewrite.pattern (rewrite.rewrite (e.types.map ("", ·)) ("", e.max_type)) e.ε where
   ε_ext := ε_rhs
   ε_ext_wf := sorry
-  ε_independent := sorry
+  ε_compatible := sorry
   rhs_wf := sorry
   rhs_wt := sorry
   lhs_locally_wf := sorry
   refinement := sorry
 ```
 
-The fields ask that `ε_rhs` is well formed and disjoint from `e.ε`, that the right-hand expression is well formed and
-well typed under `ε_rhs`, that every port renaming on the left-hand side is invertible, and that the right-hand module
-under `e.ε ++ ε_rhs` refines the left-hand module under `e.ε`. `LoopImplementationProof.lean` proves `refinement`
-by applying `Module.refines_eq_relax` to `refines` and to equations that relate the reduced modules to the
-`[e| ... ]` terms.
+The fields ask that `ε_rhs` is well formed and agrees with `e.ε` on every type they share, that the right-hand
+expression is well formed and well typed under `ε_rhs`, that every port renaming on the left-hand side is invertible,
+and that the right-hand module under `e.ε ++ ε_rhs` refines the left-hand module under `e.ε`. When `ε_rhs` only uses
+fresh type numbers, prove `ε_compatible` with `FinEnv.independent_subset_of_union`. `refinement` may assume that
+`rewrite.pattern` matched a graph and that the matched subgraph is weakly α-equivalent to the left-hand side, which is
+how a conditional rewrite gets to use its matching condition. `LoopImplementationProof.lean` proves `refinement` by
+applying `Module.refines_eq_relax` to `refines` and to equations that relate the reduced modules to the `[e| ... ]`
+terms.
 
 ## Guard against sorry
 

@@ -103,14 +103,20 @@ theorem refines_higher_correct {Ident Typ} [DecidableEq Ident] [DecidableEq Typ]
   rw [ExprHigh.build_module_expr, ExprHigh.build_module, ExprHigh.build_module', higher_correct_eq higher]
   grind [ExprLow.refines_comm_bases]
 
-structure VerifiedRewrite {n}
-          (pattern : Pattern String (String × Nat) n)
-          (rewrite : DefiniteRewrite String (String × Nat))
-          (ε : FinEnv String (String × Nat))
+structure VerifiedRewrite {Typ : Type} [DecidableEq Typ] [Repr Typ]
+          (env_well_formed : Env String Typ → Prop) {n}
+          (pattern : Pattern String Typ n)
+          (rewrite : DefiniteRewrite String Typ)
+          (ε : FinEnv String Typ)
 where
-  ε_ext : FinEnv String (String × Nat)
+  ε_ext : FinEnv String Typ
   ε_ext_wf : env_well_formed ε_ext.toEnv
-  ε_independent : Env.independent ε_ext.toEnv ε.toEnv
+  /--
+  Every component in `ε_ext` has the same meaning in `ε ++ ε_ext`, so `ε_ext` may reuse node types from `ε` as long as it
+  agrees with `ε` on them.  This holds in particular when `ε_ext` and `ε` are independent
+  (`FinEnv.independent_subset_of_union`).
+  -/
+  ε_compatible : Env.subsetOf ε_ext.toEnv (ε ++ ε_ext).toEnv
   rhs_wf : rewrite.output_expr.well_formed ε_ext.toEnv
   rhs_wt : rewrite.output_expr.well_typed ε_ext.toEnv
   lhs_locally_wf : rewrite.input_expr.locally_wf
@@ -192,8 +198,8 @@ theorem run'_implies_pattern {Typ} [Repr Typ] [DecidableEq Typ] {g b st g' _st' 
     simp_all [Rewrite.run', bind, EStateM.bind, EStateM.get, RewriteResultSL.runWithState]
 
 /-- The subexpression that `force_replace` found in a normalised well-formed expression is well-formed. -/
-private theorem run'_replaced_wf {ε : Env String (String × Nat)} {conns bases}
-    {iexpr e_pat e_new : ExprLow String (String × Nat)} :
+private theorem run'_replaced_wf {Typ} [DecidableEq Typ] {ε : Env String Typ} {conns bases}
+    {iexpr e_pat e_new : ExprLow String Typ} :
     iexpr.well_formed ε →
     ((ExprLow.comm_connections' conns (ExprLow.comm_bases bases iexpr)).force_replace
       (ExprLow.comm_connections' conns e_pat) e_new).2 →
@@ -204,8 +210,8 @@ private theorem run'_replaced_wf {ε : Env String (String × Nat)} {conns bases}
   simp [ExprLow.refines_comm_connections'_well_formed, ExprLow.refines_comm_bases_well_formed, hwf]
 
 /-- The subexpression that `force_replace` found in a normalised well-typed expression is well-typed. -/
-private theorem run'_replaced_wt {ε : Env String (String × Nat)} {conns bases}
-    {iexpr e_pat e_new : ExprLow String (String × Nat)} :
+private theorem run'_replaced_wt {Typ} [DecidableEq Typ] {ε : Env String Typ} {conns bases}
+    {iexpr e_pat e_new : ExprLow String Typ} :
     iexpr.well_formed ε → iexpr.well_typed ε →
     ((ExprLow.comm_connections' conns (ExprLow.comm_bases bases iexpr)).force_replace
       (ExprLow.comm_connections' conns e_pat) e_new).2 →
@@ -216,15 +222,15 @@ private theorem run'_replaced_wt {ε : Env String (String × Nat)} {conns bases}
   simp [ExprLow.wt_comm_connections2', ExprLow.wt_comm_bases, ExprLow.refines_comm_bases_well_formed, hwf, hwt]
 
 /-- Renaming the ports of a locally well-formed expression reflects well-formedness. -/
-private theorem run'_renamePorts_wf_rev {ε : Env String (String × Nat)} {e e' : ExprLow String (String × Nat)} {p} :
+private theorem run'_renamePorts_wf_rev {Typ} {ε : Env String Typ} {e e' : ExprLow String Typ} {p} :
     e.locally_wf → e.renamePorts p = some e' → e'.well_formed ε → e.well_formed ε := by
   grind [ExprLow.renamePorts, ExprLow.mapPorts2_well_formed2, AssocList.bijectivePortRenaming_bijective]
 
-theorem run'_implies_wt_lhs {b} {ε_global : FinEnv String (String × Nat)}
-  {g g' : ExprHigh String (String × Nat)}
-  {e_g : ExprLow String (String × Nat)}
+theorem run'_implies_wt_lhs {Typ : Type} [DecidableEq Typ] [Repr Typ] {b} {ε_global : FinEnv String Typ}
+  {g g' : ExprHigh String Typ}
+  {e_g : ExprLow String Typ}
   {st _st'}
-  {rw : Rewrite String (String × Nat)}
+  {rw : Rewrite String Typ}
   {elems types}
   {grph} :
   rw.pattern g = .ok (elems, types) →
@@ -239,11 +245,11 @@ theorem run'_implies_wt_lhs {b} {ε_global : FinEnv String (String × Nat)}
   have := run'_ok_inversion hpat hlower hrun
   grind [run'_renamePorts_wf_rev, run'_replaced_wf, run'_replaced_wt, ExprLow.renamePorts_well_typed]
 
-theorem run'_implies_wf_lhs {b} {ε_global : FinEnv String (String × Nat)}
-  {g g' : ExprHigh String (String × Nat)}
-  {e_g : ExprLow String (String × Nat)}
+theorem run'_implies_wf_lhs {Typ : Type} [DecidableEq Typ] [Repr Typ] {b} {ε_global : FinEnv String Typ}
+  {g g' : ExprHigh String Typ}
+  {e_g : ExprLow String Typ}
   {st _st'}
-  {rw : Rewrite String (String × Nat)}
+  {rw : Rewrite String Typ}
   {elems types}
   {grph} :
   rw.pattern g = .ok (elems, types) →
@@ -269,8 +275,8 @@ local instance {I J S : Type _} :
 The right-hand side of a verified rewrite, renamed and normalised as in `Rewrite.run'`, refines the renamed left-hand
 side with canonicalised connections.
 -/
-private theorem run'_renamed_rhs_refines {ε ε' : Env String (String × Nat)}
-    {rw : DefiniteRewrite String (String × Nat)} {comb norm conns} {e_in e_out' e_out : ExprLow String (String × Nat)} :
+private theorem run'_renamed_rhs_refines {Typ} [DecidableEq Typ] {ε ε' : Env String Typ}
+    {rw : DefiniteRewrite String Typ} {comb norm conns} {e_in e_out' e_out : ExprLow String Typ} :
     ε.subsetOf ε' →
     rw.input_expr.well_formed ε →
     rw.output_expr.well_formed ε' →
@@ -298,9 +304,9 @@ private theorem run'_renamed_rhs_refines {ε ε' : Env String (String × Nat)}
 A successful verified `Rewrite.run'` replaces `e_pat` by `e_new` in the normalised lowering `iexpr` of `g`, and lifts
 the result to `g'`.
 -/
-private theorem run'_ok_replacement {b} {ε_global : FinEnv String (String × Nat)}
-    {g g' : ExprHigh String (String × Nat)} {e_g : ExprLow String (String × Nat)} {st st'}
-    {rw : Rewrite String (String × Nat)} {elems types}
+private theorem run'_ok_replacement {Typ : Type} [DecidableEq Typ] [Repr Typ] (env_well_formed : Env String Typ → Prop)
+    {b} {ε_global : FinEnv String Typ} {g g' : ExprHigh String Typ} {e_g : ExprLow String Typ} {st st'}
+    {rw : Rewrite String Typ} {elems types}
     (vrw : VerifiedRewrite env_well_formed rw.pattern (rw.rewrite types st.fresh_type) ε_global) :
     rw.pattern g = .ok (elems, types) →
     g.lower = some e_g →
@@ -317,8 +323,7 @@ private theorem run'_ok_replacement {b} {ε_global : FinEnv String (String × Na
   obtain ⟨g₁, g₂, e_sub, bases, mapping, comb, norm, e_in, e_out', e_out,
     hextract, hlower₁, hbeq, hin, hout, hio, hnorm, hrep, hhigher⟩ := run'_ok_inversion hpat hlower hrun
   have hsub : ε_global.toEnv.subsetOf (ε_global ++ vrw.ε_ext).toEnv := FinEnv.subset_of_union
-  have hsub_ext : vrw.ε_ext.toEnv.subsetOf (ε_global ++ vrw.ε_ext).toEnv :=
-    FinEnv.independent_subset_of_union (Env.independent_symm vrw.ε_independent)
+  have hsub_ext : vrw.ε_ext.toEnv.subsetOf (ε_global ++ vrw.ε_ext).toEnv := vrw.ε_compatible
   have hin_wf := run'_renamePorts_wf_rev vrw.lhs_locally_wf hin (run'_replaced_wf hwf hrep)
   have hout_wf := ExprLow.refines_subset_well_formed _ hsub_ext vrw.rhs_wf
   have hnew := run'_renamed_rhs_refines (conns := g₁.connections) hsub hin_wf hout_wf
@@ -337,11 +342,11 @@ private theorem run'_ok_replacement {b} {ε_global : FinEnv String (String × Na
     ExprLow.wt_comm_connections2', ExprLow.wt_comm_bases, ExprLow.subset_well_typed,
     ExprLow.renamePorts_well_typed2, ExprLow.refines_renamePorts_well_formed]
 
-theorem run'_refines {b} {ε_global : FinEnv String (String × Nat)}
-  {g g' : ExprHigh String (String × Nat)}
-  {e_g : ExprLow String (String × Nat)}
+theorem run'_refines {Typ : Type} [DecidableEq Typ] [Repr Typ] (env_well_formed : Env String Typ → Prop) {b} {ε_global : FinEnv String Typ}
+  {g g' : ExprHigh String Typ}
+  {e_g : ExprLow String Typ}
   {st _st'}
-  {rw : Rewrite String (String × Nat)}
+  {rw : Rewrite String Typ}
   {elems types}
   {vrw : VerifiedRewrite env_well_formed rw.pattern (rw.rewrite types st.fresh_type) ε_global}:
   rw.pattern g = .ok (elems, types) →
@@ -364,11 +369,11 @@ theorem run'_refines {b} {ε_global : FinEnv String (String × Nat)}
 #guard_msgs in
 #print axioms run'_refines
 
-theorem run'_preserves_well_formed {b} {ε_global : FinEnv String (String × Nat)}
-  {g g' : ExprHigh String (String × Nat)}
-  {e_g : ExprLow String (String × Nat)}
+theorem run'_preserves_well_formed {Typ : Type} [DecidableEq Typ] [Repr Typ] (env_well_formed : Env String Typ → Prop) {b} {ε_global : FinEnv String Typ}
+  {g g' : ExprHigh String Typ}
+  {e_g : ExprLow String Typ}
   {st _st'}
-  {rw : Rewrite String (String × Nat)}
+  {rw : Rewrite String Typ}
   {elems types}
   {vrw : VerifiedRewrite env_well_formed rw.pattern (rw.rewrite types st.fresh_type) ε_global}:
   rw.pattern g = .ok (elems, types) →
@@ -382,11 +387,11 @@ theorem run'_preserves_well_formed {b} {ε_global : FinEnv String (String × Nat
   have := higher_correct_eq hhigher
   grind [ExprLow.refines_comm_bases_well_formed, ExprLow.replacement_well_formed]
 
-theorem run'_preserves_well_typed {b} {ε_global : FinEnv String (String × Nat)}
-  {g g' : ExprHigh String (String × Nat)}
-  {e_g : ExprLow String (String × Nat)}
+theorem run'_preserves_well_typed {Typ : Type} [DecidableEq Typ] [Repr Typ] (env_well_formed : Env String Typ → Prop) {b} {ε_global : FinEnv String Typ}
+  {g g' : ExprHigh String Typ}
+  {e_g : ExprLow String Typ}
   {st _st'}
-  {rw : Rewrite String (String × Nat)}
+  {rw : Rewrite String Typ}
   {elems types}
   {vrw : VerifiedRewrite env_well_formed rw.pattern (rw.rewrite types st.fresh_type) ε_global}:
   rw.pattern g = .ok (elems, types) →

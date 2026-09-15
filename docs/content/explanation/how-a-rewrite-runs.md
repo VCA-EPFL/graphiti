@@ -56,19 +56,21 @@ from a graph with `defaultMatcher`, or come from an external program, and none o
 
 ## What a verified rewrite provides
 
-`VerifiedRewrite env_well_formed rewrite ε` bundles the facts `run'_refines` needs about one rewrite:
+`VerifiedRewrite env_well_formed pattern rewrite ε` bundles the facts `run'_refines` needs about one rewrite:
 
 | Field | Meaning |
 | --- | --- |
-| `ε_ext` | Modules for the fresh node types the right-hand side introduces. |
+| `ε_ext` | Modules for the node types of the right-hand side. |
 | `ε_ext_wf` | `ε_ext` satisfies `env_well_formed`. |
-| `ε_independent` | `ε_ext` and `ε` share no types, so adding one to the other changes nothing already there. |
+| `ε_compatible` | Every type in `ε_ext` keeps its module in `ε ++ ε_ext`, so adding `ε_ext` changes nothing already in `ε`. |
 | `rhs_wf`, `rhs_wt` | The right-hand side is well formed and well typed in `ε_ext`. |
 | `lhs_locally_wf` | Every port renaming on the left-hand side is invertible. |
-| `refinement` | `[e| rewrite.output_expr, (ε ++ ε_ext).toEnv ] ⊑ [e| rewrite.input_expr, ε.toEnv ]`. |
+| `refinement` | `[e| rewrite.output_expr, (ε ++ ε_ext).toEnv ] ⊑ [e| rewrite.input_expr, ε.toEnv ]`, whenever `pattern` matched a graph and the lowered match is weakly α-equivalent to `rewrite.input_expr`. |
 
-The environment grows with each rewrite. That is how a fresh type number gets its meaning, and it is why fresh numbers
-must never collide with existing ones.
+The environment grows with each rewrite. That is how a fresh type number gets its meaning. If `ε_ext` only holds fresh
+numbers, `ε_compatible` follows from `FinEnv.independent_subset_of_union`. A rewrite may also reuse types that `ε`
+already contains, as long as `ε_ext` gives them the same modules. The CFG rewrites in `Graphiti/Projects/CFG` need
+this, because their node types have no fresh number.
 
 `run'_preserves_well_formed` and `run'_preserves_well_typed` show that the result satisfies the preconditions again in
 the larger environment. Together with transitivity of refinement, the theorem extends to a sequence of verified
