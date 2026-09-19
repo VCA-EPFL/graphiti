@@ -205,29 +205,52 @@ Reduce `toString 5` to `"5"`
   let mod ← mkAppM ``Module.mk #[eraseIn, eraseOut, consList, ← mkAppM ``Module.init_state #[rdm]]
   return .done mod
 
+/--
+Normalise the *spine* and the keys of an `AssocList`, leaving the values untouched.
+
+`Module.product` builds a module's port maps as `append`/`mapKey`/`mapVal`/`toAssocList`
+applications, and `dsimp` cannot flatten them: the first argument of each `append` is itself a
+stuck `mapKey` application rather than a constructor, so no equation lemma fires.  If those
+thunks are handed on unevaluated, then every `AssocList.find?` and `eraseAll` of every
+`Module.connect'` re-evaluates the whole tree through `whnf` --- and each connect wraps another
+layer on top, so the work compounds and reduction becomes exponential in the number of
+connections.  Flattening once per connect makes each one linear in the number of ports.
+
+The values are deliberately left alone: they are the modules' rule bodies, and normalising them
+would be both pointless and expensive.
+-/
+meta partial def normAssocSpine (e : Expr) : MetaM Expr := do
+  let e ← withDefault <| whnf e
+  match e.getAppFnArgs with
+  | (``Batteries.AssocList.cons, #[a, b, k, v, t]) =>
+      let k ← withDefault <| whnf k
+      let t ← normAssocSpine t
+      return mkAppN (mkConst ``Batteries.AssocList.cons e.getAppFn.constLevels!) #[a, b, k, v, t]
+  | _ => return e
+
 @[inline] meta def reduceModuleconnect'2Imp (e : Expr) : SimpM Simp.DStep := do
-  -- trace[Meta.Tactic.simp.rewrite] m!"Heyyyy\n{e}\nwhnf: {← withDefault <| Meta.whnf e}"
-  -- let rd ← withDefault <| whnf e
-  -- let rd1 ← withDefault <| reduce <| rd.getArg! 2
-  -- let rd2 ← withDefault <| reduce <| rd.getArg! 3
   let rdm ← withDefault <| whnf <| e.getArg! 3
   let rdo ← withDefault <| whnf <| e.getArg! 4
   let rdi ← withDefault <| whnf <| e.getArg! 5
   unless rdm.isAppOf ``Module.mk do
     trace[Meta.Tactic.simp.debug] m!"Error:\n{rdm}"
     return .continue
-  let findo ← mkAppM ``Batteries.AssocList.find? #[rdo, rdm.getArg! 3]
+  -- Flatten the port maps once, so that the lookups below and every later connect work on a
+  -- literal list rather than re-evaluating `Module.product`'s `append` tree.
+  let ins ← normAssocSpine <| rdm.getArg! 2
+  let outs ← normAssocSpine <| rdm.getArg! 3
+  let findo ← mkAppM ``Batteries.AssocList.find? #[rdo, outs]
   let ruleo ← withDefault <| whnf findo
   unless ruleo.isAppOf ``Option.some do
     trace[Meta.Tactic.simp.debug] m!"Error:\n{findo}\n{rdo}\n{ruleo}"
     return .continue
-  let findi ← mkAppM ``Batteries.AssocList.find? #[rdi, rdm.getArg! 2]
+  let findi ← mkAppM ``Batteries.AssocList.find? #[rdi, ins]
   let rulei ← withDefault <| whnf findi
   unless rulei.isAppOf ``Option.some do
     trace[Meta.Tactic.simp.debug] m!"Error:\n{findi}\n{rdi}\n{rulei}"
     return .continue
-  let eraseOut ← mkAppM ``Batteries.AssocList.eraseAll #[rdo, rdm.getArg! 3]
-  let eraseIn ← mkAppM ``Batteries.AssocList.eraseAll #[rdi, rdm.getArg! 2]
+  let eraseOut ← normAssocSpine <|← mkAppM ``Batteries.AssocList.eraseAll #[rdo, outs]
+  let eraseIn ← normAssocSpine <|← mkAppM ``Batteries.AssocList.eraseAll #[rdi, ins]
   let consList ← mkAppM ``List.cons #[← mkAppM ``Module.connect'' #[← mkAppM ``Sigma.snd #[ruleo.getArg! 1], ← mkAppM ``Sigma.snd #[rulei.getArg! 1]], rdm.getArg! 4]
   let mod ← mkAppM ``Module.mk #[eraseIn, eraseOut, consList, rdm.getArg! 5]
   return .done mod

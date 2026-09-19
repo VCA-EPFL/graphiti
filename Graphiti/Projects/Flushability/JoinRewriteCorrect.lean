@@ -108,7 +108,7 @@ reduction_by
         dsimp [Module.product]
         dsimp only [reduceModuleconnect'2]
         dsimp only [reduceEraseAll]
-        dsimp; dsimp [reduceAssocListfind?]
+        dsimp; dsimp -failIfUnchanged [reduceAssocListfind?]
 
         unfold Module.connect''
         dsimp [Module.liftL, Module.liftR, drcomponents])
