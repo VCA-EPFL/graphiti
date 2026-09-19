@@ -194,4 +194,39 @@ theorem case_11 (s) (i mid : busT) (H : psi i s)
     (Hrule : (busNetlist.internals.getD 11 (fun _ _ => False)) i mid) :
     ∃ s', existSR busSpec.internals s s' ∧ psi mid s' := by connect_case W.pk2
 
+/-! ### What the twelve cases do not yet show
+
+They are only the *internal* rules.  A refinement also needs the three input rules, the output
+rule and the assembly into `refines_ψ`/`refines_initial`, and until those go through it is not
+established that this `psi` is as strong as the record invariant the generator builds -- an
+invariant that never has to support the output obligation could be too weak, which would make
+the twelve cases above easy and worthless.
+
+The two lemmas the input and output rules need do go through, and they are as uniform as the
+rest, which is why this looks promising.  What is not done is the plumbing to the module
+interface: it runs into casts on the port values and `isDefEq` timeouts.  Until `busNetlist ⊑
+busSpec` is reached by this route, the honest claim is "the interesting half works", not "the
+generators can go". -/
+
+/-- `drv` is monotone in the block's own inputs as well as in its wires. -/
+theorem drv_mono_env {clk clk' crn crn' : List Bool} {d d' : List (BitVec 3)}
+    (hc : clk <+: clk') (hr : crn <+: crn') (hd : d <+: d') {w : W → List Bool} (k : W) :
+    drv clk crn d w k <+: drv clk' crn' d' w k := by
+  cases k <;> simp only [drv] <;>
+    first | exact List.prefix_rfl | exact hc | exact hr | exact bitsOf_mono hd
+
+/-- Growing an input preserves the invariant: the one lemma behind all three input rules. -/
+theorem Wf_env {clk clk' crn crn' : List Bool} {d d' : List (BitVec 3)} {w : W → List Bool}
+    (hw : Wf clk crn d w) (hc : clk <+: clk') (hr : crn <+: crn') (hd : d <+: d') :
+    Wf clk' crn' d' w := fun k => (hw k).trans (drv_mono_env hc hr hd k)
+
+/-- What the block reports is a prefix of what the specification says: monotonicity composed
+along the netlist, which here is three uses of one hypothesis. -/
+theorem out_q {clk crn d} {w : W → List Bool} (hw : Wf clk crn d w) :
+    pack3Out (w .pk0) (w .pk1) (w .pk2) <+: busOut clk d crn := by
+  refine pack3Out_mono ?_ ?_ ?_
+  · exact (hw .pk0).trans (dffOut_mono (hw .f0clk) (hw .f0d) (hw .f0crn))
+  · exact (hw .pk1).trans (dffOut_mono (hw .f1clk) (hw .f1d) (hw .f1crn))
+  · exact (hw .pk2).trans (dffOut_mono (hw .f2clk) (hw .f2d) (hw .f2crn))
+
 end Graphiti.AsyncFifo.IndexedWf
