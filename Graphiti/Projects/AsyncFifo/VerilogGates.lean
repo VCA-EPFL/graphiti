@@ -137,18 +137,25 @@ def c_unpO : TypedTemplate := cell "unpO" [("orc",6)]
   ("assign s0 = orc[0];\nassign s1 = orc[1];\nassign s2 = orc[2];\n" ++
    "assign j0 = orc[3];\nassign j1 = orc[4];\nassign j2 = orc[5];")
 
-/-- **The metastability assumption, as a cell.**  `osel`/`ojunk` carry the oracle and are not
-wires, so what is left is an ordinary flip-flop. -/
+/-- **The metastability assumption, as a cell.**  `SyncStage.settleOut1` captures `d` at the
+edge -- `osel` says whether the sample resolved to the value at the edge or to the one before the
+aperture, and the oracle ties it to the former, which is what a flip-flop whose setup is met
+does -- and presents it `stl` instants later, showing `ojunk` while the stage settles.  So the
+cell is an ordinary flip-flop with a clock-to-q of `stl`; the oracle ports are not wires. -/
 def c_sdff : TypedTemplate := cell "settling_dff"
   [("clk",1),("d",1),("osel",1),("ojunk",1)] [("q",1)]
-  "reg qr = 1'b0;\nalways @(posedge clk) qr <= d;\nassign q = qr;"
+  ("reg qr = 1'b0;\n" ++
+   "always @(posedge clk) qr <= #`SETTLE_STL d;\n" ++
+   "assign q = qr;")
 
 /-- The reset source.  `Timed.clearSrc`'s contract is `ClearOK Rc`: the clear is held low, is
-released by instant `Rc`, and stays released forever after.  Only the *released* half is a
-circuit; the pulse itself belongs to the environment, so the cell exports as a constant.  A
-simulator that zero-initialises nets starts the latches in exactly the state the pulse would
-have left them in, which is what makes this faithful rather than merely convenient. -/
-def c_clearSrc : TypedTemplate := cell "clear_src" [] [("crn",1)] "assign crn = 1'b1;"
+released by instant `Rc`, and stays released forever after.  The pulse is the environment's, not
+the circuit's, but it is not optional: a netlist of cross-coupled latches has no defined state
+until the clear has swept through it. -/
+def c_clearSrc : TypedTemplate := cell "clear_src" [] [("crn",1)]
+  ("reg crn_r = 1'b0;\n" ++
+   "initial begin #`CLEAR_RELEASE crn_r = 1'b1; end\n" ++
+   "assign crn = crn_r;")
 
 /-! ### The modules, bottom up -/
 
@@ -162,7 +169,10 @@ def enEnv : IdentMap String TypedTemplate :=
 def en_if : VerilogInterface := ifc [("clk",1),("en",1),("data",1),("clrn",1)] [("q",1)]
 def m_enreg : Option String := build_unit "enreg" enEnv EnReg.enLowered en_if
 
+/-- The flip-flop as the registers instantiate it: only its interface matters here, the module
+itself is generated from `Dff.dffLowered`. -/
 def s_dff : TypedTemplate := cell "dff" [("clk",1), ("d",1), ("clrn",1)] [("q",1)] ""
+
 def busEnv : IdentMap String TypedTemplate :=
   [("dff", s_dff), ("fork3", c_fork3), ("pack3", c_pack3), ("unpack3", c_unpack3)].toAssocList
 def bus_if : VerilogInterface := ifc [("clk",1),("d",3),("clrn",1)] [("q",3)]
@@ -256,7 +266,13 @@ def m_rdom : Option String := build_unit "rdom" rdomEnv Timed.rdomTimedLowered r
 
 def s_wdom : TypedTemplate := cell "wdom" [("clk",1), ("inc",1), ("data",1), ("rgray",3), ("orc",6)] [("gray",3), ("full",1), ("mem",4)] ""
 def s_rdom : TypedTemplate := cell "rdom" [("clk",1), ("inc",1), ("wgray",3), ("orc",6), ("mem",4)] [("gray",3), ("empty",1), ("rdata",1)] ""
-def c_oracle : TypedTemplate := cell "oracle" [] [("bits",6)] "assign bits = 6'd0;"
+/-- The oracle is not hardware.  `settleOut1` reads `sel` to decide whether a sample resolved to
+the value at the edge or to the one before the aperture, and `junk` for what is seen while the
+stage settles.  A flip-flop whose setup is met resolves to the value at the edge, which is
+`sel = 1` on every bit; `junk` is then never observed.  Tying `sel` low would model a stage that
+always resolves to the *stale* value, which is not what the hardware does. -/
+def c_oracle : TypedTemplate := cell "oracle" [] [("bits",6)]
+  "assign bits = {3'b000, 3'b111};   // junk = 0, sel = 1 on each of the three bits"
 def topEnv : IdentMap String TypedTemplate :=
   [("wdom", s_wdom), ("rdom", s_rdom), ("oracle_w", c_oracle), ("oracle_r", c_oracle)].toAssocList
 def top_if2 : VerilogInterface :=
