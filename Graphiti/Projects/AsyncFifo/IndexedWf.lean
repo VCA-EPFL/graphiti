@@ -15,20 +15,27 @@ list of rules, so each rule needs its own lemma re-establishing every field -- a
 `BusReg.lean` fifteen of each lemma's sixteen fields are unchanged copies of the hypothesis.
 That is index bookkeeping, and it is the only reason the scripts exist.
 
-This file redoes `BusReg`'s twelve connection rules with the wires as an *index type* and `Wf`
-quantified over it.  The per-rule lemmas then collapse into two facts -- `Wf_set` for the
-invariant and `hq_set` for the reported output -- and each rule becomes one line.  Nothing here
-is generated.
+This file redoes the whole of `BusReg`'s refinement with the wires as an *index type* and `Wf`
+quantified over it, and reaches the same theorem:
 
-What is netlist-specific is `W`, `drv`, `drv_mono`, `wires` and the twelve one-line cases:
-about forty lines, against the three hundred and eighty-eight the generator emits for the same
-twelve rules.  `Wf`, `Wf_step`, `Wf_set`, `upd` and `upd_ge` mention no netlist at all and would
-move to a shared file.
+    IndexedWf.reg_refines : busNetlist ⊑ busSpec
 
-Not covered here: the three input rules, the output rule, and the assembly into
-`refines_ψ`/`refines_initial`, which the generator also emits.  They shrink the same way but are
-not the interesting part.  For a gate netlist the `first` alternation in `drv_mono` and in the
-tactic would need the gate monotonicity lemmas as well.
+which is `BusReg.reg_refines` verbatim.  That equality of statements is the point: an invariant
+that never had to support the output obligation could have been too weak, and the twelve rule
+cases would then have been easy and worthless.  They are not.
+
+The per-rule lemmas collapse into three facts -- `Wf_set` for a connection, `Wf_env` for an
+input, `out_q` for the output -- and one tactic proves every connection, so each of the twelve is
+a single line.  What is netlist-specific is `W`, `drv`, `drv_mono`, `drv_mono_env`, `wires`,
+`out_q` and those twelve lines: about sixty, against the six hundred and twenty-eight the
+generator emits.  `Wf`, `Wf_step`, `Wf_set`, `Wf_env`, `upd`, `upd_ge` and `cast_self` mention no
+netlist at all and would move to a shared file.
+
+Two things cost a debugging round and are worth knowing before doing this to another netlist.
+A port's value arrives under an `Eq.mp` between identical types: `cast_eq` will not fire on it,
+because the proof is not syntactically `rfl`, so `cast_self` is needed.  And `wires` must be
+reduced in a hypothesis *before* it meets the module's rules -- `dsimp only [wires] at ho` is the
+difference between the output case closing immediately and `isDefEq` running out of heartbeats.
 -/
 
 namespace Graphiti.AsyncFifo.IndexedWf
@@ -194,21 +201,12 @@ theorem case_11 (s) (i mid : busT) (H : psi i s)
     (Hrule : (busNetlist.internals.getD 11 (fun _ _ => False)) i mid) :
     ∃ s', existSR busSpec.internals s s' ∧ psi mid s' := by connect_case W.pk2
 
-/-! ### What the twelve cases do not yet show
+/-! ### The rest of the refinement
 
-They are only the *internal* rules.  A refinement also needs the three input rules, the output
-rule and the assembly into `refines_ψ`/`refines_initial`, and until those go through it is not
-established that this `psi` is as strong as the record invariant the generator builds -- an
-invariant that never has to support the output obligation could be too weak, which would make
-the twelve cases above easy and worthless.
+`drv` is monotone in the block's own inputs as well as in its wires, which is the one fact the
+three input rules need; the output rule needs that what the packer holds is a prefix of what the
+specification reports.  Both are as uniform as `Wf_set`. -/
 
-The two lemmas the input and output rules need do go through, and they are as uniform as the
-rest, which is why this looks promising.  What is not done is the plumbing to the module
-interface: it runs into casts on the port values and `isDefEq` timeouts.  Until `busNetlist ⊑
-busSpec` is reached by this route, the honest claim is "the interesting half works", not "the
-generators can go". -/
-
-/-- `drv` is monotone in the block's own inputs as well as in its wires. -/
 theorem drv_mono_env {clk clk' crn crn' : List Bool} {d d' : List (BitVec 3)}
     (hc : clk <+: clk') (hr : crn <+: crn') (hd : d <+: d') {w : W → List Bool} (k : W) :
     drv clk crn d w k <+: drv clk' crn' d' w k := by
@@ -228,5 +226,91 @@ theorem out_q {clk crn d} {w : W → List Bool} (hw : Wf clk crn d w) :
   · exact (hw .pk0).trans (dffOut_mono (hw .f0clk) (hw .f0d) (hw .f0crn))
   · exact (hw .pk1).trans (dffOut_mono (hw .f1clk) (hw .f1d) (hw .f1crn))
   · exact (hw .pk2).trans (dffOut_mono (hw .f2clk) (hw .f2d) (hw .f2crn))
+
+/-- A port's value arrives under an `Eq.mp` between identical types.  Lean's proof irrelevance is
+definitional, so the cast is the identity by `rfl` -- but `cast_eq` cannot fire on it, because the
+proof is not syntactically `rfl`, and leaving it in place makes `isDefEq` unfold `getIO` looking
+for a way through.  Rewriting with this first is what keeps the output case cheap. -/
+theorem cast_self {α : Type _} (h : α = α) (x : α) : cast h x = x := rfl
+
+set_option maxHeartbeats 1000000 in
+theorem refines_psi : busNetlist ⊑_{psi} busSpec := by
+  intro i s H
+  constructor
+  · intro ident mid_i v Hrule
+    obtain ⟨⟨pk0, pk1, pk2⟩, ud, cr, ck, ⟨a0,a1,a2⟩, ⟨b0,b1,b2⟩, ⟨c0,c1,c2⟩⟩ := i
+    obtain ⟨⟨_,_,_⟩, _, _, _, ⟨_,_,_⟩, ⟨_,_,_⟩, ⟨_,_,_⟩⟩ := mid_i
+    obtain ⟨hw, e1, e2, e3, hq⟩ := H
+    case_transition Hcontains : Module.inputs busNetlist, ident,
+      (PortMap.getIO_not_contained_false' Hrule)
+    dsimp only [busNetlist] at Hcontains
+    simp at Hcontains
+    rcases Hcontains with h | h | h <;> subst h <;>
+      rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at Hrule <;>
+      dsimp only at Hrule <;>
+      simp only [Prod.mk.injEq, and_assoc] at Hrule <;>
+      obtain ⟨hpre, Hrule⟩ := Hrule <;>
+      repeat' (obtain ⟨hh, Hrule⟩ := Hrule; try subst hh)
+    -- The port's identity is decided by `hpre`'s type; the three proofs are one shape.
+    all_goals simp only [eq_mp_eq_cast] at hpre
+    all_goals first
+      | exact ⟨_, _, BusReg.spec_in_clk s _ (by rw [← e1]; exact hpre), existSR_reflexive,
+          Wf_env hw (e1 ▸ hpre.isPrefix) List.prefix_rfl List.prefix_rfl, rfl, e2, e3, hq⟩
+      | exact ⟨_, _, BusReg.spec_in_d s _ (by rw [← e2]; exact hpre), existSR_reflexive,
+          Wf_env hw List.prefix_rfl List.prefix_rfl (e2 ▸ hpre.isPrefix), e1, rfl, e3, hq⟩
+      | exact ⟨_, _, BusReg.spec_in_clrn s _ (by rw [← e3]; exact hpre), existSR_reflexive,
+          Wf_env hw List.prefix_rfl (e3 ▸ hpre.isPrefix) List.prefix_rfl, e1, e2, rfl, hq⟩
+  · intro ident mid_i v Hrule
+    obtain ⟨⟨pk0, pk1, pk2⟩, ud, cr, ck, ⟨a0,a1,a2⟩, ⟨b0,b1,b2⟩, ⟨c0,c1,c2⟩⟩ := i
+    obtain ⟨⟨_,_,_⟩, _, _, _, ⟨_,_,_⟩, ⟨_,_,_⟩, ⟨_,_,_⟩⟩ := mid_i
+    obtain ⟨hw, e1, e2, e3, hq⟩ := H
+    case_transition Hcontains : Module.outputs busNetlist, ident,
+      (PortMap.getIO_not_contained_false' Hrule)
+    dsimp only [busNetlist] at Hcontains
+    simp at Hcontains
+    subst Hcontains
+    rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at Hrule
+    dsimp only at Hrule
+    simp only [Prod.mk.injEq, and_assoc] at Hrule
+    repeat' (obtain ⟨hh, Hrule⟩ := Hrule; try subst hh)
+    -- Apply the specification's rule rather than rewriting the goal: rewriting is what puts a
+    -- cast on the port's value and sends `isDefEq` off into the weeds.
+    -- The port's value comes out under an `Eq.mp`; leaving it there is what sends `isDefEq`
+    -- off into the weeds, because it has to see through `getIO` to discharge the cast.
+    simp only [eq_mp_eq_cast, cast_self]
+    dsimp only [wires] at hq
+    have ho := out_q hw
+    dsimp only [wires] at ho
+    exact ⟨s, _, existSR_reflexive, BusReg.spec_out_q s _ hq ho,
+      hw, e1, e2, e3, List.prefix_rfl⟩
+  · intro rule mid_i Hin Hrule
+    rw [BusReg.busNetlist_internals_eq] at Hin
+    simp only [List.mem_cons, List.not_mem_nil, or_false] at Hin
+    rcases Hin with h|h|h|h|h|h|h|h|h|h|h|h
+    · subst h; exact case_0 s i mid_i H Hrule
+    · subst h; exact case_1 s i mid_i H Hrule
+    · subst h; exact case_2 s i mid_i H Hrule
+    · subst h; exact case_3 s i mid_i H Hrule
+    · subst h; exact case_4 s i mid_i H Hrule
+    · subst h; exact case_5 s i mid_i H Hrule
+    · subst h; exact case_6 s i mid_i H Hrule
+    · subst h; exact case_7 s i mid_i H Hrule
+    · subst h; exact case_8 s i mid_i H Hrule
+    · subst h; exact case_9 s i mid_i H Hrule
+    · subst h; exact case_10 s i mid_i H Hrule
+    · subst h; exact case_11 s i mid_i H Hrule
+
+theorem refines_initial : Module.refines_initial busNetlist busSpec psi := by
+  intro i hi
+  obtain ⟨⟨pk0, pk1, pk2⟩, ud, cr, ck, ⟨a0,a1,a2⟩, ⟨b0,b1,b2⟩, ⟨c0,c1,c2⟩⟩ := i
+  dsimp only [busNetlist] at hi
+  simp only [Prod.mk.injEq, and_assoc] at hi
+  obtain ⟨rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩ := hi
+  refine ⟨([], [], [], []), rfl, ?_, rfl, rfl, rfl, List.nil_prefix⟩
+  intro k; cases k <;> exact List.nil_prefix
+
+/-- **The theorem the generated proof reaches, by the indexed route.** -/
+theorem reg_refines : busNetlist ⊑ busSpec :=
+  ⟨inferInstance, psi, refines_psi, refines_initial⟩
 
 end Graphiti.AsyncFifo.IndexedWf
