@@ -1,3 +1,4 @@
+import Graphiti.Projects.AsyncFifo
 import Graphiti.Projects.CFG
 import Graphiti.Projects.CombinationalStream
 import Graphiti.Projects.DeadlockRefinement
