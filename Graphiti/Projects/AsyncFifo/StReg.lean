@@ -20,11 +20,15 @@ is the same one.
 
 `StRegR.lean` is this same register at the read domain's record, and the two files are
 line-for-line the same apart from the polarity of bit `3` --- about four hundred duplicated
-lines.  Factoring them into one register generic in the record is possible (`Timed.lean`
-reduces `def_module` in a parameterised environment without trouble) but would mean abstracting
-the record behind a seven-bit pack/unpack interface, which every statement here and in
-`StRegTiming.lean`, `Bank.lean` and `GateRegs.lean` would then be phrased against.  That has
-not been done, and it is the largest duplication left in the development.
+lines.  Factoring them into one register generic in the record was tried and abandoned, and the
+obstruction is worth recording because it is not the obvious one.  A parameterised *environment*
+reduces perfectly well (`Timed.lean` does it), but a node whose state type is abstract does not:
+with the record behind an interface, `unpackSt` and `packSt` become stuck applications, and
+`def_module` reducing the graph through them cost ten times the heartbeat budget for the state
+*type* alone and had not finished the *module* after ten minutes at two hundred times it.  So
+the netlist has to name a concrete record, and what is left to share --- `bitsOf`, `packStOut`,
+`stOut` and their monotonicity --- is about seventy of the four hundred lines, which does not
+pay for an abstraction the netlist itself could not use.
 -/
 
 set_option linter.unusedSectionVars false
