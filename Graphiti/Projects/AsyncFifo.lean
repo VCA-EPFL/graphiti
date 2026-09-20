@@ -253,6 +253,14 @@ lifting of `Lifting.lean`, `GateLifting.lean` and `GateLiftingR.lean`.
   dead.  Also the wire contract `Comb` (logic depth window, composed gate by gate), the
   boundary adapter `cut3` (what a block *reports*, as opposed to what its gates compute), and
   arithmetic helpers on stream lengths.
+* `NetlistWf.lean` — the structural invariant of a netlist, once: every wire holds a prefix of
+  what drives it (`Netlist.Wf` over an index type of wires, `Netlist.Het.Wf` when the wires
+  carry buses rather than bits).  A connection is `Wf_step_of`, an input rule is `Wf_drv` then
+  `Wf_congr`, and every netlist proof below is then a wire type, a one-line-per-wire `drv`, and
+  one tactic.  Its header also records the rule these proofs are built on: hand the kernel a
+  fact about one assignment where the goal names another and it compares the two applications;
+  hand it over one wire, or one argument, at a time and it compares the arguments — the
+  difference between a proof that compiles and one that runs out of heartbeats.
 * `GateNext.lean` — the write domain's next-state logic for
   depth 4 and 1-bit data as a netlist of 16 gates, 9 forks and two bus adapters, and
   `gateNext_refines : gateNext ⊑ nextBlock Bool 0 8` (delay window `[0, 8]`; the functional
