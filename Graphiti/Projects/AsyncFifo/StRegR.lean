@@ -5,6 +5,7 @@ Authors: Thomas Bourgeat, Claude
 -/
 
 import Graphiti.Projects.AsyncFifo.Dff
+import Graphiti.Projects.AsyncFifo.NetlistWf
 import Graphiti.Projects.AsyncFifo.Timed
 
 /-!
@@ -250,48 +251,247 @@ instance : MatchInterface stNetlist stSpec := by
   dsimp [stNetlist, stSpec]
   solve_match_interface
 
-/-! ### The invariant -/
+/-! ### The netlist, as an index type
 
-structure Wf (pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn crF_in ff5_clk ff5_d ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn : List Bool)
-    (unp_d : List (RSt 2)) (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) : Prop where
-  e_clk : clkF_in = s.1
-  e_d : unp_d = s.2.1
-  e_crn : crF_in = s.2.2.1
-  w_pk_b0 : pk_b0 <+: dffOut ff0_clk ff0_d ff0_clrn
-  w_pk_b1 : pk_b1 <+: dffOut ff1_clk ff1_d ff1_clrn
-  w_pk_b2 : pk_b2 <+: dffOut ff2_clk ff2_d ff2_clrn
-  w_pk_b3 : pk_b3 <+: dffOut ff3_clk ff3_d ff3_clrn
-  w_pk_b4 : pk_b4 <+: dffOut ff4_clk ff4_d ff4_clrn
-  w_pk_b5 : pk_b5 <+: dffOut ff5_clk ff5_d ff5_clrn
-  w_pk_b6 : pk_b6 <+: dffOut ff6_clk ff6_d ff6_clrn
-  w_ff6_clk : ff6_clk <+: clkF_in
-  w_ff6_d : ff6_d <+: bitsOf 6 unp_d
-  w_ff6_clrn : ff6_clrn <+: crF_in
-  w_ff5_clk : ff5_clk <+: clkF_in
-  w_ff5_d : ff5_d <+: bitsOf 5 unp_d
-  w_ff5_clrn : ff5_clrn <+: crF_in
-  w_ff3_clk : ff3_clk <+: clkF_in
-  w_ff3_d : ff3_d <+: bitsOf 3 unp_d
-  w_ff3_clrn : ff3_clrn <+: crF_in
-  w_ff4_clk : ff4_clk <+: clkF_in
-  w_ff4_d : ff4_d <+: bitsOf 4 unp_d
-  w_ff4_clrn : ff4_clrn <+: crF_in
-  w_ff0_clk : ff0_clk <+: clkF_in
-  w_ff0_d : ff0_d <+: bitsOf 0 unp_d
-  w_ff0_clrn : ff0_clrn <+: crF_in
-  w_ff1_clk : ff1_clk <+: clkF_in
-  w_ff1_d : ff1_d <+: bitsOf 1 unp_d
-  w_ff1_clrn : ff1_clrn <+: crF_in
-  w_ff2_clk : ff2_clk <+: clkF_in
-  w_ff2_d : ff2_d <+: bitsOf 2 unp_d
-  w_ff2_clrn : ff2_clrn <+: crF_in
-  h_q : s.2.2.2 <+: packStOut pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6
+Each wire holds a prefix of what drives it.  Stated over an index rather than as a record
+with one field per wire, the per-rule lemmas collapse into `Netlist.Wf_set` and
+`Netlist.Wf_drv`, so what is written here is the circuit and nothing else. -/
+
+open Graphiti.AsyncFifo.Netlist
+
+/-- The 28 driven wires. -/
+inductive W | pk0 | pk1 | pk2 | pk3 | pk4 | pk5 | pk6
+            | f0clk | f0d | f0crn
+            | f1clk | f1d | f1crn
+            | f2clk | f2d | f2crn
+            | f3clk | f3d | f3crn
+            | f4clk | f4d | f4crn
+            | f5clk | f5d | f5crn
+            | f6clk | f6d | f6crn
+  deriving DecidableEq
+
+/-- What drives each wire: one line per wire, and the only place the shape of this netlist
+is written down. -/
+def drv (clk crn : List Bool) (d : List (RSt 2)) : Drv W
+  | w, .pk0 => dffOut (w .f0clk) (w .f0d) (w .f0crn)
+  | w, .pk1 => dffOut (w .f1clk) (w .f1d) (w .f1crn)
+  | w, .pk2 => dffOut (w .f2clk) (w .f2d) (w .f2crn)
+  | w, .pk3 => dffOut (w .f3clk) (w .f3d) (w .f3crn)
+  | w, .pk4 => dffOut (w .f4clk) (w .f4d) (w .f4crn)
+  | w, .pk5 => dffOut (w .f5clk) (w .f5d) (w .f5crn)
+  | w, .pk6 => dffOut (w .f6clk) (w .f6d) (w .f6crn)
+  | _, .f0clk | _, .f1clk | _, .f2clk | _, .f3clk | _, .f4clk | _, .f5clk | _, .f6clk => clk
+  | _, .f0crn | _, .f1crn | _, .f2crn | _, .f3crn | _, .f4crn | _, .f5crn | _, .f6crn => crn
+  | _, .f0d => bitsOf 0 d
+  | _, .f1d => bitsOf 1 d
+  | _, .f2d => bitsOf 2 d
+  | _, .f3d => bitsOf 3 d
+  | _, .f4d => bitsOf 4 d
+  | _, .f5d => bitsOf 5 d
+  | _, .f6d => bitsOf 6 d
+
+theorem drv_mono {clk crn d} : Mono (drv clk crn d) := by
+  intro a b h k
+  cases k <;> simp only [drv] <;>
+    first
+      | exact List.prefix_rfl
+      | exact dffOut_mono (h .f0clk) (h .f0d) (h .f0crn)
+      | exact dffOut_mono (h .f1clk) (h .f1d) (h .f1crn)
+      | exact dffOut_mono (h .f2clk) (h .f2d) (h .f2crn)
+      | exact dffOut_mono (h .f3clk) (h .f3d) (h .f3crn)
+      | exact dffOut_mono (h .f4clk) (h .f4d) (h .f4crn)
+      | exact dffOut_mono (h .f5clk) (h .f5d) (h .f5crn)
+      | exact dffOut_mono (h .f6clk) (h .f6d) (h .f6crn)
+
+/-- Growing the block's own inputs grows every driver. -/
+theorem drv_env {clk clk' crn crn' : List Bool} {d d' : List (RSt 2)}
+    (hc : clk <+: clk') (hr : crn <+: crn') (hd : d <+: d') (w : Wires W) (k : W) :
+    drv clk crn d w k <+: drv clk' crn' d' w k := by
+  cases k <;> simp only [drv] <;>
+    first | exact List.prefix_rfl | exact hc | exact hr | exact bitsOf_mono hd
+
+/-- The reduced state is a nested product; `wires` reads it as an assignment. -/
+def wires (i : stT) : Wires W
+  | .pk0 => i.1.1
+  | .pk1 => i.1.2.1
+  | .pk2 => i.1.2.2.1
+  | .pk3 => i.1.2.2.2.1
+  | .pk4 => i.1.2.2.2.2.1
+  | .pk5 => i.1.2.2.2.2.2.1
+  | .pk6 => i.1.2.2.2.2.2.2
+  | .f0clk => i.2.2.2.2.2.2.2.2.1.1 | .f0d => i.2.2.2.2.2.2.2.2.1.2.1 | .f0crn => i.2.2.2.2.2.2.2.2.1.2.2
+  | .f1clk => i.2.2.2.2.2.2.2.2.2.1.1 | .f1d => i.2.2.2.2.2.2.2.2.2.1.2.1 | .f1crn => i.2.2.2.2.2.2.2.2.2.1.2.2
+  | .f2clk => i.2.2.2.2.2.2.2.2.2.2.1 | .f2d => i.2.2.2.2.2.2.2.2.2.2.2.1 | .f2crn => i.2.2.2.2.2.2.2.2.2.2.2.2
+  | .f3clk => i.2.2.2.2.2.2.1.1 | .f3d => i.2.2.2.2.2.2.1.2.1 | .f3crn => i.2.2.2.2.2.2.1.2.2
+  | .f4clk => i.2.2.2.2.2.2.2.1.1 | .f4d => i.2.2.2.2.2.2.2.1.2.1 | .f4crn => i.2.2.2.2.2.2.2.1.2.2
+  | .f5clk => i.2.2.2.2.1.1 | .f5d => i.2.2.2.2.1.2.1 | .f5crn => i.2.2.2.2.1.2.2
+  | .f6clk => i.2.1.1 | .f6d => i.2.1.2.1 | .f6crn => i.2.1.2.2
 
 def ψ (i : stT) (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) : Prop :=
-  Wf i.1.1 i.1.2.1 i.1.2.2.1 i.1.2.2.2.1 i.1.2.2.2.2.1 i.1.2.2.2.2.2.1 i.1.2.2.2.2.2.2 i.2.1.1 i.2.1.2.1 i.2.1.2.2 i.2.2.2.1 i.2.2.2.2.1.1 i.2.2.2.2.1.2.1 i.2.2.2.2.1.2.2 i.2.2.2.2.2.1 i.2.2.2.2.2.2.1.1 i.2.2.2.2.2.2.1.2.1 i.2.2.2.2.2.2.1.2.2 i.2.2.2.2.2.2.2.1.1 i.2.2.2.2.2.2.2.1.2.1 i.2.2.2.2.2.2.2.1.2.2 i.2.2.2.2.2.2.2.2.1.1 i.2.2.2.2.2.2.2.2.1.2.1 i.2.2.2.2.2.2.2.2.1.2.2 i.2.2.2.2.2.2.2.2.2.1.1 i.2.2.2.2.2.2.2.2.2.1.2.1 i.2.2.2.2.2.2.2.2.2.1.2.2 i.2.2.2.2.2.2.2.2.2.2.1 i.2.2.2.2.2.2.2.2.2.2.2.1 i.2.2.2.2.2.2.2.2.2.2.2.2 i.2.2.1 s
+  Wf (drv s.1 s.2.2.1 s.2.1) (wires i) ∧ i.2.2.2.2.2.1 = s.1 ∧ i.2.2.1 = s.2.1
+    ∧ i.2.2.2.1 = s.2.2.1 ∧ s.2.2.2 <+: packStOut (wires i .pk0) (wires i .pk1) (wires i .pk2) (wires i .pk3) (wires i .pk4) (wires i .pk5) (wires i .pk6)
 
-theorem Wf.init : Wf [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] ([], [], [], []) :=
-  ⟨rfl, rfl, rfl, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix⟩
+/-- What the block reports is a prefix of what the specification says. -/
+theorem out_q {clk crn d} {w : Wires W} (hw : Wf (drv clk crn d) w) :
+    packStOut (w .pk0) (w .pk1) (w .pk2) (w .pk3) (w .pk4) (w .pk5) (w .pk6) <+: stOut clk d crn := by
+  refine packStOut_mono ?_ ?_ ?_ ?_ ?_ ?_ ?_
+  · exact (hw .pk0).trans (dffOut_mono (hw .f0clk) (hw .f0d) (hw .f0crn))
+  · exact (hw .pk1).trans (dffOut_mono (hw .f1clk) (hw .f1d) (hw .f1crn))
+  · exact (hw .pk2).trans (dffOut_mono (hw .f2clk) (hw .f2d) (hw .f2crn))
+  · exact (hw .pk3).trans (dffOut_mono (hw .f3clk) (hw .f3d) (hw .f3crn))
+  · exact (hw .pk4).trans (dffOut_mono (hw .f4clk) (hw .f4d) (hw .f4crn))
+  · exact (hw .pk5).trans (dffOut_mono (hw .f5clk) (hw .f5d) (hw .f5crn))
+  · exact (hw .pk6).trans (dffOut_mono (hw .f6clk) (hw .f6d) (hw .f6crn))
+
+/-! ### One tactic for every connection -/
+
+syntax "str_case " term : tactic
+set_option hygiene false in
+macro_rules
+  | `(tactic| str_case $w:term) => `(tactic| (
+      obtain ⟨⟨q0, q1, q2, q3, q4, q5, q6⟩, ⟨x6,y6,z6⟩, ud, cr, ⟨x5,y5,z5⟩, ck, ⟨x3,y3,z3⟩, ⟨x4,y4,z4⟩, ⟨x0,y0,z0⟩, ⟨x1,y1,z1⟩, ⟨x2,y2,z2⟩⟩ := i
+      obtain ⟨⟨_, _, _, _, _, _, _⟩, ⟨_,_,_⟩, _, _, ⟨_,_,_⟩, _, ⟨_,_,_⟩, ⟨_,_,_⟩, ⟨_,_,_⟩, ⟨_,_,_⟩, ⟨_,_,_⟩⟩ := mid
+      have Hr := Hrule.1 rfl; clear Hrule
+      obtain ⟨⟨⟨_, _, _, _, _, _, _⟩, ⟨_,_,_⟩, _, _, ⟨_,_,_⟩, _, ⟨_,_,_⟩, ⟨_,_,_⟩, ⟨_,_,_⟩, ⟨_,_,_⟩, ⟨_,_,_⟩⟩, out, Hr⟩ := Hr
+      simp only [Prod.mk.injEq, and_assoc] at Hr
+      repeat' (obtain ⟨hh, Hr⟩ := Hr; try subst hh)
+      obtain ⟨hw, e1, e2, e3, hq⟩ := H
+      refine ⟨s, existSR_reflexive, ?_, e1, e2, e3, ?_⟩
+      · have key := Wf_set drv_mono hw $w _ (‹_ ⊏ _›).isPrefix (by
+          simp only [drv, wires]
+          first
+            | exact e1 ▸ List.prefix_rfl
+            | exact e3 ▸ List.prefix_rfl
+            | exact e2 ▸ List.prefix_rfl
+            | assumption)
+        intro j; have hj := key j; revert hj; cases j <;> simp [wires, upd, drv]
+      · have key := hq.trans (packStOut_mono
+          (upd_ge (k := $w) (‹_ ⊏ _›).isPrefix _)
+          (upd_ge (k := $w) (‹_ ⊏ _›).isPrefix _)
+          (upd_ge (k := $w) (‹_ ⊏ _›).isPrefix _)
+          (upd_ge (k := $w) (‹_ ⊏ _›).isPrefix _)
+          (upd_ge (k := $w) (‹_ ⊏ _›).isPrefix _)
+          (upd_ge (k := $w) (‹_ ⊏ _›).isPrefix _)
+          (upd_ge (k := $w) (‹_ ⊏ _›).isPrefix _)
+          )
+        revert key; simp [wires, upd]))
+
+theorem stNetlist_internals_eq : stNetlist.internals = [stNetlist.internals.getD 0 (fun _ _ => False), stNetlist.internals.getD 1 (fun _ _ => False), stNetlist.internals.getD 2 (fun _ _ => False), stNetlist.internals.getD 3 (fun _ _ => False), stNetlist.internals.getD 4 (fun _ _ => False), stNetlist.internals.getD 5 (fun _ _ => False), stNetlist.internals.getD 6 (fun _ _ => False), stNetlist.internals.getD 7 (fun _ _ => False), stNetlist.internals.getD 8 (fun _ _ => False), stNetlist.internals.getD 9 (fun _ _ => False), stNetlist.internals.getD 10 (fun _ _ => False), stNetlist.internals.getD 11 (fun _ _ => False), stNetlist.internals.getD 12 (fun _ _ => False), stNetlist.internals.getD 13 (fun _ _ => False), stNetlist.internals.getD 14 (fun _ _ => False), stNetlist.internals.getD 15 (fun _ _ => False), stNetlist.internals.getD 16 (fun _ _ => False), stNetlist.internals.getD 17 (fun _ _ => False), stNetlist.internals.getD 18 (fun _ _ => False), stNetlist.internals.getD 19 (fun _ _ => False), stNetlist.internals.getD 20 (fun _ _ => False), stNetlist.internals.getD 21 (fun _ _ => False), stNetlist.internals.getD 22 (fun _ _ => False), stNetlist.internals.getD 23 (fun _ _ => False), stNetlist.internals.getD 24 (fun _ _ => False), stNetlist.internals.getD 25 (fun _ _ => False), stNetlist.internals.getD 26 (fun _ _ => False), stNetlist.internals.getD 27 (fun _ _ => False)] := rfl
+
+/-! All 28 connections, one line each. -/
+
+theorem case_0 (s) (i mid : stT) (H : ψ i s)
+    (Hrule : (stNetlist.internals.getD 0 (fun _ _ => False)) i mid) :
+    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by str_case W.f0clk
+
+theorem case_1 (s) (i mid : stT) (H : ψ i s)
+    (Hrule : (stNetlist.internals.getD 1 (fun _ _ => False)) i mid) :
+    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by str_case W.f1clk
+
+theorem case_2 (s) (i mid : stT) (H : ψ i s)
+    (Hrule : (stNetlist.internals.getD 2 (fun _ _ => False)) i mid) :
+    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by str_case W.f2clk
+
+theorem case_3 (s) (i mid : stT) (H : ψ i s)
+    (Hrule : (stNetlist.internals.getD 3 (fun _ _ => False)) i mid) :
+    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by str_case W.f3clk
+
+theorem case_4 (s) (i mid : stT) (H : ψ i s)
+    (Hrule : (stNetlist.internals.getD 4 (fun _ _ => False)) i mid) :
+    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by str_case W.f4clk
+
+theorem case_5 (s) (i mid : stT) (H : ψ i s)
+    (Hrule : (stNetlist.internals.getD 5 (fun _ _ => False)) i mid) :
+    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by str_case W.f5clk
+
+theorem case_6 (s) (i mid : stT) (H : ψ i s)
+    (Hrule : (stNetlist.internals.getD 6 (fun _ _ => False)) i mid) :
+    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by str_case W.f6clk
+
+theorem case_7 (s) (i mid : stT) (H : ψ i s)
+    (Hrule : (stNetlist.internals.getD 7 (fun _ _ => False)) i mid) :
+    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by str_case W.f0crn
+
+theorem case_8 (s) (i mid : stT) (H : ψ i s)
+    (Hrule : (stNetlist.internals.getD 8 (fun _ _ => False)) i mid) :
+    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by str_case W.f1crn
+
+theorem case_9 (s) (i mid : stT) (H : ψ i s)
+    (Hrule : (stNetlist.internals.getD 9 (fun _ _ => False)) i mid) :
+    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by str_case W.f2crn
+
+theorem case_10 (s) (i mid : stT) (H : ψ i s)
+    (Hrule : (stNetlist.internals.getD 10 (fun _ _ => False)) i mid) :
+    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by str_case W.f3crn
+
+theorem case_11 (s) (i mid : stT) (H : ψ i s)
+    (Hrule : (stNetlist.internals.getD 11 (fun _ _ => False)) i mid) :
+    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by str_case W.f4crn
+
+theorem case_12 (s) (i mid : stT) (H : ψ i s)
+    (Hrule : (stNetlist.internals.getD 12 (fun _ _ => False)) i mid) :
+    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by str_case W.f5crn
+
+theorem case_13 (s) (i mid : stT) (H : ψ i s)
+    (Hrule : (stNetlist.internals.getD 13 (fun _ _ => False)) i mid) :
+    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by str_case W.f6crn
+
+theorem case_14 (s) (i mid : stT) (H : ψ i s)
+    (Hrule : (stNetlist.internals.getD 14 (fun _ _ => False)) i mid) :
+    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by str_case W.f0d
+
+theorem case_15 (s) (i mid : stT) (H : ψ i s)
+    (Hrule : (stNetlist.internals.getD 15 (fun _ _ => False)) i mid) :
+    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by str_case W.f1d
+
+theorem case_16 (s) (i mid : stT) (H : ψ i s)
+    (Hrule : (stNetlist.internals.getD 16 (fun _ _ => False)) i mid) :
+    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by str_case W.f2d
+
+theorem case_17 (s) (i mid : stT) (H : ψ i s)
+    (Hrule : (stNetlist.internals.getD 17 (fun _ _ => False)) i mid) :
+    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by str_case W.f3d
+
+theorem case_18 (s) (i mid : stT) (H : ψ i s)
+    (Hrule : (stNetlist.internals.getD 18 (fun _ _ => False)) i mid) :
+    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by str_case W.f4d
+
+theorem case_19 (s) (i mid : stT) (H : ψ i s)
+    (Hrule : (stNetlist.internals.getD 19 (fun _ _ => False)) i mid) :
+    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by str_case W.f5d
+
+theorem case_20 (s) (i mid : stT) (H : ψ i s)
+    (Hrule : (stNetlist.internals.getD 20 (fun _ _ => False)) i mid) :
+    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by str_case W.f6d
+
+theorem case_21 (s) (i mid : stT) (H : ψ i s)
+    (Hrule : (stNetlist.internals.getD 21 (fun _ _ => False)) i mid) :
+    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by str_case W.pk0
+
+theorem case_22 (s) (i mid : stT) (H : ψ i s)
+    (Hrule : (stNetlist.internals.getD 22 (fun _ _ => False)) i mid) :
+    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by str_case W.pk1
+
+theorem case_23 (s) (i mid : stT) (H : ψ i s)
+    (Hrule : (stNetlist.internals.getD 23 (fun _ _ => False)) i mid) :
+    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by str_case W.pk2
+
+theorem case_24 (s) (i mid : stT) (H : ψ i s)
+    (Hrule : (stNetlist.internals.getD 24 (fun _ _ => False)) i mid) :
+    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by str_case W.pk3
+
+theorem case_25 (s) (i mid : stT) (H : ψ i s)
+    (Hrule : (stNetlist.internals.getD 25 (fun _ _ => False)) i mid) :
+    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by str_case W.pk4
+
+theorem case_26 (s) (i mid : stT) (H : ψ i s)
+    (Hrule : (stNetlist.internals.getD 26 (fun _ _ => False)) i mid) :
+    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by str_case W.pk5
+
+theorem case_27 (s) (i mid : stT) (H : ψ i s)
+    (Hrule : (stNetlist.internals.getD 27 (fun _ _ => False)) i mid) :
+    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by str_case W.pk6
+/-! ### The specification's own rules -/
 
 section SpecRules
 variable (sp : List Bool × List (RSt 2) × List Bool × List (RSt 2))
@@ -314,1607 +514,99 @@ theorem spec_out_q (v : List (RSt 2)) (h1 : sp.2.2.2 <+: v)
   rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]; exact ⟨h1, h2, rfl⟩
 end SpecRules
 
-section Cases
-variable {pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn crF_in ff5_clk ff5_d ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn : List Bool}
-  {unp_d : List (RSt 2)} {sp : List Bool × List (RSt 2) × List Bool × List (RSt 2)}
-  (Hψ : Wf pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn crF_in ff5_clk ff5_d ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn unp_d sp)
-include Hψ
-
-theorem in_clk (v : List Bool) (h : clkF_in ⊏ v) :
-    Wf pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn crF_in ff5_clk ff5_d ff5_clrn (v) ff3_clk ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn unp_d (v, sp.2) := by
-  have hm : clkF_in <+: v := h.isPrefix
-  exact { e_clk := rfl
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0
-          w_pk_b1 := Hψ.w_pk_b1
-          w_pk_b2 := Hψ.w_pk_b2
-          w_pk_b3 := Hψ.w_pk_b3
-          w_pk_b4 := Hψ.w_pk_b4
-          w_pk_b5 := Hψ.w_pk_b5
-          w_pk_b6 := Hψ.w_pk_b6
-          w_ff6_clk := Hψ.w_ff6_clk.trans hm
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := Hψ.w_ff5_clk.trans hm
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := Hψ.w_ff3_clk.trans hm
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := Hψ.w_ff4_clk.trans hm
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := Hψ.w_ff0_clk.trans hm
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := Hψ.w_ff1_clk.trans hm
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := Hψ.w_ff2_clk.trans hm
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := Hψ.h_q }
-
-theorem in_d (v : List (RSt 2)) (h : unp_d ⊏ v) :
-    Wf pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn crF_in ff5_clk ff5_d ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn (v) (sp.1, v, sp.2.2) := by
-  have hm : unp_d <+: v := h.isPrefix
-  exact { e_clk := Hψ.e_clk
-          e_d := rfl
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0
-          w_pk_b1 := Hψ.w_pk_b1
-          w_pk_b2 := Hψ.w_pk_b2
-          w_pk_b3 := Hψ.w_pk_b3
-          w_pk_b4 := Hψ.w_pk_b4
-          w_pk_b5 := Hψ.w_pk_b5
-          w_pk_b6 := Hψ.w_pk_b6
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := Hψ.w_ff6_d.trans (bitsOf_mono hm)
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := Hψ.w_ff5_d.trans (bitsOf_mono hm)
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := Hψ.w_ff3_d.trans (bitsOf_mono hm)
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := Hψ.w_ff4_d.trans (bitsOf_mono hm)
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := Hψ.w_ff0_d.trans (bitsOf_mono hm)
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := Hψ.w_ff1_d.trans (bitsOf_mono hm)
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := Hψ.w_ff2_d.trans (bitsOf_mono hm)
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := Hψ.h_q }
-
-theorem in_clrn (v : List Bool) (h : crF_in ⊏ v) :
-    Wf pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn (v) ff5_clk ff5_d ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn unp_d (sp.1, sp.2.1, v, sp.2.2.2) := by
-  have hm : crF_in <+: v := h.isPrefix
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := rfl
-          w_pk_b0 := Hψ.w_pk_b0
-          w_pk_b1 := Hψ.w_pk_b1
-          w_pk_b2 := Hψ.w_pk_b2
-          w_pk_b3 := Hψ.w_pk_b3
-          w_pk_b4 := Hψ.w_pk_b4
-          w_pk_b5 := Hψ.w_pk_b5
-          w_pk_b6 := Hψ.w_pk_b6
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := Hψ.w_ff6_clrn.trans hm
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := Hψ.w_ff5_clrn.trans hm
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := Hψ.w_ff3_clrn.trans hm
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := Hψ.w_ff4_clrn.trans hm
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := Hψ.w_ff0_clrn.trans hm
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := Hψ.w_ff1_clrn.trans hm
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := Hψ.w_ff2_clrn.trans hm
-          h_q := Hψ.h_q }
-
-theorem int_0 (_h : ff0_clk ⊏ clkF_in) :
-    Wf pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn crF_in ff5_clk ff5_d ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn (clkF_in) ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn unp_d sp := by
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0.trans (dffOut_mono Hψ.w_ff0_clk List.prefix_rfl List.prefix_rfl)
-          w_pk_b1 := Hψ.w_pk_b1
-          w_pk_b2 := Hψ.w_pk_b2
-          w_pk_b3 := Hψ.w_pk_b3
-          w_pk_b4 := Hψ.w_pk_b4
-          w_pk_b5 := Hψ.w_pk_b5
-          w_pk_b6 := Hψ.w_pk_b6
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := List.prefix_rfl
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := Hψ.h_q }
-
-theorem int_1 (_h : ff1_clk ⊏ clkF_in) :
-    Wf pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn crF_in ff5_clk ff5_d ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn (clkF_in) ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn unp_d sp := by
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0
-          w_pk_b1 := Hψ.w_pk_b1.trans (dffOut_mono Hψ.w_ff1_clk List.prefix_rfl List.prefix_rfl)
-          w_pk_b2 := Hψ.w_pk_b2
-          w_pk_b3 := Hψ.w_pk_b3
-          w_pk_b4 := Hψ.w_pk_b4
-          w_pk_b5 := Hψ.w_pk_b5
-          w_pk_b6 := Hψ.w_pk_b6
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := List.prefix_rfl
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := Hψ.h_q }
-
-theorem int_2 (_h : ff2_clk ⊏ clkF_in) :
-    Wf pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn crF_in ff5_clk ff5_d ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn (clkF_in) ff2_d ff2_clrn unp_d sp := by
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0
-          w_pk_b1 := Hψ.w_pk_b1
-          w_pk_b2 := Hψ.w_pk_b2.trans (dffOut_mono Hψ.w_ff2_clk List.prefix_rfl List.prefix_rfl)
-          w_pk_b3 := Hψ.w_pk_b3
-          w_pk_b4 := Hψ.w_pk_b4
-          w_pk_b5 := Hψ.w_pk_b5
-          w_pk_b6 := Hψ.w_pk_b6
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := List.prefix_rfl
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := Hψ.h_q }
-
-theorem int_3 (_h : ff3_clk ⊏ clkF_in) :
-    Wf pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn crF_in ff5_clk ff5_d ff5_clrn clkF_in (clkF_in) ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn unp_d sp := by
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0
-          w_pk_b1 := Hψ.w_pk_b1
-          w_pk_b2 := Hψ.w_pk_b2
-          w_pk_b3 := Hψ.w_pk_b3.trans (dffOut_mono Hψ.w_ff3_clk List.prefix_rfl List.prefix_rfl)
-          w_pk_b4 := Hψ.w_pk_b4
-          w_pk_b5 := Hψ.w_pk_b5
-          w_pk_b6 := Hψ.w_pk_b6
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := List.prefix_rfl
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := Hψ.h_q }
-
-theorem int_4 (_h : ff4_clk ⊏ clkF_in) :
-    Wf pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn crF_in ff5_clk ff5_d ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn (clkF_in) ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn unp_d sp := by
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0
-          w_pk_b1 := Hψ.w_pk_b1
-          w_pk_b2 := Hψ.w_pk_b2
-          w_pk_b3 := Hψ.w_pk_b3
-          w_pk_b4 := Hψ.w_pk_b4.trans (dffOut_mono Hψ.w_ff4_clk List.prefix_rfl List.prefix_rfl)
-          w_pk_b5 := Hψ.w_pk_b5
-          w_pk_b6 := Hψ.w_pk_b6
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := List.prefix_rfl
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := Hψ.h_q }
-
-theorem int_5 (_h : ff5_clk ⊏ clkF_in) :
-    Wf pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn crF_in (clkF_in) ff5_d ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn unp_d sp := by
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0
-          w_pk_b1 := Hψ.w_pk_b1
-          w_pk_b2 := Hψ.w_pk_b2
-          w_pk_b3 := Hψ.w_pk_b3
-          w_pk_b4 := Hψ.w_pk_b4
-          w_pk_b5 := Hψ.w_pk_b5.trans (dffOut_mono Hψ.w_ff5_clk List.prefix_rfl List.prefix_rfl)
-          w_pk_b6 := Hψ.w_pk_b6
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := List.prefix_rfl
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := Hψ.h_q }
-
-theorem int_6 (_h : ff6_clk ⊏ clkF_in) :
-    Wf pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 (clkF_in) ff6_d ff6_clrn crF_in ff5_clk ff5_d ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn unp_d sp := by
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0
-          w_pk_b1 := Hψ.w_pk_b1
-          w_pk_b2 := Hψ.w_pk_b2
-          w_pk_b3 := Hψ.w_pk_b3
-          w_pk_b4 := Hψ.w_pk_b4
-          w_pk_b5 := Hψ.w_pk_b5
-          w_pk_b6 := Hψ.w_pk_b6.trans (dffOut_mono Hψ.w_ff6_clk List.prefix_rfl List.prefix_rfl)
-          w_ff6_clk := List.prefix_rfl
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := Hψ.h_q }
-
-theorem int_7 (_h : ff0_clrn ⊏ crF_in) :
-    Wf pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn crF_in ff5_clk ff5_d ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk ff0_d (crF_in) ff1_clk ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn unp_d sp := by
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0.trans (dffOut_mono List.prefix_rfl List.prefix_rfl Hψ.w_ff0_clrn)
-          w_pk_b1 := Hψ.w_pk_b1
-          w_pk_b2 := Hψ.w_pk_b2
-          w_pk_b3 := Hψ.w_pk_b3
-          w_pk_b4 := Hψ.w_pk_b4
-          w_pk_b5 := Hψ.w_pk_b5
-          w_pk_b6 := Hψ.w_pk_b6
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := List.prefix_rfl
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := Hψ.h_q }
-
-theorem int_8 (_h : ff1_clrn ⊏ crF_in) :
-    Wf pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn crF_in ff5_clk ff5_d ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk ff1_d (crF_in) ff2_clk ff2_d ff2_clrn unp_d sp := by
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0
-          w_pk_b1 := Hψ.w_pk_b1.trans (dffOut_mono List.prefix_rfl List.prefix_rfl Hψ.w_ff1_clrn)
-          w_pk_b2 := Hψ.w_pk_b2
-          w_pk_b3 := Hψ.w_pk_b3
-          w_pk_b4 := Hψ.w_pk_b4
-          w_pk_b5 := Hψ.w_pk_b5
-          w_pk_b6 := Hψ.w_pk_b6
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := List.prefix_rfl
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := Hψ.h_q }
-
-theorem int_9 (_h : ff2_clrn ⊏ crF_in) :
-    Wf pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn crF_in ff5_clk ff5_d ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk ff2_d (crF_in) unp_d sp := by
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0
-          w_pk_b1 := Hψ.w_pk_b1
-          w_pk_b2 := Hψ.w_pk_b2.trans (dffOut_mono List.prefix_rfl List.prefix_rfl Hψ.w_ff2_clrn)
-          w_pk_b3 := Hψ.w_pk_b3
-          w_pk_b4 := Hψ.w_pk_b4
-          w_pk_b5 := Hψ.w_pk_b5
-          w_pk_b6 := Hψ.w_pk_b6
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := List.prefix_rfl
-          h_q := Hψ.h_q }
-
-theorem int_10 (_h : ff3_clrn ⊏ crF_in) :
-    Wf pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn crF_in ff5_clk ff5_d ff5_clrn clkF_in ff3_clk ff3_d (crF_in) ff4_clk ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn unp_d sp := by
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0
-          w_pk_b1 := Hψ.w_pk_b1
-          w_pk_b2 := Hψ.w_pk_b2
-          w_pk_b3 := Hψ.w_pk_b3.trans (dffOut_mono List.prefix_rfl List.prefix_rfl Hψ.w_ff3_clrn)
-          w_pk_b4 := Hψ.w_pk_b4
-          w_pk_b5 := Hψ.w_pk_b5
-          w_pk_b6 := Hψ.w_pk_b6
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := List.prefix_rfl
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := Hψ.h_q }
-
-theorem int_11 (_h : ff4_clrn ⊏ crF_in) :
-    Wf pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn crF_in ff5_clk ff5_d ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn ff4_clk ff4_d (crF_in) ff0_clk ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn unp_d sp := by
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0
-          w_pk_b1 := Hψ.w_pk_b1
-          w_pk_b2 := Hψ.w_pk_b2
-          w_pk_b3 := Hψ.w_pk_b3
-          w_pk_b4 := Hψ.w_pk_b4.trans (dffOut_mono List.prefix_rfl List.prefix_rfl Hψ.w_ff4_clrn)
-          w_pk_b5 := Hψ.w_pk_b5
-          w_pk_b6 := Hψ.w_pk_b6
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := List.prefix_rfl
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := Hψ.h_q }
-
-theorem int_12 (_h : ff5_clrn ⊏ crF_in) :
-    Wf pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn crF_in ff5_clk ff5_d (crF_in) clkF_in ff3_clk ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn unp_d sp := by
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0
-          w_pk_b1 := Hψ.w_pk_b1
-          w_pk_b2 := Hψ.w_pk_b2
-          w_pk_b3 := Hψ.w_pk_b3
-          w_pk_b4 := Hψ.w_pk_b4
-          w_pk_b5 := Hψ.w_pk_b5.trans (dffOut_mono List.prefix_rfl List.prefix_rfl Hψ.w_ff5_clrn)
-          w_pk_b6 := Hψ.w_pk_b6
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := List.prefix_rfl
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := Hψ.h_q }
-
-theorem int_13 (_h : ff6_clrn ⊏ crF_in) :
-    Wf pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk ff6_d (crF_in) crF_in ff5_clk ff5_d ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn unp_d sp := by
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0
-          w_pk_b1 := Hψ.w_pk_b1
-          w_pk_b2 := Hψ.w_pk_b2
-          w_pk_b3 := Hψ.w_pk_b3
-          w_pk_b4 := Hψ.w_pk_b4
-          w_pk_b5 := Hψ.w_pk_b5
-          w_pk_b6 := Hψ.w_pk_b6.trans (dffOut_mono List.prefix_rfl List.prefix_rfl Hψ.w_ff6_clrn)
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := List.prefix_rfl
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := Hψ.h_q }
-
-theorem int_14 (_h : ff0_d ⊏ bitsOf 0 unp_d) :
-    Wf pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn crF_in ff5_clk ff5_d ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk (bitsOf 0 unp_d) ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn unp_d sp := by
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0.trans (dffOut_mono List.prefix_rfl Hψ.w_ff0_d List.prefix_rfl)
-          w_pk_b1 := Hψ.w_pk_b1
-          w_pk_b2 := Hψ.w_pk_b2
-          w_pk_b3 := Hψ.w_pk_b3
-          w_pk_b4 := Hψ.w_pk_b4
-          w_pk_b5 := Hψ.w_pk_b5
-          w_pk_b6 := Hψ.w_pk_b6
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := List.prefix_rfl
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := Hψ.h_q }
-
-theorem int_15 (_h : ff1_d ⊏ bitsOf 1 unp_d) :
-    Wf pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn crF_in ff5_clk ff5_d ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk (bitsOf 1 unp_d) ff1_clrn ff2_clk ff2_d ff2_clrn unp_d sp := by
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0
-          w_pk_b1 := Hψ.w_pk_b1.trans (dffOut_mono List.prefix_rfl Hψ.w_ff1_d List.prefix_rfl)
-          w_pk_b2 := Hψ.w_pk_b2
-          w_pk_b3 := Hψ.w_pk_b3
-          w_pk_b4 := Hψ.w_pk_b4
-          w_pk_b5 := Hψ.w_pk_b5
-          w_pk_b6 := Hψ.w_pk_b6
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := List.prefix_rfl
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := Hψ.h_q }
-
-theorem int_16 (_h : ff2_d ⊏ bitsOf 2 unp_d) :
-    Wf pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn crF_in ff5_clk ff5_d ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk (bitsOf 2 unp_d) ff2_clrn unp_d sp := by
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0
-          w_pk_b1 := Hψ.w_pk_b1
-          w_pk_b2 := Hψ.w_pk_b2.trans (dffOut_mono List.prefix_rfl Hψ.w_ff2_d List.prefix_rfl)
-          w_pk_b3 := Hψ.w_pk_b3
-          w_pk_b4 := Hψ.w_pk_b4
-          w_pk_b5 := Hψ.w_pk_b5
-          w_pk_b6 := Hψ.w_pk_b6
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := List.prefix_rfl
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := Hψ.h_q }
-
-theorem int_17 (_h : ff3_d ⊏ bitsOf 3 unp_d) :
-    Wf pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn crF_in ff5_clk ff5_d ff5_clrn clkF_in ff3_clk (bitsOf 3 unp_d) ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn unp_d sp := by
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0
-          w_pk_b1 := Hψ.w_pk_b1
-          w_pk_b2 := Hψ.w_pk_b2
-          w_pk_b3 := Hψ.w_pk_b3.trans (dffOut_mono List.prefix_rfl Hψ.w_ff3_d List.prefix_rfl)
-          w_pk_b4 := Hψ.w_pk_b4
-          w_pk_b5 := Hψ.w_pk_b5
-          w_pk_b6 := Hψ.w_pk_b6
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := List.prefix_rfl
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := Hψ.h_q }
-
-theorem int_18 (_h : ff4_d ⊏ bitsOf 4 unp_d) :
-    Wf pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn crF_in ff5_clk ff5_d ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn ff4_clk (bitsOf 4 unp_d) ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn unp_d sp := by
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0
-          w_pk_b1 := Hψ.w_pk_b1
-          w_pk_b2 := Hψ.w_pk_b2
-          w_pk_b3 := Hψ.w_pk_b3
-          w_pk_b4 := Hψ.w_pk_b4.trans (dffOut_mono List.prefix_rfl Hψ.w_ff4_d List.prefix_rfl)
-          w_pk_b5 := Hψ.w_pk_b5
-          w_pk_b6 := Hψ.w_pk_b6
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := List.prefix_rfl
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := Hψ.h_q }
-
-theorem int_19 (_h : ff5_d ⊏ bitsOf 5 unp_d) :
-    Wf pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn crF_in ff5_clk (bitsOf 5 unp_d) ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn unp_d sp := by
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0
-          w_pk_b1 := Hψ.w_pk_b1
-          w_pk_b2 := Hψ.w_pk_b2
-          w_pk_b3 := Hψ.w_pk_b3
-          w_pk_b4 := Hψ.w_pk_b4
-          w_pk_b5 := Hψ.w_pk_b5.trans (dffOut_mono List.prefix_rfl Hψ.w_ff5_d List.prefix_rfl)
-          w_pk_b6 := Hψ.w_pk_b6
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := List.prefix_rfl
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := Hψ.h_q }
-
-theorem int_20 (_h : ff6_d ⊏ bitsOf 6 unp_d) :
-    Wf pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk (bitsOf 6 unp_d) ff6_clrn crF_in ff5_clk ff5_d ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn unp_d sp := by
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0
-          w_pk_b1 := Hψ.w_pk_b1
-          w_pk_b2 := Hψ.w_pk_b2
-          w_pk_b3 := Hψ.w_pk_b3
-          w_pk_b4 := Hψ.w_pk_b4
-          w_pk_b5 := Hψ.w_pk_b5
-          w_pk_b6 := Hψ.w_pk_b6.trans (dffOut_mono List.prefix_rfl Hψ.w_ff6_d List.prefix_rfl)
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := List.prefix_rfl
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := Hψ.h_q }
-
-theorem int_21 {out : List Bool} (_h : pk_b0 ⊏ out) (hout : out <+: dffOut ff0_clk ff0_d ff0_clrn) :
-    Wf (out) pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn crF_in ff5_clk ff5_d ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn unp_d sp := by
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := hout
-          w_pk_b1 := Hψ.w_pk_b1
-          w_pk_b2 := Hψ.w_pk_b2
-          w_pk_b3 := Hψ.w_pk_b3
-          w_pk_b4 := Hψ.w_pk_b4
-          w_pk_b5 := Hψ.w_pk_b5
-          w_pk_b6 := Hψ.w_pk_b6
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := Hψ.h_q.trans (packStOut_mono (_h.isPrefix) List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl) }
-
-theorem int_22 {out : List Bool} (_h : pk_b1 ⊏ out) (hout : out <+: dffOut ff1_clk ff1_d ff1_clrn) :
-    Wf pk_b0 (out) pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn crF_in ff5_clk ff5_d ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn unp_d sp := by
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0
-          w_pk_b1 := hout
-          w_pk_b2 := Hψ.w_pk_b2
-          w_pk_b3 := Hψ.w_pk_b3
-          w_pk_b4 := Hψ.w_pk_b4
-          w_pk_b5 := Hψ.w_pk_b5
-          w_pk_b6 := Hψ.w_pk_b6
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := Hψ.h_q.trans (packStOut_mono List.prefix_rfl (_h.isPrefix) List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl) }
-
-theorem int_23 {out : List Bool} (_h : pk_b2 ⊏ out) (hout : out <+: dffOut ff2_clk ff2_d ff2_clrn) :
-    Wf pk_b0 pk_b1 (out) pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn crF_in ff5_clk ff5_d ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn unp_d sp := by
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0
-          w_pk_b1 := Hψ.w_pk_b1
-          w_pk_b2 := hout
-          w_pk_b3 := Hψ.w_pk_b3
-          w_pk_b4 := Hψ.w_pk_b4
-          w_pk_b5 := Hψ.w_pk_b5
-          w_pk_b6 := Hψ.w_pk_b6
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := Hψ.h_q.trans (packStOut_mono List.prefix_rfl List.prefix_rfl (_h.isPrefix) List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl) }
-
-theorem int_24 {out : List Bool} (_h : pk_b3 ⊏ out) (hout : out <+: dffOut ff3_clk ff3_d ff3_clrn) :
-    Wf pk_b0 pk_b1 pk_b2 (out) pk_b4 pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn crF_in ff5_clk ff5_d ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn unp_d sp := by
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0
-          w_pk_b1 := Hψ.w_pk_b1
-          w_pk_b2 := Hψ.w_pk_b2
-          w_pk_b3 := hout
-          w_pk_b4 := Hψ.w_pk_b4
-          w_pk_b5 := Hψ.w_pk_b5
-          w_pk_b6 := Hψ.w_pk_b6
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := Hψ.h_q.trans (packStOut_mono List.prefix_rfl List.prefix_rfl List.prefix_rfl (_h.isPrefix) List.prefix_rfl List.prefix_rfl List.prefix_rfl) }
-
-theorem int_25 {out : List Bool} (_h : pk_b4 ⊏ out) (hout : out <+: dffOut ff4_clk ff4_d ff4_clrn) :
-    Wf pk_b0 pk_b1 pk_b2 pk_b3 (out) pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn crF_in ff5_clk ff5_d ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn unp_d sp := by
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0
-          w_pk_b1 := Hψ.w_pk_b1
-          w_pk_b2 := Hψ.w_pk_b2
-          w_pk_b3 := Hψ.w_pk_b3
-          w_pk_b4 := hout
-          w_pk_b5 := Hψ.w_pk_b5
-          w_pk_b6 := Hψ.w_pk_b6
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := Hψ.h_q.trans (packStOut_mono List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl (_h.isPrefix) List.prefix_rfl List.prefix_rfl) }
-
-theorem int_26 {out : List Bool} (_h : pk_b5 ⊏ out) (hout : out <+: dffOut ff5_clk ff5_d ff5_clrn) :
-    Wf pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 (out) pk_b6 ff6_clk ff6_d ff6_clrn crF_in ff5_clk ff5_d ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn unp_d sp := by
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0
-          w_pk_b1 := Hψ.w_pk_b1
-          w_pk_b2 := Hψ.w_pk_b2
-          w_pk_b3 := Hψ.w_pk_b3
-          w_pk_b4 := Hψ.w_pk_b4
-          w_pk_b5 := hout
-          w_pk_b6 := Hψ.w_pk_b6
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := Hψ.h_q.trans (packStOut_mono List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl (_h.isPrefix) List.prefix_rfl) }
-
-theorem int_27 {out : List Bool} (_h : pk_b6 ⊏ out) (hout : out <+: dffOut ff6_clk ff6_d ff6_clrn) :
-    Wf pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 (out) ff6_clk ff6_d ff6_clrn crF_in ff5_clk ff5_d ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn unp_d sp := by
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0
-          w_pk_b1 := Hψ.w_pk_b1
-          w_pk_b2 := Hψ.w_pk_b2
-          w_pk_b3 := Hψ.w_pk_b3
-          w_pk_b4 := Hψ.w_pk_b4
-          w_pk_b5 := Hψ.w_pk_b5
-          w_pk_b6 := hout
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := Hψ.h_q.trans (packStOut_mono List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl (_h.isPrefix)) }
-
-/-- What the block reports is a prefix of the specification's stream: each bit is a prefix
-of its flip-flop's output, and the flip-flops see prefixes of the block's own inputs. -/
-theorem out_q : packStOut pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 <+: stOut sp.1 sp.2.1 sp.2.2.1 := by
-  refine packStOut_mono ?_ ?_ ?_ ?_ ?_ ?_ ?_
-  · exact Hψ.w_pk_b0.trans (dffOut_mono (Hψ.w_ff0_clk.trans (Hψ.e_clk ▸ List.prefix_rfl))
-      (Hψ.w_ff0_d.trans (bitsOf_mono (Hψ.e_d ▸ List.prefix_rfl)))
-      (Hψ.w_ff0_clrn.trans (Hψ.e_crn ▸ List.prefix_rfl)))
-  · exact Hψ.w_pk_b1.trans (dffOut_mono (Hψ.w_ff1_clk.trans (Hψ.e_clk ▸ List.prefix_rfl))
-      (Hψ.w_ff1_d.trans (bitsOf_mono (Hψ.e_d ▸ List.prefix_rfl)))
-      (Hψ.w_ff1_clrn.trans (Hψ.e_crn ▸ List.prefix_rfl)))
-  · exact Hψ.w_pk_b2.trans (dffOut_mono (Hψ.w_ff2_clk.trans (Hψ.e_clk ▸ List.prefix_rfl))
-      (Hψ.w_ff2_d.trans (bitsOf_mono (Hψ.e_d ▸ List.prefix_rfl)))
-      (Hψ.w_ff2_clrn.trans (Hψ.e_crn ▸ List.prefix_rfl)))
-  · exact Hψ.w_pk_b3.trans (dffOut_mono (Hψ.w_ff3_clk.trans (Hψ.e_clk ▸ List.prefix_rfl))
-      (Hψ.w_ff3_d.trans (bitsOf_mono (Hψ.e_d ▸ List.prefix_rfl)))
-      (Hψ.w_ff3_clrn.trans (Hψ.e_crn ▸ List.prefix_rfl)))
-  · exact Hψ.w_pk_b4.trans (dffOut_mono (Hψ.w_ff4_clk.trans (Hψ.e_clk ▸ List.prefix_rfl))
-      (Hψ.w_ff4_d.trans (bitsOf_mono (Hψ.e_d ▸ List.prefix_rfl)))
-      (Hψ.w_ff4_clrn.trans (Hψ.e_crn ▸ List.prefix_rfl)))
-  · exact Hψ.w_pk_b5.trans (dffOut_mono (Hψ.w_ff5_clk.trans (Hψ.e_clk ▸ List.prefix_rfl))
-      (Hψ.w_ff5_d.trans (bitsOf_mono (Hψ.e_d ▸ List.prefix_rfl)))
-      (Hψ.w_ff5_clrn.trans (Hψ.e_crn ▸ List.prefix_rfl)))
-  · exact Hψ.w_pk_b6.trans (dffOut_mono (Hψ.w_ff6_clk.trans (Hψ.e_clk ▸ List.prefix_rfl))
-      (Hψ.w_ff6_d.trans (bitsOf_mono (Hψ.e_d ▸ List.prefix_rfl)))
-      (Hψ.w_ff6_clrn.trans (Hψ.e_crn ▸ List.prefix_rfl)))
-
-/-- What it has reported it has reported: the report is the packer's, and the packer's
-inputs only grow. -/
-theorem out_wf : Wf pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6 ff6_clk ff6_d ff6_clrn crF_in ff5_clk ff5_d ff5_clrn clkF_in ff3_clk ff3_d ff3_clrn ff4_clk ff4_d ff4_clrn ff0_clk ff0_d ff0_clrn ff1_clk ff1_d ff1_clrn ff2_clk ff2_d ff2_clrn unp_d (sp.1, sp.2.1, sp.2.2.1, packStOut pk_b0 pk_b1 pk_b2 pk_b3 pk_b4 pk_b5 pk_b6) := by
-  exact { e_clk := Hψ.e_clk
-          e_d := Hψ.e_d
-          e_crn := Hψ.e_crn
-          w_pk_b0 := Hψ.w_pk_b0
-          w_pk_b1 := Hψ.w_pk_b1
-          w_pk_b2 := Hψ.w_pk_b2
-          w_pk_b3 := Hψ.w_pk_b3
-          w_pk_b4 := Hψ.w_pk_b4
-          w_pk_b5 := Hψ.w_pk_b5
-          w_pk_b6 := Hψ.w_pk_b6
-          w_ff6_clk := Hψ.w_ff6_clk
-          w_ff6_d := Hψ.w_ff6_d
-          w_ff6_clrn := Hψ.w_ff6_clrn
-          w_ff5_clk := Hψ.w_ff5_clk
-          w_ff5_d := Hψ.w_ff5_d
-          w_ff5_clrn := Hψ.w_ff5_clrn
-          w_ff3_clk := Hψ.w_ff3_clk
-          w_ff3_d := Hψ.w_ff3_d
-          w_ff3_clrn := Hψ.w_ff3_clrn
-          w_ff4_clk := Hψ.w_ff4_clk
-          w_ff4_d := Hψ.w_ff4_d
-          w_ff4_clrn := Hψ.w_ff4_clrn
-          w_ff0_clk := Hψ.w_ff0_clk
-          w_ff0_d := Hψ.w_ff0_d
-          w_ff0_clrn := Hψ.w_ff0_clrn
-          w_ff1_clk := Hψ.w_ff1_clk
-          w_ff1_d := Hψ.w_ff1_d
-          w_ff1_clrn := Hψ.w_ff1_clrn
-          w_ff2_clk := Hψ.w_ff2_clk
-          w_ff2_d := Hψ.w_ff2_d
-          w_ff2_clrn := Hψ.w_ff2_clrn
-          h_q := List.prefix_rfl }
-
-end Cases
-
 /-! ### The refinement -/
 
-theorem int_case_0 (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) (i mid : stT) (Hψ : ψ i s)
-    (Hrule : (stNetlist.internals.getD 0 (fun _ _ => False)) i mid) :
-    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-  obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_pk_b0, c_pk_b1, c_pk_b2, c_pk_b3, c_pk_b4, c_pk_b5, c_pk_b6⟩, ⟨c_ff6_clk, c_ff6_d, c_ff6_clrn⟩, c_unp_d, c_crF_in, ⟨c_ff5_clk, c_ff5_d, c_ff5_clrn⟩, c_clkF_in, ⟨c_ff3_clk, c_ff3_d, c_ff3_clrn⟩, ⟨c_ff4_clk, c_ff4_d, c_ff4_clrn⟩, ⟨c_ff0_clk, c_ff0_d, c_ff0_clrn⟩, ⟨c_ff1_clk, c_ff1_d, c_ff1_clrn⟩, ⟨c_ff2_clk, c_ff2_d, c_ff2_clrn⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_0 Hψ ‹_›⟩
-
-theorem int_case_1 (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) (i mid : stT) (Hψ : ψ i s)
-    (Hrule : (stNetlist.internals.getD 1 (fun _ _ => False)) i mid) :
-    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-  obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_pk_b0, c_pk_b1, c_pk_b2, c_pk_b3, c_pk_b4, c_pk_b5, c_pk_b6⟩, ⟨c_ff6_clk, c_ff6_d, c_ff6_clrn⟩, c_unp_d, c_crF_in, ⟨c_ff5_clk, c_ff5_d, c_ff5_clrn⟩, c_clkF_in, ⟨c_ff3_clk, c_ff3_d, c_ff3_clrn⟩, ⟨c_ff4_clk, c_ff4_d, c_ff4_clrn⟩, ⟨c_ff0_clk, c_ff0_d, c_ff0_clrn⟩, ⟨c_ff1_clk, c_ff1_d, c_ff1_clrn⟩, ⟨c_ff2_clk, c_ff2_d, c_ff2_clrn⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_1 Hψ ‹_›⟩
-
-theorem int_case_2 (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) (i mid : stT) (Hψ : ψ i s)
-    (Hrule : (stNetlist.internals.getD 2 (fun _ _ => False)) i mid) :
-    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-  obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_pk_b0, c_pk_b1, c_pk_b2, c_pk_b3, c_pk_b4, c_pk_b5, c_pk_b6⟩, ⟨c_ff6_clk, c_ff6_d, c_ff6_clrn⟩, c_unp_d, c_crF_in, ⟨c_ff5_clk, c_ff5_d, c_ff5_clrn⟩, c_clkF_in, ⟨c_ff3_clk, c_ff3_d, c_ff3_clrn⟩, ⟨c_ff4_clk, c_ff4_d, c_ff4_clrn⟩, ⟨c_ff0_clk, c_ff0_d, c_ff0_clrn⟩, ⟨c_ff1_clk, c_ff1_d, c_ff1_clrn⟩, ⟨c_ff2_clk, c_ff2_d, c_ff2_clrn⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_2 Hψ ‹_›⟩
-
-theorem int_case_3 (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) (i mid : stT) (Hψ : ψ i s)
-    (Hrule : (stNetlist.internals.getD 3 (fun _ _ => False)) i mid) :
-    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-  obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_pk_b0, c_pk_b1, c_pk_b2, c_pk_b3, c_pk_b4, c_pk_b5, c_pk_b6⟩, ⟨c_ff6_clk, c_ff6_d, c_ff6_clrn⟩, c_unp_d, c_crF_in, ⟨c_ff5_clk, c_ff5_d, c_ff5_clrn⟩, c_clkF_in, ⟨c_ff3_clk, c_ff3_d, c_ff3_clrn⟩, ⟨c_ff4_clk, c_ff4_d, c_ff4_clrn⟩, ⟨c_ff0_clk, c_ff0_d, c_ff0_clrn⟩, ⟨c_ff1_clk, c_ff1_d, c_ff1_clrn⟩, ⟨c_ff2_clk, c_ff2_d, c_ff2_clrn⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_3 Hψ ‹_›⟩
-
-theorem int_case_4 (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) (i mid : stT) (Hψ : ψ i s)
-    (Hrule : (stNetlist.internals.getD 4 (fun _ _ => False)) i mid) :
-    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-  obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_pk_b0, c_pk_b1, c_pk_b2, c_pk_b3, c_pk_b4, c_pk_b5, c_pk_b6⟩, ⟨c_ff6_clk, c_ff6_d, c_ff6_clrn⟩, c_unp_d, c_crF_in, ⟨c_ff5_clk, c_ff5_d, c_ff5_clrn⟩, c_clkF_in, ⟨c_ff3_clk, c_ff3_d, c_ff3_clrn⟩, ⟨c_ff4_clk, c_ff4_d, c_ff4_clrn⟩, ⟨c_ff0_clk, c_ff0_d, c_ff0_clrn⟩, ⟨c_ff1_clk, c_ff1_d, c_ff1_clrn⟩, ⟨c_ff2_clk, c_ff2_d, c_ff2_clrn⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_4 Hψ ‹_›⟩
-
-theorem int_case_5 (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) (i mid : stT) (Hψ : ψ i s)
-    (Hrule : (stNetlist.internals.getD 5 (fun _ _ => False)) i mid) :
-    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-  obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_pk_b0, c_pk_b1, c_pk_b2, c_pk_b3, c_pk_b4, c_pk_b5, c_pk_b6⟩, ⟨c_ff6_clk, c_ff6_d, c_ff6_clrn⟩, c_unp_d, c_crF_in, ⟨c_ff5_clk, c_ff5_d, c_ff5_clrn⟩, c_clkF_in, ⟨c_ff3_clk, c_ff3_d, c_ff3_clrn⟩, ⟨c_ff4_clk, c_ff4_d, c_ff4_clrn⟩, ⟨c_ff0_clk, c_ff0_d, c_ff0_clrn⟩, ⟨c_ff1_clk, c_ff1_d, c_ff1_clrn⟩, ⟨c_ff2_clk, c_ff2_d, c_ff2_clrn⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_5 Hψ ‹_›⟩
-
-theorem int_case_6 (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) (i mid : stT) (Hψ : ψ i s)
-    (Hrule : (stNetlist.internals.getD 6 (fun _ _ => False)) i mid) :
-    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-  obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_pk_b0, c_pk_b1, c_pk_b2, c_pk_b3, c_pk_b4, c_pk_b5, c_pk_b6⟩, ⟨c_ff6_clk, c_ff6_d, c_ff6_clrn⟩, c_unp_d, c_crF_in, ⟨c_ff5_clk, c_ff5_d, c_ff5_clrn⟩, c_clkF_in, ⟨c_ff3_clk, c_ff3_d, c_ff3_clrn⟩, ⟨c_ff4_clk, c_ff4_d, c_ff4_clrn⟩, ⟨c_ff0_clk, c_ff0_d, c_ff0_clrn⟩, ⟨c_ff1_clk, c_ff1_d, c_ff1_clrn⟩, ⟨c_ff2_clk, c_ff2_d, c_ff2_clrn⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_6 Hψ ‹_›⟩
-
-theorem int_case_7 (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) (i mid : stT) (Hψ : ψ i s)
-    (Hrule : (stNetlist.internals.getD 7 (fun _ _ => False)) i mid) :
-    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-  obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_pk_b0, c_pk_b1, c_pk_b2, c_pk_b3, c_pk_b4, c_pk_b5, c_pk_b6⟩, ⟨c_ff6_clk, c_ff6_d, c_ff6_clrn⟩, c_unp_d, c_crF_in, ⟨c_ff5_clk, c_ff5_d, c_ff5_clrn⟩, c_clkF_in, ⟨c_ff3_clk, c_ff3_d, c_ff3_clrn⟩, ⟨c_ff4_clk, c_ff4_d, c_ff4_clrn⟩, ⟨c_ff0_clk, c_ff0_d, c_ff0_clrn⟩, ⟨c_ff1_clk, c_ff1_d, c_ff1_clrn⟩, ⟨c_ff2_clk, c_ff2_d, c_ff2_clrn⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_7 Hψ ‹_›⟩
-
-theorem int_case_8 (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) (i mid : stT) (Hψ : ψ i s)
-    (Hrule : (stNetlist.internals.getD 8 (fun _ _ => False)) i mid) :
-    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-  obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_pk_b0, c_pk_b1, c_pk_b2, c_pk_b3, c_pk_b4, c_pk_b5, c_pk_b6⟩, ⟨c_ff6_clk, c_ff6_d, c_ff6_clrn⟩, c_unp_d, c_crF_in, ⟨c_ff5_clk, c_ff5_d, c_ff5_clrn⟩, c_clkF_in, ⟨c_ff3_clk, c_ff3_d, c_ff3_clrn⟩, ⟨c_ff4_clk, c_ff4_d, c_ff4_clrn⟩, ⟨c_ff0_clk, c_ff0_d, c_ff0_clrn⟩, ⟨c_ff1_clk, c_ff1_d, c_ff1_clrn⟩, ⟨c_ff2_clk, c_ff2_d, c_ff2_clrn⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_8 Hψ ‹_›⟩
-
-theorem int_case_9 (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) (i mid : stT) (Hψ : ψ i s)
-    (Hrule : (stNetlist.internals.getD 9 (fun _ _ => False)) i mid) :
-    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-  obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_pk_b0, c_pk_b1, c_pk_b2, c_pk_b3, c_pk_b4, c_pk_b5, c_pk_b6⟩, ⟨c_ff6_clk, c_ff6_d, c_ff6_clrn⟩, c_unp_d, c_crF_in, ⟨c_ff5_clk, c_ff5_d, c_ff5_clrn⟩, c_clkF_in, ⟨c_ff3_clk, c_ff3_d, c_ff3_clrn⟩, ⟨c_ff4_clk, c_ff4_d, c_ff4_clrn⟩, ⟨c_ff0_clk, c_ff0_d, c_ff0_clrn⟩, ⟨c_ff1_clk, c_ff1_d, c_ff1_clrn⟩, ⟨c_ff2_clk, c_ff2_d, c_ff2_clrn⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_9 Hψ ‹_›⟩
-
-theorem int_case_10 (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) (i mid : stT) (Hψ : ψ i s)
-    (Hrule : (stNetlist.internals.getD 10 (fun _ _ => False)) i mid) :
-    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-  obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_pk_b0, c_pk_b1, c_pk_b2, c_pk_b3, c_pk_b4, c_pk_b5, c_pk_b6⟩, ⟨c_ff6_clk, c_ff6_d, c_ff6_clrn⟩, c_unp_d, c_crF_in, ⟨c_ff5_clk, c_ff5_d, c_ff5_clrn⟩, c_clkF_in, ⟨c_ff3_clk, c_ff3_d, c_ff3_clrn⟩, ⟨c_ff4_clk, c_ff4_d, c_ff4_clrn⟩, ⟨c_ff0_clk, c_ff0_d, c_ff0_clrn⟩, ⟨c_ff1_clk, c_ff1_d, c_ff1_clrn⟩, ⟨c_ff2_clk, c_ff2_d, c_ff2_clrn⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_10 Hψ ‹_›⟩
-
-theorem int_case_11 (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) (i mid : stT) (Hψ : ψ i s)
-    (Hrule : (stNetlist.internals.getD 11 (fun _ _ => False)) i mid) :
-    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-  obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_pk_b0, c_pk_b1, c_pk_b2, c_pk_b3, c_pk_b4, c_pk_b5, c_pk_b6⟩, ⟨c_ff6_clk, c_ff6_d, c_ff6_clrn⟩, c_unp_d, c_crF_in, ⟨c_ff5_clk, c_ff5_d, c_ff5_clrn⟩, c_clkF_in, ⟨c_ff3_clk, c_ff3_d, c_ff3_clrn⟩, ⟨c_ff4_clk, c_ff4_d, c_ff4_clrn⟩, ⟨c_ff0_clk, c_ff0_d, c_ff0_clrn⟩, ⟨c_ff1_clk, c_ff1_d, c_ff1_clrn⟩, ⟨c_ff2_clk, c_ff2_d, c_ff2_clrn⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_11 Hψ ‹_›⟩
-
-theorem int_case_12 (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) (i mid : stT) (Hψ : ψ i s)
-    (Hrule : (stNetlist.internals.getD 12 (fun _ _ => False)) i mid) :
-    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-  obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_pk_b0, c_pk_b1, c_pk_b2, c_pk_b3, c_pk_b4, c_pk_b5, c_pk_b6⟩, ⟨c_ff6_clk, c_ff6_d, c_ff6_clrn⟩, c_unp_d, c_crF_in, ⟨c_ff5_clk, c_ff5_d, c_ff5_clrn⟩, c_clkF_in, ⟨c_ff3_clk, c_ff3_d, c_ff3_clrn⟩, ⟨c_ff4_clk, c_ff4_d, c_ff4_clrn⟩, ⟨c_ff0_clk, c_ff0_d, c_ff0_clrn⟩, ⟨c_ff1_clk, c_ff1_d, c_ff1_clrn⟩, ⟨c_ff2_clk, c_ff2_d, c_ff2_clrn⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_12 Hψ ‹_›⟩
-
-theorem int_case_13 (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) (i mid : stT) (Hψ : ψ i s)
-    (Hrule : (stNetlist.internals.getD 13 (fun _ _ => False)) i mid) :
-    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-  obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_pk_b0, c_pk_b1, c_pk_b2, c_pk_b3, c_pk_b4, c_pk_b5, c_pk_b6⟩, ⟨c_ff6_clk, c_ff6_d, c_ff6_clrn⟩, c_unp_d, c_crF_in, ⟨c_ff5_clk, c_ff5_d, c_ff5_clrn⟩, c_clkF_in, ⟨c_ff3_clk, c_ff3_d, c_ff3_clrn⟩, ⟨c_ff4_clk, c_ff4_d, c_ff4_clrn⟩, ⟨c_ff0_clk, c_ff0_d, c_ff0_clrn⟩, ⟨c_ff1_clk, c_ff1_d, c_ff1_clrn⟩, ⟨c_ff2_clk, c_ff2_d, c_ff2_clrn⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_13 Hψ ‹_›⟩
-
-theorem int_case_14 (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) (i mid : stT) (Hψ : ψ i s)
-    (Hrule : (stNetlist.internals.getD 14 (fun _ _ => False)) i mid) :
-    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-  obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_pk_b0, c_pk_b1, c_pk_b2, c_pk_b3, c_pk_b4, c_pk_b5, c_pk_b6⟩, ⟨c_ff6_clk, c_ff6_d, c_ff6_clrn⟩, c_unp_d, c_crF_in, ⟨c_ff5_clk, c_ff5_d, c_ff5_clrn⟩, c_clkF_in, ⟨c_ff3_clk, c_ff3_d, c_ff3_clrn⟩, ⟨c_ff4_clk, c_ff4_d, c_ff4_clrn⟩, ⟨c_ff0_clk, c_ff0_d, c_ff0_clrn⟩, ⟨c_ff1_clk, c_ff1_d, c_ff1_clrn⟩, ⟨c_ff2_clk, c_ff2_d, c_ff2_clrn⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_14 Hψ ‹_›⟩
-
-theorem int_case_15 (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) (i mid : stT) (Hψ : ψ i s)
-    (Hrule : (stNetlist.internals.getD 15 (fun _ _ => False)) i mid) :
-    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-  obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_pk_b0, c_pk_b1, c_pk_b2, c_pk_b3, c_pk_b4, c_pk_b5, c_pk_b6⟩, ⟨c_ff6_clk, c_ff6_d, c_ff6_clrn⟩, c_unp_d, c_crF_in, ⟨c_ff5_clk, c_ff5_d, c_ff5_clrn⟩, c_clkF_in, ⟨c_ff3_clk, c_ff3_d, c_ff3_clrn⟩, ⟨c_ff4_clk, c_ff4_d, c_ff4_clrn⟩, ⟨c_ff0_clk, c_ff0_d, c_ff0_clrn⟩, ⟨c_ff1_clk, c_ff1_d, c_ff1_clrn⟩, ⟨c_ff2_clk, c_ff2_d, c_ff2_clrn⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_15 Hψ ‹_›⟩
-
-theorem int_case_16 (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) (i mid : stT) (Hψ : ψ i s)
-    (Hrule : (stNetlist.internals.getD 16 (fun _ _ => False)) i mid) :
-    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-  obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_pk_b0, c_pk_b1, c_pk_b2, c_pk_b3, c_pk_b4, c_pk_b5, c_pk_b6⟩, ⟨c_ff6_clk, c_ff6_d, c_ff6_clrn⟩, c_unp_d, c_crF_in, ⟨c_ff5_clk, c_ff5_d, c_ff5_clrn⟩, c_clkF_in, ⟨c_ff3_clk, c_ff3_d, c_ff3_clrn⟩, ⟨c_ff4_clk, c_ff4_d, c_ff4_clrn⟩, ⟨c_ff0_clk, c_ff0_d, c_ff0_clrn⟩, ⟨c_ff1_clk, c_ff1_d, c_ff1_clrn⟩, ⟨c_ff2_clk, c_ff2_d, c_ff2_clrn⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_16 Hψ ‹_›⟩
-
-theorem int_case_17 (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) (i mid : stT) (Hψ : ψ i s)
-    (Hrule : (stNetlist.internals.getD 17 (fun _ _ => False)) i mid) :
-    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-  obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_pk_b0, c_pk_b1, c_pk_b2, c_pk_b3, c_pk_b4, c_pk_b5, c_pk_b6⟩, ⟨c_ff6_clk, c_ff6_d, c_ff6_clrn⟩, c_unp_d, c_crF_in, ⟨c_ff5_clk, c_ff5_d, c_ff5_clrn⟩, c_clkF_in, ⟨c_ff3_clk, c_ff3_d, c_ff3_clrn⟩, ⟨c_ff4_clk, c_ff4_d, c_ff4_clrn⟩, ⟨c_ff0_clk, c_ff0_d, c_ff0_clrn⟩, ⟨c_ff1_clk, c_ff1_d, c_ff1_clrn⟩, ⟨c_ff2_clk, c_ff2_d, c_ff2_clrn⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_17 Hψ ‹_›⟩
-
-theorem int_case_18 (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) (i mid : stT) (Hψ : ψ i s)
-    (Hrule : (stNetlist.internals.getD 18 (fun _ _ => False)) i mid) :
-    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-  obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_pk_b0, c_pk_b1, c_pk_b2, c_pk_b3, c_pk_b4, c_pk_b5, c_pk_b6⟩, ⟨c_ff6_clk, c_ff6_d, c_ff6_clrn⟩, c_unp_d, c_crF_in, ⟨c_ff5_clk, c_ff5_d, c_ff5_clrn⟩, c_clkF_in, ⟨c_ff3_clk, c_ff3_d, c_ff3_clrn⟩, ⟨c_ff4_clk, c_ff4_d, c_ff4_clrn⟩, ⟨c_ff0_clk, c_ff0_d, c_ff0_clrn⟩, ⟨c_ff1_clk, c_ff1_d, c_ff1_clrn⟩, ⟨c_ff2_clk, c_ff2_d, c_ff2_clrn⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_18 Hψ ‹_›⟩
-
-theorem int_case_19 (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) (i mid : stT) (Hψ : ψ i s)
-    (Hrule : (stNetlist.internals.getD 19 (fun _ _ => False)) i mid) :
-    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-  obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_pk_b0, c_pk_b1, c_pk_b2, c_pk_b3, c_pk_b4, c_pk_b5, c_pk_b6⟩, ⟨c_ff6_clk, c_ff6_d, c_ff6_clrn⟩, c_unp_d, c_crF_in, ⟨c_ff5_clk, c_ff5_d, c_ff5_clrn⟩, c_clkF_in, ⟨c_ff3_clk, c_ff3_d, c_ff3_clrn⟩, ⟨c_ff4_clk, c_ff4_d, c_ff4_clrn⟩, ⟨c_ff0_clk, c_ff0_d, c_ff0_clrn⟩, ⟨c_ff1_clk, c_ff1_d, c_ff1_clrn⟩, ⟨c_ff2_clk, c_ff2_d, c_ff2_clrn⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_19 Hψ ‹_›⟩
-
-theorem int_case_20 (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) (i mid : stT) (Hψ : ψ i s)
-    (Hrule : (stNetlist.internals.getD 20 (fun _ _ => False)) i mid) :
-    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-  obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_pk_b0, c_pk_b1, c_pk_b2, c_pk_b3, c_pk_b4, c_pk_b5, c_pk_b6⟩, ⟨c_ff6_clk, c_ff6_d, c_ff6_clrn⟩, c_unp_d, c_crF_in, ⟨c_ff5_clk, c_ff5_d, c_ff5_clrn⟩, c_clkF_in, ⟨c_ff3_clk, c_ff3_d, c_ff3_clrn⟩, ⟨c_ff4_clk, c_ff4_d, c_ff4_clrn⟩, ⟨c_ff0_clk, c_ff0_d, c_ff0_clrn⟩, ⟨c_ff1_clk, c_ff1_d, c_ff1_clrn⟩, ⟨c_ff2_clk, c_ff2_d, c_ff2_clrn⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_20 Hψ ‹_›⟩
-
-theorem int_case_21 (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) (i mid : stT) (Hψ : ψ i s)
-    (Hrule : (stNetlist.internals.getD 21 (fun _ _ => False)) i mid) :
-    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-  obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_pk_b0, c_pk_b1, c_pk_b2, c_pk_b3, c_pk_b4, c_pk_b5, c_pk_b6⟩, ⟨c_ff6_clk, c_ff6_d, c_ff6_clrn⟩, c_unp_d, c_crF_in, ⟨c_ff5_clk, c_ff5_d, c_ff5_clrn⟩, c_clkF_in, ⟨c_ff3_clk, c_ff3_d, c_ff3_clrn⟩, ⟨c_ff4_clk, c_ff4_d, c_ff4_clrn⟩, ⟨c_ff0_clk, c_ff0_d, c_ff0_clrn⟩, ⟨c_ff1_clk, c_ff1_d, c_ff1_clrn⟩, ⟨c_ff2_clk, c_ff2_d, c_ff2_clrn⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_21 Hψ ‹_› ‹_›⟩
-
-theorem int_case_22 (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) (i mid : stT) (Hψ : ψ i s)
-    (Hrule : (stNetlist.internals.getD 22 (fun _ _ => False)) i mid) :
-    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-  obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_pk_b0, c_pk_b1, c_pk_b2, c_pk_b3, c_pk_b4, c_pk_b5, c_pk_b6⟩, ⟨c_ff6_clk, c_ff6_d, c_ff6_clrn⟩, c_unp_d, c_crF_in, ⟨c_ff5_clk, c_ff5_d, c_ff5_clrn⟩, c_clkF_in, ⟨c_ff3_clk, c_ff3_d, c_ff3_clrn⟩, ⟨c_ff4_clk, c_ff4_d, c_ff4_clrn⟩, ⟨c_ff0_clk, c_ff0_d, c_ff0_clrn⟩, ⟨c_ff1_clk, c_ff1_d, c_ff1_clrn⟩, ⟨c_ff2_clk, c_ff2_d, c_ff2_clrn⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_22 Hψ ‹_› ‹_›⟩
-
-theorem int_case_23 (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) (i mid : stT) (Hψ : ψ i s)
-    (Hrule : (stNetlist.internals.getD 23 (fun _ _ => False)) i mid) :
-    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-  obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_pk_b0, c_pk_b1, c_pk_b2, c_pk_b3, c_pk_b4, c_pk_b5, c_pk_b6⟩, ⟨c_ff6_clk, c_ff6_d, c_ff6_clrn⟩, c_unp_d, c_crF_in, ⟨c_ff5_clk, c_ff5_d, c_ff5_clrn⟩, c_clkF_in, ⟨c_ff3_clk, c_ff3_d, c_ff3_clrn⟩, ⟨c_ff4_clk, c_ff4_d, c_ff4_clrn⟩, ⟨c_ff0_clk, c_ff0_d, c_ff0_clrn⟩, ⟨c_ff1_clk, c_ff1_d, c_ff1_clrn⟩, ⟨c_ff2_clk, c_ff2_d, c_ff2_clrn⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_23 Hψ ‹_› ‹_›⟩
-
-theorem int_case_24 (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) (i mid : stT) (Hψ : ψ i s)
-    (Hrule : (stNetlist.internals.getD 24 (fun _ _ => False)) i mid) :
-    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-  obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_pk_b0, c_pk_b1, c_pk_b2, c_pk_b3, c_pk_b4, c_pk_b5, c_pk_b6⟩, ⟨c_ff6_clk, c_ff6_d, c_ff6_clrn⟩, c_unp_d, c_crF_in, ⟨c_ff5_clk, c_ff5_d, c_ff5_clrn⟩, c_clkF_in, ⟨c_ff3_clk, c_ff3_d, c_ff3_clrn⟩, ⟨c_ff4_clk, c_ff4_d, c_ff4_clrn⟩, ⟨c_ff0_clk, c_ff0_d, c_ff0_clrn⟩, ⟨c_ff1_clk, c_ff1_d, c_ff1_clrn⟩, ⟨c_ff2_clk, c_ff2_d, c_ff2_clrn⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_24 Hψ ‹_› ‹_›⟩
-
-theorem int_case_25 (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) (i mid : stT) (Hψ : ψ i s)
-    (Hrule : (stNetlist.internals.getD 25 (fun _ _ => False)) i mid) :
-    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-  obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_pk_b0, c_pk_b1, c_pk_b2, c_pk_b3, c_pk_b4, c_pk_b5, c_pk_b6⟩, ⟨c_ff6_clk, c_ff6_d, c_ff6_clrn⟩, c_unp_d, c_crF_in, ⟨c_ff5_clk, c_ff5_d, c_ff5_clrn⟩, c_clkF_in, ⟨c_ff3_clk, c_ff3_d, c_ff3_clrn⟩, ⟨c_ff4_clk, c_ff4_d, c_ff4_clrn⟩, ⟨c_ff0_clk, c_ff0_d, c_ff0_clrn⟩, ⟨c_ff1_clk, c_ff1_d, c_ff1_clrn⟩, ⟨c_ff2_clk, c_ff2_d, c_ff2_clrn⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_25 Hψ ‹_› ‹_›⟩
-
-theorem int_case_26 (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) (i mid : stT) (Hψ : ψ i s)
-    (Hrule : (stNetlist.internals.getD 26 (fun _ _ => False)) i mid) :
-    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-  obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_pk_b0, c_pk_b1, c_pk_b2, c_pk_b3, c_pk_b4, c_pk_b5, c_pk_b6⟩, ⟨c_ff6_clk, c_ff6_d, c_ff6_clrn⟩, c_unp_d, c_crF_in, ⟨c_ff5_clk, c_ff5_d, c_ff5_clrn⟩, c_clkF_in, ⟨c_ff3_clk, c_ff3_d, c_ff3_clrn⟩, ⟨c_ff4_clk, c_ff4_d, c_ff4_clrn⟩, ⟨c_ff0_clk, c_ff0_d, c_ff0_clrn⟩, ⟨c_ff1_clk, c_ff1_d, c_ff1_clrn⟩, ⟨c_ff2_clk, c_ff2_d, c_ff2_clrn⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_26 Hψ ‹_› ‹_›⟩
-
-theorem int_case_27 (s : List Bool × List (RSt 2) × List Bool × List (RSt 2)) (i mid : stT) (Hψ : ψ i s)
-    (Hrule : (stNetlist.internals.getD 27 (fun _ _ => False)) i mid) :
-    ∃ s', existSR stSpec.internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-  obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_pk_b0, c_pk_b1, c_pk_b2, c_pk_b3, c_pk_b4, c_pk_b5, c_pk_b6⟩, ⟨c_ff6_clk, c_ff6_d, c_ff6_clrn⟩, c_unp_d, c_crF_in, ⟨c_ff5_clk, c_ff5_d, c_ff5_clrn⟩, c_clkF_in, ⟨c_ff3_clk, c_ff3_d, c_ff3_clrn⟩, ⟨c_ff4_clk, c_ff4_d, c_ff4_clrn⟩, ⟨c_ff0_clk, c_ff0_d, c_ff0_clrn⟩, ⟨c_ff1_clk, c_ff1_d, c_ff1_clrn⟩, ⟨c_ff2_clk, c_ff2_d, c_ff2_clrn⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_27 Hψ ‹_› ‹_›⟩
-
-theorem stNetlist_internals_eq : stNetlist.internals = [stNetlist.internals.getD 0 (fun _ _ => False), stNetlist.internals.getD 1 (fun _ _ => False), stNetlist.internals.getD 2 (fun _ _ => False), stNetlist.internals.getD 3 (fun _ _ => False), stNetlist.internals.getD 4 (fun _ _ => False), stNetlist.internals.getD 5 (fun _ _ => False), stNetlist.internals.getD 6 (fun _ _ => False), stNetlist.internals.getD 7 (fun _ _ => False), stNetlist.internals.getD 8 (fun _ _ => False), stNetlist.internals.getD 9 (fun _ _ => False), stNetlist.internals.getD 10 (fun _ _ => False), stNetlist.internals.getD 11 (fun _ _ => False), stNetlist.internals.getD 12 (fun _ _ => False), stNetlist.internals.getD 13 (fun _ _ => False), stNetlist.internals.getD 14 (fun _ _ => False), stNetlist.internals.getD 15 (fun _ _ => False), stNetlist.internals.getD 16 (fun _ _ => False), stNetlist.internals.getD 17 (fun _ _ => False), stNetlist.internals.getD 18 (fun _ _ => False), stNetlist.internals.getD 19 (fun _ _ => False), stNetlist.internals.getD 20 (fun _ _ => False), stNetlist.internals.getD 21 (fun _ _ => False), stNetlist.internals.getD 22 (fun _ _ => False), stNetlist.internals.getD 23 (fun _ _ => False), stNetlist.internals.getD 24 (fun _ _ => False), stNetlist.internals.getD 25 (fun _ _ => False), stNetlist.internals.getD 26 (fun _ _ => False), stNetlist.internals.getD 27 (fun _ _ => False)] := rfl
-
+set_option maxHeartbeats 1000000 in
 theorem refines_ψ : stNetlist ⊑_{ψ} stSpec := by
-  intro i s Hψ
+  intro i s H
   constructor
   · intro ident mid_i v Hrule
-    obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-    dsimp only [ψ] at Hψ
-    obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid_i
-    case_transition Hcontains : Module.inputs stNetlist, ident, (PortMap.getIO_not_contained_false' Hrule)
+    obtain ⟨⟨q0, q1, q2, q3, q4, q5, q6⟩, ⟨x6,y6,z6⟩, ud, cr, ⟨x5,y5,z5⟩, ck, ⟨x3,y3,z3⟩, ⟨x4,y4,z4⟩, ⟨x0,y0,z0⟩, ⟨x1,y1,z1⟩, ⟨x2,y2,z2⟩⟩ := i
+    obtain ⟨⟨_, _, _, _, _, _, _⟩, ⟨_,_,_⟩, _, _, ⟨_,_,_⟩, _, ⟨_,_,_⟩, ⟨_,_,_⟩, ⟨_,_,_⟩, ⟨_,_,_⟩, ⟨_,_,_⟩⟩ := mid_i
+    obtain ⟨hw, e1, e2, e3, hq⟩ := H
+    case_transition Hcontains : Module.inputs stNetlist, ident,
+      (PortMap.getIO_not_contained_false' Hrule)
     dsimp only [stNetlist] at Hcontains
     simp at Hcontains
-    rcases Hcontains with h | h | h
-    all_goals subst h
-    all_goals rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at Hrule
-    all_goals dsimp only at Hrule
-    all_goals simp only [Prod.mk.injEq, and_assoc] at Hrule
-    all_goals repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
+    rcases Hcontains with h | h | h <;> subst h <;>
+      rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at Hrule <;>
+      dsimp only at Hrule <;>
+      simp only [Prod.mk.injEq, and_assoc] at Hrule <;>
+      obtain ⟨hpre, Hrule⟩ := Hrule <;>
+      repeat' (obtain ⟨hh, Hrule⟩ := Hrule; try subst hh)
+    all_goals simp only [eq_mp_eq_cast] at hpre
+    -- The port's identity is decided by `hpre`'s type; the three proofs are one shape.
     all_goals first
-      | exact ⟨_, _, spec_in_clk s _ (by rw [← Hψ.e_clk]; assumption), existSR_reflexive, in_clk Hψ _ ‹_›⟩
-      | exact ⟨_, _, spec_in_d s _ (by rw [← Hψ.e_d]; assumption), existSR_reflexive, in_d Hψ _ ‹_›⟩
-      | exact ⟨_, _, spec_in_clrn s _ (by rw [← Hψ.e_crn]; assumption), existSR_reflexive, in_clrn Hψ _ ‹_›⟩
+      | exact ⟨_, _, spec_in_clk s _ (by rw [← e1]; exact hpre), existSR_reflexive,
+          Wf_drv hw (drv_env (e1 ▸ hpre.isPrefix) List.prefix_rfl List.prefix_rfl _),
+          rfl, e2, e3, hq⟩
+      | exact ⟨_, _, spec_in_d s _ (by rw [← e2]; exact hpre), existSR_reflexive,
+          Wf_drv hw (drv_env List.prefix_rfl List.prefix_rfl (e2 ▸ hpre.isPrefix) _),
+          e1, rfl, e3, hq⟩
+      | exact ⟨_, _, spec_in_clrn s _ (by rw [← e3]; exact hpre), existSR_reflexive,
+          Wf_drv hw (drv_env List.prefix_rfl (e3 ▸ hpre.isPrefix) List.prefix_rfl _),
+          e1, e2, rfl, hq⟩
   · intro ident mid_i v Hrule
-    obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
-    dsimp only [ψ] at Hψ
-    obtain ⟨⟨m_pk_b0, m_pk_b1, m_pk_b2, m_pk_b3, m_pk_b4, m_pk_b5, m_pk_b6⟩, ⟨m_ff6_clk, m_ff6_d, m_ff6_clrn⟩, m_unp_d, m_crF_in, ⟨m_ff5_clk, m_ff5_d, m_ff5_clrn⟩, m_clkF_in, ⟨m_ff3_clk, m_ff3_d, m_ff3_clrn⟩, ⟨m_ff4_clk, m_ff4_d, m_ff4_clrn⟩, ⟨m_ff0_clk, m_ff0_d, m_ff0_clrn⟩, ⟨m_ff1_clk, m_ff1_d, m_ff1_clrn⟩, ⟨m_ff2_clk, m_ff2_d, m_ff2_clrn⟩⟩ := mid_i
-    case_transition Hcontains : Module.outputs stNetlist, ident, (PortMap.getIO_not_contained_false' Hrule)
+    obtain ⟨⟨q0, q1, q2, q3, q4, q5, q6⟩, ⟨x6,y6,z6⟩, ud, cr, ⟨x5,y5,z5⟩, ck, ⟨x3,y3,z3⟩, ⟨x4,y4,z4⟩, ⟨x0,y0,z0⟩, ⟨x1,y1,z1⟩, ⟨x2,y2,z2⟩⟩ := i
+    obtain ⟨⟨_, _, _, _, _, _, _⟩, ⟨_,_,_⟩, _, _, ⟨_,_,_⟩, _, ⟨_,_,_⟩, ⟨_,_,_⟩, ⟨_,_,_⟩, ⟨_,_,_⟩, ⟨_,_,_⟩⟩ := mid_i
+    obtain ⟨hw, e1, e2, e3, hq⟩ := H
+    case_transition Hcontains : Module.outputs stNetlist, ident,
+      (PortMap.getIO_not_contained_false' Hrule)
     dsimp only [stNetlist] at Hcontains
     simp at Hcontains
     subst Hcontains
     rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at Hrule
     dsimp only at Hrule
     simp only [Prod.mk.injEq, and_assoc] at Hrule
-    repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-    exact ⟨s, _, existSR_reflexive, spec_out_q s _ Hψ.h_q (out_q Hψ), out_wf Hψ⟩
+    repeat' (obtain ⟨hh, Hrule⟩ := Hrule; try subst hh)
+    simp only [eq_mp_eq_cast, cast_self]
+    dsimp only [wires] at hq
+    have ho := out_q hw
+    dsimp only [wires] at ho
+    exact ⟨s, _, existSR_reflexive, spec_out_q s _ hq ho, hw, e1, e2, e3, List.prefix_rfl⟩
   · intro rule mid_i Hin Hrule
     rw [stNetlist_internals_eq] at Hin
     simp only [List.mem_cons, List.not_mem_nil, or_false] at Hin
-    rcases Hin with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h
-    · subst h; exact int_case_0 s i mid_i Hψ Hrule
-    · subst h; exact int_case_1 s i mid_i Hψ Hrule
-    · subst h; exact int_case_2 s i mid_i Hψ Hrule
-    · subst h; exact int_case_3 s i mid_i Hψ Hrule
-    · subst h; exact int_case_4 s i mid_i Hψ Hrule
-    · subst h; exact int_case_5 s i mid_i Hψ Hrule
-    · subst h; exact int_case_6 s i mid_i Hψ Hrule
-    · subst h; exact int_case_7 s i mid_i Hψ Hrule
-    · subst h; exact int_case_8 s i mid_i Hψ Hrule
-    · subst h; exact int_case_9 s i mid_i Hψ Hrule
-    · subst h; exact int_case_10 s i mid_i Hψ Hrule
-    · subst h; exact int_case_11 s i mid_i Hψ Hrule
-    · subst h; exact int_case_12 s i mid_i Hψ Hrule
-    · subst h; exact int_case_13 s i mid_i Hψ Hrule
-    · subst h; exact int_case_14 s i mid_i Hψ Hrule
-    · subst h; exact int_case_15 s i mid_i Hψ Hrule
-    · subst h; exact int_case_16 s i mid_i Hψ Hrule
-    · subst h; exact int_case_17 s i mid_i Hψ Hrule
-    · subst h; exact int_case_18 s i mid_i Hψ Hrule
-    · subst h; exact int_case_19 s i mid_i Hψ Hrule
-    · subst h; exact int_case_20 s i mid_i Hψ Hrule
-    · subst h; exact int_case_21 s i mid_i Hψ Hrule
-    · subst h; exact int_case_22 s i mid_i Hψ Hrule
-    · subst h; exact int_case_23 s i mid_i Hψ Hrule
-    · subst h; exact int_case_24 s i mid_i Hψ Hrule
-    · subst h; exact int_case_25 s i mid_i Hψ Hrule
-    · subst h; exact int_case_26 s i mid_i Hψ Hrule
-    · subst h; exact int_case_27 s i mid_i Hψ Hrule
+    rcases Hin with h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h
+    · subst h; exact case_0 s i mid_i H Hrule
+    · subst h; exact case_1 s i mid_i H Hrule
+    · subst h; exact case_2 s i mid_i H Hrule
+    · subst h; exact case_3 s i mid_i H Hrule
+    · subst h; exact case_4 s i mid_i H Hrule
+    · subst h; exact case_5 s i mid_i H Hrule
+    · subst h; exact case_6 s i mid_i H Hrule
+    · subst h; exact case_7 s i mid_i H Hrule
+    · subst h; exact case_8 s i mid_i H Hrule
+    · subst h; exact case_9 s i mid_i H Hrule
+    · subst h; exact case_10 s i mid_i H Hrule
+    · subst h; exact case_11 s i mid_i H Hrule
+    · subst h; exact case_12 s i mid_i H Hrule
+    · subst h; exact case_13 s i mid_i H Hrule
+    · subst h; exact case_14 s i mid_i H Hrule
+    · subst h; exact case_15 s i mid_i H Hrule
+    · subst h; exact case_16 s i mid_i H Hrule
+    · subst h; exact case_17 s i mid_i H Hrule
+    · subst h; exact case_18 s i mid_i H Hrule
+    · subst h; exact case_19 s i mid_i H Hrule
+    · subst h; exact case_20 s i mid_i H Hrule
+    · subst h; exact case_21 s i mid_i H Hrule
+    · subst h; exact case_22 s i mid_i H Hrule
+    · subst h; exact case_23 s i mid_i H Hrule
+    · subst h; exact case_24 s i mid_i H Hrule
+    · subst h; exact case_25 s i mid_i H Hrule
+    · subst h; exact case_26 s i mid_i H Hrule
+    · subst h; exact case_27 s i mid_i H Hrule
 
 theorem refines_initial : Module.refines_initial stNetlist stSpec ψ := by
   intro i hi
-  obtain ⟨⟨pk_b0, pk_b1, pk_b2, pk_b3, pk_b4, pk_b5, pk_b6⟩, ⟨ff6_clk, ff6_d, ff6_clrn⟩, unp_d, crF_in, ⟨ff5_clk, ff5_d, ff5_clrn⟩, clkF_in, ⟨ff3_clk, ff3_d, ff3_clrn⟩, ⟨ff4_clk, ff4_d, ff4_clrn⟩, ⟨ff0_clk, ff0_d, ff0_clrn⟩, ⟨ff1_clk, ff1_d, ff1_clrn⟩, ⟨ff2_clk, ff2_d, ff2_clrn⟩⟩ := i
+  obtain ⟨⟨q0, q1, q2, q3, q4, q5, q6⟩, ⟨x6,y6,z6⟩, ud, cr, ⟨x5,y5,z5⟩, ck, ⟨x3,y3,z3⟩, ⟨x4,y4,z4⟩, ⟨x0,y0,z0⟩, ⟨x1,y1,z1⟩, ⟨x2,y2,z2⟩⟩ := i
   dsimp only [stNetlist] at hi
   simp only [Prod.mk.injEq, and_assoc] at hi
-  obtain ⟨rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩ := hi
-  exact ⟨([], [], [], []), rfl, Wf.init⟩
+  repeat' (obtain ⟨rfl, hi⟩ := hi)
+  refine ⟨([], [], [], []), rfl, ?_, rfl, rfl, rfl, List.nil_prefix⟩
+  intro k; cases k <;> exact List.nil_prefix
 
-/-- **The 7 flip-flops refine a seven-bit state register of the read domain.** -/
+/-- **The seven flip-flops refine the state register.** -/
 theorem reg_refines : stNetlist ⊑ stSpec :=
   ⟨inferInstance, ψ, refines_ψ, refines_initial⟩
 
