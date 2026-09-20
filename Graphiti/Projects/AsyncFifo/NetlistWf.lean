@@ -76,4 +76,47 @@ being definitional, this closes it.  Leaving the cast in place makes `isDefEq` u
 looking for a way through, which is how these proofs run out of heartbeats. -/
 theorem cast_self {α : Type _} (h : α = α) (x : α) : cast h x = x := rfl
 
+/-! ### Wires that carry more than a bit
+
+A gate's wire carries `Bool`, but an assembly's wires carry buses -- `List (WSt 2)`,
+`List (BitVec 3)` -- so `Sync`, `Bank` and `BankR` do not fit the definitions above.  Indexing
+what each wire carries fixes that.
+
+There is deliberately no `upd` here.  Building one would need a dependent `if` to cast between
+`List (Ty j)` and `List (Ty k)`, and using it would force each step to prove two assignments
+equal.  `step` asks instead for two pointwise facts about the assignment the module already has.
+The homogeneous API above keeps `upd`, because for a wire type with many constructors the
+`Wf_set` route elaborates far faster than the pointwise one. -/
+
+namespace Het
+
+variable {W : Type} {Ty : W → Type}
+
+/-- What each wire carries, wire by wire. -/
+abbrev Wires (Ty : W → Type) := (k : W) → List (Ty k)
+
+/-- The driver of each wire, given all the wires. -/
+abbrev Drv (Ty : W → Type) := Wires Ty → Wires Ty
+
+/-- Growing the wires grows what they drive. -/
+def Mono (drv : Drv Ty) : Prop :=
+  ∀ {a b : Wires Ty}, (∀ j, a j <+: b j) → ∀ k, drv a k <+: drv b k
+
+/-- Every wire holds a prefix of what drives it. -/
+def Wf (drv : Drv Ty) (w : Wires Ty) : Prop := ∀ k, w k <+: drv w k
+
+/-- **The lemma that replaces every per-rule lemma.**  `_hw` is unused; it pins `w` to the
+assignment the block started from, which the two pointwise arguments are stated against. -/
+theorem step {drv : Drv Ty} {w w' : Wires Ty} (_hw : Wf drv w) (mono : Mono drv)
+    (hle : ∀ j, w j <+: w' j) (hd : ∀ j, w' j <+: drv w j) : Wf drv w' :=
+  fun k => (hd k).trans (mono hle k)
+
+/-- **The lemma behind every input rule**: growing an input grows every driver. -/
+theorem drv_le {drv drv' : Drv Ty} {w : Wires Ty} (hw : Wf drv w)
+    (h : ∀ k, drv w k <+: drv' w k) : Wf drv' w := fun k => (hw k).trans (h k)
+
+theorem nil {drv : Drv Ty} : Wf drv (fun _ => []) := fun _ => List.nil_prefix
+
+end Het
+
 end Graphiti.AsyncFifo.Netlist
