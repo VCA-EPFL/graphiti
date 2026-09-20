@@ -69,6 +69,15 @@ theorem Wf_set {drv : Drv W} {w : Wires W} (mono : Mono drv) (hw : Wf drv w) (k 
   · subst hj; simpa [upd] using h2
   · simp only [upd, if_neg hj]; exact hw j
 
+/-! A rule of thumb these blocks were built on, and the reason for `Wf_congr` below.  When a
+proof hands the kernel a fact about one assignment where the goal names another, the kernel
+compares the two *applications*; when the fact is handed over one wire, or one argument, at a
+time, it compares the *arguments*.  The first is what runs out of heartbeats on a large block --
+it unfolds `wires` over the whole state tuple, or a combinational output over the nested `min`s
+in its length.  The second is a `cases`.  The same rule decides where a `first | exact …`
+alternative may be offered: an alternative whose expected type is a deep definition makes the
+unifier unfold it looking for a way through, so the deep cases are named instead. -/
+
 /-- The invariant carried across a rule that leaves every wire alone.  `Wf_drv` already does
 this, but it hands back the invariant for the *old* assignment, and the goal names the new one;
 letting the kernel see those two are the same means comparing `wires i` with `wires mid` as
