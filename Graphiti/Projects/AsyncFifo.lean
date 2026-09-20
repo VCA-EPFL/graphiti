@@ -169,12 +169,6 @@ The results, all with standard axioms and no `sorry`:
     Lifting.asyncFifoTimedR_refines :
       the same, with the read domain timed as well (its own delay window and filters)
 
-    GateLifting.asyncFifoGates_refines :
-      6 ≤ Rc → 22 ≤ P_w → stl + 18 ≤ P_w → 17 ≤ S_w → 17 ≤ R_w →
-      12 ≤ P_w → 3 ≤ pw_w → Rc + 3 ≤ R_w → 12 < P_r → stl < P_w → stl < P_r →
-      asyncFifoGates lat stl P_r S_r R_r pw_r Rc ⊑ fifoSpec Bool P_w P_r S_w S_r R_w R_r pw_w pw_r
-      -- the write domain here is gates throughout: its next-state logic and its whole state
-
     Dff.dff_refines       : dffNetlist ⊑ dffSpec      -- seven gates, with the clear
     Dff.dffOut_regOut     : … → RegOut 4 1 false clk … (dffOut clk d crn)
     Dff.dffOut_window     : … → the output is glitch-free across an edge
@@ -289,8 +283,8 @@ lifting of `Lifting.lean`, `GateLifting.lean` and `GateLiftingR.lean`.
   refining `Timed.syncReg`.  `SyncStage.syncOut_pack` is what makes it go through: the bus-level
   stream *is* the three bits packed, so the output claim is monotonicity of one bit, three times.
   With it, `wenvG` and `renvG` give the sync node a netlist like every other node.
-* `GateLifting.lean` — the netlists plugged into the write domain and the FIFO:
-  `asyncFifoGates_refines`.
+* `GateLifting.lean` — the netlists plugged into the write domain:
+  `wdomGates_refines_timed`.
 * `GateLiftingR.lean` — the same for the read domain (`rdomGates_refines_timed`), and the FIFO
   with *both* domains as gates: `asyncFifoGatesRW_refines`.
 * `Dff.lean` — the edge-triggered D flip-flop with asynchronous

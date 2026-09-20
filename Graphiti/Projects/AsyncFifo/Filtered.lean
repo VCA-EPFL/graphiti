@@ -48,12 +48,6 @@ theorem NoEdge_congr {clk clk' : List Bool} (h : clk <+: clk') {t : Nat} (ht : t
   · rw [← riseAt_prefix h (by lia)]; exact hn e he
   · rw [riseAt_prefix h (by lia)]; exact hn e he
 
-/-- Beyond the end of a stream there are no edges: the padding is low. -/
-theorem riseAt_of_ge {clk : List Bool} {u : Nat} (h : clk.length ≤ u) : riseAt clk u = false := by
-  unfold riseAt
-  rw [List.getD_eq_getElem?_getD, List.getElem?_eq_none h]
-  rfl
-
 theorem LastEdge_congr {clk clk' : List Bool} (h : clk <+: clk') {e t : Nat} (ht : t ≤ clk.length) :
     LastEdge clk e t ↔ LastEdge clk' e t := by
   unfold LastEdge

@@ -14,9 +14,10 @@ import Graphiti.Projects.AsyncFifo.Lifting
 # Plugging the gate netlist into the FIFO
 
 The timed write domain `wdomTimed` is the graph `wdomTimedLowered` read in the environment
-`wenv`; `wdomGates` reads the same graph with the next-state block implemented by the gate
-netlist of `GateNext.lean`.  Componentwise refinement lifts `gateNext_refines` to the domain
-(`wdomGates_refines`), then the domain into the FIFO (`asyncFifoGates_refines`).
+`wenv`; `wdomGates` reads the same graph with the next-state block, the register bank and the
+synchroniser stage implemented by netlists.  Componentwise refinement lifts the block theorems
+to the domain: `wdomGates_refines_timed`, which `GateLiftingR.lean` then carries into the FIFO
+alongside the read domain's.
 
 Here the FIFO has depth `4` and 1-bit data; the delay window of the netlist is `[0, 8]`, so
 the write clock period must satisfy `kq + su + 10 ≤ P_w` and `stl + su + 10 ≤ P_w`, the write
@@ -111,59 +112,6 @@ theorem wdomGates_refines_timed (hR6 : 6 ≤ Rc) :
       (wenv_sync Bool 2 lat 4 8 stl 0 8 12 3 (Rc + 3) Rc) (GateSync.stage_refines lat 8 stl)
   · exact ExprLow.refines_base_of_eq i t (wenvG_find_ne t ht hb hs)
 
-/-- The gate-level write domain refines the filtered write domain. -/
-theorem wdomGates_refines (hR6 : 6 ≤ Rc) (hP1 : 22 ≤ P) (hP2 : stl + 18 ≤ P) (hS : 17 ≤ S)
-    (hR : 17 ≤ R) (hPg : 12 ≤ P) (hpwg : 3 ≤ pw) (hRg : Rc + 3 ≤ R) :
-    wdomGates lat stl Rc ⊑ writeDomainF Bool 2 lat stl 8 4 P S R pw :=
-  Module.refines_transitive _ (wdomGates_refines_timed hR6)
-    (wdomTimed_refines (by lia) (by lia) (by lia) (Nat.zero_le _) (by lia) hPg hpwg hRg)
-
 end Domain
-
-/-! ### The FIFO with the gate-level write domain -/
-
-/-- The FIFO environment with the gate-level write domain. -/
-def envG (lat stl P_r S_r R_r pw_r Rc : Nat) : AssocList String (TModule1 String) :=
-  AssocList.cons "wdom" ⟨_, wdomGates lat stl Rc⟩ (envT Bool 2 lat stl 8 4 0 P_r S_r R_r pw_r 0 8 12 3 (Rc + 3) Rc)
-
-/-- **The asynchronous FIFO whose write domain's next-state logic is gates** (depth `4`,
-1-bit data), read domain at the filtered level. -/
-def asyncFifoGates (lat stl P_r S_r R_r pw_r Rc : Nat) := [e| asyncFifoLowered, (envG lat stl P_r S_r R_r pw_r Rc).find? ]
-
-section Fifo
-
-variable {lat stl P_w P_r S_w S_r R_w R_r pw_w pw_r Rc : Nat}
-
-theorem envG_wdom : (envG lat stl P_r S_r R_r pw_r Rc).find? "wdom" = .some ⟨_, wdomGates lat stl Rc⟩ := rfl
-
-theorem envG_find_ne (t : String) (h : t ≠ "wdom") :
-    (envG lat stl P_r S_r R_r pw_r Rc).find? t = (envT Bool 2 lat stl 8 4 0 P_r S_r R_r pw_r 0 8 12 3 (Rc + 3) Rc).find? t := by
-  have h1 : ("wdom" == t) = false := beq_eq_false_iff_ne.mpr (Ne.symm h)
-  simp [envG, AssocList.find?, h1]
-
-theorem wf_envG : ExprLow.wf (envG lat stl P_r S_r R_r pw_r Rc).find? asyncFifoLowered := by rfl
-
-/-- The gate-level FIFO refines the FIFO with the timed write domain. -/
-theorem asyncFifoGates_refines_timed (hR6 : 6 ≤ Rc) :
-    asyncFifoGates lat stl P_r S_r R_r pw_r Rc ⊑ asyncFifoTimed Bool 2 lat stl 8 4 0 P_r S_r R_r pw_r 0 8 12 3 (Rc + 3) Rc := by
-  apply ExprLow.refines_env _ wf_envG wf_envT
-  intro i t
-  by_cases ht : t = "wdom"
-  · subst ht
-    exact ExprLow.refines_base_of_refines i _ envG_wdom envT_wdom (wdomGates_refines_timed hR6)
-  · exact ExprLow.refines_base_of_eq i t (envG_find_ne t ht)
-
-/-- **Main theorem.**  The FIFO whose write domain's next-state logic is a netlist of unit-delay
-gates refines the FIFO specification, under the timing assumptions of the write clock
-(period, input setup, reset) and the crossing constraints of both clocks. -/
-theorem asyncFifoGates_refines (hR6 : 6 ≤ Rc) (hP1 : 22 ≤ P_w) (hP2 : stl + 18 ≤ P_w)
-    (hS : 17 ≤ S_w) (hR : 17 ≤ R_w) (hPg : 12 ≤ P_w) (hpwg : 3 ≤ pw_w) (hRg : Rc + 3 ≤ R_w)
-    (hkr : 12 < P_r) (hstlw : stl < P_w) (hstlr : stl < P_r) :
-    asyncFifoGates lat stl P_r S_r R_r pw_r Rc ⊑ fifoSpec Bool P_w P_r S_w S_r R_w R_r pw_w pw_r :=
-  Module.refines_transitive _ (asyncFifoGates_refines_timed hR6)
-    (asyncFifoTimed_refines (by lia) (by lia) (by lia) (Nat.zero_le _) (by lia) hPg hpwg hRg
-      (by lia) (by lia) hstlw hstlr (by lia) (by lia) (by lia))
-
-end Fifo
 
 end Graphiti.AsyncFifo
