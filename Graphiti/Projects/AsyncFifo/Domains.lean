@@ -467,16 +467,6 @@ theorem SinceInv.settled {stl P : Nat} {c : List Bool} {t s : Nat} (h : SinceInv
   · have := hok e t he (by lia) hre hr
     lia
 
-/-- At a rising edge, under the clock-period assumption `su < P`, the instant at which the
-first stage last sampled lies before the current sampling window. -/
-theorem SinceInv.sampled_le {stl P su lat : Nat} {c : List Bool} {t s : Nat} (h : SinceInv stl c t s)
-    (hr : riseAt c t = true) (hP : su < P) (hok : ClockOK P c (t + 1)) :
-    t - 1 - s - lat ≤ t - lat - su - 1 := by
-  rcases h with ⟨_, hs⟩ | ⟨e, ⟨he, hre, _⟩, hs⟩
-  · lia
-  · have := hok e t he (by lia) hre hr
-    lia
-
 /-- Events at rising edges of a clock whose edges are at least `P` apart: an interval of at
 most `P` instants sees at most one of them. -/
 theorem events_window {β : Type} {ev : Nat → Bool} {vals : Nat → β} {c : List Bool} {P a b : Nat}

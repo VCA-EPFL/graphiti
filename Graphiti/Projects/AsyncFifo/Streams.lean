@@ -41,11 +41,6 @@ theorem _root_.List.IsPrefix.getD_eq_left {l₁ l₂ : List α} (h : l₁ <+: l�
   obtain ⟨r, rfl⟩ := h
   simp [List.getD_eq_getElem?_getD, List.getElem?_append_left ht]
 
-theorem _root_.List.IsPrefix.getD_eq_left' {l₁ l₂ : List α} (h : l₁ <+: l₂) {t : Nat} (ht : t < l₁.length) (d d' : α) :
-    l₁.getD t d = l₂.getD t d' := by
-  obtain ⟨r, rfl⟩ := h
-  simp [List.getD_eq_getElem?_getD, List.getElem?_append_left ht, List.getElem?_eq_getElem ht]
-
 theorem prefix_iff_length_getD {l₁ l₂ : List α} (d : α) :
     l₁ <+: l₂ ↔ l₁.length ≤ l₂.length ∧ ∀ t, t < l₁.length → l₁.getD t d = l₂.getD t d := by
   constructor
