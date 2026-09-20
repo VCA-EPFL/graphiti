@@ -183,6 +183,17 @@ theorem asyncFifoGatesRW_refines (hR6 : 6 ≤ Rc)
       (by lia) (by lia) (by lia) (Nat.zero_le _) (by lia) (by lia) (by lia) rRg (by lia)
       (by lia) (by lia) (by lia) (by lia) (by lia) (by lia) (by lia) (by lia) (by lia))
 
+/-- **The main theorem is not vacuous.**  It carries thirteen hypotheses about the two clocks,
+and a refinement whose hypotheses cannot all hold at once proves nothing at all; this is one
+assignment that satisfies them --- the clear released at `6`, both clocks of period `30`, a
+settling time of `1` --- so there is a circuit and a pair of clocks the theorem actually speaks
+about.  `Example.lean` is the other half of the same concern: it exhibits a run where the read
+clock *is* too fast and the FIFO does misbehave, so the filters are not idle either. -/
+example : asyncFifoGatesRW 0 1 6 ⊑ fifoSpec Bool 30 30 17 17 17 17 3 3 :=
+  asyncFifoGatesRW_refines (by decide) (by decide) (by decide) (by decide) (by decide)
+    (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)
+    (by decide)
+
 end Fifo
 
 end Graphiti.AsyncFifo

@@ -23,6 +23,7 @@ import Graphiti.Projects.AsyncFifo.TimedRefinementR
 import Graphiti.Projects.AsyncFifo.DomainsRefine
 import Graphiti.Projects.AsyncFifo.Lifting
 import Graphiti.Projects.AsyncFifo.Gates
+import Graphiti.Projects.AsyncFifo.NetlistWf
 import Graphiti.Projects.AsyncFifo.GateNext
 import Graphiti.Projects.AsyncFifo.GateNextR
 import Graphiti.Projects.AsyncFifo.GateLifting
