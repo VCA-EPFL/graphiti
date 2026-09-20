@@ -515,78 +515,15 @@ def drv (st : List (RSt 2)) (mem : List (BitVec 2 → Bool)) : Drv W
 theorem drv_mono {st mem} :
     Mono (drv st mem) := by
   intro a b h k
-  cases k <;> simp only [drv]
-  case o23_a => exact gateOut_mono _ (h .g2_a) (h .g2_b)
-  case o23_b => exact gateOut_mono _ (h .g3_a) (h .g3_b)
-  case outg_a => exact gateOut_mono _ (h .o01_a) (h .o01_b)
-  case outg_b => exact gateOut_mono _ (h .o23_a) (h .o23_b)
-  case s0_a => exact h .fn0_in
-  case s0_b => exact h .fn1_in
-  case s2_a => exact h .fn0_in
-  case s2_b => exact h .fa1_in
-  case s3_a => exact h .fa0_in
-  case s3_b => exact h .fa1_in
-  case fn1_in => exact gate1Out_mono _ (h .na1_a)
-  case na1_a => exact h .fa1_in
-  case g1_a => exact gateOut_mono _ (h .s1_a) (h .s1_b)
-  case g1_b => exact entry_mono (List.prefix_rfl)
-  case fn0_in => exact gate1Out_mono _ (h .na0_a)
-  case fa0_in => exact addrBit_mono (List.prefix_rfl)
-  case g2_a => exact gateOut_mono _ (h .s2_a) (h .s2_b)
-  case g2_b => exact entry_mono (List.prefix_rfl)
-  case na0_a => exact h .fa0_in
-  case fa1_in => exact addrBit_mono (List.prefix_rfl)
-  case o01_a => exact gateOut_mono _ (h .g0_a) (h .g0_b)
-  case o01_b => exact gateOut_mono _ (h .g1_a) (h .g1_b)
-  case g3_a => exact gateOut_mono _ (h .s3_a) (h .s3_b)
-  case g3_b => exact entry_mono (List.prefix_rfl)
-  case cut_in => exact gateOut_mono _ (h .outg_a) (h .outg_b)
-  case cut_r1 => exact addrBit_mono (List.prefix_rfl)
-  case cut_r2 => exact entry_mono (List.prefix_rfl)
-  case g0_a => exact gateOut_mono _ (h .s0_a) (h .s0_b)
-  case g0_b => exact entry_mono (List.prefix_rfl)
-  case s1_a => exact h .fa0_in
-  case s1_b => exact h .fn1_in
-
-/-- Growing the block's own inputs grows every driver. -/
+  cases k <;> simp only [drv] <;>
+    apply_rules [List.prefix_rfl, h, addrBit_mono, entry_mono, gate1Out_mono, gateOut_mono]
 theorem drv_env {st st' : List (RSt 2)} {mem mem' : List (BitVec 2 → Bool)}
     (hst : st <+: st') (hmem : mem <+: mem') (w : Wires W) (k : W) :
     drv st mem w k <+:
       drv st' mem' w k := by
-  cases k <;> simp only [drv]
-  case o23_a => exact gateOut_mono _ (List.prefix_rfl) (List.prefix_rfl)
-  case o23_b => exact gateOut_mono _ (List.prefix_rfl) (List.prefix_rfl)
-  case outg_a => exact gateOut_mono _ (List.prefix_rfl) (List.prefix_rfl)
-  case outg_b => exact gateOut_mono _ (List.prefix_rfl) (List.prefix_rfl)
-  case s0_a => exact List.prefix_rfl
-  case s0_b => exact List.prefix_rfl
-  case s2_a => exact List.prefix_rfl
-  case s2_b => exact List.prefix_rfl
-  case s3_a => exact List.prefix_rfl
-  case s3_b => exact List.prefix_rfl
-  case fn1_in => exact gate1Out_mono _ (List.prefix_rfl)
-  case na1_a => exact List.prefix_rfl
-  case g1_a => exact gateOut_mono _ (List.prefix_rfl) (List.prefix_rfl)
-  case g1_b => exact entry_mono (hmem)
-  case fn0_in => exact gate1Out_mono _ (List.prefix_rfl)
-  case fa0_in => exact addrBit_mono (hst)
-  case g2_a => exact gateOut_mono _ (List.prefix_rfl) (List.prefix_rfl)
-  case g2_b => exact entry_mono (hmem)
-  case na0_a => exact List.prefix_rfl
-  case fa1_in => exact addrBit_mono (hst)
-  case o01_a => exact gateOut_mono _ (List.prefix_rfl) (List.prefix_rfl)
-  case o01_b => exact gateOut_mono _ (List.prefix_rfl) (List.prefix_rfl)
-  case g3_a => exact gateOut_mono _ (List.prefix_rfl) (List.prefix_rfl)
-  case g3_b => exact entry_mono (hmem)
-  case cut_in => exact gateOut_mono _ (List.prefix_rfl) (List.prefix_rfl)
-  case cut_r1 => exact addrBit_mono (hst)
-  case cut_r2 => exact entry_mono (hmem)
-  case g0_a => exact gateOut_mono _ (List.prefix_rfl) (List.prefix_rfl)
-  case g0_b => exact entry_mono (hmem)
-  case s1_a => exact List.prefix_rfl
-  case s1_b => exact List.prefix_rfl
-
-/-- The reduced state is a nested product; `wires` reads it as an assignment. -/
+  cases k <;> simp only [drv] <;>
+    apply_rules [List.prefix_rfl, hmem, hst,
+                 addrBit_mono, entry_mono, gate1Out_mono, gateOut_mono]
 def wires (i : muxT) : Wires W
   | .o23_a => i.1.1
   | .o23_b => i.1.2

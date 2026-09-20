@@ -91,46 +91,15 @@ def drv (lat su stl : Nat) (clk : List Bool) (d : List (BitVec 3)) (orc : List (
 
 theorem drv_mono {lat su stl clk d orc} : Mono (drv lat su stl clk d orc) := by
   intro a b h k
-  cases k <;> simp only [drv]
-  case pk_b0 => exact settleOut1_mono (h .ff0_clk) (h .ff0_d) (h .ff0_osel) (h .ff0_ojunk)
-  case pk_b1 => exact settleOut1_mono (h .ff1_clk) (h .ff1_d) (h .ff1_osel) (h .ff1_ojunk)
-  case pk_b2 => exact settleOut1_mono (h .ff2_clk) (h .ff2_d) (h .ff2_osel) (h .ff2_ojunk)
-  case ff0_clk => exact List.prefix_rfl
-  case ff0_d => exact List.prefix_rfl
-  case ff0_osel => exact List.prefix_rfl
-  case ff0_ojunk => exact List.prefix_rfl
-  case ff1_clk => exact List.prefix_rfl
-  case ff1_d => exact List.prefix_rfl
-  case ff1_osel => exact List.prefix_rfl
-  case ff1_ojunk => exact List.prefix_rfl
-  case ff2_clk => exact List.prefix_rfl
-  case ff2_d => exact List.prefix_rfl
-  case ff2_osel => exact List.prefix_rfl
-  case ff2_ojunk => exact List.prefix_rfl
-
-/-- Growing the stage's own inputs grows every driver. -/
+  cases k <;> simp only [drv] <;>
+    apply_rules [List.prefix_rfl, h, settleOut1_mono]
 theorem drv_env {lat su stl : Nat} {clk clk' : List Bool} {d d' : List (BitVec 3)}
     {orc orc' : List (Orc 2)} (hclk : clk <+: clk') (hd : d <+: d') (horc : orc <+: orc')
     (w : Wires W) (k : W) :
     drv lat su stl clk d orc w k <+: drv lat su stl clk' d' orc' w k := by
-  cases k <;> simp only [drv]
-  case pk_b0 => exact List.prefix_rfl
-  case pk_b1 => exact List.prefix_rfl
-  case pk_b2 => exact List.prefix_rfl
-  case ff0_clk => exact hclk
-  case ff0_d => exact bitsOf_mono (wireOf_mono hd)
-  case ff0_osel => exact selBit_mono horc
-  case ff0_ojunk => exact junkBit_mono horc
-  case ff1_clk => exact hclk
-  case ff1_d => exact bitsOf_mono (wireOf_mono hd)
-  case ff1_osel => exact selBit_mono horc
-  case ff1_ojunk => exact junkBit_mono horc
-  case ff2_clk => exact hclk
-  case ff2_d => exact bitsOf_mono (wireOf_mono hd)
-  case ff2_osel => exact selBit_mono horc
-  case ff2_ojunk => exact junkBit_mono horc
-
-/-- The reduced state is a nested product; `wires` reads it as an assignment. -/
+  cases k <;> simp only [drv] <;>
+    apply_rules [List.prefix_rfl, hclk, hd, horc,
+                 bitsOf_mono, junkBit_mono, selBit_mono, wireOf_mono]
 def wires (i : stageT) : Wires W
   | .pk_b0 => i.1.1
   | .pk_b1 => i.1.2.1

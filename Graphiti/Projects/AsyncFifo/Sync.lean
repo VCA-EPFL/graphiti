@@ -137,16 +137,12 @@ def drv (clk crn : List Bool) (d : List (BitVec 3)) : Het.Drv Ty
 theorem drv_mono {clk crn d} : Het.Mono (drv clk crn d) := by
   intro a b h k
   cases k <;> simp only [drv] <;>
-    first | exact List.prefix_rfl | exact busOut_mono (h .s1_clk) List.prefix_rfl (h .s1_crn)
-
-/-- Growing the block's own inputs grows every driver. -/
+    apply_rules [List.prefix_rfl, h, busOut_mono]
 theorem drv_env {clk clk' crn crn' : List Bool} {d d' : List (BitVec 3)}
     (hc : clk <+: clk') (hr : crn <+: crn') (hd : d <+: d') (w : Het.Wires Ty) (k : W) :
     drv clk crn d w k <+: drv clk' crn' d' w k := by
   cases k <;> simp only [drv] <;>
-    first | exact hc | exact hr | exact busOut_mono List.prefix_rfl hd List.prefix_rfl
-
-/-- The reduced state is a nested product; `wires` reads it as an assignment. -/
+    apply_rules [List.prefix_rfl, hc, hd, hr, busOut_mono]
 def wires (i : syncT) : Het.Wires Ty
   | .s1_clk => i.2.2.2.1 | .s1_crn => i.2.2.2.2.2.1
   | .s2_clk => i.2.1.1 | .s2_crn => i.2.1.2.2.1 | .s2_d => i.2.1.2.1

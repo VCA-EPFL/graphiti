@@ -317,68 +317,14 @@ def drv (clk : List Bool) (d : List Bool) (crn : List Bool) : Drv W
 theorem drv_mono {clk d crn} :
     Mono (drv clk d crn) := by
   intro a b h k
-  cases k <;> simp only [drv]
-  case n2_a => exact gateOut_mono _ (h .n1_a) (h .n1_b)
-  case n2_b => exact List.prefix_rfl
-  case n2_c => exact List.prefix_rfl
-  case n5f_in => exact gateOut_mono _ (h .n5_a) (h .n5_b)
-  case qf_a => exact h .n5f_in
-  case qf_b => exact List.prefix_rfl
-  case n6_a => exact h .n5f_in
-  case n6_b => exact h .n3f_in
-  case n6_c => exact List.prefix_rfl
-  case n5_a => exact h .n2f_in
-  case n5_b => exact gate3Out_mono _ (h .n6_a) (h .n6_b) (h .n6_c)
-  case n4_a => exact h .n3f_in
-  case n4_b => exact List.prefix_rfl
-  case n4_c => exact List.prefix_rfl
-  case n4f_in => exact gate3Out_mono _ (h .n4_a) (h .n4_b) (h .n4_c)
-  case n3_a => exact h .n2f_in
-  case n3_b => exact List.prefix_rfl
-  case n3_c => exact h .n4f_in
-  case n1_a => exact h .n4f_in
-  case n1_b => exact h .n2f_in
-  case n3f_in => exact gate3Out_mono _ (h .n3_a) (h .n3_b) (h .n3_c)
-  case n2f_in => exact gate3Out_mono _ (h .n2_a) (h .n2_b) (h .n2_c)
-  case cut_in => exact gateOut_mono _ (h .qf_a) (h .qf_b)
-  case cut_r1 => exact List.prefix_rfl
-  case cut_r2 => exact List.prefix_rfl
-  case cut_r3 => exact List.prefix_rfl
-
-/-- Growing the block's own inputs grows every driver. -/
+  cases k <;> simp only [drv] <;>
+    apply_rules [List.prefix_rfl, h, gate3Out_mono, gateOut_mono]
 theorem drv_env {clk clk' : List Bool} {d d' : List Bool} {crn crn' : List Bool}
     (hclk : clk <+: clk') (hd : d <+: d') (hcrn : crn <+: crn') (w : Wires W) (k : W) :
     drv clk d crn w k <+:
       drv clk' d' crn' w k := by
-  cases k <;> simp only [drv]
-  case n2_a => exact gateOut_mono _ (List.prefix_rfl) (List.prefix_rfl)
-  case n2_b => exact hclk
-  case n2_c => exact hcrn
-  case n5f_in => exact gateOut_mono _ (List.prefix_rfl) (List.prefix_rfl)
-  case qf_a => exact List.prefix_rfl
-  case qf_b => exact hcrn
-  case n6_a => exact List.prefix_rfl
-  case n6_b => exact List.prefix_rfl
-  case n6_c => exact hcrn
-  case n5_a => exact List.prefix_rfl
-  case n5_b => exact gate3Out_mono _ (List.prefix_rfl) (List.prefix_rfl) (List.prefix_rfl)
-  case n4_a => exact List.prefix_rfl
-  case n4_b => exact hd
-  case n4_c => exact hcrn
-  case n4f_in => exact gate3Out_mono _ (List.prefix_rfl) (List.prefix_rfl) (List.prefix_rfl)
-  case n3_a => exact List.prefix_rfl
-  case n3_b => exact hclk
-  case n3_c => exact List.prefix_rfl
-  case n1_a => exact List.prefix_rfl
-  case n1_b => exact List.prefix_rfl
-  case n3f_in => exact gate3Out_mono _ (List.prefix_rfl) (List.prefix_rfl) (List.prefix_rfl)
-  case n2f_in => exact gate3Out_mono _ (List.prefix_rfl) (List.prefix_rfl) (List.prefix_rfl)
-  case cut_in => exact gateOut_mono _ (List.prefix_rfl) (List.prefix_rfl)
-  case cut_r1 => exact hclk
-  case cut_r2 => exact hd
-  case cut_r3 => exact hcrn
-
-/-- The reduced state is a nested product; `wires` reads it as an assignment. -/
+  cases k <;> simp only [drv] <;>
+    apply_rules [List.prefix_rfl, hclk, hcrn, hd, gate3Out_mono, gateOut_mono]
 def wires (i : dffT) : Wires W
   | .n2_a => i.1.1
   | .n2_b => i.1.2.1

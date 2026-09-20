@@ -292,24 +292,12 @@ def drv (clk crn : List Bool) (d : List (RSt 2)) : Drv W
 theorem drv_mono {clk crn d} : Mono (drv clk crn d) := by
   intro a b h k
   cases k <;> simp only [drv] <;>
-    first
-      | exact List.prefix_rfl
-      | exact dffOut_mono (h .f0clk) (h .f0d) (h .f0crn)
-      | exact dffOut_mono (h .f1clk) (h .f1d) (h .f1crn)
-      | exact dffOut_mono (h .f2clk) (h .f2d) (h .f2crn)
-      | exact dffOut_mono (h .f3clk) (h .f3d) (h .f3crn)
-      | exact dffOut_mono (h .f4clk) (h .f4d) (h .f4crn)
-      | exact dffOut_mono (h .f5clk) (h .f5d) (h .f5crn)
-      | exact dffOut_mono (h .f6clk) (h .f6d) (h .f6crn)
-
-/-- Growing the block's own inputs grows every driver. -/
+    apply_rules [List.prefix_rfl, h, dffOut_mono]
 theorem drv_env {clk clk' crn crn' : List Bool} {d d' : List (RSt 2)}
     (hc : clk <+: clk') (hr : crn <+: crn') (hd : d <+: d') (w : Wires W) (k : W) :
     drv clk crn d w k <+: drv clk' crn' d' w k := by
   cases k <;> simp only [drv] <;>
-    first | exact List.prefix_rfl | exact hc | exact hr | exact bitsOf_mono hd
-
-/-- The reduced state is a nested product; `wires` reads it as an assignment. -/
+    apply_rules [List.prefix_rfl, hc, hd, hr, bitsOf_mono]
 def wires (i : stT) : Wires W
   | .pk0 => i.1.1
   | .pk1 => i.1.2.1

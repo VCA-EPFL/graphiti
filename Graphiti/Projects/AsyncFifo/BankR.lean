@@ -400,8 +400,9 @@ def drv (clk crn : List Bool) (d : List (RNext 2)) : Het.Drv Ty
   | w, .stF_in => StRegR.stOut (w .stR_clk) (w .stR_d) (w .stR_clrn)
   | w, .emptyA_q => w .stF_in
 
-/-- The two cases that are not the identity are named: trying `StRegR.stOut_mono` on a wire it
-does not drive makes the unifier unfold `stOut`, which is seven `dffOut`s deep. -/
+/-- The two cases that are not the identity are named, and the rest are not left to
+`apply_rules` as elsewhere: offering `StRegR.stOut_mono` to a goal it does not fit makes the
+unifier unfold `stOut`, which is seven `dffOut`s deep, and the proof times out at `whnf`. -/
 theorem drv_mono {clk crn d} : Het.Mono (drv clk crn d) := by
   intro a b h k
   cases k <;> simp only [drv]

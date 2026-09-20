@@ -742,100 +742,15 @@ def drv (clk we : List Bool) (addr : List (BitVec 2)) (dat crn : List Bool) : Dr
 
 theorem drv_mono {clk we addr dat crn} : Mono (drv clk we addr dat crn) := by
   intro a b h k
-  cases k <;> simp only [drv]
-  case en2_a => exact List.prefix_rfl
-  case en2_b => exact gateOut_mono _ (h .dec2_a) (h .dec2_b)
-  case en3_a => exact List.prefix_rfl
-  case en3_b => exact gateOut_mono _ (h .dec3_a) (h .dec3_b)
-  case pk_q0 => exact enOut_mono (h .c0_clk) (h .c0_en) (h .c0_data) (h .c0_clrn)
-  case pk_q1 => exact enOut_mono (h .c1_clk) (h .c1_en) (h .c1_data) (h .c1_clrn)
-  case pk_q2 => exact enOut_mono (h .c2_clk) (h .c2_en) (h .c2_data) (h .c2_clrn)
-  case pk_q3 => exact enOut_mono (h .c3_clk) (h .c3_en) (h .c3_data) (h .c3_clrn)
-  case dec3_a => exact h .a0F_in
-  case dec3_b => exact h .a1F_in
-  case c2_clk => exact List.prefix_rfl
-  case c2_en => exact gateOut_mono _ (h .en2_a) (h .en2_b)
-  case c2_data => exact List.prefix_rfl
-  case c2_clrn => exact List.prefix_rfl
-  case c3_clk => exact List.prefix_rfl
-  case c3_en => exact gateOut_mono _ (h .en3_a) (h .en3_b)
-  case c3_data => exact List.prefix_rfl
-  case c3_clrn => exact List.prefix_rfl
-  case a0F_in => exact List.prefix_rfl
-  case na0F_in => exact gate1Out_mono _ (h .na0_a)
-  case a1F_in => exact List.prefix_rfl
-  case na1_a => exact h .a1F_in
-  case en0_a => exact List.prefix_rfl
-  case en0_b => exact gateOut_mono _ (h .dec0_a) (h .dec0_b)
-  case c0_clk => exact List.prefix_rfl
-  case c0_en => exact gateOut_mono _ (h .en0_a) (h .en0_b)
-  case c0_data => exact List.prefix_rfl
-  case c0_clrn => exact List.prefix_rfl
-  case en1_a => exact List.prefix_rfl
-  case en1_b => exact gateOut_mono _ (h .dec1_a) (h .dec1_b)
-  case na0_a => exact h .a0F_in
-  case dec0_a => exact h .na0F_in
-  case dec0_b => exact h .na1F_in
-  case dec2_a => exact h .na0F_in
-  case dec2_b => exact h .a1F_in
-  case dec1_a => exact h .a0F_in
-  case dec1_b => exact h .na1F_in
-  case na1F_in => exact gate1Out_mono _ (h .na1_a)
-  case c1_clk => exact List.prefix_rfl
-  case c1_en => exact gateOut_mono _ (h .en1_a) (h .en1_b)
-  case c1_data => exact List.prefix_rfl
-  case c1_clrn => exact List.prefix_rfl
-
-/-- Growing the block's own inputs grows every driver. -/
+  cases k <;> simp only [drv] <;>
+    apply_rules [List.prefix_rfl, h, gateOut_mono, gate1Out_mono, enOut_mono]
 theorem drv_env {clk clk' we we' dat dat' crn crn' : List Bool} {addr addr' : List (BitVec 2)}
     (hclk : clk <+: clk') (hwe : we <+: we') (haddr : addr <+: addr') (hdat : dat <+: dat')
     (hcrn : crn <+: crn') (w : Wires W) (k : W) :
     drv clk we addr dat crn w k <+: drv clk' we' addr' dat' crn' w k := by
-  cases k <;> simp only [drv]
-  case en2_a => exact hwe
-  case en2_b => exact gateOut_mono _ List.prefix_rfl List.prefix_rfl
-  case en3_a => exact hwe
-  case en3_b => exact gateOut_mono _ List.prefix_rfl List.prefix_rfl
-  case pk_q0 => exact enOut_mono List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl
-  case pk_q1 => exact enOut_mono List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl
-  case pk_q2 => exact enOut_mono List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl
-  case pk_q3 => exact enOut_mono List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl
-  case dec3_a => exact List.prefix_rfl
-  case dec3_b => exact List.prefix_rfl
-  case c2_clk => exact hclk
-  case c2_en => exact gateOut_mono _ List.prefix_rfl List.prefix_rfl
-  case c2_data => exact hdat
-  case c2_clrn => exact hcrn
-  case c3_clk => exact hclk
-  case c3_en => exact gateOut_mono _ List.prefix_rfl List.prefix_rfl
-  case c3_data => exact hdat
-  case c3_clrn => exact hcrn
-  case a0F_in => exact bitsA_mono haddr
-  case na0F_in => exact gate1Out_mono _ List.prefix_rfl
-  case a1F_in => exact bitsA_mono haddr
-  case na1_a => exact List.prefix_rfl
-  case en0_a => exact hwe
-  case en0_b => exact gateOut_mono _ List.prefix_rfl List.prefix_rfl
-  case c0_clk => exact hclk
-  case c0_en => exact gateOut_mono _ List.prefix_rfl List.prefix_rfl
-  case c0_data => exact hdat
-  case c0_clrn => exact hcrn
-  case en1_a => exact hwe
-  case en1_b => exact gateOut_mono _ List.prefix_rfl List.prefix_rfl
-  case na0_a => exact List.prefix_rfl
-  case dec0_a => exact List.prefix_rfl
-  case dec0_b => exact List.prefix_rfl
-  case dec2_a => exact List.prefix_rfl
-  case dec2_b => exact List.prefix_rfl
-  case dec1_a => exact List.prefix_rfl
-  case dec1_b => exact List.prefix_rfl
-  case na1F_in => exact gate1Out_mono _ List.prefix_rfl
-  case c1_clk => exact hclk
-  case c1_en => exact gateOut_mono _ List.prefix_rfl List.prefix_rfl
-  case c1_data => exact hdat
-  case c1_clrn => exact hcrn
-
-/-- The reduced state is a nested product; `wires` reads it as an assignment. -/
+  cases k <;> simp only [drv] <;>
+    apply_rules [List.prefix_rfl, hclk, hwe, hdat, hcrn, bitsA_mono, haddr,
+                 gateOut_mono, gate1Out_mono, enOut_mono]
 def wires (i : memT) : Wires W
   | .en2_a => i.1.1
   | .en2_b => i.1.2
