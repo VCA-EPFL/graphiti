@@ -5,6 +5,7 @@ Authors: Thomas Bourgeat, Claude
 -/
 
 import Graphiti.Projects.AsyncFifo.Gates
+import Graphiti.Projects.AsyncFifo.NetlistWf
 
 /-!
 # The next-state logic of the read domain as gates
@@ -441,74 +442,582 @@ theorem W_pack_comb : CombOut (rnextDep s) (rnextFun) (rnextLen s) 0 8 (W_pack s
 instance : MatchInterface gateNextR (rnextBlock (n := 2) 0 8) := by
   dsimp [gateNextR, rnextBlock]
   solve_match_interface
+/-! ### The netlist, as an index type
 
-/-- The simulation relation: primary inputs agree, every stored stream is a prefix of the wire
-it is connected to, and the specification's output history is the packer's current output. -/
-structure Psi (unp_st : List (Timed.RSt 2)) (unp_q1 : List (BitVec 3)) (nem_a : List Bool) (finc_in : List Bool) (ok_a : List Bool) (ok_b : List Bool) (fok_in : List Bool) (fp0_in : List Bool) (fp1_in : List Bool) (fq1_in : List Bool) (xp0_a : List Bool) (xp0_b : List Bool) (cp0_a : List Bool) (cp0_b : List Bool) (fc0_in : List Bool) (xp1_a : List Bool) (xp1_b : List Bool) (cp1_a : List Bool) (cp1_b : List Bool) (xp2_a : List Bool) (xp2_b : List Bool) (fpa_in : List Bool) (fpb_in : List Bool) (fpc_in : List Bool) (xg0_a : List Bool) (xg0_b : List Bool) (xg1_a : List Bool) (xg1_b : List Bool) (fq2_in : List Bool) (xu1_a : List Bool) (xu1_b : List Bool) (fu1_in : List Bool) (xu0_a : List Bool) (xu0_b : List Bool) (xe2_a : List Bool) (xe2_b : List Bool) (xe1_a : List Bool) (xe1_b : List Bool) (xe0_a : List Bool) (xe0_b : List Bool) (ae_a : List Bool) (ae_b : List Bool) (am_a : List Bool) (am_b : List Bool) (pk_p0 : List Bool) (pk_p1 : List Bool) (pk_p2 : List Bool) (pk_em : List Bool) (pk_q0 : List Bool) (pk_q1 : List Bool) (pk_q2 : List Bool) (pk_g0 : List Bool) (pk_g1 : List Bool) (pk_g2 : List Bool) (pk_r1 : List Bool) (pk_r2 : List Bool) (pk_r3 : List Bool) (s : RNextSt 2) : Prop where
-  e_unp_st : unp_st = s.st
-  e_unp_q1 : unp_q1 = s.q1
-  e_finc_in : finc_in = s.inc
-  w_nem_a : nem_a <+: W_unp_em s
-  w_ok_a : ok_a <+: s.inc
-  w_ok_b : ok_b <+: W_nem s
-  w_fok_in : fok_in <+: W_ok s
-  w_fp0_in : fp0_in <+: W_unp_p0 s
-  w_fp1_in : fp1_in <+: W_unp_p1 s
-  w_xp0_a : xp0_a <+: W_unp_p0 s
-  w_xp0_b : xp0_b <+: W_ok s
-  w_cp0_a : cp0_a <+: W_unp_p0 s
-  w_cp0_b : cp0_b <+: W_ok s
-  w_fc0_in : fc0_in <+: W_cp0 s
-  w_xp1_a : xp1_a <+: W_unp_p1 s
-  w_xp1_b : xp1_b <+: W_cp0 s
-  w_cp1_a : cp1_a <+: W_unp_p1 s
-  w_cp1_b : cp1_b <+: W_cp0 s
-  w_xp2_a : xp2_a <+: W_unp_p2 s
-  w_xp2_b : xp2_b <+: W_cp1 s
-  w_fpa_in : fpa_in <+: W_xp0 s
-  w_fpb_in : fpb_in <+: W_xp1 s
-  w_fpc_in : fpc_in <+: W_xp2 s
-  w_xg0_a : xg0_a <+: W_xp1 s
-  w_xg0_b : xg0_b <+: W_xp0 s
-  w_xg1_a : xg1_a <+: W_xp2 s
-  w_xg1_b : xg1_b <+: W_xp1 s
-  w_fq2_in : fq2_in <+: W_unp_q22 s
-  w_xu1_a : xu1_a <+: W_unp_q22 s
-  w_xu1_b : xu1_b <+: W_unp_q21 s
-  w_fu1_in : fu1_in <+: W_xu1 s
-  w_xu0_a : xu0_a <+: W_xu1 s
-  w_xu0_b : xu0_b <+: W_unp_q20 s
-  w_xe2_a : xe2_a <+: W_xp2 s
-  w_xe2_b : xe2_b <+: W_unp_q22 s
-  w_xe1_a : xe1_a <+: W_xp1 s
-  w_xe1_b : xe1_b <+: W_xu1 s
-  w_xe0_a : xe0_a <+: W_xp0 s
-  w_xe0_b : xe0_b <+: W_xu0 s
-  w_ae_a : ae_a <+: W_xe2 s
-  w_ae_b : ae_b <+: W_xe1 s
-  w_am_a : am_a <+: W_ae s
-  w_am_b : am_b <+: W_xe0 s
-  w_pk_p0 : pk_p0 <+: W_xp0 s
-  w_pk_p1 : pk_p1 <+: W_xp1 s
-  w_pk_p2 : pk_p2 <+: W_xp2 s
-  w_pk_em : pk_em <+: W_am s
-  w_fq1_in : fq1_in <+: W_unp_q10 s
-  w_pk_q0 : pk_q0 <+: W_unp_q10 s
-  w_pk_q1 : pk_q1 <+: W_unp_q11 s
-  w_pk_q2 : pk_q2 <+: W_unp_q12 s
-  w_pk_g0 : pk_g0 <+: W_xg0 s
-  w_pk_g1 : pk_g1 <+: W_xg1 s
-  w_pk_g2 : pk_g2 <+: W_xp2 s
-  w_pk_r1 : pk_r1 <+: W_unp_p0 s
-  w_pk_r2 : pk_r2 <+: s.inc
-  w_pk_r3 : pk_r3 <+: W_unp_q10 s
-  d_hist : s.d <+: packROut ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩
+Each wire holds a prefix of what the specification computes for it.  This block is
+combinational, so `drv` does not read the other wires at all -- it is the specification's own
+`W_*`, wire by wire -- and a connection is then one monotonicity step, written on its own
+line below. -/
 
+open Graphiti.AsyncFifo.Netlist
+
+/-- The 54 driven wires. -/
+inductive W
+  | nem_a
+  | ok_a
+  | ok_b
+  | fok_in
+  | fp0_in
+  | fp1_in
+  | xp0_a
+  | xp0_b
+  | cp0_a
+  | cp0_b
+  | fc0_in
+  | xp1_a
+  | xp1_b
+  | cp1_a
+  | cp1_b
+  | xp2_a
+  | xp2_b
+  | fpa_in
+  | fpb_in
+  | fpc_in
+  | xg0_a
+  | xg0_b
+  | xg1_a
+  | xg1_b
+  | fq2_in
+  | xu1_a
+  | xu1_b
+  | fu1_in
+  | xu0_a
+  | xu0_b
+  | xe2_a
+  | xe2_b
+  | xe1_a
+  | xe1_b
+  | xe0_a
+  | xe0_b
+  | ae_a
+  | ae_b
+  | am_a
+  | am_b
+  | pk_p0
+  | pk_p1
+  | pk_p2
+  | pk_em
+  | fq1_in
+  | pk_q0
+  | pk_q1
+  | pk_q2
+  | pk_g0
+  | pk_g1
+  | pk_g2
+  | pk_r1
+  | pk_r2
+  | pk_r3
+  deriving DecidableEq
+
+/-- What each wire settles to: the specification's value for it.  One line per wire, and the
+only place the shape of this netlist is written down. -/
+def drv (s : RNextSt 2) : Drv W
+  | _, .nem_a => W_unp_em s
+  | _, .ok_a => s.inc
+  | _, .ok_b => W_nem s
+  | _, .fok_in => W_ok s
+  | _, .fp0_in => W_unp_p0 s
+  | _, .fp1_in => W_unp_p1 s
+  | _, .xp0_a => W_unp_p0 s
+  | _, .xp0_b => W_ok s
+  | _, .cp0_a => W_unp_p0 s
+  | _, .cp0_b => W_ok s
+  | _, .fc0_in => W_cp0 s
+  | _, .xp1_a => W_unp_p1 s
+  | _, .xp1_b => W_cp0 s
+  | _, .cp1_a => W_unp_p1 s
+  | _, .cp1_b => W_cp0 s
+  | _, .xp2_a => W_unp_p2 s
+  | _, .xp2_b => W_cp1 s
+  | _, .fpa_in => W_xp0 s
+  | _, .fpb_in => W_xp1 s
+  | _, .fpc_in => W_xp2 s
+  | _, .xg0_a => W_xp1 s
+  | _, .xg0_b => W_xp0 s
+  | _, .xg1_a => W_xp2 s
+  | _, .xg1_b => W_xp1 s
+  | _, .fq2_in => W_unp_q22 s
+  | _, .xu1_a => W_unp_q22 s
+  | _, .xu1_b => W_unp_q21 s
+  | _, .fu1_in => W_xu1 s
+  | _, .xu0_a => W_xu1 s
+  | _, .xu0_b => W_unp_q20 s
+  | _, .xe2_a => W_xp2 s
+  | _, .xe2_b => W_unp_q22 s
+  | _, .xe1_a => W_xp1 s
+  | _, .xe1_b => W_xu1 s
+  | _, .xe0_a => W_xp0 s
+  | _, .xe0_b => W_xu0 s
+  | _, .ae_a => W_xe2 s
+  | _, .ae_b => W_xe1 s
+  | _, .am_a => W_ae s
+  | _, .am_b => W_xe0 s
+  | _, .pk_p0 => W_xp0 s
+  | _, .pk_p1 => W_xp1 s
+  | _, .pk_p2 => W_xp2 s
+  | _, .pk_em => W_am s
+  | _, .fq1_in => W_unp_q10 s
+  | _, .pk_q0 => W_unp_q10 s
+  | _, .pk_q1 => W_unp_q11 s
+  | _, .pk_q2 => W_unp_q12 s
+  | _, .pk_g0 => W_xg0 s
+  | _, .pk_g1 => W_xg1 s
+  | _, .pk_g2 => W_xp2 s
+  | _, .pk_r1 => W_unp_p0 s
+  | _, .pk_r2 => s.inc
+  | _, .pk_r3 => W_unp_q10 s
+
+theorem drv_mono {s} : Mono (drv s) := by
+  intro a b _ k; cases k <;> exact List.prefix_rfl
+
+/-- Growing the block's own inputs grows every value it computes.  `s` and `s'` are explicit:
+they are only reachable through projections in the hypotheses, which unification cannot
+invert, and left implicit the two collapse into one metavariable. -/
+theorem drv_env (s : RNextSt 2) {st' : List (RSt 2)} {inc' : List Bool} {q1' : List (BitVec 3)} (hst : s.st <+: st') (hinc : s.inc <+: inc') (hq1 : s.q1 <+: q1') (w : Wires W) (k : W) :
+    drv s w k <+: drv { s with st := st', inc := inc', q1 := q1' } w k := by
+  cases k <;> simp only [drv]
+  case nem_a => exact W_unp_em_mono hst hinc hq1
+  case ok_a => exact hinc
+  case ok_b => exact W_nem_mono hst hinc hq1
+  case fok_in => exact W_ok_mono hst hinc hq1
+  case fp0_in => exact W_unp_p0_mono hst hinc hq1
+  case fp1_in => exact W_unp_p1_mono hst hinc hq1
+  case xp0_a => exact W_unp_p0_mono hst hinc hq1
+  case xp0_b => exact W_ok_mono hst hinc hq1
+  case cp0_a => exact W_unp_p0_mono hst hinc hq1
+  case cp0_b => exact W_ok_mono hst hinc hq1
+  case fc0_in => exact W_cp0_mono hst hinc hq1
+  case xp1_a => exact W_unp_p1_mono hst hinc hq1
+  case xp1_b => exact W_cp0_mono hst hinc hq1
+  case cp1_a => exact W_unp_p1_mono hst hinc hq1
+  case cp1_b => exact W_cp0_mono hst hinc hq1
+  case xp2_a => exact W_unp_p2_mono hst hinc hq1
+  case xp2_b => exact W_cp1_mono hst hinc hq1
+  case fpa_in => exact W_xp0_mono hst hinc hq1
+  case fpb_in => exact W_xp1_mono hst hinc hq1
+  case fpc_in => exact W_xp2_mono hst hinc hq1
+  case xg0_a => exact W_xp1_mono hst hinc hq1
+  case xg0_b => exact W_xp0_mono hst hinc hq1
+  case xg1_a => exact W_xp2_mono hst hinc hq1
+  case xg1_b => exact W_xp1_mono hst hinc hq1
+  case fq2_in => exact W_unp_q22_mono hst hinc hq1
+  case xu1_a => exact W_unp_q22_mono hst hinc hq1
+  case xu1_b => exact W_unp_q21_mono hst hinc hq1
+  case fu1_in => exact W_xu1_mono hst hinc hq1
+  case xu0_a => exact W_xu1_mono hst hinc hq1
+  case xu0_b => exact W_unp_q20_mono hst hinc hq1
+  case xe2_a => exact W_xp2_mono hst hinc hq1
+  case xe2_b => exact W_unp_q22_mono hst hinc hq1
+  case xe1_a => exact W_xp1_mono hst hinc hq1
+  case xe1_b => exact W_xu1_mono hst hinc hq1
+  case xe0_a => exact W_xp0_mono hst hinc hq1
+  case xe0_b => exact W_xu0_mono hst hinc hq1
+  case ae_a => exact W_xe2_mono hst hinc hq1
+  case ae_b => exact W_xe1_mono hst hinc hq1
+  case am_a => exact W_ae_mono hst hinc hq1
+  case am_b => exact W_xe0_mono hst hinc hq1
+  case pk_p0 => exact W_xp0_mono hst hinc hq1
+  case pk_p1 => exact W_xp1_mono hst hinc hq1
+  case pk_p2 => exact W_xp2_mono hst hinc hq1
+  case pk_em => exact W_am_mono hst hinc hq1
+  case fq1_in => exact W_unp_q10_mono hst hinc hq1
+  case pk_q0 => exact W_unp_q10_mono hst hinc hq1
+  case pk_q1 => exact W_unp_q11_mono hst hinc hq1
+  case pk_q2 => exact W_unp_q12_mono hst hinc hq1
+  case pk_g0 => exact W_xg0_mono hst hinc hq1
+  case pk_g1 => exact W_xg1_mono hst hinc hq1
+  case pk_g2 => exact W_xp2_mono hst hinc hq1
+  case pk_r1 => exact W_unp_p0_mono hst hinc hq1
+  case pk_r2 => exact hinc
+  case pk_r3 => exact W_unp_q10_mono hst hinc hq1
+
+/-- The reduced state is a nested product ending in a `PackSt`; `wires` reads it as an
+assignment. -/
+def wires (i : gateNextRT) : Wires W
+  | .nem_a => i.2.1
+  | .ok_a => i.2.2.2.1.1
+  | .ok_b => i.2.2.2.1.2
+  | .fok_in => i.2.2.2.2.1
+  | .fp0_in => i.2.2.2.2.2.1
+  | .fp1_in => i.2.2.2.2.2.2.1
+  | .xp0_a => i.2.2.2.2.2.2.2.2.1.1
+  | .xp0_b => i.2.2.2.2.2.2.2.2.1.2
+  | .cp0_a => i.2.2.2.2.2.2.2.2.2.1.1
+  | .cp0_b => i.2.2.2.2.2.2.2.2.2.1.2
+  | .fc0_in => i.2.2.2.2.2.2.2.2.2.2.1
+  | .xp1_a => i.2.2.2.2.2.2.2.2.2.2.2.1.1
+  | .xp1_b => i.2.2.2.2.2.2.2.2.2.2.2.1.2
+  | .cp1_a => i.2.2.2.2.2.2.2.2.2.2.2.2.1.1
+  | .cp1_b => i.2.2.2.2.2.2.2.2.2.2.2.2.1.2
+  | .xp2_a => i.2.2.2.2.2.2.2.2.2.2.2.2.2.1.1
+  | .xp2_b => i.2.2.2.2.2.2.2.2.2.2.2.2.2.1.2
+  | .fpa_in => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1
+  | .fpb_in => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1
+  | .fpc_in => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1
+  | .xg0_a => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.1
+  | .xg0_b => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.2
+  | .xg1_a => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.1
+  | .xg1_b => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.2
+  | .fq2_in => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1
+  | .xu1_a => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.1
+  | .xu1_b => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.2
+  | .fu1_in => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1
+  | .xu0_a => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.1
+  | .xu0_b => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.2
+  | .xe2_a => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.1
+  | .xe2_b => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.2
+  | .xe1_a => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.1
+  | .xe1_b => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.2
+  | .xe0_a => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.1
+  | .xe0_b => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.2
+  | .ae_a => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.1
+  | .ae_b => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.2
+  | .am_a => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.1
+  | .am_b => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.2
+  | .pk_p0 => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.p0
+  | .pk_p1 => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.p1
+  | .pk_p2 => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.p2
+  | .pk_em => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.em
+  | .fq1_in => i.2.2.2.2.2.2.2.1
+  | .pk_q0 => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.q0
+  | .pk_q1 => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.q1
+  | .pk_q2 => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.q2
+  | .pk_g0 => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.g0
+  | .pk_g1 => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.g1
+  | .pk_g2 => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.g2
+  | .pk_r1 => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.r1
+  | .pk_r2 => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.r2
+  | .pk_r3 => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.r3
+
+/-- The invariant: the wires are well formed, the inputs the netlist holds are the
+specification's, and the packer has reported no more than the wires behind it hold. -/
 def ψ (i : gateNextRT) (s : RNextSt 2) : Prop :=
-  Psi i.1.1 i.1.2 i.2.1 i.2.2.1 i.2.2.2.1.1 i.2.2.2.1.2 i.2.2.2.2.1 i.2.2.2.2.2.1 i.2.2.2.2.2.2.1 i.2.2.2.2.2.2.2.1 i.2.2.2.2.2.2.2.2.1.1 i.2.2.2.2.2.2.2.2.1.2 i.2.2.2.2.2.2.2.2.2.1.1 i.2.2.2.2.2.2.2.2.2.1.2 i.2.2.2.2.2.2.2.2.2.2.1 i.2.2.2.2.2.2.2.2.2.2.2.1.1 i.2.2.2.2.2.2.2.2.2.2.2.1.2 i.2.2.2.2.2.2.2.2.2.2.2.2.1.1 i.2.2.2.2.2.2.2.2.2.2.2.2.1.2 i.2.2.2.2.2.2.2.2.2.2.2.2.2.1.1 i.2.2.2.2.2.2.2.2.2.2.2.2.2.1.2 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.1 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.2 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.1 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.2 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.1 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.2 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.1 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.2 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.1 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.2 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.1 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.2 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.1 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.2 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.1 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.2 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.1 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.2 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.p0 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.p1 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.p2 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.em i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.q0 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.q1 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.q2 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.g0 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.g1 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.g2 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.r1 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.r2 i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.r3 s
+  Wf (drv s) (wires i)
+    ∧ i.1.1 = s.st
+    ∧ i.1.2 = s.q1
+    ∧ i.2.2.1 = s.inc
+    ∧ s.d <+: packROut ⟨(wires i .pk_p0), (wires i .pk_p1), (wires i .pk_p2), (wires i .pk_em), (wires i .pk_q0), (wires i .pk_q1), (wires i .pk_q2), (wires i .pk_g0), (wires i .pk_g1), (wires i .pk_g2), (wires i .pk_r1), (wires i .pk_r2), (wires i .pk_r3)⟩
 
-theorem Psi.init : Psi [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] ⟨[], [], [], []⟩ :=
-  ⟨rfl, rfl, rfl, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix, List.nil_prefix⟩
+/-- What the block reports meets the specification's combinational contract. -/
+theorem out_comb {s : RNextSt 2} {w : Wires W} (hw : Wf (drv s) w) :
+    CombOut (rnextDep s) (rnextFun) (rnextLen s) 0 8 (packROut ⟨(w .pk_p0), (w .pk_p1), (w .pk_p2), (w .pk_em), (w .pk_q0), (w .pk_q1), (w .pk_q2), (w .pk_g0), (w .pk_g1), (w .pk_g2), (w .pk_r1), (w .pk_r2), (w .pk_r3)⟩) :=
+  CombOut.of_prefix (packROut_mono' (hw .pk_p0) (hw .pk_p1) (hw .pk_p2) (hw .pk_em) (hw .pk_q0) (hw .pk_q1) (hw .pk_q2) (hw .pk_g0) (hw .pk_g1) (hw .pk_g2) (hw .pk_r1) (hw .pk_r2) (hw .pk_r3)) (W_pack_comb s)
+
+/-! ### One tactic for every connection -/
+
+/-- Each of the packer's inputs either stands or advances; one `⊏` is in scope. -/
+syntax "gn_pre" : tactic
+/-- Every wire of `mid` is the wire of `i`: what an input rule changes is an input. -/
+syntax "gn_same" : tactic
+set_option hygiene false in
+macro_rules
+  | `(tactic| gn_pre) => `(tactic| first | exact List.prefix_rfl | exact (‹_ ⊏ _›).isPrefix)
+  | `(tactic| gn_same) =>
+      `(tactic| (intro j; cases j <;> dsimp only [wires] <;> exact List.prefix_rfl))
+
+/-- `gn_case t` proves one connection: `t` is the monotonicity step that says the value now on
+the wire is still a prefix of what the specification computes for it. -/
+syntax "gn_case " term : tactic
+set_option hygiene false in
+macro_rules
+  | `(tactic| gn_case $t:term) => `(tactic| (
+      obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
+      obtain ⟨⟨_, _⟩, _, _, ⟨_, _⟩, _, _, _, _, ⟨_, _⟩, ⟨_, _⟩, _, ⟨_, _⟩, ⟨_, _⟩, ⟨_, _⟩, _, _, _, ⟨_, _⟩, ⟨_, _⟩, _, ⟨_, _⟩, _, ⟨_, _⟩, ⟨_, _⟩, ⟨_, _⟩, ⟨_, _⟩, ⟨_, _⟩, ⟨_, _⟩, ⟨_, _, _, _, _, _, _, _, _, _, _, _, _⟩⟩ := mid
+      have Hr := Hrule.1 rfl; clear Hrule
+      obtain ⟨⟨⟨_, _⟩, _, _, ⟨_, _⟩, _, _, _, _, ⟨_, _⟩, ⟨_, _⟩, _, ⟨_, _⟩, ⟨_, _⟩, ⟨_, _⟩, _, _, _, ⟨_, _⟩, ⟨_, _⟩, _, ⟨_, _⟩, _, ⟨_, _⟩, ⟨_, _⟩, ⟨_, _⟩, ⟨_, _⟩, ⟨_, _⟩, ⟨_, _⟩, ⟨_, _, _, _, _, _, _, _, _, _, _, _, _⟩⟩, out, Hr⟩ := Hr
+      simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc] at Hr
+      repeat' (obtain ⟨hh, Hr⟩ := Hr; try subst hh)
+      obtain ⟨hw, e0, e1, e2, hd⟩ := H
+      try dsimp only [] at e0
+      try dsimp only [] at e1
+      try dsimp only [] at e2
+      refine ⟨s, existSR_reflexive, Wf_step_of hw drv_mono ?_ ?_,
+        e0, e1, e2, ?_⟩
+      · intro j
+        cases j <;> dsimp only [wires] <;> gn_pre
+      · intro j
+        have hj := hw j
+        cases j <;> (try dsimp only [wires, drv] at hj) <;> dsimp only [wires, drv] <;>
+          first | exact hj | exact $t
+      · dsimp only [wires] at hd ⊢
+        exact hd.trans (packROut_mono' (by gn_pre) (by gn_pre) (by gn_pre) (by gn_pre) (by gn_pre) (by gn_pre) (by gn_pre) (by gn_pre) (by gn_pre) (by gn_pre) (by gn_pre) (by gn_pre) (by gn_pre)))) 
+
+theorem gateNextR_internals_eq : gateNextR.internals = [gateNextR.internals.getD 0 (fun _ _ => False), gateNextR.internals.getD 1 (fun _ _ => False), gateNextR.internals.getD 2 (fun _ _ => False), gateNextR.internals.getD 3 (fun _ _ => False), gateNextR.internals.getD 4 (fun _ _ => False), gateNextR.internals.getD 5 (fun _ _ => False), gateNextR.internals.getD 6 (fun _ _ => False), gateNextR.internals.getD 7 (fun _ _ => False), gateNextR.internals.getD 8 (fun _ _ => False), gateNextR.internals.getD 9 (fun _ _ => False), gateNextR.internals.getD 10 (fun _ _ => False), gateNextR.internals.getD 11 (fun _ _ => False), gateNextR.internals.getD 12 (fun _ _ => False), gateNextR.internals.getD 13 (fun _ _ => False), gateNextR.internals.getD 14 (fun _ _ => False), gateNextR.internals.getD 15 (fun _ _ => False), gateNextR.internals.getD 16 (fun _ _ => False), gateNextR.internals.getD 17 (fun _ _ => False), gateNextR.internals.getD 18 (fun _ _ => False), gateNextR.internals.getD 19 (fun _ _ => False), gateNextR.internals.getD 20 (fun _ _ => False), gateNextR.internals.getD 21 (fun _ _ => False), gateNextR.internals.getD 22 (fun _ _ => False), gateNextR.internals.getD 23 (fun _ _ => False), gateNextR.internals.getD 24 (fun _ _ => False), gateNextR.internals.getD 25 (fun _ _ => False), gateNextR.internals.getD 26 (fun _ _ => False), gateNextR.internals.getD 27 (fun _ _ => False), gateNextR.internals.getD 28 (fun _ _ => False), gateNextR.internals.getD 29 (fun _ _ => False), gateNextR.internals.getD 30 (fun _ _ => False), gateNextR.internals.getD 31 (fun _ _ => False), gateNextR.internals.getD 32 (fun _ _ => False), gateNextR.internals.getD 33 (fun _ _ => False), gateNextR.internals.getD 34 (fun _ _ => False), gateNextR.internals.getD 35 (fun _ _ => False), gateNextR.internals.getD 36 (fun _ _ => False), gateNextR.internals.getD 37 (fun _ _ => False), gateNextR.internals.getD 38 (fun _ _ => False), gateNextR.internals.getD 39 (fun _ _ => False), gateNextR.internals.getD 40 (fun _ _ => False), gateNextR.internals.getD 41 (fun _ _ => False), gateNextR.internals.getD 42 (fun _ _ => False), gateNextR.internals.getD 43 (fun _ _ => False), gateNextR.internals.getD 44 (fun _ _ => False), gateNextR.internals.getD 45 (fun _ _ => False), gateNextR.internals.getD 46 (fun _ _ => False), gateNextR.internals.getD 47 (fun _ _ => False), gateNextR.internals.getD 48 (fun _ _ => False), gateNextR.internals.getD 49 (fun _ _ => False), gateNextR.internals.getD 50 (fun _ _ => False), gateNextR.internals.getD 51 (fun _ _ => False), gateNextR.internals.getD 52 (fun _ _ => False), gateNextR.internals.getD 53 (fun _ _ => False)] := rfl
+
+/-! All 54 connections, one line each: the wire, and why its new value is still
+a prefix of what the specification computes. -/
+
+theorem case_0 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 0 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (by rw [e0]; exact List.prefix_rfl)   -- nem_a
+
+theorem case_1 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 1 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (e2 ▸ List.prefix_rfl)   -- ok_a
+
+theorem case_2 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 2 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case gate1Out_mono _ (hw .nem_a)   -- ok_b
+
+theorem case_3 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 3 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case gateOut_mono _ (hw .ok_a) (hw .ok_b)   -- fok_in
+
+theorem case_4 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 4 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (by rw [e0]; exact List.prefix_rfl)   -- fp0_in
+
+theorem case_5 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 5 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (by rw [e0]; exact List.prefix_rfl)   -- fp1_in
+
+theorem case_6 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 6 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (hw .fp0_in)   -- xp0_a
+
+theorem case_7 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 7 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (hw .fok_in)   -- xp0_b
+
+theorem case_8 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 8 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (hw .fp0_in)   -- cp0_a
+
+theorem case_9 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 9 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (hw .fok_in)   -- cp0_b
+
+theorem case_10 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 10 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case gateOut_mono _ (hw .cp0_a) (hw .cp0_b)   -- fc0_in
+
+theorem case_11 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 11 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (hw .fp1_in)   -- xp1_a
+
+theorem case_12 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 12 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (hw .fc0_in)   -- xp1_b
+
+theorem case_13 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 13 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (hw .fp1_in)   -- cp1_a
+
+theorem case_14 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 14 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (hw .fc0_in)   -- cp1_b
+
+theorem case_15 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 15 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (by rw [e0]; exact List.prefix_rfl)   -- xp2_a
+
+theorem case_16 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 16 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case gateOut_mono _ (hw .cp1_a) (hw .cp1_b)   -- xp2_b
+
+theorem case_17 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 17 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case gateOut_mono _ (hw .xp0_a) (hw .xp0_b)   -- fpa_in
+
+theorem case_18 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 18 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case gateOut_mono _ (hw .xp1_a) (hw .xp1_b)   -- fpb_in
+
+theorem case_19 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 19 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case gateOut_mono _ (hw .xp2_a) (hw .xp2_b)   -- fpc_in
+
+theorem case_20 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 20 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (hw .fpb_in)   -- xg0_a
+
+theorem case_21 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 21 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (hw .fpa_in)   -- xg0_b
+
+theorem case_22 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 22 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (hw .fpc_in)   -- xg1_a
+
+theorem case_23 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 23 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (hw .fpb_in)   -- xg1_b
+
+theorem case_24 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 24 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (by rw [e0]; exact List.prefix_rfl)   -- fq2_in
+
+theorem case_25 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 25 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (hw .fq2_in)   -- xu1_a
+
+theorem case_26 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 26 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (by rw [e0]; exact List.prefix_rfl)   -- xu1_b
+
+theorem case_27 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 27 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case gateOut_mono _ (hw .xu1_a) (hw .xu1_b)   -- fu1_in
+
+theorem case_28 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 28 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (hw .fu1_in)   -- xu0_a
+
+theorem case_29 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 29 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (by rw [e0]; exact List.prefix_rfl)   -- xu0_b
+
+theorem case_30 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 30 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (hw .fpc_in)   -- xe2_a
+
+theorem case_31 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 31 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (hw .fq2_in)   -- xe2_b
+
+theorem case_32 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 32 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (hw .fpb_in)   -- xe1_a
+
+theorem case_33 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 33 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (hw .fu1_in)   -- xe1_b
+
+theorem case_34 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 34 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (hw .fpa_in)   -- xe0_a
+
+theorem case_35 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 35 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case gateOut_mono _ (hw .xu0_a) (hw .xu0_b)   -- xe0_b
+
+theorem case_36 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 36 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case gateOut_mono _ (hw .xe2_a) (hw .xe2_b)   -- ae_a
+
+theorem case_37 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 37 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case gateOut_mono _ (hw .xe1_a) (hw .xe1_b)   -- ae_b
+
+theorem case_38 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 38 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case gateOut_mono _ (hw .ae_a) (hw .ae_b)   -- am_a
+
+theorem case_39 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 39 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case gateOut_mono _ (hw .xe0_a) (hw .xe0_b)   -- am_b
+
+theorem case_40 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 40 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (hw .fpa_in)   -- pk_p0
+
+theorem case_41 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 41 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (hw .fpb_in)   -- pk_p1
+
+theorem case_42 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 42 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (hw .fpc_in)   -- pk_p2
+
+theorem case_43 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 43 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case gateOut_mono _ (hw .am_a) (hw .am_b)   -- pk_em
+
+theorem case_44 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 44 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (by rw [e1]; exact List.prefix_rfl)   -- fq1_in
+
+theorem case_45 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 45 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (hw .fq1_in)   -- pk_q0
+
+theorem case_46 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 46 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (by rw [e1]; exact List.prefix_rfl)   -- pk_q1
+
+theorem case_47 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 47 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (by rw [e1]; exact List.prefix_rfl)   -- pk_q2
+
+theorem case_48 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 48 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case gateOut_mono _ (hw .xg0_a) (hw .xg0_b)   -- pk_g0
+
+theorem case_49 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 49 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case gateOut_mono _ (hw .xg1_a) (hw .xg1_b)   -- pk_g1
+
+theorem case_50 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 50 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (hw .fpc_in)   -- pk_g2
+
+theorem case_51 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 51 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (hw .fp0_in)   -- pk_r1
+
+theorem case_52 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 52 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (e2 ▸ List.prefix_rfl)   -- pk_r2
+
+theorem case_53 (s) (i mid : gateNextRT) (H : ψ i s)
+    (Hrule : (gateNextR.internals.getD 53 (fun _ _ => False)) i mid) :
+    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
+  gn_case (hw .fq1_in)   -- pk_r3
+
+/-! ### The specification's own rules -/
 
 section SpecRules
 variable (sp : RNextSt 2)
@@ -527,1266 +1036,141 @@ theorem spec_out_d (v : List (RNext 2)) (h1 : sp.d <+: v)
   rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]; exact ⟨h1, h2, rfl⟩
 end SpecRules
 
-section Cases
-variable {unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3} {sp : RNextSt 2}
-  (Hψ : Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp)
-include Hψ
-
-theorem in_st (v : List (Timed.RSt 2)) (h : unp_st ⊏ v) :
-    Psi v unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 { sp with st := v } where
-  e_unp_st := rfl
-  e_unp_q1 := Hψ.e_unp_q1
-  e_finc_in := Hψ.e_finc_in
-  w_nem_a := Hψ.w_nem_a.trans (W_unp_em_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_ok_a := Hψ.w_ok_a.trans List.prefix_rfl
-  w_ok_b := Hψ.w_ok_b.trans (W_nem_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_fok_in := Hψ.w_fok_in.trans (W_ok_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_fp0_in := Hψ.w_fp0_in.trans (W_unp_p0_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_fp1_in := Hψ.w_fp1_in.trans (W_unp_p1_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_xp0_a := Hψ.w_xp0_a.trans (W_unp_p0_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_xp0_b := Hψ.w_xp0_b.trans (W_ok_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_cp0_a := Hψ.w_cp0_a.trans (W_unp_p0_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_cp0_b := Hψ.w_cp0_b.trans (W_ok_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_fc0_in := Hψ.w_fc0_in.trans (W_cp0_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_xp1_a := Hψ.w_xp1_a.trans (W_unp_p1_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_xp1_b := Hψ.w_xp1_b.trans (W_cp0_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_cp1_a := Hψ.w_cp1_a.trans (W_unp_p1_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_cp1_b := Hψ.w_cp1_b.trans (W_cp0_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_xp2_a := Hψ.w_xp2_a.trans (W_unp_p2_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_xp2_b := Hψ.w_xp2_b.trans (W_cp1_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_fpa_in := Hψ.w_fpa_in.trans (W_xp0_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_fpb_in := Hψ.w_fpb_in.trans (W_xp1_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_fpc_in := Hψ.w_fpc_in.trans (W_xp2_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_xg0_a := Hψ.w_xg0_a.trans (W_xp1_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_xg0_b := Hψ.w_xg0_b.trans (W_xp0_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_xg1_a := Hψ.w_xg1_a.trans (W_xp2_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_xg1_b := Hψ.w_xg1_b.trans (W_xp1_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_fq2_in := Hψ.w_fq2_in.trans (W_unp_q22_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_xu1_a := Hψ.w_xu1_a.trans (W_unp_q22_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_xu1_b := Hψ.w_xu1_b.trans (W_unp_q21_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_fu1_in := Hψ.w_fu1_in.trans (W_xu1_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_xu0_a := Hψ.w_xu0_a.trans (W_xu1_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_xu0_b := Hψ.w_xu0_b.trans (W_unp_q20_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_xe2_a := Hψ.w_xe2_a.trans (W_xp2_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_xe2_b := Hψ.w_xe2_b.trans (W_unp_q22_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_xe1_a := Hψ.w_xe1_a.trans (W_xp1_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_xe1_b := Hψ.w_xe1_b.trans (W_xu1_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_xe0_a := Hψ.w_xe0_a.trans (W_xp0_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_xe0_b := Hψ.w_xe0_b.trans (W_xu0_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_ae_a := Hψ.w_ae_a.trans (W_xe2_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_ae_b := Hψ.w_ae_b.trans (W_xe1_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_am_a := Hψ.w_am_a.trans (W_ae_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_am_b := Hψ.w_am_b.trans (W_xe0_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_pk_p0 := Hψ.w_pk_p0.trans (W_xp0_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_pk_p1 := Hψ.w_pk_p1.trans (W_xp1_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_pk_p2 := Hψ.w_pk_p2.trans (W_xp2_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_pk_em := Hψ.w_pk_em.trans (W_am_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_fq1_in := Hψ.w_fq1_in.trans (W_unp_q10_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_pk_q0 := Hψ.w_pk_q0.trans (W_unp_q10_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_pk_q1 := Hψ.w_pk_q1.trans (W_unp_q11_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_pk_q2 := Hψ.w_pk_q2.trans (W_unp_q12_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_pk_g0 := Hψ.w_pk_g0.trans (W_xg0_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_pk_g1 := Hψ.w_pk_g1.trans (W_xg1_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_pk_g2 := Hψ.w_pk_g2.trans (W_xp2_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_pk_r1 := Hψ.w_pk_r1.trans (W_unp_p0_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  w_pk_r2 := Hψ.w_pk_r2.trans List.prefix_rfl
-  w_pk_r3 := Hψ.w_pk_r3.trans (W_unp_q10_mono (Hψ.e_unp_st ▸ h.isPrefix) List.prefix_rfl List.prefix_rfl)
-  d_hist := Hψ.d_hist
-
-theorem in_inc (v : List Bool) (h : finc_in ⊏ v) :
-    Psi unp_st unp_q1 nem_a v ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 { sp with inc := v } where
-  e_unp_st := Hψ.e_unp_st
-  e_unp_q1 := Hψ.e_unp_q1
-  e_finc_in := rfl
-  w_nem_a := Hψ.w_nem_a.trans (W_unp_em_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_ok_a := Hψ.w_ok_a.trans (Hψ.e_finc_in ▸ h.isPrefix)
-  w_ok_b := Hψ.w_ok_b.trans (W_nem_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_fok_in := Hψ.w_fok_in.trans (W_ok_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_fp0_in := Hψ.w_fp0_in.trans (W_unp_p0_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_fp1_in := Hψ.w_fp1_in.trans (W_unp_p1_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_xp0_a := Hψ.w_xp0_a.trans (W_unp_p0_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_xp0_b := Hψ.w_xp0_b.trans (W_ok_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_cp0_a := Hψ.w_cp0_a.trans (W_unp_p0_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_cp0_b := Hψ.w_cp0_b.trans (W_ok_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_fc0_in := Hψ.w_fc0_in.trans (W_cp0_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_xp1_a := Hψ.w_xp1_a.trans (W_unp_p1_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_xp1_b := Hψ.w_xp1_b.trans (W_cp0_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_cp1_a := Hψ.w_cp1_a.trans (W_unp_p1_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_cp1_b := Hψ.w_cp1_b.trans (W_cp0_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_xp2_a := Hψ.w_xp2_a.trans (W_unp_p2_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_xp2_b := Hψ.w_xp2_b.trans (W_cp1_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_fpa_in := Hψ.w_fpa_in.trans (W_xp0_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_fpb_in := Hψ.w_fpb_in.trans (W_xp1_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_fpc_in := Hψ.w_fpc_in.trans (W_xp2_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_xg0_a := Hψ.w_xg0_a.trans (W_xp1_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_xg0_b := Hψ.w_xg0_b.trans (W_xp0_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_xg1_a := Hψ.w_xg1_a.trans (W_xp2_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_xg1_b := Hψ.w_xg1_b.trans (W_xp1_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_fq2_in := Hψ.w_fq2_in.trans (W_unp_q22_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_xu1_a := Hψ.w_xu1_a.trans (W_unp_q22_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_xu1_b := Hψ.w_xu1_b.trans (W_unp_q21_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_fu1_in := Hψ.w_fu1_in.trans (W_xu1_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_xu0_a := Hψ.w_xu0_a.trans (W_xu1_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_xu0_b := Hψ.w_xu0_b.trans (W_unp_q20_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_xe2_a := Hψ.w_xe2_a.trans (W_xp2_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_xe2_b := Hψ.w_xe2_b.trans (W_unp_q22_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_xe1_a := Hψ.w_xe1_a.trans (W_xp1_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_xe1_b := Hψ.w_xe1_b.trans (W_xu1_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_xe0_a := Hψ.w_xe0_a.trans (W_xp0_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_xe0_b := Hψ.w_xe0_b.trans (W_xu0_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_ae_a := Hψ.w_ae_a.trans (W_xe2_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_ae_b := Hψ.w_ae_b.trans (W_xe1_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_am_a := Hψ.w_am_a.trans (W_ae_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_am_b := Hψ.w_am_b.trans (W_xe0_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_pk_p0 := Hψ.w_pk_p0.trans (W_xp0_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_pk_p1 := Hψ.w_pk_p1.trans (W_xp1_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_pk_p2 := Hψ.w_pk_p2.trans (W_xp2_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_pk_em := Hψ.w_pk_em.trans (W_am_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_fq1_in := Hψ.w_fq1_in.trans (W_unp_q10_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_pk_q0 := Hψ.w_pk_q0.trans (W_unp_q10_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_pk_q1 := Hψ.w_pk_q1.trans (W_unp_q11_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_pk_q2 := Hψ.w_pk_q2.trans (W_unp_q12_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_pk_g0 := Hψ.w_pk_g0.trans (W_xg0_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_pk_g1 := Hψ.w_pk_g1.trans (W_xg1_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_pk_g2 := Hψ.w_pk_g2.trans (W_xp2_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_pk_r1 := Hψ.w_pk_r1.trans (W_unp_p0_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  w_pk_r2 := Hψ.w_pk_r2.trans (Hψ.e_finc_in ▸ h.isPrefix)
-  w_pk_r3 := Hψ.w_pk_r3.trans (W_unp_q10_mono List.prefix_rfl (Hψ.e_finc_in ▸ h.isPrefix) List.prefix_rfl)
-  d_hist := Hψ.d_hist
-
-theorem in_q1 (v : List (BitVec 3)) (h : unp_q1 ⊏ v) :
-    Psi unp_st v nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 { sp with q1 := v } where
-  e_unp_st := Hψ.e_unp_st
-  e_unp_q1 := rfl
-  e_finc_in := Hψ.e_finc_in
-  w_nem_a := Hψ.w_nem_a.trans (W_unp_em_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_ok_a := Hψ.w_ok_a.trans List.prefix_rfl
-  w_ok_b := Hψ.w_ok_b.trans (W_nem_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_fok_in := Hψ.w_fok_in.trans (W_ok_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_fp0_in := Hψ.w_fp0_in.trans (W_unp_p0_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_fp1_in := Hψ.w_fp1_in.trans (W_unp_p1_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_xp0_a := Hψ.w_xp0_a.trans (W_unp_p0_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_xp0_b := Hψ.w_xp0_b.trans (W_ok_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_cp0_a := Hψ.w_cp0_a.trans (W_unp_p0_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_cp0_b := Hψ.w_cp0_b.trans (W_ok_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_fc0_in := Hψ.w_fc0_in.trans (W_cp0_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_xp1_a := Hψ.w_xp1_a.trans (W_unp_p1_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_xp1_b := Hψ.w_xp1_b.trans (W_cp0_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_cp1_a := Hψ.w_cp1_a.trans (W_unp_p1_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_cp1_b := Hψ.w_cp1_b.trans (W_cp0_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_xp2_a := Hψ.w_xp2_a.trans (W_unp_p2_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_xp2_b := Hψ.w_xp2_b.trans (W_cp1_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_fpa_in := Hψ.w_fpa_in.trans (W_xp0_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_fpb_in := Hψ.w_fpb_in.trans (W_xp1_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_fpc_in := Hψ.w_fpc_in.trans (W_xp2_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_xg0_a := Hψ.w_xg0_a.trans (W_xp1_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_xg0_b := Hψ.w_xg0_b.trans (W_xp0_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_xg1_a := Hψ.w_xg1_a.trans (W_xp2_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_xg1_b := Hψ.w_xg1_b.trans (W_xp1_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_fq2_in := Hψ.w_fq2_in.trans (W_unp_q22_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_xu1_a := Hψ.w_xu1_a.trans (W_unp_q22_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_xu1_b := Hψ.w_xu1_b.trans (W_unp_q21_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_fu1_in := Hψ.w_fu1_in.trans (W_xu1_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_xu0_a := Hψ.w_xu0_a.trans (W_xu1_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_xu0_b := Hψ.w_xu0_b.trans (W_unp_q20_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_xe2_a := Hψ.w_xe2_a.trans (W_xp2_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_xe2_b := Hψ.w_xe2_b.trans (W_unp_q22_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_xe1_a := Hψ.w_xe1_a.trans (W_xp1_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_xe1_b := Hψ.w_xe1_b.trans (W_xu1_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_xe0_a := Hψ.w_xe0_a.trans (W_xp0_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_xe0_b := Hψ.w_xe0_b.trans (W_xu0_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_ae_a := Hψ.w_ae_a.trans (W_xe2_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_ae_b := Hψ.w_ae_b.trans (W_xe1_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_am_a := Hψ.w_am_a.trans (W_ae_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_am_b := Hψ.w_am_b.trans (W_xe0_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_pk_p0 := Hψ.w_pk_p0.trans (W_xp0_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_pk_p1 := Hψ.w_pk_p1.trans (W_xp1_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_pk_p2 := Hψ.w_pk_p2.trans (W_xp2_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_pk_em := Hψ.w_pk_em.trans (W_am_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_fq1_in := Hψ.w_fq1_in.trans (W_unp_q10_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_pk_q0 := Hψ.w_pk_q0.trans (W_unp_q10_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_pk_q1 := Hψ.w_pk_q1.trans (W_unp_q11_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_pk_q2 := Hψ.w_pk_q2.trans (W_unp_q12_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_pk_g0 := Hψ.w_pk_g0.trans (W_xg0_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_pk_g1 := Hψ.w_pk_g1.trans (W_xg1_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_pk_g2 := Hψ.w_pk_g2.trans (W_xp2_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_pk_r1 := Hψ.w_pk_r1.trans (W_unp_p0_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  w_pk_r2 := Hψ.w_pk_r2.trans List.prefix_rfl
-  w_pk_r3 := Hψ.w_pk_r3.trans (W_unp_q10_mono List.prefix_rfl List.prefix_rfl (Hψ.e_unp_q1 ▸ h.isPrefix))
-  d_hist := Hψ.d_hist
-
-/-- The packer's current output satisfies the block's contract. -/
-theorem out_comb : CombOut (rnextDep sp) (rnextFun) (rnextLen sp) 0 8
-    (packROut ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩) :=
-  CombOut.of_prefix (packROut_mono' Hψ.w_pk_p0 Hψ.w_pk_p1 Hψ.w_pk_p2 Hψ.w_pk_em Hψ.w_pk_q0 Hψ.w_pk_q1 Hψ.w_pk_q2 Hψ.w_pk_g0 Hψ.w_pk_g1 Hψ.w_pk_g2 Hψ.w_pk_r1 Hψ.w_pk_r2 Hψ.w_pk_r3) (W_pack_comb sp)
-
-theorem out_psi :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 { sp with d := packROut ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩ } :=
-  { Hψ with d_hist := List.prefix_rfl }
-
-theorem int_0 (h : nem_a ⊏ List.map (fun x => x.empty) unp_st) :
-    Psi unp_st unp_q1 (List.map (fun x => x.empty) unp_st) finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_nem_a := (by rw [Hψ.e_unp_st]; exact List.prefix_rfl) }
-
-theorem int_1 (h : ok_a ⊏ finc_in) :
-    Psi unp_st unp_q1 nem_a finc_in (finc_in) ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_ok_a := (Hψ.e_finc_in ▸ List.prefix_rfl) }
-
-theorem int_2 (h : ok_b ⊏ gate1Out not nem_a) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a (gate1Out not nem_a) fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_ok_b := gate1Out_mono _ Hψ.w_nem_a }
-
-theorem int_3 (h : fok_in ⊏ gateOut Bool.and ok_a ok_b) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b (gateOut Bool.and ok_a ok_b) fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_fok_in := gateOut_mono _ Hψ.w_ok_a Hψ.w_ok_b }
-
-theorem int_4 (h : fp0_in ⊏ List.map (fun x => x.ptr.getLsbD 0) unp_st) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in (List.map (fun x => x.ptr.getLsbD 0) unp_st) fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_fp0_in := (by rw [Hψ.e_unp_st]; exact List.prefix_rfl) }
-
-theorem int_5 (h : fp1_in ⊏ List.map (fun x => x.ptr.getLsbD 1) unp_st) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in (List.map (fun x => x.ptr.getLsbD 1) unp_st) fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_fp1_in := (by rw [Hψ.e_unp_st]; exact List.prefix_rfl) }
-
-theorem int_6 (h : xp0_a ⊏ fp0_in) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in (fp0_in) xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_xp0_a := Hψ.w_fp0_in }
-
-theorem int_7 (h : xp0_b ⊏ fok_in) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a (fok_in) cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_xp0_b := Hψ.w_fok_in }
-
-theorem int_8 (h : cp0_a ⊏ fp0_in) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b (fp0_in) cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_cp0_a := Hψ.w_fp0_in }
-
-theorem int_9 (h : cp0_b ⊏ fok_in) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a (fok_in) fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_cp0_b := Hψ.w_fok_in }
-
-theorem int_10 (h : fc0_in ⊏ gateOut Bool.and cp0_a cp0_b) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b (gateOut Bool.and cp0_a cp0_b) xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_fc0_in := gateOut_mono _ Hψ.w_cp0_a Hψ.w_cp0_b }
-
-theorem int_11 (h : xp1_a ⊏ fp1_in) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in (fp1_in) xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_xp1_a := Hψ.w_fp1_in }
-
-theorem int_12 (h : xp1_b ⊏ fc0_in) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a (fc0_in) cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_xp1_b := Hψ.w_fc0_in }
-
-theorem int_13 (h : cp1_a ⊏ fp1_in) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b (fp1_in) cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_cp1_a := Hψ.w_fp1_in }
-
-theorem int_14 (h : cp1_b ⊏ fc0_in) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a (fc0_in) xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_cp1_b := Hψ.w_fc0_in }
-
-theorem int_15 (h : xp2_a ⊏ List.map (fun x => x.ptr.getLsbD 2) unp_st) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b (List.map (fun x => x.ptr.getLsbD 2) unp_st) xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_xp2_a := (by rw [Hψ.e_unp_st]; exact List.prefix_rfl) }
-
-theorem int_16 (h : xp2_b ⊏ gateOut Bool.and cp1_a cp1_b) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a (gateOut Bool.and cp1_a cp1_b) fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_xp2_b := gateOut_mono _ Hψ.w_cp1_a Hψ.w_cp1_b }
-
-theorem int_17 (h : fpa_in ⊏ gateOut Bool.xor xp0_a xp0_b) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b (gateOut Bool.xor xp0_a xp0_b) fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_fpa_in := gateOut_mono _ Hψ.w_xp0_a Hψ.w_xp0_b }
-
-theorem int_18 (h : fpb_in ⊏ gateOut Bool.xor xp1_a xp1_b) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in (gateOut Bool.xor xp1_a xp1_b) fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_fpb_in := gateOut_mono _ Hψ.w_xp1_a Hψ.w_xp1_b }
-
-theorem int_19 (h : fpc_in ⊏ gateOut Bool.xor xp2_a xp2_b) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in (gateOut Bool.xor xp2_a xp2_b) xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_fpc_in := gateOut_mono _ Hψ.w_xp2_a Hψ.w_xp2_b }
-
-theorem int_20 (h : xg0_a ⊏ fpb_in) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in (fpb_in) xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_xg0_a := Hψ.w_fpb_in }
-
-theorem int_21 (h : xg0_b ⊏ fpa_in) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a (fpa_in) xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_xg0_b := Hψ.w_fpa_in }
-
-theorem int_22 (h : xg1_a ⊏ fpc_in) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b (fpc_in) xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_xg1_a := Hψ.w_fpc_in }
-
-theorem int_23 (h : xg1_b ⊏ fpb_in) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a (fpb_in) fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_xg1_b := Hψ.w_fpb_in }
-
-theorem int_24 (h : fq2_in ⊏ List.map (fun x => x.q2.getLsbD 2) unp_st) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b (List.map (fun x => x.q2.getLsbD 2) unp_st) xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_fq2_in := (by rw [Hψ.e_unp_st]; exact List.prefix_rfl) }
-
-theorem int_25 (h : xu1_a ⊏ fq2_in) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in (fq2_in) xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_xu1_a := Hψ.w_fq2_in }
-
-theorem int_26 (h : xu1_b ⊏ List.map (fun x => x.q2.getLsbD 1) unp_st) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a (List.map (fun x => x.q2.getLsbD 1) unp_st) fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_xu1_b := (by rw [Hψ.e_unp_st]; exact List.prefix_rfl) }
-
-theorem int_27 (h : fu1_in ⊏ gateOut Bool.xor xu1_a xu1_b) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b (gateOut Bool.xor xu1_a xu1_b) xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_fu1_in := gateOut_mono _ Hψ.w_xu1_a Hψ.w_xu1_b }
-
-theorem int_28 (h : xu0_a ⊏ fu1_in) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in (fu1_in) xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_xu0_a := Hψ.w_fu1_in }
-
-theorem int_29 (h : xu0_b ⊏ List.map (fun x => x.q2.getLsbD 0) unp_st) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a (List.map (fun x => x.q2.getLsbD 0) unp_st) xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_xu0_b := (by rw [Hψ.e_unp_st]; exact List.prefix_rfl) }
-
-theorem int_30 (h : xe2_a ⊏ fpc_in) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b (fpc_in) xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_xe2_a := Hψ.w_fpc_in }
-
-theorem int_31 (h : xe2_b ⊏ fq2_in) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a (fq2_in) xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_xe2_b := Hψ.w_fq2_in }
-
-theorem int_32 (h : xe1_a ⊏ fpb_in) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b (fpb_in) xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_xe1_a := Hψ.w_fpb_in }
-
-theorem int_33 (h : xe1_b ⊏ fu1_in) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a (fu1_in) xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_xe1_b := Hψ.w_fu1_in }
-
-theorem int_34 (h : xe0_a ⊏ fpa_in) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b (fpa_in) xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_xe0_a := Hψ.w_fpa_in }
-
-theorem int_35 (h : xe0_b ⊏ gateOut Bool.xor xu0_a xu0_b) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a (gateOut Bool.xor xu0_a xu0_b) ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_xe0_b := gateOut_mono _ Hψ.w_xu0_a Hψ.w_xu0_b }
-
-theorem int_36 (h : ae_a ⊏ gateOut (fun a b => a == b) xe2_a xe2_b) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b (gateOut (fun a b => a == b) xe2_a xe2_b) ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_ae_a := gateOut_mono _ Hψ.w_xe2_a Hψ.w_xe2_b }
-
-theorem int_37 (h : ae_b ⊏ gateOut (fun a b => a == b) xe1_a xe1_b) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a (gateOut (fun a b => a == b) xe1_a xe1_b) am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_ae_b := gateOut_mono _ Hψ.w_xe1_a Hψ.w_xe1_b }
-
-theorem int_38 (h : am_a ⊏ gateOut Bool.and ae_a ae_b) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b (gateOut Bool.and ae_a ae_b) am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_am_a := gateOut_mono _ Hψ.w_ae_a Hψ.w_ae_b }
-
-theorem int_39 (h : am_b ⊏ gateOut (fun a b => a == b) xe0_a xe0_b) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a (gateOut (fun a b => a == b) xe0_a xe0_b) pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_am_b := gateOut_mono _ Hψ.w_xe0_a Hψ.w_xe0_b }
-
-theorem int_40 (h : pk_p0 ⊏ fpa_in) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b (fpa_in) pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with
-    w_pk_p0 := Hψ.w_fpa_in
-    d_hist := Hψ.d_hist.trans (packROut_mono' h.isPrefix List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl) }
-
-theorem int_41 (h : pk_p1 ⊏ fpb_in) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 (fpb_in) pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with
-    w_pk_p1 := Hψ.w_fpb_in
-    d_hist := Hψ.d_hist.trans (packROut_mono' List.prefix_rfl h.isPrefix List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl) }
-
-theorem int_42 (h : pk_p2 ⊏ fpc_in) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 (fpc_in) pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with
-    w_pk_p2 := Hψ.w_fpc_in
-    d_hist := Hψ.d_hist.trans (packROut_mono' List.prefix_rfl List.prefix_rfl h.isPrefix List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl) }
-
-theorem int_43 (h : pk_em ⊏ gateOut Bool.and am_a am_b) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 (gateOut Bool.and am_a am_b) pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with
-    w_pk_em := gateOut_mono _ Hψ.w_am_a Hψ.w_am_b
-    d_hist := Hψ.d_hist.trans (packROut_mono' List.prefix_rfl List.prefix_rfl List.prefix_rfl h.isPrefix List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl) }
-
-theorem int_44 (h : fq1_in ⊏ List.map (fun x => x.getLsbD 0) unp_q1) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in (List.map (fun x => x.getLsbD 0) unp_q1) xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with w_fq1_in := (by rw [Hψ.e_unp_q1]; exact List.prefix_rfl) }
-
-theorem int_45 (h : pk_q0 ⊏ fq1_in) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em (fq1_in) pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with
-    w_pk_q0 := Hψ.w_fq1_in
-    d_hist := Hψ.d_hist.trans (packROut_mono' List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl h.isPrefix List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl) }
-
-theorem int_46 (h : pk_q1 ⊏ List.map (fun x => x.getLsbD 1) unp_q1) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 (List.map (fun x => x.getLsbD 1) unp_q1) pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with
-    w_pk_q1 := (by rw [Hψ.e_unp_q1]; exact List.prefix_rfl)
-    d_hist := Hψ.d_hist.trans (packROut_mono' List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl h.isPrefix List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl) }
-
-theorem int_47 (h : pk_q2 ⊏ List.map (fun x => x.getLsbD 2) unp_q1) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 (List.map (fun x => x.getLsbD 2) unp_q1) pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with
-    w_pk_q2 := (by rw [Hψ.e_unp_q1]; exact List.prefix_rfl)
-    d_hist := Hψ.d_hist.trans (packROut_mono' List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl h.isPrefix List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl) }
-
-theorem int_48 (h : pk_g0 ⊏ gateOut Bool.xor xg0_a xg0_b) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 (gateOut Bool.xor xg0_a xg0_b) pk_g1 pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with
-    w_pk_g0 := gateOut_mono _ Hψ.w_xg0_a Hψ.w_xg0_b
-    d_hist := Hψ.d_hist.trans (packROut_mono' List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl h.isPrefix List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl) }
-
-theorem int_49 (h : pk_g1 ⊏ gateOut Bool.xor xg1_a xg1_b) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 (gateOut Bool.xor xg1_a xg1_b) pk_g2 pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with
-    w_pk_g1 := gateOut_mono _ Hψ.w_xg1_a Hψ.w_xg1_b
-    d_hist := Hψ.d_hist.trans (packROut_mono' List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl h.isPrefix List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl) }
-
-theorem int_50 (h : pk_g2 ⊏ fpc_in) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 (fpc_in) pk_r1 pk_r2 pk_r3 sp :=
-  { Hψ with
-    w_pk_g2 := Hψ.w_fpc_in
-    d_hist := Hψ.d_hist.trans (packROut_mono' List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl h.isPrefix List.prefix_rfl List.prefix_rfl List.prefix_rfl) }
-
-theorem int_51 (h : pk_r1 ⊏ fp0_in) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 (fp0_in) pk_r2 pk_r3 sp :=
-  { Hψ with
-    w_pk_r1 := Hψ.w_fp0_in
-    d_hist := Hψ.d_hist.trans (packROut_mono' List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl h.isPrefix List.prefix_rfl List.prefix_rfl) }
-
-theorem int_52 (h : pk_r2 ⊏ finc_in) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 (finc_in) pk_r3 sp :=
-  { Hψ with
-    w_pk_r2 := (Hψ.e_finc_in ▸ List.prefix_rfl)
-    d_hist := Hψ.d_hist.trans (packROut_mono' List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl h.isPrefix List.prefix_rfl) }
-
-theorem int_53 (h : pk_r3 ⊏ fq1_in) :
-    Psi unp_st unp_q1 nem_a finc_in ok_a ok_b fok_in fp0_in fp1_in fq1_in xp0_a xp0_b cp0_a cp0_b fc0_in xp1_a xp1_b cp1_a cp1_b xp2_a xp2_b fpa_in fpb_in fpc_in xg0_a xg0_b xg1_a xg1_b fq2_in xu1_a xu1_b fu1_in xu0_a xu0_b xe2_a xe2_b xe1_a xe1_b xe0_a xe0_b ae_a ae_b am_a am_b pk_p0 pk_p1 pk_p2 pk_em pk_q0 pk_q1 pk_q2 pk_g0 pk_g1 pk_g2 pk_r1 pk_r2 (fq1_in) sp :=
-  { Hψ with
-    w_pk_r3 := Hψ.w_fq1_in
-    d_hist := Hψ.d_hist.trans (packROut_mono' List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl h.isPrefix) }
-
-end Cases
-
-/-! ### One lemma per internal rule
-
-The reduced module lists its internal rules in the order of the netlist's wires, so rule `k`
-transfers wire `k`.  Each case is its own declaration: handling all of them in one proof keeps
-52 goals over 56-component states alive at once and exhausts memory.  Inside a case, the rule
-is applied to `rfl` to discharge its trivial type-equality guard, instead of simplifying the
-guard away, which would traverse the whole rule body; the original hypothesis is cleared, since
-it still holds all 52 rules and every `subst` would otherwise rewrite it. -/
-
-theorem int_case_0 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 0 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_0 Hψ ‹_›⟩
-
-theorem int_case_1 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 1 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_1 Hψ ‹_›⟩
-
-theorem int_case_2 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 2 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_2 Hψ ‹_›⟩
-
-theorem int_case_3 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 3 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_3 Hψ ‹_›⟩
-
-theorem int_case_4 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 4 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_4 Hψ ‹_›⟩
-
-theorem int_case_5 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 5 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_5 Hψ ‹_›⟩
-
-theorem int_case_6 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 6 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_6 Hψ ‹_›⟩
-
-theorem int_case_7 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 7 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_7 Hψ ‹_›⟩
-
-theorem int_case_8 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 8 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_8 Hψ ‹_›⟩
-
-theorem int_case_9 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 9 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_9 Hψ ‹_›⟩
-
-theorem int_case_10 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 10 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_10 Hψ ‹_›⟩
-
-theorem int_case_11 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 11 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_11 Hψ ‹_›⟩
-
-theorem int_case_12 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 12 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_12 Hψ ‹_›⟩
-
-theorem int_case_13 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 13 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_13 Hψ ‹_›⟩
-
-theorem int_case_14 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 14 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_14 Hψ ‹_›⟩
-
-theorem int_case_15 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 15 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_15 Hψ ‹_›⟩
-
-theorem int_case_16 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 16 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_16 Hψ ‹_›⟩
-
-theorem int_case_17 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 17 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_17 Hψ ‹_›⟩
-
-theorem int_case_18 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 18 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_18 Hψ ‹_›⟩
-
-theorem int_case_19 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 19 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_19 Hψ ‹_›⟩
-
-theorem int_case_20 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 20 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_20 Hψ ‹_›⟩
-
-theorem int_case_21 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 21 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_21 Hψ ‹_›⟩
-
-theorem int_case_22 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 22 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_22 Hψ ‹_›⟩
-
-theorem int_case_23 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 23 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_23 Hψ ‹_›⟩
-
-theorem int_case_24 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 24 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_24 Hψ ‹_›⟩
-
-theorem int_case_25 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 25 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_25 Hψ ‹_›⟩
-
-theorem int_case_26 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 26 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_26 Hψ ‹_›⟩
-
-theorem int_case_27 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 27 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_27 Hψ ‹_›⟩
-
-theorem int_case_28 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 28 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_28 Hψ ‹_›⟩
-
-theorem int_case_29 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 29 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_29 Hψ ‹_›⟩
-
-theorem int_case_30 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 30 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_30 Hψ ‹_›⟩
-
-theorem int_case_31 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 31 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_31 Hψ ‹_›⟩
-
-theorem int_case_32 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 32 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_32 Hψ ‹_›⟩
-
-theorem int_case_33 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 33 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_33 Hψ ‹_›⟩
-
-theorem int_case_34 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 34 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_34 Hψ ‹_›⟩
-
-theorem int_case_35 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 35 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_35 Hψ ‹_›⟩
-
-theorem int_case_36 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 36 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_36 Hψ ‹_›⟩
-
-theorem int_case_37 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 37 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_37 Hψ ‹_›⟩
-
-theorem int_case_38 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 38 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_38 Hψ ‹_›⟩
-
-theorem int_case_39 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 39 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_39 Hψ ‹_›⟩
-
-theorem int_case_40 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 40 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_40 Hψ ‹_›⟩
-
-theorem int_case_41 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 41 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_41 Hψ ‹_›⟩
-
-theorem int_case_42 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 42 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_42 Hψ ‹_›⟩
-
-theorem int_case_43 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 43 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_43 Hψ ‹_›⟩
-
-theorem int_case_44 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 44 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_44 Hψ ‹_›⟩
-
-theorem int_case_45 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 45 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_45 Hψ ‹_›⟩
-
-theorem int_case_46 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 46 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_46 Hψ ‹_›⟩
-
-theorem int_case_47 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 47 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_47 Hψ ‹_›⟩
-
-theorem int_case_48 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 48 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_48 Hψ ‹_›⟩
-
-theorem int_case_49 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 49 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_49 Hψ ‹_›⟩
-
-theorem int_case_50 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 50 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_50 Hψ ‹_›⟩
-
-theorem int_case_51 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 51 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_51 Hψ ‹_›⟩
-
-theorem int_case_52 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 52 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_52 Hψ ‹_›⟩
-
-theorem int_case_53 (s : RNextSt 2) (i mid : gateNextRT) (Hψ : ψ i s)
-    (Hrule : (gateNextR.internals.getD 53 (fun _ _ => False)) i mid) :
-    ∃ s', existSR (rnextBlock (n := 2) 0 8).internals s s' ∧ ψ mid s' := by
-  obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-  obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid
-  dsimp only [ψ] at Hψ ⊢
-  have H := Hrule.1 rfl
-  clear Hrule
-  obtain ⟨⟨⟨c_unp_st, c_unp_q1⟩, c_nem_a, c_finc_in, ⟨c_ok_a, c_ok_b⟩, c_fok_in, c_fp0_in, c_fp1_in, c_fq1_in, ⟨c_xp0_a, c_xp0_b⟩, ⟨c_cp0_a, c_cp0_b⟩, c_fc0_in, ⟨c_xp1_a, c_xp1_b⟩, ⟨c_cp1_a, c_cp1_b⟩, ⟨c_xp2_a, c_xp2_b⟩, c_fpa_in, c_fpb_in, c_fpc_in, ⟨c_xg0_a, c_xg0_b⟩, ⟨c_xg1_a, c_xg1_b⟩, c_fq2_in, ⟨c_xu1_a, c_xu1_b⟩, c_fu1_in, ⟨c_xu0_a, c_xu0_b⟩, ⟨c_xe2_a, c_xe2_b⟩, ⟨c_xe1_a, c_xe1_b⟩, ⟨c_xe0_a, c_xe0_b⟩, ⟨c_ae_a, c_ae_b⟩, ⟨c_am_a, c_am_b⟩, ⟨c_pk_p0, c_pk_p1, c_pk_p2, c_pk_em, c_pk_q0, c_pk_q1, c_pk_q2, c_pk_g0, c_pk_g1, c_pk_g2, c_pk_r1, c_pk_r2, c_pk_r3⟩⟩, out, Hrule⟩ := H
-  simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc, and_true, true_and] at Hrule
-  repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-  exact ⟨s, existSR_reflexive, int_53 Hψ ‹_›⟩
-
-/-- The internal rules, each named by its index: membership then splits over small terms instead
-of the 52 rule bodies. -/
-theorem gateNextR_internals_eq : gateNextR.internals = [gateNextR.internals.getD 0 (fun _ _ => False), gateNextR.internals.getD 1 (fun _ _ => False), gateNextR.internals.getD 2 (fun _ _ => False), gateNextR.internals.getD 3 (fun _ _ => False), gateNextR.internals.getD 4 (fun _ _ => False), gateNextR.internals.getD 5 (fun _ _ => False), gateNextR.internals.getD 6 (fun _ _ => False), gateNextR.internals.getD 7 (fun _ _ => False), gateNextR.internals.getD 8 (fun _ _ => False), gateNextR.internals.getD 9 (fun _ _ => False), gateNextR.internals.getD 10 (fun _ _ => False), gateNextR.internals.getD 11 (fun _ _ => False), gateNextR.internals.getD 12 (fun _ _ => False), gateNextR.internals.getD 13 (fun _ _ => False), gateNextR.internals.getD 14 (fun _ _ => False), gateNextR.internals.getD 15 (fun _ _ => False), gateNextR.internals.getD 16 (fun _ _ => False), gateNextR.internals.getD 17 (fun _ _ => False), gateNextR.internals.getD 18 (fun _ _ => False), gateNextR.internals.getD 19 (fun _ _ => False), gateNextR.internals.getD 20 (fun _ _ => False), gateNextR.internals.getD 21 (fun _ _ => False), gateNextR.internals.getD 22 (fun _ _ => False), gateNextR.internals.getD 23 (fun _ _ => False), gateNextR.internals.getD 24 (fun _ _ => False), gateNextR.internals.getD 25 (fun _ _ => False), gateNextR.internals.getD 26 (fun _ _ => False), gateNextR.internals.getD 27 (fun _ _ => False), gateNextR.internals.getD 28 (fun _ _ => False), gateNextR.internals.getD 29 (fun _ _ => False), gateNextR.internals.getD 30 (fun _ _ => False), gateNextR.internals.getD 31 (fun _ _ => False), gateNextR.internals.getD 32 (fun _ _ => False), gateNextR.internals.getD 33 (fun _ _ => False), gateNextR.internals.getD 34 (fun _ _ => False), gateNextR.internals.getD 35 (fun _ _ => False), gateNextR.internals.getD 36 (fun _ _ => False), gateNextR.internals.getD 37 (fun _ _ => False), gateNextR.internals.getD 38 (fun _ _ => False), gateNextR.internals.getD 39 (fun _ _ => False), gateNextR.internals.getD 40 (fun _ _ => False), gateNextR.internals.getD 41 (fun _ _ => False), gateNextR.internals.getD 42 (fun _ _ => False), gateNextR.internals.getD 43 (fun _ _ => False), gateNextR.internals.getD 44 (fun _ _ => False), gateNextR.internals.getD 45 (fun _ _ => False), gateNextR.internals.getD 46 (fun _ _ => False), gateNextR.internals.getD 47 (fun _ _ => False), gateNextR.internals.getD 48 (fun _ _ => False), gateNextR.internals.getD 49 (fun _ _ => False), gateNextR.internals.getD 50 (fun _ _ => False), gateNextR.internals.getD 51 (fun _ _ => False), gateNextR.internals.getD 52 (fun _ _ => False), gateNextR.internals.getD 53 (fun _ _ => False)] := rfl
+/-! ### The refinement -/
 
 set_option maxHeartbeats 1000000 in
-theorem refines_ψ : gateNextR ⊑_{ψ} rnextBlock (n := 2) 0 8 := by
-  intro i s Hψ
+theorem refines_ψ : gateNextR ⊑_{ψ} (rnextBlock (n := 2) 0 8) := by
+  intro i s H
   constructor
   · intro ident mid_i v Hrule
     obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-    dsimp only [ψ] at Hψ
-    obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid_i
-    case_transition Hcontains : Module.inputs gateNextR, ident, (PortMap.getIO_not_contained_false' Hrule)
+    obtain ⟨⟨_, _⟩, _, _, ⟨_, _⟩, _, _, _, _, ⟨_, _⟩, ⟨_, _⟩, _, ⟨_, _⟩, ⟨_, _⟩, ⟨_, _⟩, _, _, _, ⟨_, _⟩, ⟨_, _⟩, _, ⟨_, _⟩, _, ⟨_, _⟩, ⟨_, _⟩, ⟨_, _⟩, ⟨_, _⟩, ⟨_, _⟩, ⟨_, _⟩, ⟨_, _, _, _, _, _, _, _, _, _, _, _, _⟩⟩ := mid_i
+    obtain ⟨hw, e0, e1, e2, hd⟩ := H
+    try dsimp only [] at e0
+    try dsimp only [] at e1
+    try dsimp only [] at e2
+    case_transition Hcontains : Module.inputs gateNextR, ident,
+      (PortMap.getIO_not_contained_false' Hrule)
     dsimp only [gateNextR] at Hcontains
     simp at Hcontains
-    rcases Hcontains with h | h | h
-    all_goals subst h
-    all_goals rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at Hrule
-    all_goals dsimp only at Hrule
-    all_goals simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc] at Hrule
-    all_goals repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
+    rcases Hcontains with h | h | h <;> subst h <;>
+      rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at Hrule <;>
+      dsimp only at Hrule <;>
+      simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc] at Hrule <;>
+      obtain ⟨hpre, Hrule⟩ := Hrule <;>
+      repeat' (obtain ⟨hh, Hrule⟩ := Hrule; try subst hh)
+    all_goals simp only [eq_mp_eq_cast] at hpre
+    all_goals dsimp only [wires] at hd
+    -- Both pieces are carried across pointwise; see `NetlistWf.lean` for why.
     all_goals first
-      | exact ⟨_, _, spec_in_st s _ (by rw [← Hψ.e_unp_st]; assumption), existSR_reflexive, in_st Hψ _ ‹_›⟩
-      | exact ⟨_, _, spec_in_inc s _ (by rw [← Hψ.e_finc_in]; assumption), existSR_reflexive, in_inc Hψ _ ‹_›⟩
-      | exact ⟨_, _, spec_in_q1 s _ (by rw [← Hψ.e_unp_q1]; assumption), existSR_reflexive, in_q1 Hψ _ ‹_›⟩
+      | (refine ⟨_, _, spec_in_st s _ (by rw [← e0]; exact hpre), existSR_reflexive,
+             ?wf, rfl, e1, e2, ?hist⟩
+         case wf =>
+           exact Wf_congr drv_mono (Wf_drv hw (drv_env s (by rw [← e0]; exact hpre.isPrefix) List.prefix_rfl List.prefix_rfl _))
+             (by gn_same) (by gn_same)
+         case hist => exact hd.trans (packROut_mono' List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl))
+      | (refine ⟨_, _, spec_in_q1 s _ (by rw [← e1]; exact hpre), existSR_reflexive,
+             ?wf, e0, rfl, e2, ?hist⟩
+         case wf =>
+           exact Wf_congr drv_mono (Wf_drv hw (drv_env s List.prefix_rfl List.prefix_rfl (by rw [← e1]; exact hpre.isPrefix) _))
+             (by gn_same) (by gn_same)
+         case hist => exact hd.trans (packROut_mono' List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl))
+      | (refine ⟨_, _, spec_in_inc s _ (by rw [← e2]; exact hpre), existSR_reflexive,
+             ?wf, e0, e1, rfl, ?hist⟩
+         case wf =>
+           exact Wf_congr drv_mono (Wf_drv hw (drv_env s List.prefix_rfl (by rw [← e2]; exact hpre.isPrefix) List.prefix_rfl _))
+             (by gn_same) (by gn_same)
+         case hist => exact hd.trans (packROut_mono' List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl List.prefix_rfl))
   · intro ident mid_i v Hrule
     obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
-    dsimp only [ψ] at Hψ
-    obtain ⟨⟨m_unp_st, m_unp_q1⟩, m_nem_a, m_finc_in, ⟨m_ok_a, m_ok_b⟩, m_fok_in, m_fp0_in, m_fp1_in, m_fq1_in, ⟨m_xp0_a, m_xp0_b⟩, ⟨m_cp0_a, m_cp0_b⟩, m_fc0_in, ⟨m_xp1_a, m_xp1_b⟩, ⟨m_cp1_a, m_cp1_b⟩, ⟨m_xp2_a, m_xp2_b⟩, m_fpa_in, m_fpb_in, m_fpc_in, ⟨m_xg0_a, m_xg0_b⟩, ⟨m_xg1_a, m_xg1_b⟩, m_fq2_in, ⟨m_xu1_a, m_xu1_b⟩, m_fu1_in, ⟨m_xu0_a, m_xu0_b⟩, ⟨m_xe2_a, m_xe2_b⟩, ⟨m_xe1_a, m_xe1_b⟩, ⟨m_xe0_a, m_xe0_b⟩, ⟨m_ae_a, m_ae_b⟩, ⟨m_am_a, m_am_b⟩, ⟨m_pk_p0, m_pk_p1, m_pk_p2, m_pk_em, m_pk_q0, m_pk_q1, m_pk_q2, m_pk_g0, m_pk_g1, m_pk_g2, m_pk_r1, m_pk_r2, m_pk_r3⟩⟩ := mid_i
-    case_transition Hcontains : Module.outputs gateNextR, ident, (PortMap.getIO_not_contained_false' Hrule)
+    obtain ⟨⟨_, _⟩, _, _, ⟨_, _⟩, _, _, _, _, ⟨_, _⟩, ⟨_, _⟩, _, ⟨_, _⟩, ⟨_, _⟩, ⟨_, _⟩, _, _, _, ⟨_, _⟩, ⟨_, _⟩, _, ⟨_, _⟩, _, ⟨_, _⟩, ⟨_, _⟩, ⟨_, _⟩, ⟨_, _⟩, ⟨_, _⟩, ⟨_, _⟩, ⟨_, _, _, _, _, _, _, _, _, _, _, _, _⟩⟩ := mid_i
+    obtain ⟨hw, e0, e1, e2, hd⟩ := H
+    try dsimp only [] at e0
+    try dsimp only [] at e1
+    try dsimp only [] at e2
+    have ho := out_comb hw
+    dsimp only [wires] at ho hd
+    case_transition Hcontains : Module.outputs gateNextR, ident,
+      (PortMap.getIO_not_contained_false' Hrule)
     dsimp only [gateNextR] at Hcontains
     simp at Hcontains
     subst Hcontains
     rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])] at Hrule
     dsimp only at Hrule
     simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc] at Hrule
-    repeat' (obtain ⟨h, Hrule⟩ := Hrule; try subst h)
-    exact ⟨s, _, existSR_reflexive, spec_out_d s _ Hψ.d_hist (out_comb Hψ), out_psi Hψ⟩
+    repeat' (obtain ⟨hh, Hrule⟩ := Hrule; try subst hh)
+    exact ⟨s, _, existSR_reflexive, spec_out_d s _ hd ho,
+      hw, e0, e1, e2, List.prefix_rfl⟩
   · intro rule mid_i Hin Hrule
     rw [gateNextR_internals_eq] at Hin
     simp only [List.mem_cons, List.not_mem_nil, or_false] at Hin
     rcases Hin with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h
-    · subst h; exact int_case_0 s i mid_i Hψ Hrule
-    · subst h; exact int_case_1 s i mid_i Hψ Hrule
-    · subst h; exact int_case_2 s i mid_i Hψ Hrule
-    · subst h; exact int_case_3 s i mid_i Hψ Hrule
-    · subst h; exact int_case_4 s i mid_i Hψ Hrule
-    · subst h; exact int_case_5 s i mid_i Hψ Hrule
-    · subst h; exact int_case_6 s i mid_i Hψ Hrule
-    · subst h; exact int_case_7 s i mid_i Hψ Hrule
-    · subst h; exact int_case_8 s i mid_i Hψ Hrule
-    · subst h; exact int_case_9 s i mid_i Hψ Hrule
-    · subst h; exact int_case_10 s i mid_i Hψ Hrule
-    · subst h; exact int_case_11 s i mid_i Hψ Hrule
-    · subst h; exact int_case_12 s i mid_i Hψ Hrule
-    · subst h; exact int_case_13 s i mid_i Hψ Hrule
-    · subst h; exact int_case_14 s i mid_i Hψ Hrule
-    · subst h; exact int_case_15 s i mid_i Hψ Hrule
-    · subst h; exact int_case_16 s i mid_i Hψ Hrule
-    · subst h; exact int_case_17 s i mid_i Hψ Hrule
-    · subst h; exact int_case_18 s i mid_i Hψ Hrule
-    · subst h; exact int_case_19 s i mid_i Hψ Hrule
-    · subst h; exact int_case_20 s i mid_i Hψ Hrule
-    · subst h; exact int_case_21 s i mid_i Hψ Hrule
-    · subst h; exact int_case_22 s i mid_i Hψ Hrule
-    · subst h; exact int_case_23 s i mid_i Hψ Hrule
-    · subst h; exact int_case_24 s i mid_i Hψ Hrule
-    · subst h; exact int_case_25 s i mid_i Hψ Hrule
-    · subst h; exact int_case_26 s i mid_i Hψ Hrule
-    · subst h; exact int_case_27 s i mid_i Hψ Hrule
-    · subst h; exact int_case_28 s i mid_i Hψ Hrule
-    · subst h; exact int_case_29 s i mid_i Hψ Hrule
-    · subst h; exact int_case_30 s i mid_i Hψ Hrule
-    · subst h; exact int_case_31 s i mid_i Hψ Hrule
-    · subst h; exact int_case_32 s i mid_i Hψ Hrule
-    · subst h; exact int_case_33 s i mid_i Hψ Hrule
-    · subst h; exact int_case_34 s i mid_i Hψ Hrule
-    · subst h; exact int_case_35 s i mid_i Hψ Hrule
-    · subst h; exact int_case_36 s i mid_i Hψ Hrule
-    · subst h; exact int_case_37 s i mid_i Hψ Hrule
-    · subst h; exact int_case_38 s i mid_i Hψ Hrule
-    · subst h; exact int_case_39 s i mid_i Hψ Hrule
-    · subst h; exact int_case_40 s i mid_i Hψ Hrule
-    · subst h; exact int_case_41 s i mid_i Hψ Hrule
-    · subst h; exact int_case_42 s i mid_i Hψ Hrule
-    · subst h; exact int_case_43 s i mid_i Hψ Hrule
-    · subst h; exact int_case_44 s i mid_i Hψ Hrule
-    · subst h; exact int_case_45 s i mid_i Hψ Hrule
-    · subst h; exact int_case_46 s i mid_i Hψ Hrule
-    · subst h; exact int_case_47 s i mid_i Hψ Hrule
-    · subst h; exact int_case_48 s i mid_i Hψ Hrule
-    · subst h; exact int_case_49 s i mid_i Hψ Hrule
-    · subst h; exact int_case_50 s i mid_i Hψ Hrule
-    · subst h; exact int_case_51 s i mid_i Hψ Hrule
-    · subst h; exact int_case_52 s i mid_i Hψ Hrule
-    · subst h; exact int_case_53 s i mid_i Hψ Hrule
+    · subst h; exact case_0 s i mid_i H Hrule
+    · subst h; exact case_1 s i mid_i H Hrule
+    · subst h; exact case_2 s i mid_i H Hrule
+    · subst h; exact case_3 s i mid_i H Hrule
+    · subst h; exact case_4 s i mid_i H Hrule
+    · subst h; exact case_5 s i mid_i H Hrule
+    · subst h; exact case_6 s i mid_i H Hrule
+    · subst h; exact case_7 s i mid_i H Hrule
+    · subst h; exact case_8 s i mid_i H Hrule
+    · subst h; exact case_9 s i mid_i H Hrule
+    · subst h; exact case_10 s i mid_i H Hrule
+    · subst h; exact case_11 s i mid_i H Hrule
+    · subst h; exact case_12 s i mid_i H Hrule
+    · subst h; exact case_13 s i mid_i H Hrule
+    · subst h; exact case_14 s i mid_i H Hrule
+    · subst h; exact case_15 s i mid_i H Hrule
+    · subst h; exact case_16 s i mid_i H Hrule
+    · subst h; exact case_17 s i mid_i H Hrule
+    · subst h; exact case_18 s i mid_i H Hrule
+    · subst h; exact case_19 s i mid_i H Hrule
+    · subst h; exact case_20 s i mid_i H Hrule
+    · subst h; exact case_21 s i mid_i H Hrule
+    · subst h; exact case_22 s i mid_i H Hrule
+    · subst h; exact case_23 s i mid_i H Hrule
+    · subst h; exact case_24 s i mid_i H Hrule
+    · subst h; exact case_25 s i mid_i H Hrule
+    · subst h; exact case_26 s i mid_i H Hrule
+    · subst h; exact case_27 s i mid_i H Hrule
+    · subst h; exact case_28 s i mid_i H Hrule
+    · subst h; exact case_29 s i mid_i H Hrule
+    · subst h; exact case_30 s i mid_i H Hrule
+    · subst h; exact case_31 s i mid_i H Hrule
+    · subst h; exact case_32 s i mid_i H Hrule
+    · subst h; exact case_33 s i mid_i H Hrule
+    · subst h; exact case_34 s i mid_i H Hrule
+    · subst h; exact case_35 s i mid_i H Hrule
+    · subst h; exact case_36 s i mid_i H Hrule
+    · subst h; exact case_37 s i mid_i H Hrule
+    · subst h; exact case_38 s i mid_i H Hrule
+    · subst h; exact case_39 s i mid_i H Hrule
+    · subst h; exact case_40 s i mid_i H Hrule
+    · subst h; exact case_41 s i mid_i H Hrule
+    · subst h; exact case_42 s i mid_i H Hrule
+    · subst h; exact case_43 s i mid_i H Hrule
+    · subst h; exact case_44 s i mid_i H Hrule
+    · subst h; exact case_45 s i mid_i H Hrule
+    · subst h; exact case_46 s i mid_i H Hrule
+    · subst h; exact case_47 s i mid_i H Hrule
+    · subst h; exact case_48 s i mid_i H Hrule
+    · subst h; exact case_49 s i mid_i H Hrule
+    · subst h; exact case_50 s i mid_i H Hrule
+    · subst h; exact case_51 s i mid_i H Hrule
+    · subst h; exact case_52 s i mid_i H Hrule
+    · subst h; exact case_53 s i mid_i H Hrule
 
-set_option maxHeartbeats 1000000 in
 theorem refines_initial : Module.refines_initial gateNextR (rnextBlock (n := 2) 0 8) ψ := by
   intro i hi
   obtain ⟨⟨unp_st, unp_q1⟩, nem_a, finc_in, ⟨ok_a, ok_b⟩, fok_in, fp0_in, fp1_in, fq1_in, ⟨xp0_a, xp0_b⟩, ⟨cp0_a, cp0_b⟩, fc0_in, ⟨xp1_a, xp1_b⟩, ⟨cp1_a, cp1_b⟩, ⟨xp2_a, xp2_b⟩, fpa_in, fpb_in, fpc_in, ⟨xg0_a, xg0_b⟩, ⟨xg1_a, xg1_b⟩, fq2_in, ⟨xu1_a, xu1_b⟩, fu1_in, ⟨xu0_a, xu0_b⟩, ⟨xe2_a, xe2_b⟩, ⟨xe1_a, xe1_b⟩, ⟨xe0_a, xe0_b⟩, ⟨ae_a, ae_b⟩, ⟨am_a, am_b⟩, ⟨pk_p0, pk_p1, pk_p2, pk_em, pk_q0, pk_q1, pk_q2, pk_g0, pk_g1, pk_g2, pk_r1, pk_r2, pk_r3⟩⟩ := i
   dsimp only [gateNextR] at hi
   simp only [Prod.mk.injEq, PackSt.mk.injEq, and_assoc] at hi
   obtain ⟨rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩ := hi
-  exact ⟨⟨[], [], [], []⟩, rfl, Psi.init⟩
+  refine ⟨_, rfl, ?_, rfl, rfl, rfl, List.nil_prefix⟩
+  intro k; cases k <;> exact List.nil_prefix
 
-/-- **The gate netlist refines the timed next-state block** with delay window `[0, 8]`. -/
-theorem gateNextR_refines : gateNextR ⊑ rnextBlock (n := 2) 0 8 :=
+/-- **The gates refine the next-state block.** -/
+theorem gateNextR_refines : gateNextR ⊑ (rnextBlock (n := 2) 0 8) :=
   ⟨inferInstance, ψ, refines_ψ, refines_initial⟩
 
 end Graphiti.AsyncFifo.GateNextR
