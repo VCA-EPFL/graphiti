@@ -261,7 +261,11 @@ macro_rules
           (upd_ge (k := $w) (‹_ ⊏ _›).isPrefix _) (upd_ge (k := $w) (‹_ ⊏ _›).isPrefix _))
         revert key; simp [wires, upd]))
 
-theorem busNetlist_internals_eq : busNetlist.internals = [busNetlist.internals.getD 0 (fun _ _ => False), busNetlist.internals.getD 1 (fun _ _ => False), busNetlist.internals.getD 2 (fun _ _ => False), busNetlist.internals.getD 3 (fun _ _ => False), busNetlist.internals.getD 4 (fun _ _ => False), busNetlist.internals.getD 5 (fun _ _ => False), busNetlist.internals.getD 6 (fun _ _ => False), busNetlist.internals.getD 7 (fun _ _ => False), busNetlist.internals.getD 8 (fun _ _ => False), busNetlist.internals.getD 9 (fun _ _ => False), busNetlist.internals.getD 10 (fun _ _ => False), busNetlist.internals.getD 11 (fun _ _ => False)] := rfl
+theorem busNetlist_internals_eq : busNetlist.internals =
+    [busNetlist.internals.getD 0 (fun _ _ => False), busNetlist.internals.getD 1 (fun _ _ => False), busNetlist.internals.getD 2 (fun _ _ => False),
+     busNetlist.internals.getD 3 (fun _ _ => False), busNetlist.internals.getD 4 (fun _ _ => False), busNetlist.internals.getD 5 (fun _ _ => False),
+     busNetlist.internals.getD 6 (fun _ _ => False), busNetlist.internals.getD 7 (fun _ _ => False), busNetlist.internals.getD 8 (fun _ _ => False),
+     busNetlist.internals.getD 9 (fun _ _ => False), busNetlist.internals.getD 10 (fun _ _ => False), busNetlist.internals.getD 11 (fun _ _ => False)] := rfl
 
 /-! All twelve connections, one line each. -/
 

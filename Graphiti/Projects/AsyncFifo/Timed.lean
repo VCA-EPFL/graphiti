@@ -770,6 +770,9 @@ abbrev wdomTimedT : Type :=
     List Bool × NextSt α n × RegSt α n
 
 omit [Inhabited α] in
+/-- A compiled check, not a step of any proof: the type `def_module` reduces the graph to
+is the one written by hand above, so the hand-written `abbrev` — which every statement below
+names — cannot drift from the graph. -/
 theorem wdomTimedT_eq : wdomTimedT' α n = wdomTimedT α n := rfl
 
 seal wenv in
@@ -985,6 +988,9 @@ abbrev rdomTimedT : Type :=
     List Bool × RNextSt n × RDataSt α n × RRegSt n
 
 omit [Inhabited α] in
+/-- A compiled check, not a step of any proof: the type `def_module` reduces the graph to
+is the one written by hand above, so the hand-written `abbrev` — which every statement below
+names — cannot drift from the graph. -/
 theorem rdomTimedT_eq : rdomTimedT' α n = rdomTimedT α n := rfl
 
 seal renv in

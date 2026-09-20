@@ -131,6 +131,8 @@ def asyncFifoGraphT (α : Type) [Inhabited α] (n lat stl su kq rdly P_r S_r R_r
     rdom -> rdata [from="rdata"];
   ]
 
+/-- A compiled check, not a step of any proof: the timed graph has the same topology as the
+register-level one, so only the environment differs. -/
 theorem asyncFifoGraphT_lower :
     (asyncFifoGraphT Unit 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0).1.lower_TR = (asyncFifoGraph Unit 0 0 0 0).1.lower_TR := rfl
 

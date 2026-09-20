@@ -41,11 +41,6 @@ open Graphiti.AsyncFifo Graphiti.AsyncFifo.Gates Graphiti.AsyncFifo.Timed Graphi
 def syncGateOut (clk : List Bool) (d : List (BitVec 3)) (crn : List Bool) : List (BitVec 3) :=
   busOut clk (busOut clk d crn) crn
 
-theorem syncGateOut_mono {clk clk' : List Bool} {d d' : List (BitVec 3)} {crn crn' : List Bool}
-    (hc : clk <+: clk') (hd : d <+: d') (hr : crn <+: crn') :
-    syncGateOut clk d crn <+: syncGateOut clk' d' crn' :=
-  busOut_mono hc (busOut_mono hc hd hr) hr
-
 /-! ### The netlist -/
 
 def syncGraph := [graphEnv|
@@ -195,7 +190,9 @@ macro_rules
             | exact e3 ▸ List.prefix_rfl
             | (rw [← e2]; assumption)))
 
-theorem syncNetlist_internals_eq : syncNetlist.internals = [syncNetlist.internals.getD 0 (fun _ _ => False), syncNetlist.internals.getD 1 (fun _ _ => False), syncNetlist.internals.getD 2 (fun _ _ => False), syncNetlist.internals.getD 3 (fun _ _ => False), syncNetlist.internals.getD 4 (fun _ _ => False)] := rfl
+theorem syncNetlist_internals_eq : syncNetlist.internals =
+    [syncNetlist.internals.getD 0 (fun _ _ => False), syncNetlist.internals.getD 1 (fun _ _ => False), syncNetlist.internals.getD 2 (fun _ _ => False),
+     syncNetlist.internals.getD 3 (fun _ _ => False), syncNetlist.internals.getD 4 (fun _ _ => False)] := rfl
 
 /-! All five connections, one line each. -/
 

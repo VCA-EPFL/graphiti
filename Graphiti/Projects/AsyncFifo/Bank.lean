@@ -205,13 +205,6 @@ theorem bank_mem (H : BankOK clk d crn R) {v : List (BitVec 2 → Bool)}
   exact h.mono List.prefix_rfl (by unfold bankLen; omega) (fun u _ => rfl) (fun u _ => rfl)
     (fun u _ => rfl)
 
-/-- **The `full` flag** is a bit of the state register. -/
-theorem bank_full (H : BankOK clk d crn R) {q : List (WSt 2)}
-    (hq : q <+: StReg.stOut clk (stOf d) crn) :
-    ∃ p, RegOut 4 1 default clk (fun u => (d.getD u default).st) d.length p ∧
-      q.map (·.full) = p.map (·.full) :=
-  ⟨q, bank_st H hq, rfl⟩
-
 /-! ### The contracts, per instant
 
 The block files prove their contracts over a block's whole known history: the filters hold
@@ -360,12 +353,6 @@ theorem bank_memG (hR : 6 ≤ R) {v : List (BitVec 2 → Bool)}
     (fun u hu => by rw [(List.take_prefix t d).getD_eq_left hu])
     (by rw [List.length_take]; unfold bankLen at htb; omega) hdlen)
   rw [hp.getD_eq_left (by omega), hv.getD_eq_left ht]
-
-/-- **The `full` flag, per instant.** -/
-theorem bank_fullG (hR : 6 ≤ R) {q : List (WSt 2)} (hq : q <+: StReg.stOut clk (stOf d) crn) :
-    ∃ p, RegOutG 4 1 default (GateOK 12 3 (R + 3) R clk crn) clk (fun u => (d.getD u default).st)
-      d.length (bankLen clk d crn) p ∧ q.map (·.full) = p.map (·.full) :=
-  ⟨q, bank_stG hR hq, rfl⟩
 
 end PerInstant
 
@@ -610,7 +597,12 @@ macro_rules
       · dsimp only [wires] at h7 ⊢
         first | exact h7 | exact h7.trans ((‹_ ⊏ _›).isPrefix.map _)))
 
-theorem bankNetlist_internals_eq : bankNetlist.internals = [bankNetlist.internals.getD 0 (fun _ _ => False), bankNetlist.internals.getD 1 (fun _ _ => False), bankNetlist.internals.getD 2 (fun _ _ => False), bankNetlist.internals.getD 3 (fun _ _ => False), bankNetlist.internals.getD 4 (fun _ _ => False), bankNetlist.internals.getD 5 (fun _ _ => False), bankNetlist.internals.getD 6 (fun _ _ => False), bankNetlist.internals.getD 7 (fun _ _ => False), bankNetlist.internals.getD 8 (fun _ _ => False), bankNetlist.internals.getD 9 (fun _ _ => False), bankNetlist.internals.getD 10 (fun _ _ => False), bankNetlist.internals.getD 11 (fun _ _ => False), bankNetlist.internals.getD 12 (fun _ _ => False)] := rfl
+theorem bankNetlist_internals_eq : bankNetlist.internals =
+    [bankNetlist.internals.getD 0 (fun _ _ => False), bankNetlist.internals.getD 1 (fun _ _ => False), bankNetlist.internals.getD 2 (fun _ _ => False),
+     bankNetlist.internals.getD 3 (fun _ _ => False), bankNetlist.internals.getD 4 (fun _ _ => False), bankNetlist.internals.getD 5 (fun _ _ => False),
+     bankNetlist.internals.getD 6 (fun _ _ => False), bankNetlist.internals.getD 7 (fun _ _ => False), bankNetlist.internals.getD 8 (fun _ _ => False),
+     bankNetlist.internals.getD 9 (fun _ _ => False), bankNetlist.internals.getD 10 (fun _ _ => False), bankNetlist.internals.getD 11 (fun _ _ => False),
+     bankNetlist.internals.getD 12 (fun _ _ => False)] := rfl
 
 /-! All thirteen connections, one line each. -/
 

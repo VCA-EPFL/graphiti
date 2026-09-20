@@ -272,26 +272,6 @@ theorem wgray_sample (hc : ConsistentF lat stl su P_w P_r S_w S_r R_w R_r pw_w p
       obtain ⟨x, hx1, hx2, hx⟩ := sample_bit (lat := lat) (kq := kq) (u := t - su - 1) hv (by simp [enqM]) (fun _ => by lia) (by lia) i
       exact ⟨x, by lia, by lia, hx⟩
 
-/-- The last instant before `t` at which `Q` holds. -/
-theorem exists_lastQ {Q : Nat → Prop} {t : Nat} (h : ∃ e, e < t ∧ Q e) :
-    ∃ e, e < t ∧ Q e ∧ ∀ e', e < e' → e' < t → ¬ Q e' := by
-  induction t with
-  | zero => obtain ⟨e, he, _⟩ := h; exact absurd he (Nat.not_lt_zero e)
-  | succ t ih =>
-    by_cases hQ : Q t
-    · exact ⟨t, Nat.lt_succ_self t, hQ,
-        fun e' h1 h2 => absurd (Nat.lt_of_lt_of_le h1 (Nat.le_of_lt_succ h2)) (Nat.lt_irrefl _)⟩
-    · obtain ⟨e, he, hQe⟩ := h
-      have he' : e < t := by
-        rcases Nat.lt_or_eq_of_le (Nat.le_of_lt_succ he) with h | h
-        · exact h
-        · subst h; exact absurd hQe hQ
-      obtain ⟨e₀, h1, h2, h3⟩ := ih ⟨e, he', hQe⟩
-      refine ⟨e₀, by lia, h2, fun e' h4 h5 => ?_⟩
-      rcases Nat.lt_or_eq_of_le (Nat.le_of_lt_succ h5) with h | h
-      · exact h3 e' h4 h
-      · subst h; exact hQ
-
 /-- **The margin.**  Every write to the entry a dequeue at `t` reads happened at least a read
 period plus the wire latency ago: the reader only ever dequeues a word the writer wrote well
 before the read pointer's Gray code had even started crossing. -/

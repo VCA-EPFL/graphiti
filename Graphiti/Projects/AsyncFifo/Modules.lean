@@ -285,6 +285,9 @@ reduction_by
   simp only [drenv]
   dsimp
 
+/-- A compiled check, not a step of any proof: the type `def_module` reduces the graph to
+is the one written by hand above, so the hand-written `abbrev` — which every statement below
+names — cannot drift from the graph. -/
 theorem asyncFifoFT_eq : asyncFifoFT' α n = asyncFifoFT α n := rfl
 
 seal envF in

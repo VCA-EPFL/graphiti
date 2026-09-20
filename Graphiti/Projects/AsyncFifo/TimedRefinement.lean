@@ -56,13 +56,6 @@ theorem CombOut.mono_next {s s' : NextSt α n} (h1 : s.st <+: s'.st) (h2 : s.inc
     CombOut (nextDep α s') (nextFun α) (nextLen α s') dmin dmax v :=
   h.mono (nextLen_mono h1 h2 h3 h4) (fun u hu => nextDep_congr h1 h2 h3 h4 hu)
 
-/-- The guard the bank's contracts carry inside the simulation relation: the domain's own
-filter, at the instant in question.  The bank promises under `GateOK`, which is weaker; `gate_of`
-below is where the two meet, and it is the only place the netlist's extra assumptions --- wide
-pulses, a released clear --- are discharged from the domain's. -/
-abbrev WGuard (P S R pw : Nat) (F inc : List Bool) (data : List α) : Nat → Prop :=
-  WFilter P S R pw F inc data
-
 /-- Register-bank contracts survive a growth of the bank's inputs. -/
 theorem RegOutG.mono_bus {kq su : Nat} {G : Nat → Prop} {rclk rclk' : List Bool}
     {rd rd' : List (WNext α n)} {q : List (WSt n)} (hc : rclk <+: rclk') (hd : rd <+: rd')

@@ -54,24 +54,6 @@ theorem riseAt_of_ge {clk : List Bool} {u : Nat} (h : clk.length ≤ u) : riseAt
   rw [List.getD_eq_getElem?_getD, List.getElem?_eq_none h]
   rfl
 
-/-- An edge of a stream is an edge of any prefix of it that is long enough to show it.  Unlike
-`NoEdge_congr` this needs no bound on `t`: past the end of `clk` the padding is low, so extra
-instants cannot hide an edge. -/
-theorem NoEdge_of_prefix {clk clk' : List Bool} (h : clk <+: clk') {t : Nat}
-    (hn : NoEdge clk' t) : NoEdge clk t := by
-  intro e he
-  by_cases hlt : e < clk.length
-  · rw [riseAt_prefix h hlt]; exact hn e he
-  · exact riseAt_of_ge (by omega)
-
-theorem LastEdge_of_prefix {clk clk' : List Bool} (h : clk <+: clk') {e t : Nat}
-    (hec : e < clk.length) (hl : LastEdge clk' e t) : LastEdge clk e t := by
-  obtain ⟨h1, h2, h3⟩ := hl
-  refine ⟨h1, by rw [riseAt_prefix h hec]; exact h2, fun e' h4 h5 => ?_⟩
-  by_cases hlt : e' < clk.length
-  · rw [riseAt_prefix h hlt]; exact h3 e' h4 h5
-  · exact riseAt_of_ge (by omega)
-
 theorem LastEdge_congr {clk clk' : List Bool} (h : clk <+: clk') {e t : Nat} (ht : t ≤ clk.length) :
     LastEdge clk e t ↔ LastEdge clk' e t := by
   unfold LastEdge

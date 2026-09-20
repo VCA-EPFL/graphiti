@@ -149,13 +149,6 @@ theorem bank_gray_val (H : BankOK clk d crn R) {v : List (BitVec 3)}
     (by rw [busLen_eq]; exact H.pulse.mono (by unfold bankLen; omega)) hv
   simpa only [gnextOf_getD, gnextOf_length] using h
 
-/-- **The `empty` flag** is a bit of the state register. -/
-theorem bank_empty (H : BankOK clk d crn R) {q : List (RSt 2)}
-    (hq : q <+: StRegR.stOut clk (stOf d) crn) :
-    ∃ p, RegOut 4 1 default clk (fun u => (d.getD u default).st) d.length p ∧
-      q.map (·.empty) = p.map (·.empty) :=
-  ⟨q, bank_st H hq, rfl⟩
-
 /-! ### The contracts, per instant
 
 The block files prove their contracts over a block's whole known history: the filters hold
@@ -273,12 +266,6 @@ theorem bank_grayG (hR : 6 ≤ R) {v : List (BitVec 3)}
     exact BusWinAt.congr_out hval ((hcut.2 t (by rw [hcl t htb]; omega)).mono (List.take_prefix _ _)
       take_getD_gnext (by rw [List.length_take]; omega) (by rw [List.length_take]; omega)
       (by rw [List.length_take]; omega)) hclean
-
-/-- **The `empty` flag, per instant.** -/
-theorem bank_emptyG (hR : 6 ≤ R) {q : List (RSt 2)} (hq : q <+: StRegR.stOut clk (stOf d) crn) :
-    ∃ p, RegOutG 4 1 default (GateOK 12 3 (R + 3) R clk crn) clk (fun u => (d.getD u default).st)
-      d.length (bankLen clk d crn) p ∧ q.map (·.empty) = p.map (·.empty) :=
-  ⟨q, bank_stG hR hq, rfl⟩
 
 end PerInstant
 
@@ -497,7 +484,10 @@ macro_rules
       · dsimp only [wires] at h6 ⊢
         first | exact h6 | exact h6.trans ((‹_ ⊏ _›).isPrefix.map _)))
 
-theorem bankNetlist_internals_eq : bankNetlist.internals = [bankNetlist.internals.getD 0 (fun _ _ => False), bankNetlist.internals.getD 1 (fun _ _ => False), bankNetlist.internals.getD 2 (fun _ _ => False), bankNetlist.internals.getD 3 (fun _ _ => False), bankNetlist.internals.getD 4 (fun _ _ => False), bankNetlist.internals.getD 5 (fun _ _ => False), bankNetlist.internals.getD 6 (fun _ _ => False), bankNetlist.internals.getD 7 (fun _ _ => False)] := rfl
+theorem bankNetlist_internals_eq : bankNetlist.internals =
+    [bankNetlist.internals.getD 0 (fun _ _ => False), bankNetlist.internals.getD 1 (fun _ _ => False), bankNetlist.internals.getD 2 (fun _ _ => False),
+     bankNetlist.internals.getD 3 (fun _ _ => False), bankNetlist.internals.getD 4 (fun _ _ => False), bankNetlist.internals.getD 5 (fun _ _ => False),
+     bankNetlist.internals.getD 6 (fun _ _ => False), bankNetlist.internals.getD 7 (fun _ _ => False)] := rfl
 
 /-! All eight connections, one line each. -/
 

@@ -14,9 +14,10 @@ drives it, and a connection rule advances one wire towards its driver.  Stated a
 one field per wire, that shape forces a lemma per rule, each re-establishing every field, which
 is why these proofs used to be generated.
 
-Stated over an index type it is four lemmas, none of which mention a particular circuit.  A block
-supplies a wire type `W`, a driver function, and the fact that the driver is monotone; everything
-below is shared.
+Stated over an index type it is a handful of lemmas, none of which mention a particular circuit.
+A block supplies a wire type `W`, a driver function, and the fact that the driver is monotone;
+everything below is shared.  A connection is `Wf_step_of` (or `Wf_set`, which is the same thing
+through `upd`), an input rule is `Wf_drv` followed by `Wf_congr`, and nothing else is needed.
 -/
 
 namespace Graphiti.AsyncFifo.Netlist
@@ -45,8 +46,6 @@ theorem upd_ge {w : Wires W} {k v} (h1 : w k <+: v) : ∀ j, w j <+: upd w k v j
   · simp only [upd, if_neg hj]; exact List.prefix_rfl
 
 @[simp] theorem upd_self {w : Wires W} {k v} : upd w k v k = v := by simp [upd]
-
-theorem upd_other {w : Wires W} {k v j} (h : j ≠ k) : upd w k v j = w j := by simp [upd, h]
 
 /-- Any step that only grows wires, and grows none past what currently drives it, preserves the
 invariant. -/
@@ -91,9 +90,6 @@ theorem Wf_congr {drv : Drv W} (mono : Mono drv) {w w' : Wires W} (hw : Wf drv w
 survives.  A block instantiates this with `drv` for the old inputs and `drv'` for the new. -/
 theorem Wf_drv {drv drv' : Drv W} {w : Wires W} (hw : Wf drv w)
     (h : ∀ k, drv w k <+: drv' w k) : Wf drv' w := fun k => (hw k).trans (h k)
-
-/-- Nothing has been driven yet. -/
-theorem Wf_nil {drv : Drv W} : Wf drv (fun _ => []) := fun _ => List.nil_prefix
 
 /-- A port's value arrives from `PortMap.getIO` under an `Eq.mp` between *identical* types.
 `cast_eq` will not fire on it, because the proof is not syntactically `rfl`; proof irrelevance
@@ -140,8 +136,6 @@ theorem step {drv : Drv Ty} {w w' : Wires Ty} (_hw : Wf drv w) (mono : Mono drv)
 /-- **The lemma behind every input rule**: growing an input grows every driver. -/
 theorem drv_le {drv drv' : Drv Ty} {w : Wires Ty} (hw : Wf drv w)
     (h : ∀ k, drv w k <+: drv' w k) : Wf drv' w := fun k => (hw k).trans (h k)
-
-theorem nil {drv : Drv Ty} : Wf drv (fun _ => []) := fun _ => List.nil_prefix
 
 end Het
 
