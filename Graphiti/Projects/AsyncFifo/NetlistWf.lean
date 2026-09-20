@@ -54,6 +54,13 @@ theorem Wf_step {drv : Drv W} {w w' : Wires W} (mono : Mono drv)
     (hle : ∀ j, w j <+: w' j) (hd : ∀ j, w' j <+: drv w j) : Wf drv w' :=
   fun k => (hd k).trans (mono hle k)
 
+/-- `Wf_step` with the starting assignment pinned by the invariant the block already has.
+Without `_hw`, `w` is a metavariable the two pointwise arguments have to determine, and the
+elaborator spends its heartbeats guessing it. -/
+theorem Wf_step_of {drv : Drv W} {w w' : Wires W} (_hw : Wf drv w) (mono : Mono drv)
+    (hle : ∀ j, w j <+: w' j) (hd : ∀ j, w' j <+: drv w j) : Wf drv w' :=
+  Wf_step mono hle hd
+
 /-- **The lemma that replaces a per-rule lemma**: the shape every connection has, one wire
 advancing towards its driver while the rest stand still. -/
 theorem Wf_set {drv : Drv W} {w : Wires W} (mono : Mono drv) (hw : Wf drv w) (k : W)
@@ -61,6 +68,15 @@ theorem Wf_set {drv : Drv W} {w : Wires W} (mono : Mono drv) (hw : Wf drv w) (k 
   refine Wf_step mono (upd_ge h1) (fun j => ?_); by_cases hj : j = k
   · subst hj; simpa [upd] using h2
   · simp only [upd, if_neg hj]; exact hw j
+
+/-- The invariant carried across a rule that leaves every wire alone.  `Wf_drv` already does
+this, but it hands back the invariant for the *old* assignment, and the goal names the new one;
+letting the kernel see those two are the same means comparing `wires i` with `wires mid` as
+whole functions, which is where a 35-wire block runs out of heartbeats.  Wire by wire, it is
+two `cases`. -/
+theorem Wf_congr {drv : Drv W} (mono : Mono drv) {w w' : Wires W} (hw : Wf drv w)
+    (hle : ∀ j, w' j <+: w j) (hge : ∀ j, w j <+: w' j) : Wf drv w' :=
+  fun k => (hle k).trans ((hw k).trans (mono hge k))
 
 /-- **The lemma behind every input rule**: growing an input grows every driver, so the invariant
 survives.  A block instantiates this with `drv` for the old inputs and `drv'` for the new. -/
@@ -84,9 +100,10 @@ what each wire carries fixes that.
 
 There is deliberately no `upd` here.  Building one would need a dependent `if` to cast between
 `List (Ty j)` and `List (Ty k)`, and using it would force each step to prove two assignments
-equal.  `step` asks instead for two pointwise facts about the assignment the module already has.
-The homogeneous API above keeps `upd`, because for a wire type with many constructors the
-`Wf_set` route elaborates far faster than the pointwise one. -/
+equal.  `step` asks instead for two pointwise facts about the assignment the module already
+has -- which is `Wf_step_of` above, and is what the homogeneous blocks use too.  `upd` and
+`Wf_set` stay because `BusReg`, `StReg`, `StRegR` and `ReadMux` are written against them and
+are fast enough; on `Dff` the two shapes measure within 15% of each other. -/
 
 namespace Het
 

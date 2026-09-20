@@ -569,18 +569,20 @@ macro_rules
       simp only [Prod.mk.injEq, and_assoc] at Hr
       repeat' (obtain ⟨hh, Hr⟩ := Hr; try subst hh)
       obtain ⟨hw, e0, e1, e2⟩ := H
-      refine ⟨s, existSR_reflexive, ?_, e0, e1, e2⟩
-      · have key := Wf_set drv_mono hw $w _ (‹_ ⊏ _›).isPrefix (by
-          simp only [drv, wires]
+      refine ⟨s, existSR_reflexive, Wf_step_of hw drv_mono ?_ ?_, e0, e1, e2⟩
+      · intro j
+        cases j <;> dsimp only [wires] <;>
+          first | exact List.prefix_rfl | exact (‹_ ⊏ _›).isPrefix
+      · intro j
+        have hj := hw j
+        cases j <;> (try dsimp only [wires, drv] at hj) <;> dsimp only [wires, drv] <;>
           first
+            | exact hj
+            | assumption
             | exact List.prefix_rfl
             | exact e0 ▸ List.prefix_rfl
             | exact e1 ▸ List.prefix_rfl
-            | exact e2 ▸ List.prefix_rfl
-            | exact (‹_ ⊏ _›).isPrefix
-            | assumption)
-        intro j; have hj := key j; revert hj; cases j <;> simp [wires, upd, drv]
-      ))
+            | exact e2 ▸ List.prefix_rfl))
 
 theorem dffNetlist_internals_eq : dffNetlist.internals = [dffNetlist.internals.getD 0 (fun _ _ => False), dffNetlist.internals.getD 1 (fun _ _ => False), dffNetlist.internals.getD 2 (fun _ _ => False), dffNetlist.internals.getD 3 (fun _ _ => False), dffNetlist.internals.getD 4 (fun _ _ => False), dffNetlist.internals.getD 5 (fun _ _ => False), dffNetlist.internals.getD 6 (fun _ _ => False), dffNetlist.internals.getD 7 (fun _ _ => False), dffNetlist.internals.getD 8 (fun _ _ => False), dffNetlist.internals.getD 9 (fun _ _ => False), dffNetlist.internals.getD 10 (fun _ _ => False), dffNetlist.internals.getD 11 (fun _ _ => False), dffNetlist.internals.getD 12 (fun _ _ => False), dffNetlist.internals.getD 13 (fun _ _ => False), dffNetlist.internals.getD 14 (fun _ _ => False), dffNetlist.internals.getD 15 (fun _ _ => False), dffNetlist.internals.getD 16 (fun _ _ => False), dffNetlist.internals.getD 17 (fun _ _ => False), dffNetlist.internals.getD 18 (fun _ _ => False), dffNetlist.internals.getD 19 (fun _ _ => False), dffNetlist.internals.getD 20 (fun _ _ => False), dffNetlist.internals.getD 21 (fun _ _ => False), dffNetlist.internals.getD 22 (fun _ _ => False), dffNetlist.internals.getD 23 (fun _ _ => False), dffNetlist.internals.getD 24 (fun _ _ => False), dffNetlist.internals.getD 25 (fun _ _ => False)] := rfl
 
