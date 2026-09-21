@@ -18,21 +18,24 @@ is fed by a multiplexer that reads the flip-flop's own output:
     nen = not en        t1 = en and data      t2 = nen and q
     m   = t1 or t2      (and the flip-flop of `Dff.lean` with `d := m`)
 
-The loop means the cell's *behaviour* is a fixpoint and not a composition: the flip-flop is
-given a stream that depends on what it produces, so the cell is a sequential circuit whose
-state includes the flip-flop's, and `enRun` is that combined automaton.  `EnRegTiming.lean`
-shows the six flip-flop wires of `enRun` are `Dff.dffRun` driven by the multiplexer's stream
-(`enRun_ff`), so every timing theorem about the flip-flop applies to the cell and the only new
-work is what the multiplexer does around an edge.
+The flip-flop here is `Dff.dffSpec` as a *node*, not a copy of its gates, and the loop closes
+through it.  A loop is no obstacle to that: `dffOut` is a `timeline` of length `dffLen + 1`, so
+the flip-flop as a block emits one instant past its shortest input exactly as a gate does --- and
+that instant is what lets a stream go round a cycle at all --- while `Netlist.Wf` never mentions
+the topology.  Eleven nodes and sixteen connections, against the twenty-one and thirty-five the
+flat version needed.
 
-The loop does **not** force the *netlist* to be flat gates, and an earlier version of this
-comment claimed it did.  It does not: `dffOut` is a `timeline` of length `dffLen + 1`, so the
-flip-flop as a block emits one instant past its shortest input exactly as a gate does, which is
-what lets a stream enter a feedback loop at all, and `Netlist.Wf` never mentions the topology.
-The cell can be written as the flip-flop of `Dff.lean` as a node, the four multiplexer gates,
-and the loop --- eleven nodes and sixteen connections against the thirty-five below --- and
-`enRun` would then need the multiplexer's wires only, the flip-flop's six coming from `dffOut`.
-That is a worthwhile simplification and it has not been made.
+What the loop *does* force is the cell's **behaviour**, which is a fixpoint and not a
+composition: the flip-flop is given a stream that depends on what it produces, so the cell is a
+sequential circuit whose state includes the flip-flop's, and `enRun` is that combined automaton.
+Those are two different claims, and an earlier version of this comment ran them together and
+concluded, wrongly, that the netlist had to be flat.
+
+The two meet in `enOut_eq`: the cell's output is the flip-flop's output over the multiplexer's
+stream.  So `wf_sim` below induces over the multiplexer only --- four wires --- and the
+flip-flop's six come from `dffRun`, which is what `enRun_ff` says.  `EnRegTiming.lean` then
+inherits the whole timing analysis of `DffTiming.lean` with `d := mStream`, and the only new
+work is what the multiplexer does around an edge.
 
 The clock gating that would avoid the loop -- `clk and en` into the flip-flop -- is not used
 here.  It needs the enable to be stable over the whole high phase of the clock, and the write
@@ -119,7 +122,12 @@ theorem enOut_mono {clk clk' en en' dat dat' crn crn' : List Bool} (hc : clk <+:
   intro t ht
   rw [enRun_congr hc he hd hr (by unfold enLen at *; omega)]
 
-/-! ### The netlist -/
+/-! ### The netlist
+
+The flip-flop is a *node*, not a copy of its gates.  The loop is no obstacle: `dffOut` is a
+`timeline` of length `dffLen + 1`, so the flip-flop as a block emits one instant past its
+shortest input exactly as a gate does, and that instant is what lets a stream go round a
+cycle. -/
 
 def enGraph := [graphEnv|
     clk [type="io"];
@@ -128,41 +136,23 @@ def enGraph := [graphEnv|
     clrn [type="io"];
     q [type="io"];
 
-    clkf [type="fork3", typeImp=$(⟨_, fork3⟩)];
-    crf [type="fork5", typeImp=$(⟨_, fork5⟩)];
-    enf [type="fork3", typeImp=$(⟨_, fork3⟩)];
+    clkf  [type="fork2", typeImp=$(⟨_, Timed.fork2 Bool⟩)];
+    crf   [type="fork2", typeImp=$(⟨_, Timed.fork2 Bool⟩)];
+    enf   [type="fork3", typeImp=$(⟨_, fork3⟩)];
     dataf [type="fork2", typeImp=$(⟨_, Timed.fork2 Bool⟩)];
-    nen [type="not1", typeImp=$(⟨_, gate1 not⟩)];
-    t1 [type="and2", typeImp=$(⟨_, gate2 and2⟩)];
-    t2 [type="and2", typeImp=$(⟨_, gate2 and2⟩)];
-    mx [type="or2", typeImp=$(⟨_, gate2 or2⟩)];
-    n1 [type="nand2", typeImp=$(⟨_, gate2 nand2⟩)];
-    n2 [type="nand3", typeImp=$(⟨_, gate3 nand3⟩)];
-    n2f [type="fork3", typeImp=$(⟨_, fork3⟩)];
-    n3 [type="nand3", typeImp=$(⟨_, gate3 nand3⟩)];
-    n3f [type="fork2", typeImp=$(⟨_, Timed.fork2 Bool⟩)];
-    n4 [type="nand3", typeImp=$(⟨_, gate3 nand3⟩)];
-    n4f [type="fork2", typeImp=$(⟨_, Timed.fork2 Bool⟩)];
-    n5 [type="nand2", typeImp=$(⟨_, gate2 nand2⟩)];
-    n5f [type="fork2", typeImp=$(⟨_, Timed.fork2 Bool⟩)];
-    n6 [type="nand3", typeImp=$(⟨_, gate3 nand3⟩)];
-    qg [type="and2", typeImp=$(⟨_, gate2 and2⟩)];
-    qf [type="fork2", typeImp=$(⟨_, Timed.fork2 Bool⟩)];
-    cut [type="cut4", typeImp=$(⟨_, cut4⟩)];
+    nen   [type="not1",  typeImp=$(⟨_, gate1 not⟩)];
+    t1    [type="and2",  typeImp=$(⟨_, gate2 and2⟩)];
+    t2    [type="and2",  typeImp=$(⟨_, gate2 and2⟩)];
+    mx    [type="or2",   typeImp=$(⟨_, gate2 or2⟩)];
+    ff    [type="dff",   typeImp=$(⟨_, dffSpec⟩)];
+    qf    [type="fork2", typeImp=$(⟨_, Timed.fork2 Bool⟩)];
+    cut   [type="cut4",  typeImp=$(⟨_, cut4⟩)];
 
     clk -> clkf [to="in"];
     en -> enf [to="in"];
     data -> dataf [to="in"];
     clrn -> crf [to="in"];
 
-    clkf -> n2 [from="out1", to="b"];
-    clkf -> n3 [from="out2", to="b"];
-    clkf -> cut [from="out3", to="r1"];
-    crf -> n2 [from="out1", to="c"];
-    crf -> n4 [from="out2", to="c"];
-    crf -> n6 [from="out3", to="c"];
-    crf -> qg [from="out4", to="b"];
-    crf -> cut [from="out5", to="r4"];
     enf -> nen [from="out1", to="a"];
     enf -> t1 [from="out2", to="a"];
     enf -> cut [from="out3", to="r2"];
@@ -170,26 +160,15 @@ def enGraph := [graphEnv|
     dataf -> cut [from="out2", to="r3"];
     nen -> t2 [from="out", to="a"];
     qf -> t2 [from="out1", to="b"];
-    qf -> cut [from="out2", to="in"];
     t1 -> mx [from="out", to="a"];
     t2 -> mx [from="out", to="b"];
-    mx -> n4 [from="out", to="b"];
-    n4f -> n1 [from="out1", to="a"];
-    n2f -> n1 [from="out1", to="b"];
-    n1 -> n2 [from="out", to="a"];
-    n2 -> n2f [from="out", to="in"];
-    n2f -> n3 [from="out2", to="a"];
-    n4f -> n3 [from="out2", to="c"];
-    n3 -> n3f [from="out", to="in"];
-    n3f -> n4 [from="out1", to="a"];
-    n4 -> n4f [from="out", to="in"];
-    n2f -> n5 [from="out3", to="a"];
-    n6 -> n5 [from="out", to="b"];
-    n5 -> n5f [from="out", to="in"];
-    n5f -> n6 [from="out1", to="a"];
-    n3f -> n6 [from="out2", to="b"];
-    n5f -> qg [from="out2", to="a"];
-    qg -> qf [from="out", to="in"];
+    mx -> ff [from="out", to="d"];
+    clkf -> ff [from="out1", to="clk"];
+    clkf -> cut [from="out2", to="r1"];
+    crf -> ff [from="out1", to="clrn"];
+    crf -> cut [from="out2", to="r4"];
+    ff -> qf [from="q", to="in"];
+    qf -> cut [from="out2", to="in"];
 
     cut -> q [from="out"];
   ]
@@ -201,12 +180,10 @@ def eenv := enGraph.2
 
 @[drenv] theorem eenv_fork2 : eenv.find? "fork2" = .some ⟨_, Timed.fork2 Bool⟩ := rfl
 @[drenv] theorem eenv_fork3 : eenv.find? "fork3" = .some ⟨_, fork3⟩ := rfl
-@[drenv] theorem eenv_fork5 : eenv.find? "fork5" = .some ⟨_, fork5⟩ := rfl
 @[drenv] theorem eenv_not1 : eenv.find? "not1" = .some ⟨_, gate1 not⟩ := rfl
 @[drenv] theorem eenv_and2 : eenv.find? "and2" = .some ⟨_, gate2 and2⟩ := rfl
 @[drenv] theorem eenv_or2 : eenv.find? "or2" = .some ⟨_, gate2 or2⟩ := rfl
-@[drenv] theorem eenv_nand2 : eenv.find? "nand2" = .some ⟨_, gate2 nand2⟩ := rfl
-@[drenv] theorem eenv_nand3 : eenv.find? "nand3" = .some ⟨_, gate3 nand3⟩ := rfl
+@[drenv] theorem eenv_dff : eenv.find? "dff" = .some ⟨_, dffSpec⟩ := rfl
 @[drenv] theorem eenv_cut4 : eenv.find? "cut4" = .some ⟨_, cut4⟩ := rfl
 
 seal eenv in
@@ -223,6 +200,67 @@ reduction_by
 seal eenv in
 def_module enNetlist : StringModule enT :=
   [e| enLowered, eenv.find? ]
+
+/-! ### The cell's stream, and the flip-flop inside it
+
+The cell is sequential and its state includes the flip-flop's, so what it computes is a
+fixpoint: the multiplexer's stream `mStream` is read off the combined automaton.  But the
+flip-flop inside is the flip-flop (`enRun_ff`), and the cell's output is exactly the
+flip-flop's over that stream (`enOut_eq`).  That is what lets the netlist below name
+`Dff.dffSpec` as a node instead of repeating its gates, and what lets `EnRegTiming.lean`
+inherit the whole timing analysis of `DffTiming.lean`. -/
+
+/-- The multiplexer's stream, as far as the cell's inputs are known. -/
+def mStream (clk en dat crn : List Bool) : List Bool :=
+  timeline (fun t => (enRun clk en dat crn t).m) (enLen clk en dat crn)
+
+@[simp] theorem mStream_length (clk en dat crn : List Bool) :
+    (mStream clk en dat crn).length = enLen clk en dat crn := timeline_length _ _
+
+theorem mStream_getD {clk en dat crn : List Bool} {t : Nat} (ht : t < enLen clk en dat crn) :
+    (mStream clk en dat crn).getD t false = (enRun clk en dat crn t).m := timeline_getD _ ht _
+
+theorem dffLen_mStream (clk en dat crn : List Bool) :
+    dffLen clk (mStream clk en dat crn) crn = enLen clk en dat crn := by
+  simp only [dffLen, mStream_length]
+  unfold enLen
+  omega
+
+/-- The six flip-flop wires of the cell, as a state of `Dff`'s automaton. -/
+def ffOf (s : EnSt) : DffSt := ⟨s.n1, s.n2, s.n3, s.n4, s.n5, s.n6⟩
+
+/-- **The cell's flip-flop is the flip-flop**, driven by the multiplexer's stream.  This is what
+lets the cell inherit the whole timing analysis of `DffTiming.lean`. -/
+theorem enRun_ff {clk en dat crn : List Bool} {t : Nat} (ht : t ≤ enLen clk en dat crn) :
+    ffOf (enRun clk en dat crn t) = dffRun clk (mStream clk en dat crn) crn t := by
+  induction t with
+  | zero => rfl
+  | succ t ih =>
+    have ht' : t ≤ enLen clk en dat crn := by omega
+    have e1 : dffRun clk (mStream clk en dat crn) crn (t + 1) =
+        dffStep (dffRun clk (mStream clk en dat crn) crn t)
+          (dffInp clk (mStream clk en dat crn) crn t) := rfl
+    have e2 : enRun clk en dat crn (t + 1) =
+        enStep (enRun clk en dat crn t) (enInp clk en dat crn t) := rfl
+    rw [e1, ← ih ht', e2]
+    unfold dffInp enInp ffOf dffStep enStep
+    rw [mStream_getD (by omega)]
+
+/-- The cell's output is the flip-flop's output over the multiplexer's stream. -/
+theorem enOut_eq (clk en dat crn : List Bool) :
+    enOut clk en dat crn = dffOut clk (mStream clk en dat crn) crn := by
+  refine list_eq_of_getD false ?_ (fun t ht => ?_)
+  · simp only [enOut_length, dffOut_length, dffLen_mStream]
+  · simp only [enOut_length] at ht
+    rw [enOut_getD _ _ _ _ ht, dffOut_getD _ _ _ (by rw [dffLen_mStream]; omega)]
+    match t with
+    | 0 => rfl
+    | u + 1 =>
+      show (enStep (enRun clk en dat crn u) (enInp clk en dat crn u)).q = _
+      show and2 (enRun clk en dat crn u).n5 (crn.getD u false) = _
+      show _ = and2 (dffRun clk (mStream clk en dat crn) crn u).n5 (crn.getD u false)
+      rw [← enRun_ff (t := u) (by omega)]
+      rfl
 
 /-! ### The specification -/
 
@@ -244,311 +282,207 @@ instance : MatchInterface enNetlist enSpec := by
   dsimp [enNetlist, enSpec]
   solve_match_interface
 
-/-! ### The invariant -/
-
 /-! ### The netlist, as an index type
 
-Each wire holds a prefix of what drives it.  Over an index rather than a record with one field
-per wire, the per-rule lemmas collapse into `Netlist.Wf_step_of` and `Netlist.Wf_drv`, so what
-is written here is the circuit and nothing else. -/
+Sixteen wires, against the thirty-five the flat version needed: the flip-flop's six NANDs and
+their forks are behind `Dff.dffSpec` now, and only the multiplexer is gates. -/
 
 open Graphiti.AsyncFifo.Netlist
 
-/-- The 35 driven wires. -/
+/-- The sixteen driven wires. -/
 inductive W
-  | n2_a
-  | n2_b
-  | n2_c
-  | n5f_in
-  | qg_a
-  | qg_b
-  | qf_in
-  | t1_a
-  | t1_b
-  | n5_a
-  | n5_b
-  | n6_a
-  | n6_b
-  | n6_c
-  | n4_a
-  | n4_b
-  | n4_c
-  | n4f_in
-  | n3_a
-  | n3_b
-  | n3_c
-  | n1_a
-  | n1_b
-  | n3f_in
-  | t2_a
-  | t2_b
-  | n2f_in
-  | cut_in
-  | cut_r1
-  | cut_r2
-  | cut_r3
-  | cut_r4
-  | mx_a
-  | mx_b
-  | nen_a
+  | nen_a | t1_a | t1_b | t2_a | t2_b | mx_a | mx_b
+  | ff_clk | ff_d | ff_crn | qf_in
+  | cut_in | cut_r1 | cut_r2 | cut_r3 | cut_r4
   deriving DecidableEq
 
-/-- What drives each wire: one line per wire, and the only place the shape of this netlist is
-written down.  The loop through `n1`..`n6` and back through `qg` is the cell's latch; `drv` is
-the one-step driver, so a cycle in the circuit is no cycle here. -/
+/-- What drives each wire.  `qf_in` is driven by the *flip-flop*, `dffOut`, and `t2_b` reads it
+back: that is the loop, and it is a loop through a block. -/
 def drv (clk en dat crn : List Bool) : Drv W
-  | w, .n2_a => gateOut nand2 (w .n1_a) (w .n1_b)
-  | _, .n2_b => clk
-  | _, .n2_c => crn
-  | w, .n5f_in => gateOut nand2 (w .n5_a) (w .n5_b)
-  | w, .qg_a => (w .n5f_in)
-  | _, .qg_b => crn
-  | w, .qf_in => gateOut and2 (w .qg_a) (w .qg_b)
+  | _, .nen_a => en
   | _, .t1_a => en
   | _, .t1_b => dat
-  | w, .n5_a => (w .n2f_in)
-  | w, .n5_b => gate3Out nand3 (w .n6_a) (w .n6_b) (w .n6_c)
-  | w, .n6_a => (w .n5f_in)
-  | w, .n6_b => (w .n3f_in)
-  | _, .n6_c => crn
-  | w, .n4_a => (w .n3f_in)
-  | w, .n4_b => gateOut or2 (w .mx_a) (w .mx_b)
-  | _, .n4_c => crn
-  | w, .n4f_in => gate3Out nand3 (w .n4_a) (w .n4_b) (w .n4_c)
-  | w, .n3_a => (w .n2f_in)
-  | _, .n3_b => clk
-  | w, .n3_c => (w .n4f_in)
-  | w, .n1_a => (w .n4f_in)
-  | w, .n1_b => (w .n2f_in)
-  | w, .n3f_in => gate3Out nand3 (w .n3_a) (w .n3_b) (w .n3_c)
   | w, .t2_a => gate1Out not (w .nen_a)
-  | w, .t2_b => (w .qf_in)
-  | w, .n2f_in => gate3Out nand3 (w .n2_a) (w .n2_b) (w .n2_c)
-  | w, .cut_in => (w .qf_in)
+  | w, .t2_b => w .qf_in
+  | w, .mx_a => gateOut and2 (w .t1_a) (w .t1_b)
+  | w, .mx_b => gateOut and2 (w .t2_a) (w .t2_b)
+  | _, .ff_clk => clk
+  | w, .ff_d => gateOut or2 (w .mx_a) (w .mx_b)
+  | _, .ff_crn => crn
+  | w, .qf_in => dffOut (w .ff_clk) (w .ff_d) (w .ff_crn)
+  | w, .cut_in => w .qf_in
   | _, .cut_r1 => clk
   | _, .cut_r2 => en
   | _, .cut_r3 => dat
   | _, .cut_r4 => crn
-  | w, .mx_a => gateOut and2 (w .t1_a) (w .t1_b)
-  | w, .mx_b => gateOut and2 (w .t2_a) (w .t2_b)
-  | _, .nen_a => en
 
+/-- The cases are named rather than left to a search: `dffOut_mono`'s conclusion is a deep
+definition, and offering it to a goal it does not fit makes the unifier unfold it. -/
 theorem drv_mono {clk en dat crn} : Mono (drv clk en dat crn) := by
   intro a b h k
-  cases k <;> simp only [drv] <;>
-    apply_rules [List.prefix_rfl, h, gate1Out_mono, gate3Out_mono, gateOut_mono]
+  cases k <;> simp only [drv]
+  case t2_a => exact gate1Out_mono _ (h .nen_a)
+  case t2_b => exact h .qf_in
+  case mx_a => exact gateOut_mono _ (h .t1_a) (h .t1_b)
+  case mx_b => exact gateOut_mono _ (h .t2_a) (h .t2_b)
+  case ff_d => exact gateOut_mono _ (h .mx_a) (h .mx_b)
+  case qf_in => exact dffOut_mono (h .ff_clk) (h .ff_d) (h .ff_crn)
+  case cut_in => exact h .qf_in
+  all_goals exact List.prefix_rfl
+
+/-- Growing the cell's own inputs grows every driver. -/
 theorem drv_env {clk clk' en en' dat dat' crn crn' : List Bool}
     (hclk : clk <+: clk') (hen : en <+: en') (hdat : dat <+: dat') (hcrn : crn <+: crn')
     (w : Wires W) (k : W) : drv clk en dat crn w k <+: drv clk' en' dat' crn' w k := by
-  cases k <;> simp only [drv] <;>
-    apply_rules [List.prefix_rfl, hclk, hcrn, hdat,
-                 hen, gate1Out_mono, gate3Out_mono, gateOut_mono]
+  cases k <;> simp only [drv]
+  case nen_a => exact hen
+  case t1_a => exact hen
+  case t1_b => exact hdat
+  case ff_clk => exact hclk
+  case ff_crn => exact hcrn
+  case cut_r1 => exact hclk
+  case cut_r2 => exact hen
+  case cut_r3 => exact hdat
+  case cut_r4 => exact hcrn
+  all_goals exact List.prefix_rfl
+
+/-- The reduced state is a nested product; `wires` reads it as an assignment. -/
 def wires (i : enT) : Wires W
-  | .n2_a => i.1.1
-  | .n2_b => i.1.2.1
-  | .n2_c => i.1.2.2
-  | .n5f_in => i.2.2.1
-  | .qg_a => i.2.2.2.1.1
-  | .qg_b => i.2.2.2.1.2
-  | .qf_in => i.2.2.2.2.1
-  | .t1_a => i.2.2.2.2.2.1.1
-  | .t1_b => i.2.2.2.2.2.1.2
-  | .n5_a => i.2.2.2.2.2.2.2.1.1
-  | .n5_b => i.2.2.2.2.2.2.2.1.2
-  | .n6_a => i.2.2.2.2.2.2.2.2.1.1
-  | .n6_b => i.2.2.2.2.2.2.2.2.1.2.1
-  | .n6_c => i.2.2.2.2.2.2.2.2.1.2.2
-  | .n4_a => i.2.2.2.2.2.2.2.2.2.1.1
-  | .n4_b => i.2.2.2.2.2.2.2.2.2.1.2.1
-  | .n4_c => i.2.2.2.2.2.2.2.2.2.1.2.2
-  | .n4f_in => i.2.2.2.2.2.2.2.2.2.2.1
-  | .n3_a => i.2.2.2.2.2.2.2.2.2.2.2.1.1
-  | .n3_b => i.2.2.2.2.2.2.2.2.2.2.2.1.2.1
-  | .n3_c => i.2.2.2.2.2.2.2.2.2.2.2.1.2.2
-  | .n1_a => i.2.2.2.2.2.2.2.2.2.2.2.2.1.1
-  | .n1_b => i.2.2.2.2.2.2.2.2.2.2.2.2.1.2
-  | .n3f_in => i.2.2.2.2.2.2.2.2.2.2.2.2.2.1
-  | .t2_a => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.1
-  | .t2_b => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.2
-  | .n2f_in => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1
-  | .cut_in => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.1
-  | .cut_r1 => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.2.1
-  | .cut_r2 => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.2.2.1
-  | .cut_r3 => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.2.2.2.1
-  | .cut_r4 => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.2.2.2.2
-  | .mx_a => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.1
-  | .mx_b => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1.2
-  | .nen_a => i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2
+  | .t1_a => i.1.1 | .t1_b => i.1.2
+  | .t2_a => i.2.2.2.2.2.1.1 | .t2_b => i.2.2.2.2.2.1.2
+  | .cut_in => i.2.2.2.2.2.2.1.1
+  | .cut_r1 => i.2.2.2.2.2.2.1.2.1 | .cut_r2 => i.2.2.2.2.2.2.1.2.2.1
+  | .cut_r3 => i.2.2.2.2.2.2.1.2.2.2.1 | .cut_r4 => i.2.2.2.2.2.2.1.2.2.2.2
+  | .ff_clk => i.2.2.2.2.2.2.2.1.1 | .ff_d => i.2.2.2.2.2.2.2.1.2.1
+  | .ff_crn => i.2.2.2.2.2.2.2.1.2.2
+  | .qf_in => i.2.2.2.2.2.2.2.2.1
+  | .nen_a => i.2.2.2.2.2.2.2.2.2.1
+  | .mx_a => i.2.2.2.2.2.2.2.2.2.2.1 | .mx_b => i.2.2.2.2.2.2.2.2.2.2.2
 
 def ψ (i : enT) (s : List Bool × List Bool × List Bool × List Bool) : Prop :=
   Wf (drv s.1 s.2.1 s.2.2.1 s.2.2.2) (wires i)
-    ∧ i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1 = s.1
-    ∧ i.2.1 = s.2.1
-    ∧ i.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1 = s.2.2.1
-    ∧ i.2.2.2.2.2.2.1 = s.2.2.2
+    ∧ i.2.2.2.2.1 = s.1 ∧ i.2.2.1 = s.2.1 ∧ i.2.2.2.1 = s.2.2.1 ∧ i.2.1 = s.2.2.2
 
-/-! ### The invariant, clause by clause
-
-`hw .k` already says this, but with `drv` unapplied; spelling each driver out lets the
-simulation proof below rewrite with it exactly as it did against the old record. -/
+/-! ### The invariant, clause by clause -/
 
 section Clauses
 variable {clk en dat crn : List Bool} {w : Wires W} (hw : Wf (drv clk en dat crn) w)
 include hw
 
-theorem wf_n2_a : w .n2_a <+: gateOut nand2 (w .n1_a) (w .n1_b) := hw .n2_a
-theorem wf_n2_b : w .n2_b <+: clk := hw .n2_b
-theorem wf_n2_c : w .n2_c <+: crn := hw .n2_c
-theorem wf_n5f_in : w .n5f_in <+: gateOut nand2 (w .n5_a) (w .n5_b) := hw .n5f_in
-theorem wf_qg_a : w .qg_a <+: (w .n5f_in) := hw .qg_a
-theorem wf_qg_b : w .qg_b <+: crn := hw .qg_b
-theorem wf_qf_in : w .qf_in <+: gateOut and2 (w .qg_a) (w .qg_b) := hw .qf_in
+theorem wf_nen_a : w .nen_a <+: en := hw .nen_a
 theorem wf_t1_a : w .t1_a <+: en := hw .t1_a
 theorem wf_t1_b : w .t1_b <+: dat := hw .t1_b
-theorem wf_n5_a : w .n5_a <+: (w .n2f_in) := hw .n5_a
-theorem wf_n5_b : w .n5_b <+: gate3Out nand3 (w .n6_a) (w .n6_b) (w .n6_c) := hw .n5_b
-theorem wf_n6_a : w .n6_a <+: (w .n5f_in) := hw .n6_a
-theorem wf_n6_b : w .n6_b <+: (w .n3f_in) := hw .n6_b
-theorem wf_n6_c : w .n6_c <+: crn := hw .n6_c
-theorem wf_n4_a : w .n4_a <+: (w .n3f_in) := hw .n4_a
-theorem wf_n4_b : w .n4_b <+: gateOut or2 (w .mx_a) (w .mx_b) := hw .n4_b
-theorem wf_n4_c : w .n4_c <+: crn := hw .n4_c
-theorem wf_n4f_in : w .n4f_in <+: gate3Out nand3 (w .n4_a) (w .n4_b) (w .n4_c) := hw .n4f_in
-theorem wf_n3_a : w .n3_a <+: (w .n2f_in) := hw .n3_a
-theorem wf_n3_b : w .n3_b <+: clk := hw .n3_b
-theorem wf_n3_c : w .n3_c <+: (w .n4f_in) := hw .n3_c
-theorem wf_n1_a : w .n1_a <+: (w .n4f_in) := hw .n1_a
-theorem wf_n1_b : w .n1_b <+: (w .n2f_in) := hw .n1_b
-theorem wf_n3f_in : w .n3f_in <+: gate3Out nand3 (w .n3_a) (w .n3_b) (w .n3_c) := hw .n3f_in
 theorem wf_t2_a : w .t2_a <+: gate1Out not (w .nen_a) := hw .t2_a
 theorem wf_t2_b : w .t2_b <+: (w .qf_in) := hw .t2_b
-theorem wf_n2f_in : w .n2f_in <+: gate3Out nand3 (w .n2_a) (w .n2_b) (w .n2_c) := hw .n2f_in
+theorem wf_mx_a : w .mx_a <+: gateOut and2 (w .t1_a) (w .t1_b) := hw .mx_a
+theorem wf_mx_b : w .mx_b <+: gateOut and2 (w .t2_a) (w .t2_b) := hw .mx_b
+theorem wf_ff_clk : w .ff_clk <+: clk := hw .ff_clk
+theorem wf_ff_d : w .ff_d <+: gateOut or2 (w .mx_a) (w .mx_b) := hw .ff_d
+theorem wf_ff_crn : w .ff_crn <+: crn := hw .ff_crn
+theorem wf_qf_in : w .qf_in <+: dffOut (w .ff_clk) (w .ff_d) (w .ff_crn) := hw .qf_in
 theorem wf_cut_in : w .cut_in <+: (w .qf_in) := hw .cut_in
 theorem wf_cut_r1 : w .cut_r1 <+: clk := hw .cut_r1
 theorem wf_cut_r2 : w .cut_r2 <+: en := hw .cut_r2
 theorem wf_cut_r3 : w .cut_r3 <+: dat := hw .cut_r3
 theorem wf_cut_r4 : w .cut_r4 <+: crn := hw .cut_r4
-theorem wf_mx_a : w .mx_a <+: gateOut and2 (w .t1_a) (w .t1_b) := hw .mx_a
-theorem wf_mx_b : w .mx_b <+: gateOut and2 (w .t2_a) (w .t2_b) := hw .mx_b
-theorem wf_nen_a : w .nen_a <+: en := hw .nen_a
 
 end Clauses
 
 /-! ### What the netlist computes
 
-`wf_sim` is the simulation -- the wires follow the automaton of `enRun` -- and `out_q` reads
-the cell's output off it.  This is the block's actual content, and it does not collapse; only
-the per-rule bookkeeping around it did. -/
+The flip-flop's own six wires are gone from this induction: they are `dffRun`, and the first
+clause below says so.  What is left is the multiplexer, four wires of it, and the one step that
+reads the flip-flop's output back. -/
 
 theorem wf_sim {clk en dat crn : List Bool} {w : Wires W} (hw : Wf (drv clk en dat crn) w) :
     ∀ t,
-    (t < (w .n2_a).length → (w .n2_a).getD t false = (enRun clk en dat crn t).n1) ∧
-    (t < (w .n2f_in).length → (w .n2f_in).getD t false = (enRun clk en dat crn t).n2) ∧
-    (t < (w .n3f_in).length → (w .n3f_in).getD t false = (enRun clk en dat crn t).n3) ∧
-    (t < (w .n4f_in).length → (w .n4f_in).getD t false = (enRun clk en dat crn t).n4) ∧
-    (t < (w .n5f_in).length → (w .n5f_in).getD t false = (enRun clk en dat crn t).n5) ∧
-    (t < (w .n5_b).length → (w .n5_b).getD t false = (enRun clk en dat crn t).n6) ∧
-    (t < (w .qf_in).length → (w .qf_in).getD t false = (enRun clk en dat crn t).q) ∧
+    (t ≤ dffLen (w .ff_clk) (w .ff_d) (w .ff_crn) →
+      dffRun (w .ff_clk) (w .ff_d) (w .ff_crn) t = ffOf (enRun clk en dat crn t)) ∧
     (t < (w .t2_a).length → (w .t2_a).getD t false = (enRun clk en dat crn t).nen) ∧
     (t < (w .mx_a).length → (w .mx_a).getD t false = (enRun clk en dat crn t).t1) ∧
     (t < (w .mx_b).length → (w .mx_b).getD t false = (enRun clk en dat crn t).t2) ∧
-    (t < (w .n4_b).length → (w .n4_b).getD t false = (enRun clk en dat crn t).m) := by
+    (t < (w .ff_d).length → (w .ff_d).getD t false = (enRun clk en dat crn t).m) ∧
+    (t < (w .qf_in).length → (w .qf_in).getD t false = (enRun clk en dat crn t).q) ∧
+    (t < (w .t2_b).length → (w .t2_b).getD t false = (enRun clk en dat crn t).q) := by
+  have lnen := (wf_nen_a hw).length_le
+  have lt1a := (wf_t1_a hw).length_le
+  have lt1b := (wf_t1_b hw).length_le
+  have lt2a := (wf_t2_a hw).length_le
+  have lt2b := (wf_t2_b hw).length_le
+  have lmxa := (wf_mx_a hw).length_le
+  have lmxb := (wf_mx_b hw).length_le
+  have lffd := (wf_ff_d hw).length_le
+  have lffc := (wf_ff_clk hw).length_le
+  have lffr := (wf_ff_crn hw).length_le
+  have lqf := (wf_qf_in hw).length_le
+  simp only [gate1Out_length, gateOut_length, dffOut_length, dffLen] at lt2a lmxa lmxb lffd lqf
+  -- one bound per wire, with the `min`s taken apart: `omega` is never handed a nested one
+  have bmxa1 : (w .mx_a).length ≤ (w .t1_a).length + 1 := by omega
+  have bmxa2 : (w .mx_a).length ≤ (w .t1_b).length + 1 := by omega
+  have bmxb1 : (w .mx_b).length ≤ (w .t2_a).length + 1 := by omega
+  have bmxb2 : (w .mx_b).length ≤ (w .t2_b).length + 1 := by omega
+  have bffd1 : (w .ff_d).length ≤ (w .mx_a).length + 1 := by omega
+  have bffd2 : (w .ff_d).length ≤ (w .mx_b).length + 1 := by omega
+  have bqf1 : (w .qf_in).length ≤ (w .ff_clk).length + 1 := by omega
+  have bqf2 : (w .qf_in).length ≤ (w .ff_d).length + 1 := by omega
+  have bqf3 : (w .qf_in).length ≤ (w .ff_crn).length + 1 := by omega
+  clear lmxa lmxb lffd lqf
   intro t
   induction t with
   | zero =>
-    refine ⟨fun hl => ?_, fun hl => ?_, fun hl => ?_, fun hl => ?_, fun hl => ?_, fun hl => ?_, fun hl => ?_, fun hl => ?_, fun hl => ?_, fun hl => ?_, fun hl => ?_⟩
-    · rw [(wf_n2_a hw).getD_eq_left hl, gateOut_getD_zero]
+    have hq : 0 < (w .qf_in).length → (w .qf_in).getD 0 false = (enRun clk en dat crn 0).q := by
+      intro hl
+      rw [(wf_qf_in hw).getD_eq_left hl, dffOut_getD _ _ _ (by omega)]
       rfl
-    · rw [(wf_n2f_in hw).getD_eq_left hl, gate3Out_getD_zero]
-      rfl
-    · rw [(wf_n3f_in hw).getD_eq_left hl, gate3Out_getD_zero]
-      rfl
-    · rw [(wf_n4f_in hw).getD_eq_left hl, gate3Out_getD_zero]
-      rfl
-    · rw [(wf_n5f_in hw).getD_eq_left hl, gateOut_getD_zero]
-      rfl
-    · rw [(wf_n5_b hw).getD_eq_left hl, gate3Out_getD_zero]
-      rfl
-    · rw [(wf_qf_in hw).getD_eq_left hl, gateOut_getD_zero]
-      rfl
-    · rw [(wf_t2_a hw).getD_eq_left hl, gate1Out_getD_zero]
-      rfl
-    · rw [(wf_mx_a hw).getD_eq_left hl, gateOut_getD_zero]
-      rfl
-    · rw [(wf_mx_b hw).getD_eq_left hl, gateOut_getD_zero]
-      rfl
-    · rw [(wf_n4_b hw).getD_eq_left hl, gateOut_getD_zero]
-      rfl
+    refine ⟨fun _ => rfl, fun hl => ?_, fun hl => ?_, fun hl => ?_, fun hl => ?_, hq, fun hl => ?_⟩
+    · rw [(wf_t2_a hw).getD_eq_left hl, gate1Out_getD_zero]; rfl
+    · rw [(wf_mx_a hw).getD_eq_left hl, gateOut_getD_zero]; rfl
+    · rw [(wf_mx_b hw).getD_eq_left hl, gateOut_getD_zero]; rfl
+    · rw [(wf_ff_d hw).getD_eq_left hl, gateOut_getD_zero]; rfl
+    · rw [(wf_t2_b hw).getD_eq_left hl]; exact hq (by omega)
   | succ t ih =>
-    refine ⟨fun hl => ?_, fun hl => ?_, fun hl => ?_, fun hl => ?_, fun hl => ?_, fun hl => ?_, fun hl => ?_, fun hl => ?_, fun hl => ?_, fun hl => ?_, fun hl => ?_⟩
-    · have l0 := (wf_n2_a hw).length_le
-      simp only [gateOut_length] at l0
-      have l_n1_a := (wf_n1_a hw).length_le
-      have l_n1_b := (wf_n1_b hw).length_le
-      rw [(wf_n2_a hw).getD_eq_left hl, gateOut_getD _ _ _ (by omega) (by omega), Nat.add_sub_cancel, (wf_n1_a hw).getD_eq_left (by omega), ih.2.2.2.1 (by omega), (wf_n1_b hw).getD_eq_left (by omega), ih.2.1 (by omega)]
+    obtain ⟨iff', it2a, imxa, imxb, iffd, iqf, it2b⟩ := ih
+    -- the flip-flop's own state, one `dffStep` against one `enStep`
+    have hff : t + 1 ≤ dffLen (w .ff_clk) (w .ff_d) (w .ff_crn) →
+        dffRun (w .ff_clk) (w .ff_d) (w .ff_crn) (t + 1) = ffOf (enRun clk en dat crn (t + 1)) := by
+      intro hl
+      simp only [dffLen] at hl
+      have e1 : dffRun (w .ff_clk) (w .ff_d) (w .ff_crn) (t + 1) =
+          dffStep (dffRun (w .ff_clk) (w .ff_d) (w .ff_crn) t)
+            (dffInp (w .ff_clk) (w .ff_d) (w .ff_crn) t) := rfl
+      have e2 : enRun clk en dat crn (t + 1) =
+          enStep (enRun clk en dat crn t) (enInp clk en dat crn t) := rfl
+      rw [e1, iff' (by simp only [dffLen]; omega), e2]
+      unfold dffInp enInp ffOf dffStep enStep
+      rw [(wf_ff_clk hw).getD_eq_left (by omega), (wf_ff_crn hw).getD_eq_left (by omega),
+        iffd (by omega)]
+    have hq : t + 1 < (w .qf_in).length →
+        (w .qf_in).getD (t + 1) false = (enRun clk en dat crn (t + 1)).q := by
+      intro hl
+      rw [(wf_qf_in hw).getD_eq_left hl, dffOut_getD _ _ _ (by simp only [dffLen]; omega)]
+      show and2 (dffRun (w .ff_clk) (w .ff_d) (w .ff_crn) t).n5 ((w .ff_crn).getD t false) = _
+      rw [iff' (by simp only [dffLen]; omega), (wf_ff_crn hw).getD_eq_left (by omega)]
       rfl
-    · have l0 := (wf_n2f_in hw).length_le
-      simp only [gate3Out_length] at l0
-      have l_n2_b := (wf_n2_b hw).length_le
-      have l_n2_c := (wf_n2_c hw).length_le
-      rw [(wf_n2f_in hw).getD_eq_left hl, gate3Out_getD _ _ _ _ (by omega) (by omega), Nat.add_sub_cancel, ih.1 (by omega), (wf_n2_b hw).getD_eq_left (by omega), (wf_n2_c hw).getD_eq_left (by omega)]
+    refine ⟨hff, fun hl => ?_, fun hl => ?_, fun hl => ?_, fun hl => ?_, hq, fun hl => ?_⟩
+    · rw [(wf_t2_a hw).getD_eq_left hl, gate1Out_getD _ _ (by omega) (by omega),
+        Nat.add_sub_cancel, (wf_nen_a hw).getD_eq_left (by omega)]
       rfl
-    · have l0 := (wf_n3f_in hw).length_le
-      simp only [gate3Out_length] at l0
-      have l_n3_a := (wf_n3_a hw).length_le
-      have l_n3_b := (wf_n3_b hw).length_le
-      have l_n3_c := (wf_n3_c hw).length_le
-      rw [(wf_n3f_in hw).getD_eq_left hl, gate3Out_getD _ _ _ _ (by omega) (by omega), Nat.add_sub_cancel, (wf_n3_a hw).getD_eq_left (by omega), ih.2.1 (by omega), (wf_n3_b hw).getD_eq_left (by omega), (wf_n3_c hw).getD_eq_left (by omega), ih.2.2.2.1 (by omega)]
+    · rw [(wf_mx_a hw).getD_eq_left hl, gateOut_getD _ _ _ (by omega) (by omega),
+        Nat.add_sub_cancel, (wf_t1_a hw).getD_eq_left (by omega),
+        (wf_t1_b hw).getD_eq_left (by omega)]
       rfl
-    · have l0 := (wf_n4f_in hw).length_le
-      simp only [gate3Out_length] at l0
-      have l_n4_a := (wf_n4_a hw).length_le
-      have l_n4_c := (wf_n4_c hw).length_le
-      rw [(wf_n4f_in hw).getD_eq_left hl, gate3Out_getD _ _ _ _ (by omega) (by omega), Nat.add_sub_cancel, (wf_n4_a hw).getD_eq_left (by omega), ih.2.2.1 (by omega), ih.2.2.2.2.2.2.2.2.2.2 (by omega), (wf_n4_c hw).getD_eq_left (by omega)]
+    · rw [(wf_mx_b hw).getD_eq_left hl, gateOut_getD _ _ _ (by omega) (by omega),
+        Nat.add_sub_cancel, it2a (by omega), it2b (by omega)]
       rfl
-    · have l0 := (wf_n5f_in hw).length_le
-      simp only [gateOut_length] at l0
-      have l_n5_a := (wf_n5_a hw).length_le
-      rw [(wf_n5f_in hw).getD_eq_left hl, gateOut_getD _ _ _ (by omega) (by omega), Nat.add_sub_cancel, (wf_n5_a hw).getD_eq_left (by omega), ih.2.1 (by omega), ih.2.2.2.2.2.1 (by omega)]
+    · rw [(wf_ff_d hw).getD_eq_left hl, gateOut_getD _ _ _ (by omega) (by omega),
+        Nat.add_sub_cancel, imxa (by omega), imxb (by omega)]
       rfl
-    · have l0 := (wf_n5_b hw).length_le
-      simp only [gate3Out_length] at l0
-      have l_n6_a := (wf_n6_a hw).length_le
-      have l_n6_b := (wf_n6_b hw).length_le
-      have l_n6_c := (wf_n6_c hw).length_le
-      rw [(wf_n5_b hw).getD_eq_left hl, gate3Out_getD _ _ _ _ (by omega) (by omega), Nat.add_sub_cancel, (wf_n6_a hw).getD_eq_left (by omega), ih.2.2.2.2.1 (by omega), (wf_n6_b hw).getD_eq_left (by omega), ih.2.2.1 (by omega), (wf_n6_c hw).getD_eq_left (by omega)]
-      rfl
-    · have l0 := (wf_qf_in hw).length_le
-      simp only [gateOut_length] at l0
-      have l_qg_a := (wf_qg_a hw).length_le
-      have l_qg_b := (wf_qg_b hw).length_le
-      rw [(wf_qf_in hw).getD_eq_left hl, gateOut_getD _ _ _ (by omega) (by omega), Nat.add_sub_cancel, (wf_qg_a hw).getD_eq_left (by omega), ih.2.2.2.2.1 (by omega), (wf_qg_b hw).getD_eq_left (by omega)]
-      rfl
-    · have l0 := (wf_t2_a hw).length_le
-      simp only [gate1Out_length] at l0
-      have l_nen_a := (wf_nen_a hw).length_le
-      rw [(wf_t2_a hw).getD_eq_left hl, gate1Out_getD _ _ (by omega) (by omega), Nat.add_sub_cancel, (wf_nen_a hw).getD_eq_left (by omega)]
-      rfl
-    · have l0 := (wf_mx_a hw).length_le
-      simp only [gateOut_length] at l0
-      have l_t1_a := (wf_t1_a hw).length_le
-      have l_t1_b := (wf_t1_b hw).length_le
-      rw [(wf_mx_a hw).getD_eq_left hl, gateOut_getD _ _ _ (by omega) (by omega), Nat.add_sub_cancel, (wf_t1_a hw).getD_eq_left (by omega), (wf_t1_b hw).getD_eq_left (by omega)]
-      rfl
-    · have l0 := (wf_mx_b hw).length_le
-      simp only [gateOut_length] at l0
-      have l_t2_b := (wf_t2_b hw).length_le
-      rw [(wf_mx_b hw).getD_eq_left hl, gateOut_getD _ _ _ (by omega) (by omega), Nat.add_sub_cancel, ih.2.2.2.2.2.2.2.1 (by omega), (wf_t2_b hw).getD_eq_left (by omega), ih.2.2.2.2.2.2.1 (by omega)]
-      rfl
-    · have l0 := (wf_n4_b hw).length_le
-      simp only [gateOut_length] at l0
-      rw [(wf_n4_b hw).getD_eq_left hl, gateOut_getD _ _ _ (by omega) (by omega), Nat.add_sub_cancel, ih.2.2.2.2.2.2.2.2.1 (by omega), ih.2.2.2.2.2.2.2.2.2.1 (by omega)]
-      rfl
+    · rw [(wf_t2_b hw).getD_eq_left hl]; exact hq (by omega)
 
-/-- What the block reports is a prefix of the specification's stream. -/
+/-- What the cell reports is a prefix of what the specification says. -/
 theorem out_q {clk en dat crn : List Bool} {w : Wires W} (hw : Wf (drv clk en dat crn) w) :
-    (w .cut_in).take (min (min (w .cut_r1).length (w .cut_r2).length) (min (w .cut_r3).length (w .cut_r4).length) + 1)
-      <+: enOut clk en dat crn := by
+    (w .cut_in).take (min (min (w .cut_r1).length (w .cut_r2).length)
+        (min (w .cut_r3).length (w .cut_r4).length) + 1) <+: enOut clk en dat crn := by
   have h1 := (wf_cut_r1 hw).length_le
   have h2 := (wf_cut_r2 hw).length_le
   have h3 := (wf_cut_r3 hw).length_le
@@ -560,8 +494,7 @@ theorem out_q {clk en dat crn : List Bool} {w : Wires W} (hw : Wf (drv clk en da
   rw [List.getD_eq_getElem?_getD, List.getElem?_take_of_lt (by omega),
     ← List.getD_eq_getElem?_getD, enOut_getD _ _ _ _ (by unfold enLen; omega)]
   rw [(wf_cut_in hw).getD_eq_left (by omega)]
-  exact (wf_sim hw t).2.2.2.2.2.2.1 (by omega)
-
+  exact (wf_sim hw t).2.2.2.2.2.1 (by omega)
 
 /-! ### One tactic for every connection -/
 
@@ -569,10 +502,12 @@ syntax "en_case" : tactic
 set_option hygiene false in
 macro_rules
   | `(tactic| en_case) => `(tactic| (
-      obtain ⟨⟨n2_a, n2_b, n2_c⟩, enf_in, n5f_in, ⟨qg_a, qg_b⟩, qf_in, ⟨t1_a, t1_b⟩, crf_in, ⟨n5_a, n5_b⟩, ⟨n6_a, n6_b, n6_c⟩, ⟨n4_a, n4_b, n4_c⟩, n4f_in, ⟨n3_a, n3_b, n3_c⟩, ⟨n1_a, n1_b⟩, n3f_in, dataf_in, ⟨t2_a, t2_b⟩, clkf_in, n2f_in, ⟨cut_in, cut_r1, cut_r2, cut_r3, cut_r4⟩, ⟨mx_a, mx_b⟩, nen_a⟩ := i
-      obtain ⟨⟨_, _, _⟩, _, _, ⟨_, _⟩, _, ⟨_, _⟩, _, ⟨_, _⟩, ⟨_, _, _⟩, ⟨_, _, _⟩, _, ⟨_, _, _⟩, ⟨_, _⟩, _, _, ⟨_, _⟩, _, _, ⟨_, _, _, _, _⟩, ⟨_, _⟩, _⟩ := mid
+      obtain ⟨⟨t1_a, t1_b⟩, crf_in, enf_in, dataf_in, clkf_in, ⟨t2_a, t2_b⟩,
+        ⟨cut_in, cut_r1, cut_r2, cut_r3, cut_r4⟩, ⟨ff_clk, ff_d, ff_crn⟩, qf_in, nen_a,
+        ⟨mx_a, mx_b⟩⟩ := i
+      obtain ⟨⟨_, _⟩, _, _, _, _, ⟨_, _⟩, ⟨_, _, _, _, _⟩, ⟨_, _, _⟩, _, _, ⟨_, _⟩⟩ := mid
       have Hr := Hrule.1 rfl; clear Hrule
-      obtain ⟨⟨⟨_, _, _⟩, _, _, ⟨_, _⟩, _, ⟨_, _⟩, _, ⟨_, _⟩, ⟨_, _, _⟩, ⟨_, _, _⟩, _, ⟨_, _, _⟩, ⟨_, _⟩, _, _, ⟨_, _⟩, _, _, ⟨_, _, _, _, _⟩, ⟨_, _⟩, _⟩, out, Hr⟩ := Hr
+      obtain ⟨⟨⟨_, _⟩, _, _, _, _, ⟨_, _⟩, ⟨_, _, _, _, _⟩, ⟨_, _, _⟩, _, _, ⟨_, _⟩⟩, out, Hr⟩ := Hr
       simp only [Prod.mk.injEq, and_assoc] at Hr
       repeat' (obtain ⟨hh, Hr⟩ := Hr; try subst hh)
       obtain ⟨hw, e0, e1, e2, e3⟩ := H
@@ -585,175 +520,90 @@ macro_rules
         cases j <;> (try dsimp only [wires, drv] at hj) <;> dsimp only [wires, drv] <;>
           first
             | exact hj
+            | assumption
             | exact List.prefix_rfl
             | exact e0 ▸ List.prefix_rfl
             | exact e1 ▸ List.prefix_rfl
             | exact e2 ▸ List.prefix_rfl
-            | exact e3 ▸ List.prefix_rfl
-            | assumption))
-
-/-- Every wire of `mid` is the wire of `i`: what an input rule changes is an input. -/
-syntax "en_same" : tactic
-set_option hygiene false in
-macro_rules
-  | `(tactic| en_same) => `(tactic|
-      (intro j; cases j <;> dsimp only [wires] <;> exact List.prefix_rfl))
+            | exact e3 ▸ List.prefix_rfl))
 
 theorem enNetlist_internals_eq : enNetlist.internals =
-    [enNetlist.internals.getD 0 (fun _ _ => False), enNetlist.internals.getD 1 (fun _ _ => False), enNetlist.internals.getD 2 (fun _ _ => False),
-     enNetlist.internals.getD 3 (fun _ _ => False), enNetlist.internals.getD 4 (fun _ _ => False), enNetlist.internals.getD 5 (fun _ _ => False),
-     enNetlist.internals.getD 6 (fun _ _ => False), enNetlist.internals.getD 7 (fun _ _ => False), enNetlist.internals.getD 8 (fun _ _ => False),
-     enNetlist.internals.getD 9 (fun _ _ => False), enNetlist.internals.getD 10 (fun _ _ => False), enNetlist.internals.getD 11 (fun _ _ => False),
-     enNetlist.internals.getD 12 (fun _ _ => False), enNetlist.internals.getD 13 (fun _ _ => False), enNetlist.internals.getD 14 (fun _ _ => False),
-     enNetlist.internals.getD 15 (fun _ _ => False), enNetlist.internals.getD 16 (fun _ _ => False), enNetlist.internals.getD 17 (fun _ _ => False),
-     enNetlist.internals.getD 18 (fun _ _ => False), enNetlist.internals.getD 19 (fun _ _ => False), enNetlist.internals.getD 20 (fun _ _ => False),
-     enNetlist.internals.getD 21 (fun _ _ => False), enNetlist.internals.getD 22 (fun _ _ => False), enNetlist.internals.getD 23 (fun _ _ => False),
-     enNetlist.internals.getD 24 (fun _ _ => False), enNetlist.internals.getD 25 (fun _ _ => False), enNetlist.internals.getD 26 (fun _ _ => False),
-     enNetlist.internals.getD 27 (fun _ _ => False), enNetlist.internals.getD 28 (fun _ _ => False), enNetlist.internals.getD 29 (fun _ _ => False),
-     enNetlist.internals.getD 30 (fun _ _ => False), enNetlist.internals.getD 31 (fun _ _ => False), enNetlist.internals.getD 32 (fun _ _ => False),
-     enNetlist.internals.getD 33 (fun _ _ => False), enNetlist.internals.getD 34 (fun _ _ => False)] := rfl
+    [enNetlist.internals.getD 0 (fun _ _ => False), enNetlist.internals.getD 1 (fun _ _ => False),
+     enNetlist.internals.getD 2 (fun _ _ => False), enNetlist.internals.getD 3 (fun _ _ => False),
+     enNetlist.internals.getD 4 (fun _ _ => False), enNetlist.internals.getD 5 (fun _ _ => False),
+     enNetlist.internals.getD 6 (fun _ _ => False), enNetlist.internals.getD 7 (fun _ _ => False),
+     enNetlist.internals.getD 8 (fun _ _ => False), enNetlist.internals.getD 9 (fun _ _ => False),
+     enNetlist.internals.getD 10 (fun _ _ => False), enNetlist.internals.getD 11 (fun _ _ => False),
+     enNetlist.internals.getD 12 (fun _ _ => False), enNetlist.internals.getD 13 (fun _ _ => False),
+     enNetlist.internals.getD 14 (fun _ _ => False), enNetlist.internals.getD 15 (fun _ _ => False)]
+    := rfl
 
-/-! All 35 connections, one line each. -/
+/-! All sixteen connections, one line each. -/
 
 theorem case_0 (s) (i mid : enT) (H : ψ i s)
     (Hrule : (enNetlist.internals.getD 0 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- n2_b
+    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case
 
 theorem case_1 (s) (i mid : enT) (H : ψ i s)
     (Hrule : (enNetlist.internals.getD 1 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- n3_b
+    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case
 
 theorem case_2 (s) (i mid : enT) (H : ψ i s)
     (Hrule : (enNetlist.internals.getD 2 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- cut_r1
+    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case
 
 theorem case_3 (s) (i mid : enT) (H : ψ i s)
     (Hrule : (enNetlist.internals.getD 3 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- n2_c
+    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case
 
 theorem case_4 (s) (i mid : enT) (H : ψ i s)
     (Hrule : (enNetlist.internals.getD 4 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- n4_c
+    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case
 
 theorem case_5 (s) (i mid : enT) (H : ψ i s)
     (Hrule : (enNetlist.internals.getD 5 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- n6_c
+    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case
 
 theorem case_6 (s) (i mid : enT) (H : ψ i s)
     (Hrule : (enNetlist.internals.getD 6 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- qg_b
+    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case
 
 theorem case_7 (s) (i mid : enT) (H : ψ i s)
     (Hrule : (enNetlist.internals.getD 7 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- cut_r4
+    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case
 
 theorem case_8 (s) (i mid : enT) (H : ψ i s)
     (Hrule : (enNetlist.internals.getD 8 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- nen_a
+    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case
 
 theorem case_9 (s) (i mid : enT) (H : ψ i s)
     (Hrule : (enNetlist.internals.getD 9 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- t1_a
+    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case
 
 theorem case_10 (s) (i mid : enT) (H : ψ i s)
     (Hrule : (enNetlist.internals.getD 10 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- cut_r2
+    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case
 
 theorem case_11 (s) (i mid : enT) (H : ψ i s)
     (Hrule : (enNetlist.internals.getD 11 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- t1_b
+    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case
 
 theorem case_12 (s) (i mid : enT) (H : ψ i s)
     (Hrule : (enNetlist.internals.getD 12 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- cut_r3
+    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case
 
 theorem case_13 (s) (i mid : enT) (H : ψ i s)
     (Hrule : (enNetlist.internals.getD 13 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- t2_a
+    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case
 
 theorem case_14 (s) (i mid : enT) (H : ψ i s)
     (Hrule : (enNetlist.internals.getD 14 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- t2_b
+    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case
 
 theorem case_15 (s) (i mid : enT) (H : ψ i s)
     (Hrule : (enNetlist.internals.getD 15 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- cut_in
+    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case
 
-theorem case_16 (s) (i mid : enT) (H : ψ i s)
-    (Hrule : (enNetlist.internals.getD 16 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- mx_a
-
-theorem case_17 (s) (i mid : enT) (H : ψ i s)
-    (Hrule : (enNetlist.internals.getD 17 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- mx_b
-
-theorem case_18 (s) (i mid : enT) (H : ψ i s)
-    (Hrule : (enNetlist.internals.getD 18 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- n4_b
-
-theorem case_19 (s) (i mid : enT) (H : ψ i s)
-    (Hrule : (enNetlist.internals.getD 19 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- n1_a
-
-theorem case_20 (s) (i mid : enT) (H : ψ i s)
-    (Hrule : (enNetlist.internals.getD 20 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- n1_b
-
-theorem case_21 (s) (i mid : enT) (H : ψ i s)
-    (Hrule : (enNetlist.internals.getD 21 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- n2_a
-
-theorem case_22 (s) (i mid : enT) (H : ψ i s)
-    (Hrule : (enNetlist.internals.getD 22 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- n2f_in
-
-theorem case_23 (s) (i mid : enT) (H : ψ i s)
-    (Hrule : (enNetlist.internals.getD 23 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- n3_a
-
-theorem case_24 (s) (i mid : enT) (H : ψ i s)
-    (Hrule : (enNetlist.internals.getD 24 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- n3_c
-
-theorem case_25 (s) (i mid : enT) (H : ψ i s)
-    (Hrule : (enNetlist.internals.getD 25 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- n3f_in
-
-theorem case_26 (s) (i mid : enT) (H : ψ i s)
-    (Hrule : (enNetlist.internals.getD 26 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- n4_a
-
-theorem case_27 (s) (i mid : enT) (H : ψ i s)
-    (Hrule : (enNetlist.internals.getD 27 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- n4f_in
-
-theorem case_28 (s) (i mid : enT) (H : ψ i s)
-    (Hrule : (enNetlist.internals.getD 28 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- n5_a
-
-theorem case_29 (s) (i mid : enT) (H : ψ i s)
-    (Hrule : (enNetlist.internals.getD 29 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- n5_b
-
-theorem case_30 (s) (i mid : enT) (H : ψ i s)
-    (Hrule : (enNetlist.internals.getD 30 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- n5f_in
-
-theorem case_31 (s) (i mid : enT) (H : ψ i s)
-    (Hrule : (enNetlist.internals.getD 31 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- n6_a
-
-theorem case_32 (s) (i mid : enT) (H : ψ i s)
-    (Hrule : (enNetlist.internals.getD 32 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- n6_b
-
-theorem case_33 (s) (i mid : enT) (H : ψ i s)
-    (Hrule : (enNetlist.internals.getD 33 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- qg_a
-
-theorem case_34 (s) (i mid : enT) (H : ψ i s)
-    (Hrule : (enNetlist.internals.getD 34 (fun _ _ => False)) i mid) :
-    ∃ s', existSR enSpec.internals s s' ∧ ψ mid s' := by en_case   -- qf_in
 
 /-! ### The specification's own rules -/
 
@@ -788,8 +638,10 @@ theorem refines_ψ : enNetlist ⊑_{ψ} enSpec := by
   intro i s H
   constructor
   · intro ident mid_i v Hrule
-    obtain ⟨⟨n2_a, n2_b, n2_c⟩, enf_in, n5f_in, ⟨qg_a, qg_b⟩, qf_in, ⟨t1_a, t1_b⟩, crf_in, ⟨n5_a, n5_b⟩, ⟨n6_a, n6_b, n6_c⟩, ⟨n4_a, n4_b, n4_c⟩, n4f_in, ⟨n3_a, n3_b, n3_c⟩, ⟨n1_a, n1_b⟩, n3f_in, dataf_in, ⟨t2_a, t2_b⟩, clkf_in, n2f_in, ⟨cut_in, cut_r1, cut_r2, cut_r3, cut_r4⟩, ⟨mx_a, mx_b⟩, nen_a⟩ := i
-    obtain ⟨⟨_, _, _⟩, _, _, ⟨_, _⟩, _, ⟨_, _⟩, _, ⟨_, _⟩, ⟨_, _, _⟩, ⟨_, _, _⟩, _, ⟨_, _, _⟩, ⟨_, _⟩, _, _, ⟨_, _⟩, _, _, ⟨_, _, _, _, _⟩, ⟨_, _⟩, _⟩ := mid_i
+    obtain ⟨⟨t1_a, t1_b⟩, crf_in, enf_in, dataf_in, clkf_in, ⟨t2_a, t2_b⟩,
+      ⟨cut_in, cut_r1, cut_r2, cut_r3, cut_r4⟩, ⟨ff_clk, ff_d, ff_crn⟩, qf_in, nen_a,
+      ⟨mx_a, mx_b⟩⟩ := i
+    obtain ⟨⟨_, _⟩, _, _, _, _, ⟨_, _⟩, ⟨_, _, _, _, _⟩, ⟨_, _, _⟩, _, _, ⟨_, _⟩⟩ := mid_i
     obtain ⟨hw, e0, e1, e2, e3⟩ := H
     case_transition Hcontains : Module.inputs enNetlist, ident,
       (PortMap.getIO_not_contained_false' Hrule)
@@ -802,23 +654,24 @@ theorem refines_ψ : enNetlist ⊑_{ψ} enSpec := by
       obtain ⟨hpre, Hrule⟩ := Hrule <;>
       repeat' (obtain ⟨hh, Hrule⟩ := Hrule; try subst hh)
     all_goals simp only [eq_mp_eq_cast] at hpre
-    -- The port's identity is decided by `hpre`'s type; the four proofs are one shape.
     all_goals first
       | exact ⟨_, _, spec_in_clk s _ (by rw [← e0]; exact hpre), existSR_reflexive,
-          Wf_congr drv_mono (Wf_drv hw (drv_env (e0 ▸ hpre.isPrefix) List.prefix_rfl List.prefix_rfl
-            List.prefix_rfl _)) (by en_same) (by en_same), rfl, e1, e2, e3⟩
+          Wf_drv hw (drv_env (e0 ▸ hpre.isPrefix) List.prefix_rfl List.prefix_rfl
+            List.prefix_rfl _), rfl, e1, e2, e3⟩
       | exact ⟨_, _, spec_in_en s _ (by rw [← e1]; exact hpre), existSR_reflexive,
-          Wf_congr drv_mono (Wf_drv hw (drv_env List.prefix_rfl (e1 ▸ hpre.isPrefix) List.prefix_rfl
-            List.prefix_rfl _)) (by en_same) (by en_same), e0, rfl, e2, e3⟩
+          Wf_drv hw (drv_env List.prefix_rfl (e1 ▸ hpre.isPrefix) List.prefix_rfl
+            List.prefix_rfl _), e0, rfl, e2, e3⟩
       | exact ⟨_, _, spec_in_data s _ (by rw [← e2]; exact hpre), existSR_reflexive,
-          Wf_congr drv_mono (Wf_drv hw (drv_env List.prefix_rfl List.prefix_rfl (e2 ▸ hpre.isPrefix)
-            List.prefix_rfl _)) (by en_same) (by en_same), e0, e1, rfl, e3⟩
+          Wf_drv hw (drv_env List.prefix_rfl List.prefix_rfl (e2 ▸ hpre.isPrefix)
+            List.prefix_rfl _), e0, e1, rfl, e3⟩
       | exact ⟨_, _, spec_in_clrn s _ (by rw [← e3]; exact hpre), existSR_reflexive,
-          Wf_congr drv_mono (Wf_drv hw (drv_env List.prefix_rfl List.prefix_rfl List.prefix_rfl
-            (e3 ▸ hpre.isPrefix) _)) (by en_same) (by en_same), e0, e1, e2, rfl⟩
+          Wf_drv hw (drv_env List.prefix_rfl List.prefix_rfl List.prefix_rfl
+            (e3 ▸ hpre.isPrefix) _), e0, e1, e2, rfl⟩
   · intro ident mid_i v Hrule
-    obtain ⟨⟨n2_a, n2_b, n2_c⟩, enf_in, n5f_in, ⟨qg_a, qg_b⟩, qf_in, ⟨t1_a, t1_b⟩, crf_in, ⟨n5_a, n5_b⟩, ⟨n6_a, n6_b, n6_c⟩, ⟨n4_a, n4_b, n4_c⟩, n4f_in, ⟨n3_a, n3_b, n3_c⟩, ⟨n1_a, n1_b⟩, n3f_in, dataf_in, ⟨t2_a, t2_b⟩, clkf_in, n2f_in, ⟨cut_in, cut_r1, cut_r2, cut_r3, cut_r4⟩, ⟨mx_a, mx_b⟩, nen_a⟩ := i
-    obtain ⟨⟨_, _, _⟩, _, _, ⟨_, _⟩, _, ⟨_, _⟩, _, ⟨_, _⟩, ⟨_, _, _⟩, ⟨_, _, _⟩, _, ⟨_, _, _⟩, ⟨_, _⟩, _, _, ⟨_, _⟩, _, _, ⟨_, _, _, _, _⟩, ⟨_, _⟩, _⟩ := mid_i
+    obtain ⟨⟨t1_a, t1_b⟩, crf_in, enf_in, dataf_in, clkf_in, ⟨t2_a, t2_b⟩,
+      ⟨cut_in, cut_r1, cut_r2, cut_r3, cut_r4⟩, ⟨ff_clk, ff_d, ff_crn⟩, qf_in, nen_a,
+      ⟨mx_a, mx_b⟩⟩ := i
+    obtain ⟨⟨_, _⟩, _, _, _, _, ⟨_, _⟩, ⟨_, _, _, _, _⟩, ⟨_, _, _⟩, _, _, ⟨_, _⟩⟩ := mid_i
     obtain ⟨hw, e0, e1, e2, e3⟩ := H
     have ho := out_q hw
     dsimp only [wires] at ho
@@ -835,7 +688,7 @@ theorem refines_ψ : enNetlist ⊑_{ψ} enSpec := by
   · intro rule mid_i Hin Hrule
     rw [enNetlist_internals_eq] at Hin
     simp only [List.mem_cons, List.not_mem_nil, or_false] at Hin
-    rcases Hin with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h
+    rcases Hin with h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h
     · subst h; exact case_0 s i mid_i H Hrule
     · subst h; exact case_1 s i mid_i H Hrule
     · subst h; exact case_2 s i mid_i H Hrule
@@ -852,37 +705,21 @@ theorem refines_ψ : enNetlist ⊑_{ψ} enSpec := by
     · subst h; exact case_13 s i mid_i H Hrule
     · subst h; exact case_14 s i mid_i H Hrule
     · subst h; exact case_15 s i mid_i H Hrule
-    · subst h; exact case_16 s i mid_i H Hrule
-    · subst h; exact case_17 s i mid_i H Hrule
-    · subst h; exact case_18 s i mid_i H Hrule
-    · subst h; exact case_19 s i mid_i H Hrule
-    · subst h; exact case_20 s i mid_i H Hrule
-    · subst h; exact case_21 s i mid_i H Hrule
-    · subst h; exact case_22 s i mid_i H Hrule
-    · subst h; exact case_23 s i mid_i H Hrule
-    · subst h; exact case_24 s i mid_i H Hrule
-    · subst h; exact case_25 s i mid_i H Hrule
-    · subst h; exact case_26 s i mid_i H Hrule
-    · subst h; exact case_27 s i mid_i H Hrule
-    · subst h; exact case_28 s i mid_i H Hrule
-    · subst h; exact case_29 s i mid_i H Hrule
-    · subst h; exact case_30 s i mid_i H Hrule
-    · subst h; exact case_31 s i mid_i H Hrule
-    · subst h; exact case_32 s i mid_i H Hrule
-    · subst h; exact case_33 s i mid_i H Hrule
-    · subst h; exact case_34 s i mid_i H Hrule
 
 theorem refines_initial : Module.refines_initial enNetlist enSpec ψ := by
   intro i hi
-  obtain ⟨⟨n2_a, n2_b, n2_c⟩, enf_in, n5f_in, ⟨qg_a, qg_b⟩, qf_in, ⟨t1_a, t1_b⟩, crf_in, ⟨n5_a, n5_b⟩, ⟨n6_a, n6_b, n6_c⟩, ⟨n4_a, n4_b, n4_c⟩, n4f_in, ⟨n3_a, n3_b, n3_c⟩, ⟨n1_a, n1_b⟩, n3f_in, dataf_in, ⟨t2_a, t2_b⟩, clkf_in, n2f_in, ⟨cut_in, cut_r1, cut_r2, cut_r3, cut_r4⟩, ⟨mx_a, mx_b⟩, nen_a⟩ := i
+  obtain ⟨⟨t1_a, t1_b⟩, crf_in, enf_in, dataf_in, clkf_in, ⟨t2_a, t2_b⟩,
+    ⟨cut_in, cut_r1, cut_r2, cut_r3, cut_r4⟩, ⟨ff_clk, ff_d, ff_crn⟩, qf_in, nen_a,
+    ⟨mx_a, mx_b⟩⟩ := i
   dsimp only [enNetlist] at hi
   simp only [Prod.mk.injEq, and_assoc] at hi
-  obtain ⟨rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩ := hi
+  obtain ⟨rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩ := hi
   refine ⟨([], [], [], []), rfl, ?_, rfl, rfl, rfl, rfl⟩
   intro k; cases k <;> exact List.nil_prefix
 
-/-- **The cell's netlist refines the cell.** -/
+/-- **The cell's netlist refines the cell** --- and the flip-flop in it is `Dff`'s, as a block. -/
 theorem en_refines : enNetlist ⊑ enSpec :=
   ⟨inferInstance, ψ, refines_ψ, refines_initial⟩
+
 
 end Graphiti.AsyncFifo.EnReg

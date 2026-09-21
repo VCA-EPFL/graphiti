@@ -164,14 +164,17 @@ def dffEnv : IdentMap String TypedTemplate :=
 def dff_if : VerilogInterface := ifc [("clk",1),("d",1),("clrn",1)] [("q",1)]
 def m_dff : Option String := build_unit "dff" dffEnv Dff.dffLowered dff_if
 
-def enEnv : IdentMap String TypedTemplate :=
-  [("and2", c_and2), ("cut4", c_cut4), ("fork2", c_fork2), ("fork3", c_fork3), ("fork5", c_fork5), ("nand2", c_nand2), ("nand3", c_nand3), ("not1", c_not1), ("or2", c_or2)].toAssocList
-def en_if : VerilogInterface := ifc [("clk",1),("en",1),("data",1),("clrn",1)] [("q",1)]
-def m_enreg : Option String := build_unit "enreg" enEnv EnReg.enLowered en_if
-
 /-- The flip-flop as the registers instantiate it: only its interface matters here, the module
 itself is generated from `Dff.dffLowered`. -/
 def s_dff : TypedTemplate := cell "dff" [("clk",1), ("d",1), ("clrn",1)] [("q",1)] ""
+
+/-- The cell instantiates the flip-flop rather than repeating its gates, exactly as
+`EnReg.enGraph` does: the exported Verilog has the same shape as the proof. -/
+def enEnv : IdentMap String TypedTemplate :=
+  [("and2", c_and2), ("cut4", c_cut4), ("dff", s_dff), ("fork2", c_fork2), ("fork3", c_fork3),
+   ("not1", c_not1), ("or2", c_or2)].toAssocList
+def en_if : VerilogInterface := ifc [("clk",1),("en",1),("data",1),("clrn",1)] [("q",1)]
+def m_enreg : Option String := build_unit "enreg" enEnv EnReg.enLowered en_if
 
 def busEnv : IdentMap String TypedTemplate :=
   [("dff", s_dff), ("fork3", c_fork3), ("pack3", c_pack3), ("unpack3", c_unpack3)].toAssocList

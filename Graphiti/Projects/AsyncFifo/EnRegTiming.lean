@@ -23,58 +23,6 @@ namespace Graphiti.AsyncFifo.EnReg
 
 open Graphiti.AsyncFifo Graphiti.AsyncFifo.Gates Graphiti.AsyncFifo.Timed Graphiti.AsyncFifo.Dff
 
-/-- The multiplexer's stream, as far as the cell's inputs are known. -/
-def mStream (clk en dat crn : List Bool) : List Bool :=
-  timeline (fun t => (enRun clk en dat crn t).m) (enLen clk en dat crn)
-
-@[simp] theorem mStream_length (clk en dat crn : List Bool) :
-    (mStream clk en dat crn).length = enLen clk en dat crn := timeline_length _ _
-
-theorem mStream_getD {clk en dat crn : List Bool} {t : Nat} (ht : t < enLen clk en dat crn) :
-    (mStream clk en dat crn).getD t false = (enRun clk en dat crn t).m := timeline_getD _ ht _
-
-theorem dffLen_mStream (clk en dat crn : List Bool) :
-    dffLen clk (mStream clk en dat crn) crn = enLen clk en dat crn := by
-  simp only [dffLen, mStream_length]
-  unfold enLen
-  omega
-
-/-- The six flip-flop wires of the cell, as a state of `Dff`'s automaton. -/
-def ffOf (s : EnSt) : DffSt := ⟨s.n1, s.n2, s.n3, s.n4, s.n5, s.n6⟩
-
-/-- **The cell's flip-flop is the flip-flop**, driven by the multiplexer's stream.  This is what
-lets the cell inherit the whole timing analysis of `DffTiming.lean`. -/
-theorem enRun_ff {clk en dat crn : List Bool} {t : Nat} (ht : t ≤ enLen clk en dat crn) :
-    ffOf (enRun clk en dat crn t) = dffRun clk (mStream clk en dat crn) crn t := by
-  induction t with
-  | zero => rfl
-  | succ t ih =>
-    have ht' : t ≤ enLen clk en dat crn := by omega
-    have e1 : dffRun clk (mStream clk en dat crn) crn (t + 1) =
-        dffStep (dffRun clk (mStream clk en dat crn) crn t)
-          (dffInp clk (mStream clk en dat crn) crn t) := rfl
-    have e2 : enRun clk en dat crn (t + 1) =
-        enStep (enRun clk en dat crn t) (enInp clk en dat crn t) := rfl
-    rw [e1, ← ih ht', e2]
-    unfold dffInp enInp ffOf dffStep enStep
-    rw [mStream_getD (by omega)]
-
-/-- The cell's output is the flip-flop's output over the multiplexer's stream. -/
-theorem enOut_eq (clk en dat crn : List Bool) :
-    enOut clk en dat crn = dffOut clk (mStream clk en dat crn) crn := by
-  refine list_eq_of_getD false ?_ (fun t ht => ?_)
-  · simp only [enOut_length, dffOut_length, dffLen_mStream]
-  · simp only [enOut_length] at ht
-    rw [enOut_getD _ _ _ _ ht, dffOut_getD _ _ _ (by rw [dffLen_mStream]; omega)]
-    match t with
-    | 0 => rfl
-    | u + 1 =>
-      show (enStep (enRun clk en dat crn u) (enInp clk en dat crn u)).q = _
-      show and2 (enRun clk en dat crn u).n5 (crn.getD u false) = _
-      show _ = and2 (dffRun clk (mStream clk en dat crn) crn u).n5 (crn.getD u false)
-      rw [← enRun_ff (t := u) (by omega)]
-      rfl
-
 /-! ### What a write is -/
 
 /-- A write to the cell: a rising edge whose enable and data were stable over the setup window,
