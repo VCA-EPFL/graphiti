@@ -18,15 +18,21 @@ is fed by a multiplexer that reads the flip-flop's own output:
     nen = not en        t1 = en and data      t2 = nen and q
     m   = t1 or t2      (and the flip-flop of `Dff.lean` with `d := m`)
 
-That loop is why this is a netlist of gates rather than a graph of blocks.  A block's output is
-a function of the streams it was *given*, and here the flip-flop is given a stream that depends
-on what it produces; the fixpoint of the two is not a composition of the two functions.  So the
-cell's eleven gates get one automaton, `enRun`, exactly as the flip-flop's seven did.
+The loop means the cell's *behaviour* is a fixpoint and not a composition: the flip-flop is
+given a stream that depends on what it produces, so the cell is a sequential circuit whose
+state includes the flip-flop's, and `enRun` is that combined automaton.  `EnRegTiming.lean`
+shows the six flip-flop wires of `enRun` are `Dff.dffRun` driven by the multiplexer's stream
+(`enRun_ff`), so every timing theorem about the flip-flop applies to the cell and the only new
+work is what the multiplexer does around an edge.
 
-Nothing is lost by inlining: `EnRegTiming.lean` shows that the six flip-flop wires of `enRun`
-are `Dff.dffRun` driven by the multiplexer's stream, so every timing theorem about the
-flip-flop applies to the cell, and the only new work is what the multiplexer does around an
-edge.
+The loop does **not** force the *netlist* to be flat gates, and an earlier version of this
+comment claimed it did.  It does not: `dffOut` is a `timeline` of length `dffLen + 1`, so the
+flip-flop as a block emits one instant past its shortest input exactly as a gate does, which is
+what lets a stream enter a feedback loop at all, and `Netlist.Wf` never mentions the topology.
+The cell can be written as the flip-flop of `Dff.lean` as a node, the four multiplexer gates,
+and the loop --- eleven nodes and sixteen connections against the thirty-five below --- and
+`enRun` would then need the multiplexer's wires only, the flip-flop's six coming from `dffOut`.
+That is a worthwhile simplification and it has not been made.
 
 The clock gating that would avoid the loop -- `clk and en` into the flip-flop -- is not used
 here.  It needs the enable to be stable over the whole high phase of the clock, and the write
