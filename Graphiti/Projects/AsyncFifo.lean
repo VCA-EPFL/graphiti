@@ -152,9 +152,9 @@ array would demand the *whole memory* stand still over the block's window, when 
 other entry is invisible to a read port.  `Timed.ReadOut` is its contract --- what must hold over
 the window is the address and *the word that address selects*.
 
-What is left: the read domain's gate level, and the read port's window.  That window is the one
-place a read-domain block depends on the *other* domain's timing, so opening it belongs in
-`Invariant.lean` beside `mem_read`, whose margin `e < t - P_r - lat - 1` should give it directly.
+The descent is finished on both sides: `GateLiftingR.asyncFifoGatesRW_refines` has both clock
+domains as netlists of gates, and `GateLiftingR.lean` carries a compiled instance of it at
+concrete clock parameters, so the thirteen hypotheses are known to be satisfiable together.
 The results, all with standard axioms and no `sorry`:
 
     Lifting.asyncFifo_refines :
@@ -454,8 +454,10 @@ to have absorbed them.
 
 Proved: under the timing assumptions, no data is lost, duplicated, reordered, or read before
 being written, for every data type, depth, latency, and every metastability resolution — for
-the register-level circuit, and for the circuit whose write domain is built from timed blocks
-with any window and delay parameters satisfying the constraints.  `Example.lean` shows the
+the register-level circuit, for the circuit whose domains are built from timed blocks with any
+window and delay parameters satisfying the constraints, and for the circuit whose two domains
+are netlists of unit-delay gates (depth `4`, 1-bit data), where the leaves are gates, wiring,
+the reset source and the synchroniser's first stage and nothing else.  `Example.lean` shows the
 hypotheses are not decorative: with a read clock period no larger than the settling time, the
 register-level circuit reads values that were never written (and the specification, as
 intended, says nothing about that trace).
@@ -465,20 +467,25 @@ settles within `kq` and, when it crosses clock domains, transitions bit by bit; 
 that is correct only while its writes have respected their setup windows; combinational logic
 that settles within `dmax` on stable inputs; a synchroniser stage that resolves within `stl`.
 The last one is irreducibly an assumption (a boolean unit-delay gate model oscillates forever
-in the metastable case); the others are meant to be discharged by gate-level refinements, the
-register ones from Kobler's flip-flop theorem once it carries the glitch-free clause.
+in the metastable case), and `SyncSettle.lean` reduces it to its smallest form, one clause about
+one bit.  **The others are discharged**: the registers by `Dff.dffOut_regOut` and
+`Dff.dffOut_window` through `GateBank.bank_refines_regBank` and
+`GateBankR.bank_refines_rregBank`, the register file by `Mem.memOut_memOut`, and the
+combinational logic by `GateNext.gateNext_refines` and `GateNextR.gateNextR_refines` with window
+`[0, 8]`.
 
 The Verilog export is not verified: the framework's exporter is purely syntactic and has no
 semantics linking it to Lean.  Its two halves differ in how much they leave to inspection.  In
 the register-level export the leaf bodies are hand-written behavioural code, so the whole
-design is only as good as reading them.  The gate-level export is generated from
-`GateNext.gateNextExpr`, the expression the refinement theorem is about, and its leaves are
-gates whose bodies are one line each; a Verilator testbench checks it against `wNext` on all
-4096 input combinations.  The timed blocks are relational, hence not executable; their
+design is only as good as reading them.  The gate-level export is generated from the very expressions the
+refinement theorems are about, and its leaves are gates whose bodies are one line each.  Three
+Verilator testbenches check it: `tb_next`/`tb_nextr` against `wNext`/`rNext` on all 4096 input
+combinations, `tb_dff` differentially against the Lean flip-flop instant by instant, and
+`tb_fifo` on the whole FIFO across four clock ratios.  The timed blocks are relational, hence not executable; their
 consistency is argued, not tested.
 
-Not proved: any accuracy or liveness property of `full` and `empty` (bounds of the form "if
-an element has been present since `t₀` then `empty` is low from `t₀ + lat + 2·P_r + 1`" are
-the natural next theorems); the timed read domain (symmetric to the write domain); the
-lower stages of the descent.
+Not proved: any accuracy or liveness property of `full` and `empty` — bounds of the form "if
+an element has been present since `t₀` then `empty` is low from `t₀ + lat + 2·P_r + 1`" are the
+natural next theorems, and are now the main thing this development does not say.  Everything is
+a safety refinement: a circuit that never reported anything would satisfy it.
 -/
