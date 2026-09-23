@@ -1,7 +1,7 @@
 # Verilog exported from Lean, and the tests that say the export is faithful.
 #
 #   async_fifo_gates.v  the whole FIFO at gate level, every module generated from the ExprLow a
-#                       refinement theorem is about (VerilogGates.lean).
+#                       refinement theorem is about (ProofWriteOnly/VerilogGates.lean).
 #   next_state.v        the write domain's next-state netlist on its own.
 #   next_state_r.v      the read domain's, carved out of the same export.
 #
@@ -23,12 +23,12 @@ SIMFLAGS := --timing -DCLEAR_RELEASE=12 -DSETTLE_STL=4 -Wno-DECLFILENAME -Wno-fa
 
 all: lint sim-dff sim-next sim-nextr sim-fifo
 
-async_fifo_gates.v: gen_gates.lean ../VerilogGates.lean ../Verilog.lean
-	cd $(ROOT) && lake build Graphiti.Projects.AsyncFifo.VerilogGates >/dev/null && \
+async_fifo_gates.v: gen_gates.lean ../ProofWriteOnly/VerilogGates.lean ../ProofWriteOnly/Verilog.lean
+	cd $(ROOT) && lake build Graphiti.Projects.AsyncFifo.ProofWriteOnly.VerilogGates >/dev/null && \
 	  lake env lean $(HERE)/gen_gates.lean > $(HERE)/async_fifo_gates.v
 
-next_state.v: gen_next.lean ../Verilog.lean ../GateNext.lean
-	cd $(ROOT) && lake build Graphiti.Projects.AsyncFifo.Verilog >/dev/null && \
+next_state.v: gen_next.lean ../ProofWriteOnly/Verilog.lean ../components/level4/WriteNext.lean
+	cd $(ROOT) && lake build Graphiti.Projects.AsyncFifo.ProofWriteOnly.Verilog >/dev/null && \
 	  lake env lean $(HERE)/gen_next.lean > $(HERE)/next_state.v
 
 next_state_r.v: async_fifo_gates.v
@@ -46,8 +46,8 @@ dff_only.v: async_fifo_gates.v
 	  open('dff_only.v','w').write(''.join(by[k] for k in keep if k in by))"
 
 # The Lean netlist's own trace, for the differential test below.
-dff_trace.txt: gen_dff_trace.lean ../Dff.lean
-	cd $(ROOT) && lake build Graphiti.Projects.AsyncFifo.Dff >/dev/null && \
+dff_trace.txt: gen_dff_trace.lean ../ProofWriteOnly/Dff.lean
+	cd $(ROOT) && lake build Graphiti.Projects.AsyncFifo.ProofWriteOnly.Dff >/dev/null && \
 	  lake env lean $(HERE)/gen_dff_trace.lean > $(HERE)/dff_trace.txt
 
 # UNOPTFLAT is expected: a gate-level flip-flop is a cross-coupled NAND latch, so the

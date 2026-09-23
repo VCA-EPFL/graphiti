@@ -1,4 +1,4 @@
-import Graphiti.Projects.AsyncFifo.Dff
+import Graphiti.Projects.AsyncFifo.ProofWriteOnly.Dff
 /- Emits a reference trace of the *Lean* flip-flop for `tb_dff.cpp` to check the exported gate
    netlist against, instant by instant.  Four lines: q, clk, d, clrn.
    Run with `lake env lean .../gen_dff_trace.lean > dff_trace.txt`. -/
