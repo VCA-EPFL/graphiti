@@ -60,4 +60,22 @@ def plus1_hw_m (s : String := "") : StringModule (Named s (N × (D × D))) :=
   init_state := λ s => s = default
 }
 
+example {s1 s2 s3} :
+  (plus1_hw_m.inputs.getIO "di").2 default [1, 2, 3] s1 →
+  (plus1_hw_m.inputs.getIO "vi").2 s1 [True, False, True] s2 →
+  (plus1_hw_m.inputs.getIO "ro").2 s2 [True, True, True] s3 →
+  (plus1_hw_m.outputs.getIO "do").2 s3 [2, 3, 4] s3
+  ∧ (plus1_hw_m.outputs.getIO "vo").2 s3 [True, False, True] s3
+  ∧ (plus1_hw_m.outputs.getIO "ri").2 s3 [True, True, True] s3 := by
+  intro h1 h2 h3
+  obtain ⟨s1x, s1y, s1z⟩ := s1
+  obtain ⟨s2x, s2y, s2z⟩ := s2
+  obtain ⟨s3x, s3y, s3z⟩ := s3
+  simp [PortMap.getIO,reduceAssocListfind?,default] at *
+  obtain ⟨h1_1, h1_2, h1_3, h1_4⟩ := h1
+  obtain ⟨h2_1, h2_2, h2_3, h2_4⟩ := h2
+  obtain ⟨h3_1, h3_2, h3_3, h3_4⟩ := h3
+  subst_vars
+  and_intros <;> rfl
+
 end Graphiti.LICircuits
