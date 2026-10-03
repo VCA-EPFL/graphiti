@@ -240,7 +240,7 @@ def filtered_eq (filter : List Bool) (s1 s2 : List α) : Prop :=
 def delay (d: α) (s: List α) := d :: s
 def delayN (n: Nat) (d: α) (s: List α) := (List.replicate n d) ++ s
 
-def not (s : List Bool) : List Bool := s.map Bool.not
+def not (s : List Bool) : List Bool := s.map Bool.not ---
 def and (s1 s2 : List Bool) : List Bool := List.zipWith Bool.and s1 s2
 def or (s1 s2 : List Bool) : List Bool := List.zipWith Bool.or s1 s2
 def xor (s1 s2 : List Bool) : List Bool := List.zipWith Bool.xor s1 s2
@@ -264,11 +264,66 @@ end List
 -- We are adding back a bot value (none) because it makes it easier to keep track of the most recent value that was
 -- generated.
 abbrev D := List Bool
+abbrev N := List Nat
+abbrev Tok := List (Option Bool)
 
 open List
 open VerilogExport
 
 abbrev Named (s : String) (T : Type _) := T
+
+def to_tokens (d v : D) : Tok :=
+  List.zipWith (λ x y => if y then x else none) d v
+
+def token_to_stalled_token : Tok → D → Tok
+  | [], _ => []
+  | _, [] => []
+  | x :: xs, r :: rs =>
+    x :: (if r || x.isNone then token_to_stalled_token xs rs        -- advace
+          else token_to_stalled_token (x :: xs) rs)                  -- stay on the same data
+
+def token_valid (s : Tok) : D := s.map Option.isSome
+def token_data (s : Tok) : D := s.map (fun x => x.getD false) -- default value should not matter
+
+def handshake_to_token_m (s : String := "") : StringModule (Named s (D × D)) :=
+  { inputs := [(↑"di", ⟨ Named s!"{s}.di" D, λ s tt s' => s.1 <<: tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
+               (↑"vi", ⟨ Named s!"{s}.vi" D, λ s tt s' => s.2 <<: tt ∧ s'.2 = tt ∧ s'.1 = s.1 ⟩)].toAssocList,
+    outputs := [(↑"Do", ⟨ Named s!"{s}.Do" Tok, λ s tt s' => s = s' ∧ tt = to_tokens s.1 s.2 ⟩),
+                (↑"ri", ⟨ Named s!"{s}.ri" D, λ s tt s' => s = s' ∧ tt = List.replicate (s.2.length +1) true ⟩)].toAssocList -- TODOcheck: size of ri
+    init_state := λ s => s = default
+  }
+
+def token_to_handshake_m (s : String := "") : StringModule (Named s (Tok × D)) :=
+  { inputs := [(↑"Di", ⟨ Named s!"{s}.Di" Tok, λ s tt s' => s.1 <<: tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
+               (↑"ro", ⟨ Named s!"{s}.ro" D, λ s tt s' => s.2 <<: tt ∧ s'.2 = tt ∧ s'.1 = s.1 ⟩)].toAssocList,
+    outputs := [(↑"do", ⟨ Named s!"{s}.do" D, λ s tt s' => s = s' ∧ tt = token_data (token_to_stalled_token s.1 s.2) ⟩),
+                (↑"vo", ⟨ Named s!"{s}.vo" D, λ s tt s' => s = s' ∧ tt = token_valid (token_to_stalled_token s.1 s.2)⟩)].toAssocList
+    init_state := λ s => s = default
+  }
+
+def not_hw_m (s : String := "") : StringModule (Named s (D × (D × D))) :=
+  { inputs := [(↑"di", ⟨ Named s!"{s}.di" D, λ s tt s' => s.1 <<: tt ∧ s'.1 = tt ∧ s'.2.1 = s.2.1 ∧ s'.2.2 = s.2.2 ⟩),
+               (↑"vi", ⟨ Named s!"{s}.vi" D, λ s tt s' => s.2.1 <<: tt ∧ s'.2.1 = tt ∧ s'.1 = s.1 ∧ s'.2.2 = s.2.2 ⟩),
+               (↑"ro", ⟨ Named s!"{s}.ro" D, λ s tt s' => s.2.2 <<: tt ∧ s'.2.2 = tt ∧ s'.1 = s.1 ∧ s'.2.1 = s.2.1 ⟩)].toAssocList,
+    outputs := [(↑"do", ⟨ Named s!"{s}.do" D, λ s tt s' => s = s' ∧ tt = not s.1 ⟩),
+                (↑"vo", ⟨ Named s!"{s}.vo" D, λ s tt s' => s = s' ∧ tt = s.2.1 ⟩),
+                (↑"ri", ⟨ Named s!"{s}.ri" D, λ s tt s' => s = s' ∧ tt = s.2.2 ⟩)].toAssocList
+    init_state := λ s => s = default
+  }
+
+def plus1 (s : List Nat) : List Nat := s.map (fun a : Nat => a+1)
+
+def plus1_hw_m (s : String := "") : StringModule (Named s (N × (D × D))) :=
+{ inputs := [(↑"di", ⟨ Named s!"{s}.di" N, λ s tt s' => s.1 <<: tt ∧ s'.1 = tt ∧ s'.2.1 = s.2.1 ∧ s'.2.2 = s.2.2 ⟩),
+            (↑"vi", ⟨ Named s!"{s}.vi" D, λ s tt s' => s.2.1 <<: tt ∧ s'.2.1 = tt ∧ s'.1 = s.1 ∧ s'.2.2 = s.2.2 ⟩),
+            (↑"ro", ⟨ Named s!"{s}.ro" D, λ s tt s' => s.2.2 <<: tt ∧ s'.2.2 = tt ∧ s'.1 = s.1 ∧ s'.2.1 = s.2.1 ⟩)].toAssocList,
+  outputs := [(↑"do", ⟨ Named s!"{s}.do" N, λ s tt s' => s = s' ∧ tt = plus1 s.1 ⟩),
+              (↑"vo", ⟨ Named s!"{s}.vo" D, λ s tt s' => s = s' ∧ tt = s.2.1 ⟩),
+              (↑"ri", ⟨ Named s!"{s}.ri" D, λ s tt s' => s = s' ∧ tt = s.2.2 ⟩)].toAssocList
+  init_state := λ s => s = default
+}
+
+
 
 def not_m : NatModule D :=
   { inputs := [(0, ⟨ D, λ s tt s' => s <<: tt ∧ s' = tt ⟩)].toAssocList,
