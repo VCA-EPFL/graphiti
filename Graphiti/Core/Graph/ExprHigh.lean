@@ -131,11 +131,20 @@ def invert (g : ExprHigh Ident Typ) : ExprHigh Ident Typ :=
     | some el' => el.product el'
   e.connections.foldr (λ conn expr => .connect conn expr) prod_expr
 
+/--
+Tail-recursive version of the product construction in `lower'`.  Folding left over the reversed list keeps the bases
+in the same order as `lower'`, which the runtime relies on (e.g. `reverse_rewrite'` zips nodes with `getPortMaps`).
+-/
 def lower'_prod_TR (e : IdentMap Ident (PortMapping Ident × Typ)) (el : ExprLow Ident Typ) : ExprLow Ident Typ :=
-  e.toList.foldl (λ expr val => .product (uncurry .base val.snd) expr) el
+  match e.toList.reverse.foldl (λ expr val => generate_product val expr) none with
+  | none => el
+  | some el' => el.product el'
 
+/--
+Tail-recursive version of the connection construction in `lower'`, keeping the connections in the same order.
+-/
 def lower'_conn_TR (e : List (Connection Ident)) (el : ExprLow Ident Typ) : ExprLow Ident Typ :=
-  e.foldl (λ expr conn => .connect conn expr) el
+  e.reverse.foldl (λ expr conn => .connect conn expr) el
 
 @[drunfold] def lower (e : ExprHigh Ident Typ) : Option (ExprLow Ident Typ) :=
   match e.modules.toList with
@@ -146,6 +155,10 @@ def lower_TR (e : ExprHigh Ident Typ) : Option (ExprLow Ident Typ) :=
   match e.modules.toList with
   | x :: xs => some <| lower'_conn_TR e.connections <| lower'_prod_TR xs.toAssocList (uncurry .base x.snd)
   | _ => none
+
+theorem lower_TR_eq_lower (e : ExprHigh Ident Typ) : e.lower_TR = e.lower := by
+  unfold lower_TR lower lower' lower'_prod_TR lower'_conn_TR
+  split <;> simp_all [List.foldl_reverse] <;> split <;> simp_all
 
 def map {Typ'} (f : Typ → Typ') (e : ExprHigh Ident Typ) : ExprHigh Ident Typ' :=
   {modules := e.modules.mapVal (λ _ v => (v.1, f v.2)), connections := e.connections}
@@ -306,10 +319,12 @@ Renames all the internal ports to match the name of the module.  This is really 
 graph.
 -/
 def normaliseNames_fast {α} (e : ExprHigh String α) : Option (ExprHigh String α) :=
-  let renameMap := e.modules.toList.map (λ (x, (inst, typ)) =>
-    inst.mapPM1 (λ m => m.foldl (fun st keyPort bodyPort => if e.portIsIO bodyPort then st else st.cons bodyPort ⟨.internal x, keyPort.name⟩) ∅))
-  renameMap.foldlM (fun e r =>
-    e.renamePorts_fast r
+  -- The renaming for each module is computed from the current graph, because `renamePorts_fast` swaps names, which can
+  -- move ports of modules that have not been renamed yet.
+  e.modules.keysList.foldlM (fun e x => do
+    let (inst, _) ← e.modules.find? x
+    e.renamePorts_fast <| inst.mapPM1 (λ m => m.foldl (fun st keyPort bodyPort =>
+      if e.portIsIO bodyPort then st else st.cons bodyPort ⟨.internal x, keyPort.name⟩) ∅)
   ) e
 
 /--

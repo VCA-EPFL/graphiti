@@ -41,20 +41,20 @@ def lhs (types : Vector Nat 8) : ExprHigh String (String × Nat) := [graph|
     i_in -> mux [to="in2"];
     queue_out -> o_out [from="out1"];
 
-    loop_init -> mux [from="out1", to="in1"];
-    condition_fork -> loop_init [from="out2", to="in1"];
-    condition_fork -> branch [from="out1", to="in2"];
-    mod -> tag_split [from="out1", to="in1"];
-    tag_split -> branch [from="out1", to="in1"];
-    tag_split -> condition_fork [from="out2", to="in1"];
-    mux -> mod [from="out1", to="in1"];
-    branch -> queue [from="out1", to="in1"];
-    queue -> mux [from="out1", to="in3"];
     branch -> queue_out [from="out2", to="in1"];
+    queue -> mux [from="out1", to="in3"];
+    branch -> queue [from="out1", to="in1"];
+    mux -> mod [from="out1", to="in1"];
+    tag_split -> condition_fork [from="out2", to="in1"];
+    tag_split -> branch [from="out1", to="in1"];
+    mod -> tag_split [from="out1", to="in1"];
+    condition_fork -> branch [from="out1", to="in2"];
+    condition_fork -> loop_init [from="out2", to="in1"];
+    loop_init -> mux [from="out1", to="in1"];
   ]
 
 @[drunfold_defs]
-def lhs_extract types := (lhs types).extract ["mux", "condition_fork", "branch", "tag_split", "mod", "loop_init", "queue",  "queue_out"] |>.get rfl
+def lhs_extract types := (lhs types).extract ["queue_out", "queue", "loop_init", "mod", "tag_split", "branch", "condition_fork", "mux"] |>.get rfl
 
 @[drunfold_defs]
 def lhsLower types := (lhs_extract types).fst.lower_TR.get rfl
@@ -84,18 +84,18 @@ def ghost_rhs (max_type : Nat)
     i_in -> tagger [to="in2"];
     tagger -> o_out [from="out2"];
 
-    tagger -> merge [from="out1",to="in2"];
-    merge -> mod [from="out1", to="in1"];
-    mod -> tag_split [from="out1", to="in1"];
-    tag_split -> branch [from="out1", to="in1"];
-    tag_split -> branch [from="out2", to="in2"];
-    branch -> merge [from="out1", to="in1"];
     branch -> tagger [from="out2", to="in1"];
+    branch -> merge [from="out1", to="in1"];
+    tag_split -> branch [from="out2", to="in2"];
+    tag_split -> branch [from="out1", to="in1"];
+    mod -> tag_split [from="out1", to="in1"];
+    merge -> mod [from="out1", to="in1"];
+    tagger -> merge [from="out1",to="in2"];
   ]
 
 @[drunfold_defs]
 def ghost_rhs_extract max_type := ghost_rhs max_type
-  |>.extract ["tag_split", "tagger", "merge", "branch", "mod"]
+  |>.extract ["mod", "branch", "merge", "tagger", "tag_split"]
   |>.get rfl
 
 @[drunfold_defs]
@@ -121,12 +121,14 @@ theorem env_types : ∃ (T : Type) (f : T → T × Bool),
     ∧ e.ε.find? ("initBool", e.types[5]) = some ⟨_, init Bool false⟩
     ∧ e.ε.find? ("queue", e.types[6]) = some ⟨_, queue T⟩
     ∧ e.ε.find? ("queue", e.types[7]) = some ⟨_, queue T⟩ := by
-  have hwf := ExprLow.well_formed_wrt_from_well_typed e.h_lhs_wf e.h_wf.h_wf
+  -- Elaborating an application `whnf`s its type, which would evaluate `lhsLower` without sharing; the simprocs below
+  -- reduce it much faster, so the hypotheses are introduced at reducible transparency.
+  with_reducible have hwf := ExprLow.well_formed_wrt_from_well_typed e.h_lhs_wf e.h_wf.h_wf
   dsimp [drunfold_defs, reduceAssocListfind?, reduceExprHighLower, reduceExprHighLowerProdTR,
     reduceExprHighLowerConnTR, ExprHigh.uncurry, ExprLow.well_formed_wrt, Env.well_formed'] at hwf
   simp only at hwf
   obtain ⟨⟨T, h7⟩, ⟨T6, h6⟩, h5, ⟨⟨A, B, g⟩, h4⟩, ⟨⟨S1, S2⟩, h3⟩, ⟨Br, h2⟩, ⟨F, h1⟩, ⟨M, h0⟩⟩ := hwf
-  have hwt := e.h_lhs_wt
+  with_reducible have hwt := e.h_lhs_wt
   dsimp [drunfold_defs, reduceAssocListfind?, reduceExprHighLower, reduceExprHighLowerProdTR,
     reduceExprHighLowerConnTR, ExprHigh.uncurry, ExprLow.well_typed, ExprLow.build_module_interface] at hwt
   simp (disch := decide) only [h0, h1, h2, h3, h4, h5, h6, h7, Option.map_some, Option.bind_some,

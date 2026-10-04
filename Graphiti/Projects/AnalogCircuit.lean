@@ -322,12 +322,12 @@ def analogValid {Ident S : Type _} (m : Module Ident S) (s : S) : Prop :=
 
 theorem vr_from_analogValid (E R : ℝ) (hR : R ≠ 0)
     (s) (h : analogValid (vr_module E R) s) :
-    ∀ t, s.2.i t = E / R := by
+    ∀ t, s.1.i t = E / R := by
   obtain ⟨hinit, hint⟩ := h
   -- Unfold constitutive laws and internal rules
   dsimp [vr_module, vsource_sm, resistor_sm, vsource, resistor,
          NatModule.stringify, Module.mapIdent, Module.liftL, Module.liftR] at *
-  obtain ⟨hvs, hres⟩ := hinit
+  obtain ⟨hres, hvs⟩ := hinit
   -- Apply hint to each internal rule; simp resolves the (T = T → …) guard.
   have h1 := hint _ (List.mem_cons_self ..)
   have h2 := hint _ (List.mem_cons_of_mem _ (List.mem_cons_self ..))
@@ -336,21 +336,21 @@ theorem vr_from_analogValid (E R : ℝ) (hR : R ≠ 0)
   obtain ⟨_, _, h2'⟩ := h2
   intro t
   -- Signal equalities from the connection witnesses.
-  have hv1_eq : s.1.v₁ t = s.2.v₁ t := by grind
-  have hv2_eq : s.2.v₂ t = s.1.v₂ t := by grind
-  have hE : R * s.2.i t = E := by
+  have hv1_eq : s.2.v₁ t = s.1.v₁ t := by grind
+  have hv2_eq : s.1.v₂ t = s.2.v₂ t := by grind
+  have hE : R * s.1.i t = E := by
     rw [← hres t, ← hv1_eq, hv2_eq]; linarith [hvs t]
   field_simp [hR]; linarith
 
 theorem vrc_ode_from_analogValid (E R C : ℝ)
     (s) (h : analogValid (vrc_module E R C) s) :
-    let V_C := fun t => s.2.2.2.v₁ t - s.2.2.2.v₂ t
+    let V_C := fun t => s.1.v₁ t - s.1.v₂ t
     ∀ t, R * C * deriv V_C t + V_C t = E := by
   obtain ⟨hinit, hint⟩ := h
   dsimp [vrc_module, vsource_sm, resistor_sm, capacitor_sm, probe_sm,
          vsource, resistor, capacitor, probe,
          NatModule.stringify, Module.mapIdent, Module.liftL, Module.liftR] at *
-  obtain ⟨hvs, _, hres, _, hcap⟩ := hinit
+  obtain ⟨⟨_, hcap⟩, hres, _, hvs⟩ := hinit
   -- Four internal rules, one per connection.
   have h1 := hint _ (List.mem_cons_self ..)
   have h2 := hint _ (List.mem_cons_of_mem _ (List.mem_cons_self ..))
@@ -363,20 +363,20 @@ theorem vrc_ode_from_analogValid (E R C : ℝ)
   obtain ⟨_, _, h3'⟩ := h3
   obtain ⟨_, _, h4'⟩ := h4
   intro t
-  set V_C := fun t => s.2.2.2.v₁ t - s.2.2.2.v₂ t with hV_C
+  set V_C := fun t => s.1.v₁ t - s.1.v₂ t with hV_C
   -- Signal equalities at t, derived from the connection witnesses.
-  have hv1 : s.1.v₁ t = s.2.2.1.v₁ t := by grind
-  have hv2 : s.2.2.1.v₂ t = s.2.1.v t := by grind
-  have hv3 : s.2.1.v t = s.2.2.2.v₁ t := by grind
-  have hv4 : s.2.2.2.v₂ t = s.1.v₂ t := by grind
-  have hi1 : s.2.2.1.i t = s.2.1.i t := by grind
-  have hi2 : s.2.1.i t = s.2.2.2.i t := by grind
+  have hv1 : s.2.2.2.v₁ t = s.2.1.v₁ t := by grind
+  have hv2 : s.2.1.v₂ t = s.2.2.1.v t := by grind
+  have hv3 : s.2.2.1.v t = s.1.v₁ t := by grind
+  have hv4 : s.1.v₂ t = s.2.2.2.v₂ t := by grind
+  have hi1 : s.2.1.i t = s.2.2.1.i t := by grind
+  have hi2 : s.2.2.1.i t = s.1.i t := by grind
   have eq_vs := hvs t; have eq_res := hres t; have eq_cap := hcap t
-  have hi_series : s.2.2.1.i t = s.2.2.2.i t := by linarith
-  have h_sub : R * s.2.2.1.i t = R * (C * deriv V_C t) := by rw [hi_series, eq_cap]
+  have hi_series : s.2.1.i t = s.1.i t := by linarith
+  have h_sub : R * s.2.1.i t = R * (C * deriv V_C t) := by rw [hi_series, eq_cap]
   calc R * C * deriv V_C t + V_C t
       = R * (C * deriv V_C t) + V_C t := by ring
-    _ = R * s.2.2.1.i t + V_C t := by rw [h_sub]
+    _ = R * s.2.1.i t + V_C t := by rw [h_sub]
     _ = E := by simp only [V_C]; linarith
 
 
@@ -399,14 +399,14 @@ theorem nand_both_high (Vdd R Vth : ℝ) (hR : R ≠ 0)
     -- Both gates above threshold at time t
     (t : ℝ)
     (hA : s.2.2.1.vG t - s.2.2.1.vS t > Vth)   -- NMOS1 gate high
-    (hB : s.1.vG t - s.1.vS t > Vth)             -- NMOS2 gate high
-    : s.2.1.v t = s.2.2.2.1.v₂ t                 -- output = GND voltage
+    (hB : s.2.2.2.2.vG t - s.2.2.2.2.vS t > Vth)             -- NMOS2 gate high
+    : s.2.2.2.1.v t = s.2.1.v₂ t                 -- output = GND voltage
     := by
   obtain ⟨hinit, hint⟩ := h
   dsimp [nand_module, vsource_sm, resistor_sm, probe_sm, nmos_sm,
          vsource, resistor, probe, nmos,
          NatModule.stringify, Module.mapIdent, Module.liftL, Module.liftR] at *
-  obtain ⟨⟨hn2_on, _⟩, _, ⟨hn1_on, _⟩, _, _⟩ := hinit
+  obtain ⟨_, _, ⟨hn1_on, _⟩, _, ⟨hn2_on, _⟩⟩ := hinit
   -- Five internal rules, one per connection.
   have h1 := hint _ (List.mem_cons_self ..)
   have h2 := hint _ (List.mem_cons_of_mem _ (List.mem_cons_self ..))
@@ -425,11 +425,11 @@ theorem nand_both_high (Vdd R Vth : ℝ) (hR : R ≠ 0)
   obtain ⟨_, _, h5'⟩ := h5
   -- NMOS ON at t: drain-source is a short.
   have hn1vD : s.2.2.1.vD t = s.2.2.1.vS t := hn1_on t hA
-  have hn2vD : s.1.vD t = s.1.vS t := hn2_on t hB
+  have hn2vD : s.2.2.2.2.vD t = s.2.2.2.2.vS t := hn2_on t hB
   -- Voltage chain: prb.v = n1.vD; n1.vS = n2.vD; n2.vS = vdd.v₂.
-  have hvc3 : s.2.1.v t = s.2.2.1.vD t := by grind
-  have hvc4 : s.2.2.1.vS t = s.1.vD t := by grind
-  have hvc5 : s.1.vS t = s.2.2.2.1.v₂ t := by grind
+  have hvc3 : s.2.2.2.1.v t = s.2.2.1.vD t := by grind
+  have hvc4 : s.2.2.1.vS t = s.2.2.2.2.vD t := by grind
+  have hvc5 : s.2.2.2.2.vS t = s.2.1.v₂ t := by grind
   linarith
 
 /-- When input A is below threshold at time `t`, the output voltage equals Vdd.
@@ -438,13 +438,13 @@ theorem nand_a_low (Vdd R Vth : ℝ)
     (s) (h : analogValid (nand_module Vdd R Vth) s)
     (t : ℝ)
     (hA : s.2.2.1.vG t - s.2.2.1.vS t ≤ Vth)    -- NMOS1 gate low
-    : s.2.1.v t = s.2.2.2.1.v₁ t                  -- output = VDD voltage
+    : s.2.2.2.1.v t = s.2.1.v₁ t                  -- output = VDD voltage
     := by
   obtain ⟨hinit, hint⟩ := h
   dsimp [nand_module, vsource_sm, resistor_sm, probe_sm, nmos_sm,
          vsource, resistor, probe, nmos,
          NatModule.stringify, Module.mapIdent, Module.liftL, Module.liftR] at *
-  obtain ⟨_, _, ⟨_, hn1_off⟩, _, hrpull⟩ := hinit
+  obtain ⟨hrpull, _, ⟨_, hn1_off⟩, _, _⟩ := hinit
   have h1 := hint _ (List.mem_cons_self ..)
   have h2 := hint _ (List.mem_cons_of_mem _ (List.mem_cons_self ..))
   have h3 := hint _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_self ..)))
@@ -463,16 +463,16 @@ theorem nand_a_low (Vdd R Vth : ℝ)
   -- NMOS1 OFF at t: no drain-source current.
   have hn1_iDS : s.2.2.1.iDS t = 0 := hn1_off t hA
   -- Current chain: rpull.i = prb.i = n1.iDS = 0.
-  have hic3 : s.2.1.i t = s.2.2.1.iDS t := by grind
-  have hic2 : s.2.2.2.2.i t = s.2.1.i t := by grind
-  have h_i0 : s.2.2.2.2.i t = 0 := by linarith
+  have hic3 : s.2.2.2.1.i t = s.2.2.1.iDS t := by grind
+  have hic2 : s.1.i t = s.2.2.2.1.i t := by grind
+  have h_i0 : s.1.i t = 0 := by linarith
   -- No drop across rpull: v₁ = v₂.
-  have hrpull_t : s.2.2.2.2.v₁ t - s.2.2.2.2.v₂ t = R * s.2.2.2.2.i t := hrpull t
-  have hrpull_vi : s.2.2.2.2.v₁ t = s.2.2.2.2.v₂ t := by
+  have hrpull_t : s.1.v₁ t - s.1.v₂ t = R * s.1.i t := hrpull t
+  have hrpull_vi : s.1.v₁ t = s.1.v₂ t := by
     rw [h_i0, mul_zero] at hrpull_t; linarith
   -- Voltage chain: vdd.v₁ = rpull.v₁; rpull.v₂ = prb.v.
-  have hvc1 : s.2.2.2.1.v₁ t = s.2.2.2.2.v₁ t := by grind
-  have hvc2 : s.2.2.2.2.v₂ t = s.2.1.v t := by grind
+  have hvc1 : s.2.1.v₁ t = s.1.v₁ t := by grind
+  have hvc2 : s.1.v₂ t = s.2.2.2.1.v t := by grind
   linarith
 
 /-- When input B is below threshold at time `t`, the output voltage equals Vdd.
@@ -480,14 +480,14 @@ theorem nand_a_low (Vdd R Vth : ℝ)
 theorem nand_b_low (Vdd R Vth : ℝ)
     (s) (h : analogValid (nand_module Vdd R Vth) s)
     (t : ℝ)
-    (hB : s.1.vG t - s.1.vS t ≤ Vth)            -- NMOS2 gate low
-    : s.2.1.v t = s.2.2.2.1.v₁ t                  -- output = VDD voltage
+    (hB : s.2.2.2.2.vG t - s.2.2.2.2.vS t ≤ Vth)            -- NMOS2 gate low
+    : s.2.2.2.1.v t = s.2.1.v₁ t                  -- output = VDD voltage
     := by
   obtain ⟨hinit, hint⟩ := h
   dsimp [nand_module, vsource_sm, resistor_sm, probe_sm, nmos_sm,
          vsource, resistor, probe, nmos,
          NatModule.stringify, Module.mapIdent, Module.liftL, Module.liftR] at *
-  obtain ⟨⟨_, hn2_off⟩, _, _, _, hrpull⟩ := hinit
+  obtain ⟨hrpull, _, _, _, ⟨_, hn2_off⟩⟩ := hinit
   have h1 := hint _ (List.mem_cons_self ..)
   have h2 := hint _ (List.mem_cons_of_mem _ (List.mem_cons_self ..))
   have h3 := hint _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_self ..)))
@@ -504,19 +504,19 @@ theorem nand_b_low (Vdd R Vth : ℝ)
   obtain ⟨_, _, h4'⟩ := h4
   obtain ⟨_, _, h5'⟩ := h5
   -- NMOS2 OFF at t: no drain-source current.
-  have hn2_iDS : s.1.iDS t = 0 := hn2_off t hB
+  have hn2_iDS : s.2.2.2.2.iDS t = 0 := hn2_off t hB
   -- Current chain: rpull.i = prb.i = n1.iDS = n2.iDS = 0.
-  have hic4 : s.2.2.1.iDS t = s.1.iDS t := by grind
-  have hic3 : s.2.1.i t = s.2.2.1.iDS t := by grind
-  have hic2 : s.2.2.2.2.i t = s.2.1.i t := by grind
-  have h_i0 : s.2.2.2.2.i t = 0 := by linarith
+  have hic4 : s.2.2.1.iDS t = s.2.2.2.2.iDS t := by grind
+  have hic3 : s.2.2.2.1.i t = s.2.2.1.iDS t := by grind
+  have hic2 : s.1.i t = s.2.2.2.1.i t := by grind
+  have h_i0 : s.1.i t = 0 := by linarith
   -- No drop across rpull: v₁ = v₂.
-  have hrpull_t : s.2.2.2.2.v₁ t - s.2.2.2.2.v₂ t = R * s.2.2.2.2.i t := hrpull t
-  have hrpull_vi : s.2.2.2.2.v₁ t = s.2.2.2.2.v₂ t := by
+  have hrpull_t : s.1.v₁ t - s.1.v₂ t = R * s.1.i t := hrpull t
+  have hrpull_vi : s.1.v₁ t = s.1.v₂ t := by
     rw [h_i0, mul_zero] at hrpull_t; linarith
   -- Voltage chain: vdd.v₁ = rpull.v₁; rpull.v₂ = prb.v.
-  have hvc1 : s.2.2.2.1.v₁ t = s.2.2.2.2.v₁ t := by grind
-  have hvc2 : s.2.2.2.2.v₂ t = s.2.1.v t := by grind
+  have hvc1 : s.2.1.v₁ t = s.1.v₁ t := by grind
+  have hvc2 : s.1.v₂ t = s.2.2.2.1.v t := by grind
   linarith
 
 end
