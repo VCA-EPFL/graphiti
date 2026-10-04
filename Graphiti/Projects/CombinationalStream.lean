@@ -106,8 +106,7 @@ theorem filter_window_prefix [BEq α] :
         · intro n hn hn';
           simp only [length_filter_window] at hn
           convert filter_window_get_prefix delay s1 s2 hs1s2 n (by assumption);
-          · simp_all [length_filter_window]
-          · simp_all [length_filter_window]
+          simp_all [length_filter_window]
       exact h_filter_eq_take ▸ List.take_prefix _ _
 
 theorem filter_window_take [BEq α] (l : List α) (delay i : ℕ)

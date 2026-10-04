@@ -7,7 +7,7 @@ weight = 70
   weight = 70
 +++
 
-The repository pins a Lean release candidate and the mathlib tag with the same name. Update both together.
+The repository pins a Lean release and the mathlib tag with the same name. Update both together.
 
 ## Change the pins
 

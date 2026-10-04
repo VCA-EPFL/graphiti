@@ -10,7 +10,7 @@ weight = 10
 ## Install Lean
 
 Install [elan](https://github.com/leanprover/elan). The first `lake` command in the repository reads `lean-toolchain`
-and installs the pinned Lean version, currently `leanprover/lean4:v4.33.0-rc2`.
+and installs the pinned Lean version, currently `leanprover/lean4:v4.34.1`.
 
 ## Fetch the mathlib cache
 
