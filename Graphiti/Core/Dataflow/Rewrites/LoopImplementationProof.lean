@@ -1206,7 +1206,7 @@ noncomputable def verified_rewrite : VerifiedRewrite Env.well_formed rewrite.pat
   refinement := by
     intros
     apply Module.refines_eq_relax
-    apply rhs_ghost_evaled_eq3.symm
+    apply rhs_ghost_evaled_eq.symm
     rotate_left
     apply refines
     dsimp [rewrite]; rw [Vector.map_map]; dsimp; rw [Vector.map_id]

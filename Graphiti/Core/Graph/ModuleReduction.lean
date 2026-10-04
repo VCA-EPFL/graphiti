@@ -264,6 +264,9 @@ Reduce a module `[e| e, ε ]` or its state type `[T| e, ε ]` that has been wrap
 The graph is first lowered and built, then the components are looked up in the environment using the
 `drenv` lemmas.  Afterwards the port renamings, products and connections are computed, and finally the
 components (`drcomponents`) are unfolded.  `Module.liftL` and `Module.liftR` are left folded.
+
+It also reduces the right-hand side of a goal `⟨_, m⟩ = ⟨_, [e| e, ε ]⟩`, so that a module `m` defined by
+`def_module` can be related back to the graph it was reduced from by finishing with `rfl`.
 -/
 macro "dr_reduce_module" : tactic =>
   `(tactic|
@@ -273,6 +276,7 @@ macro "dr_reduce_module" : tactic =>
       first
         | rw [rw_opaque (by simp only [drenv]; rfl)]
         | simp only [drenv]
+        | rw [sigma_rw (by simp only [drenv]; rfl)]
       dsimp -failIfUnchanged
       dsimp -failIfUnchanged [Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts, Module.mapInputPorts, reduceAssocListfind?]
       simp -failIfUnchanged (disch := decide) only [AssocList.bijectivePortRenaming_invert]
