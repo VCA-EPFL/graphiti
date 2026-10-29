@@ -753,9 +753,9 @@ def delay_filter_step (state : (Bool × Nat)) (c : Bool) : (Bool × Nat) :=
     else cnt + 1
   )
 
--- Becomes false for 4 ticks after a rising edge, to let the implementation catch up.
+-- Becomes false for 3 ticks after a rising edge, to let the implementation catch up.
 def delay_filter (clk : D) : D :=
-  (scanl_drop delay_filter_step (false, 0) clk).map (·.2 ≥ 4)
+  (scanl_drop delay_filter_step (false, 0) clk).map (·.2 ≥ 3)
 
 
 def error_filter_step (time : Nat) (state : (Bool × Option Nat)) (c : Bool) : (Bool × Option Nat) :=
@@ -1263,7 +1263,7 @@ lemma delay_filter_characterization (clk : D) (i : Nat)
     (hi : i < clk.length)
     (hd : (delay_filter clk)[i]'(by
       unfold delay_filter; simp [List.length_map, length_scanl_drop]; assumption) = true)
-  : (∀ r, r ≤ i → is_rising_edge clk r → r + 4 ≤ i)
+  : (∀ r, r ≤ i → is_rising_edge clk r → r + 3 ≤ i)
   := by
   unfold delay_filter at hd
   let (eq := Heq) (v, cnt) := (scanl_drop delay_filter_step (false, 0) clk)[i]'(by rw [List.length_scanl_drop]; assumption)
@@ -1429,7 +1429,7 @@ lemma setup_hold_filter_characterization (clk data : D) (i : Nat)
 lemma dff_filter_implies_rising_edge (clk data : D) (i : Nat)
     (h_i_c : i < clk.length) (h_i_d : i < data.length)
     (h_filt : (dff_filter clk data)[i]'(by rw [length_dff_filter]; omega) = true)
-  : ∃ r, is_rising_edge clk r ∧ r + 4 ≤ i ∧ no_rising_edge_in clk r i
+  : ∃ r, is_rising_edge clk r ∧ r + 3 ≤ i ∧ no_rising_edge_in clk r i
   := by
   unfold dff_filter and3 at h_filt
   rw [List.getElem_zipWith, List.getElem_zipWith] at h_filt
@@ -1482,7 +1482,7 @@ lemma dff_filter_implies_low_before_rising (clk data : D) (i r : Nat)
   := by grind only [is_rising_edge, dff_filter_implies_clock_stable]
 
 lemma dff_filter_implies_high_after_rising (clk data : D) (i r : Nat)
-  (h_i_c : i < clk.length) (h_i_d : i < data.length) (h_r_i : r + 3 < i)
+  (h_i_c : i < clk.length) (h_i_d : i < data.length) (h_r_i : r + 3 ≤ i)
   (h_filt : (dff_filter clk data)[i]'(by rw [length_dff_filter]; omega) = true)
   (h_rising : is_rising_edge clk r)
   : ∀ k, r ≤ k → k < r + 3 → clk[k]? = some true
@@ -1714,7 +1714,7 @@ lemma sim_eq_dff_raw_when_filtered (clk data : D) (i : Nat)
     (dff_raw clk data)[i]'(by rw [length_dff_raw]; omega)
   := by
   intro h_filt
-  -- Apply `dff_filter_implies_rising_edge` to get a rising edge r with r+4 ≤ i and no_rising_edge_in clk r i.
+  -- Apply `dff_filter_implies_rising_edge` to get a rising edge r with r+3 ≤ i and no_rising_edge_in clk r i.
   have ⟨r, ⟨h_rising, h_rt, h_no_r⟩⟩ := dff_filter_implies_rising_edge clk data i h_i_c h_i_d h_filt
   -- Apply `dff_filter_implies_re_stable` to get setup_hold_filter[i] = true.
   have h_filter_window := (dff_filter_implies_re_stable clk data i h_i_c h_i_d h_filt)
@@ -1849,7 +1849,6 @@ theorem refines' :
     obtain ⟨⟨bd_in, bd_out⟩, ⟨bclk_in, bclk_out⟩, ⟨⟩, fs, ⟨rhsClk, rhsD⟩⟩ := rhsModule
     dsimp at inv
     obtain ⟨HclkEq, HdEq, HlWF, HφFS, HφD, HφClk, HrDeq, HrClkEq, HrBD, HrBClk, HrFS⟩ := inv
-
     unfold Named at *
     apply Module.comp_refines.mk
     . -- Inputs
