@@ -371,14 +371,11 @@ theorem refines' : plus1_m ⊑_{φ} plus1_buf_m := by
       dsimp only at hx hr he ht hp h1 h2 h3 h4
       obtain ⟨⟨hsp, ha1, rfl⟩, ⟨rfl, rfl, rfl⟩, rfl, rfl⟩ := hi
       subst hx hr
-      have hvT : HEq v a1 := cast_eq_iff_heq.mp ha1.symm
       rw [← ha1] at hsp
       refine ⟨(a1, map incTok x, e), (a1, map incTok a1, e), ?_, ?_, ?_⟩
       · rw [PortMap.rw_rule_execution (by dsimp [plus1_buf_m, reducePortMapgetIO])]
         dsimp [Module.liftL, Module.liftR]
-        simp only [cast_cast]
-        rw [eq_of_heq ((cast_heq _ v).trans hvT)]
-        exact ⟨⟨hsp, rfl⟩, trivial⟩
+        exact ⟨⟨by rw [← ha1]; exact hsp, ha1⟩, rfl⟩
       · dsimp only [plus1_buf_m]
         refine existSR.step _ _ _ _ List.mem_cons_self ?_ (existSR.done _)
         dsimp [Module.liftL, Module.liftR]
@@ -404,10 +401,8 @@ theorem refines' : plus1_m ⊑_{φ} plus1_buf_m := by
       refine ⟨(x, r, e), (x, r, to_tokens hdi hvi), existSR.done _, ?_, ?_⟩
       · rw [PortMap.rw_rule_execution (by dsimp [plus1_buf_m, reducePortMapgetIO])]
         dsimp [Module.liftL, Module.liftR]
-        have hv' := cast_eq_iff_heq.mp hv
-        simp only [cast_cast]
-        rw [eq_of_heq ((cast_heq _ v).trans hv')]
-        exact ⟨⟨he, hr ▸ out_prefix h1 h2 h3 h4, rfl, trivial⟩, trivial⟩
+        rw [hv]
+        exact ⟨⟨he, hr ▸ out_prefix h1 h2 h3 h4, rfl, rfl⟩, rfl⟩
       · exact ⟨hx, hr, List.prefix_refl _, ht, hp, h1, h2, h3, h4⟩
     · exfalso; exact PortMap.getIO_not_contained_false hi HContains
   · intro rule mid_i hr hstep
@@ -418,7 +413,7 @@ theorem refines' : plus1_m ⊑_{φ} plus1_buf_m := by
     dsimp only at hx hr' he ht hp h1 h2 h3 h4
     refine ⟨(x, r, e), existSR.done _, ?_⟩
     simp [plus1_m, Module.liftL, Module.liftR, token_to_handshake_m, plus1_hw_m, handshake_to_token_m] at hr
-    rcases hr with _ | ⟨_, _ | ⟨_, _ | ⟨_, _ | ⟨_, _ | ⟨_, _ | ⟨_, hr⟩⟩⟩⟩⟩⟩ <;> (try simp at hstep)
+    rcases hr with rfl | rfl | rfl | rfl | rfl | rfl <;> simp at hstep
     · -- t2hs.do -> p1.di
       obtain ⟨⟨rfl, rfl⟩, ⟨⟨hs, rfl⟩, rfl, rfl⟩, rfl, rfl⟩ := hstep
       rw [stalled_of_all_true _ _ ht] at hs ⊢
@@ -445,7 +440,6 @@ theorem refines' : plus1_m ⊑_{φ} plus1_buf_m := by
     · -- hs2t.ri -> p1.ro
       obtain ⟨⟨rfl, rfl⟩, ⟨⟨hs, rfl⟩, rfl, rfl⟩, rfl, rfl⟩ := hstep
       exact ⟨hx, hr', he, ht, by simp, h1, h2, h3, h4⟩
-    · cases hr
 
 theorem refines_init : Module.refines_initial plus1_m plus1_buf_m φ := by
   intro i hi
