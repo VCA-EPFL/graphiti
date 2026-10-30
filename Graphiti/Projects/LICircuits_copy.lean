@@ -284,13 +284,179 @@ instance : MatchInterface plus1_m plus1_df := by
   dsimp [plus1_m, plus1_df]
   solve_match_interface
 
-axiom φ : plus1_m_t → (DV) → Prop
+-- Refinement of the handshake circuit against the buffered dataflow spec
 
-theorem refines' :
-  plus1_m ⊑_{φ} plus1_df := by sorry
+def incTok : Option (BitVec 32) → Option (BitVec 32)
+  | some x => some (x + 1)
+  | none => none
 
-theorem refines :
-  plus1_m ⊑ plus1_df := by sorry
+theorem stalled_all_true (xs : Tok) (n : Nat) :
+    token_to_stalled_token xs (List.replicate n true) = xs.take n := by
+  induction n generalizing xs with
+  | zero => cases xs <;> rfl
+  | succ n ih => cases xs with
+    | nil => rfl
+    | cons x xs => simp [token_to_stalled_token, List.replicate_succ, ih]
+
+theorem to_tokens_plus1 (T : Tok) :
+    to_tokens (plus1 (token_data T)) (token_valid T) = T.map incTok := by
+  induction T with
+  | nil => rfl
+  | cons x xs ih => cases x <;> simp_all [to_tokens, plus1, token_data, token_valid, incTok]
+
+theorem to_tokens_mono {a a' : DV} {b b' : D} (ha : a <+: a') (hb : b <+: b') :
+    to_tokens a b <+: to_tokens a' b' := by
+  obtain ⟨u, rfl⟩ := ha; obtain ⟨w, rfl⟩ := hb
+  induction a generalizing b with
+  | nil => simp [to_tokens]
+  | cons x xs ih => cases b with
+    | nil => simp [to_tokens]
+    | cons y ys => simpa [to_tokens] using ih
+
+theorem take_mono {l l' : Tok} {n n' : Nat} (hl : l <+: l') (hn : n ≤ n') :
+    l.take n <+: l'.take n' := by
+  refine (List.take_prefix_take_left hn).trans ?_
+  obtain ⟨u, rfl⟩ := hl
+  rw [List.take_append]
+  exact List.prefix_append _ _
+
+
+theorem out_prefix {tDi : Tok} {n : Nat} {pdi hdi : DV} {pvi hvi : D}
+    (h1 : pdi <+: token_data (tDi.take n)) (h2 : pvi <+: token_valid (tDi.take n))
+    (h3 : hdi <+: plus1 pdi) (h4 : hvi <+: pvi) :
+    to_tokens hdi hvi <+: tDi.map incTok := by
+  have h5 := to_tokens_plus1 (tDi.take n)
+  have := to_tokens_mono (a' := plus1 (token_data (tDi.take n)))
+    (h3.trans (by unfold plus1; exact List.IsPrefix.map _ h1)) (h4.trans h2)
+  rw [h5] at this
+  exact this.trans (List.IsPrefix.map _ (List.take_prefix n tDi))
+
+theorem strict_prefix_map {α β} (f : α → β) {l l' : List α} (h : l <<: l') :
+    l.map f <<: l'.map f := by
+  obtain ⟨hlen, heq⟩ := h
+  refine ⟨by simpa using hlen, ?_⟩
+  rw [List.length_map, ← List.map_take, ← heq]
+
+theorem stalled_of_all_true (xs : Tok) (r : D) (h : r = List.replicate r.length true) :
+    token_to_stalled_token xs r = xs.take r.length := by
+  rw [h, stalled_all_true]; simp
+
+instance : MatchInterface plus1_m plus1_buf_m := by
+  dsimp [plus1_m, plus1_buf_m]
+  solve_match_interface
+
+def φ (i : plus1_m_t) (s : plus1_buf_m_t) : Prop :=
+  -- spec: input so far, buffer received, buffer emitted
+  s.1 = i.1.1 ∧ s.2.1 = i.1.1.map incTok ∧ s.2.2 <+: to_tokens i.2.2.1 i.2.2.2 ∧
+  -- impl: all ready signals are true
+  i.1.2 = List.replicate i.1.2.length true ∧ i.2.1.2.2 = List.replicate i.2.1.2.2.length true ∧
+  -- impl: each stage is a prefix of what the previous stage offers
+  i.2.1.1 <+: token_data (i.1.1.take i.1.2.length) ∧
+  i.2.1.2.1 <+: token_valid (i.1.1.take i.1.2.length) ∧
+  i.2.2.1 <+: plus1 i.2.1.1 ∧ i.2.2.2 <+: i.2.1.2.1
+
+theorem refines' : plus1_m ⊑_{φ} plus1_buf_m := by
+  intro init_i init_s Hφ
+  apply Module.comp_refines.mk
+  · intro ident mid_i v hi
+    by_cases HContains : plus1_m.inputs.contains ident
+    · obtain ⟨⟨tDi, tro⟩, ⟨pdi, pvi, pro⟩, ⟨hdi, hvi⟩⟩ := init_i
+      obtain ⟨x, r, e⟩ := init_s
+      simp [plus1_m] at HContains; subst HContains
+      rw [PortMap.rw_rule_execution (by dsimp [plus1_m, reducePortMapgetIO])] at hi
+      obtain ⟨⟨a1, a2⟩, ⟨b1, b2, b3⟩, ⟨c1, c2⟩⟩ := mid_i
+      dsimp [Module.liftL, Module.liftR] at hi
+      simp at hi
+      obtain ⟨hx, hr, he, ht, hp, h1, h2, h3, h4⟩ := Hφ
+      dsimp only at hx hr he ht hp h1 h2 h3 h4
+      obtain ⟨⟨hsp, ha1, rfl⟩, ⟨rfl, rfl, rfl⟩, rfl, rfl⟩ := hi
+      subst hx hr
+      have hvT : HEq v a1 := cast_eq_iff_heq.mp ha1.symm
+      rw [← ha1] at hsp
+      refine ⟨(a1, map incTok x, e), (a1, map incTok a1, e), ?_, ?_, ?_⟩
+      · rw [PortMap.rw_rule_execution (by dsimp [plus1_buf_m, reducePortMapgetIO])]
+        dsimp [Module.liftL, Module.liftR]
+        simp only [cast_cast]
+        rw [eq_of_heq ((cast_heq _ v).trans hvT)]
+        exact ⟨⟨hsp, rfl⟩, trivial⟩
+      · dsimp only [plus1_buf_m]
+        refine existSR.step _ _ _ _ List.mem_cons_self ?_ (existSR.done _)
+        dsimp [Module.liftL, Module.liftR]
+        refine ⟨fun _ => ⟨(a1, map incTok x, e), map incTok a1, ⟨⟨?_, rfl⟩, rfl⟩, ⟨strict_prefix_map _ hsp, rfl, rfl⟩, rfl⟩, fun h => h rfl⟩
+        congr 1; funext o; cases o <;> rfl
+      · have hpre := take_mono (n := a2.length) (strict_prefix_is_prefix _ _ hsp) le_rfl
+        refine ⟨rfl, rfl, he, ht, hp, h1.trans ?_, h2.trans ?_, h3, h4⟩
+        · unfold token_data; exact List.IsPrefix.map _ hpre
+        · unfold token_valid; exact List.IsPrefix.map _ hpre
+    · exfalso; exact PortMap.getIO_not_contained_false hi HContains
+  · intro ident mid_i v hi
+    by_cases HContains : plus1_m.outputs.contains ident
+    · obtain ⟨⟨tDi, tro⟩, ⟨pdi, pvi, pro⟩, ⟨hdi, hvi⟩⟩ := init_i
+      obtain ⟨x, r, e⟩ := init_s
+      simp [plus1_m] at HContains; subst HContains
+      rw [PortMap.rw_rule_execution (by dsimp [plus1_m, reducePortMapgetIO])] at hi
+      obtain ⟨⟨a1, a2⟩, ⟨b1, b2, b3⟩, ⟨c1, c2⟩⟩ := mid_i
+      dsimp [Module.liftL, Module.liftR] at hi
+      simp at hi
+      obtain ⟨⟨⟨⟨rfl, rfl⟩, hv⟩, ⟨rfl, rfl, rfl⟩⟩, rfl, rfl⟩ := hi
+      obtain ⟨hx, hr, he, ht, hp, h1, h2, h3, h4⟩ := Hφ
+      dsimp only at hx hr he ht hp h1 h2 h3 h4
+      refine ⟨(x, r, e), (x, r, to_tokens hdi hvi), existSR.done _, ?_, ?_⟩
+      · rw [PortMap.rw_rule_execution (by dsimp [plus1_buf_m, reducePortMapgetIO])]
+        dsimp [Module.liftL, Module.liftR]
+        have hv' := cast_eq_iff_heq.mp hv
+        simp only [cast_cast]
+        rw [eq_of_heq ((cast_heq _ v).trans hv')]
+        exact ⟨⟨he, hr ▸ out_prefix h1 h2 h3 h4, rfl, trivial⟩, trivial⟩
+      · exact ⟨hx, hr, List.prefix_refl _, ht, hp, h1, h2, h3, h4⟩
+    · exfalso; exact PortMap.getIO_not_contained_false hi HContains
+  · intro rule mid_i hr hstep
+    obtain ⟨⟨tDi, tro⟩, ⟨pdi, pvi, pro⟩, ⟨hdi, hvi⟩⟩ := init_i
+    obtain ⟨x, r, e⟩ := init_s
+    obtain ⟨⟨a1, a2⟩, ⟨b1, b2, b3⟩, ⟨c1, c2⟩⟩ := mid_i
+    obtain ⟨hx, hr', he, ht, hp, h1, h2, h3, h4⟩ := Hφ
+    dsimp only at hx hr' he ht hp h1 h2 h3 h4
+    refine ⟨(x, r, e), existSR.done _, ?_⟩
+    simp [plus1_m, Module.liftL, Module.liftR, token_to_handshake_m, plus1_hw_m, handshake_to_token_m] at hr
+    rcases hr with _ | ⟨_, _ | ⟨_, _ | ⟨_, _ | ⟨_, _ | ⟨_, _ | ⟨_, hr⟩⟩⟩⟩⟩⟩ <;> (try simp at hstep)
+    · -- t2hs.do -> p1.di
+      obtain ⟨⟨rfl, rfl⟩, ⟨⟨hs, rfl⟩, rfl, rfl⟩, rfl, rfl⟩ := hstep
+      rw [stalled_of_all_true _ _ ht] at hs ⊢
+      refine ⟨hx, hr', he, ht, hp, List.prefix_refl _, h2, h3.trans ?_, h4⟩
+      unfold plus1; exact List.IsPrefix.map _ (strict_prefix_is_prefix _ _ hs)
+    · -- t2hs.vo -> p1.vi
+      obtain ⟨⟨rfl, rfl⟩, ⟨⟨hs, rfl⟩, rfl, rfl⟩, rfl, rfl⟩ := hstep
+      rw [stalled_of_all_true _ _ ht] at hs ⊢
+      exact ⟨hx, hr', he, ht, hp, h1, List.prefix_refl _, h3, h4.trans (strict_prefix_is_prefix _ _ hs)⟩
+    · -- p1.ri -> t2hs.ro
+      obtain ⟨⟨⟨⟨rfl, rfl, rfl⟩, rfl, rfl⟩, rfl⟩, hs, rfl⟩ := hstep
+      have hle := hs.1.le
+      refine ⟨hx, hr', he, hp, hp, h1.trans ?_, h2.trans ?_, h3, h4⟩
+      · unfold token_data; exact List.IsPrefix.map _ (take_mono (List.prefix_refl _) hle)
+      · unfold token_valid; exact List.IsPrefix.map _ (take_mono (List.prefix_refl _) hle)
+    · -- p1.do -> hs2t.di
+      obtain ⟨rfl, ⟨⟨hs, rfl⟩, rfl, rfl, rfl⟩, rfl, rfl⟩ := hstep
+      exact ⟨hx, hr', he.trans (to_tokens_mono (strict_prefix_is_prefix _ _ hs) (List.prefix_refl _)),
+        ht, hp, h1, h2, List.prefix_refl _, h4⟩
+    · -- p1.vo -> hs2t.vi
+      obtain ⟨rfl, ⟨⟨hs, rfl⟩, rfl, rfl, rfl⟩, rfl, rfl⟩ := hstep
+      exact ⟨hx, hr', he.trans (to_tokens_mono (List.prefix_refl _) (strict_prefix_is_prefix _ _ hs)),
+        ht, hp, h1, h2, h3, List.prefix_refl _⟩
+    · -- hs2t.ri -> p1.ro
+      obtain ⟨⟨rfl, rfl⟩, ⟨⟨hs, rfl⟩, rfl, rfl⟩, rfl, rfl⟩ := hstep
+      exact ⟨hx, hr', he, ht, by simp, h1, h2, h3, h4⟩
+    · cases hr
+
+theorem refines_init : Module.refines_initial plus1_m plus1_buf_m φ := by
+  intro i hi
+  obtain ⟨⟨tDi, tro⟩, ⟨pdi, pvi, pro⟩, ⟨hdi, hvi⟩⟩ := i
+  simp [plus1_m, token_to_handshake_m, plus1_hw_m, handshake_to_token_m] at hi
+  refine ⟨([], [], []), by simp [plus1_buf_m, buffer_spec_m, plus1_df]; rfl, ?_⟩
+  obtain ⟨⟨rfl, rfl⟩, ⟨rfl, rfl, rfl⟩, rfl, rfl⟩ := hi
+  simp [φ, to_tokens, token_data, token_valid, plus1]
+  exact ⟨rfl, rfl, List.nil_prefix, List.nil_prefix, List.nil_prefix⟩
+
+theorem refines : plus1_m ⊑ plus1_buf_m := ⟨inferInstance, φ, refines', refines_init⟩
 
 end Plus1
 
