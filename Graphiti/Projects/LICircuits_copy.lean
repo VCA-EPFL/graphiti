@@ -242,6 +242,42 @@ reduction_by
         unfold Module.connect''
         dsimp [toString]
         )
+
+def env_buf := plus1_buf_s.2
+
+@[drenv] theorem find?_plus1_df : (Batteries.AssocList.find? "plus1_df" env_buf) = .some ⟨_, plus1_df⟩ := rfl
+@[drenv] theorem find?_buf_m : (Batteries.AssocList.find? "buffer_spec_m" env_buf) = .some ⟨_, buffer_spec_m "buf"⟩ := rfl
+
+seal env_buf in
+def_module plus1_buf_m_t : Type :=
+  [T| plus1_buf_s_lowered, env_buf.find? ]
+reduction_by
+  dsimp [plus1_buf_s_lowered]
+  dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
+  dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
+  dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
+  simp only [drenv]
+  dsimp
+
+seal env_buf in
+def_module plus1_buf_m : StringModule plus1_buf_m_t :=
+  [e| plus1_buf_s_lowered, env_buf.find? ]
+reduction_by
+       dsimp [plus1_buf_s_lowered]
+       (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
+        dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
+        dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
+        rw [rw_opaque (by simp only [drenv]; rfl)]; dsimp
+        dsimp [Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts, Module.mapInputPorts, reduceAssocListfind?]
+        simp (disch := decide) only [AssocList.bijectivePortRenaming_invert]
+        dsimp [Module.product]
+        dsimp only [reduceModuleconnect'2]
+        dsimp only [reduceEraseAll]
+        dsimp; dsimp [reduceAssocListfind?]
+
+        unfold Module.connect''
+        dsimp [toString]
+        )
 #print plus1_m
 
 instance : MatchInterface plus1_m plus1_df := by
