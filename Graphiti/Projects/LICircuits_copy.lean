@@ -346,11 +346,11 @@ instance : MatchInterface plus1_m plus1_buf_m := by
   solve_match_interface
 
 def φ (i : plus1_m_t) (s : plus1_buf_m_t) : Prop :=
-  -- spec: input so far, buffer received, buffer emitted
+  -- spec impl relation
   s.1 = i.1.1 ∧ s.2.1 = i.1.1.map incTok ∧ s.2.2 <+: to_tokens i.2.2.1 i.2.2.2 ∧
-  -- impl: all ready signals are true
+  -- impl ready = true
   i.1.2 = List.replicate i.1.2.length true ∧ i.2.1.2.2 = List.replicate i.2.1.2.2.length true ∧
-  -- impl: each stage is a prefix of what the previous stage offers
+  -- impl states relation
   i.2.1.1 <+: token_data (i.1.1.take i.1.2.length) ∧
   i.2.1.2.1 <+: token_valid (i.1.1.take i.1.2.length) ∧
   i.2.2.1 <+: plus1 i.2.1.1 ∧ i.2.2.2 <+: i.2.1.2.1
