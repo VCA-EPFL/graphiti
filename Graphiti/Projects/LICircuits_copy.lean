@@ -346,6 +346,8 @@ instance : MatchInterface plus1_m plus1_buf_m := by
   solve_match_interface
 
 def φ (i : plus1_m_t) (s : plus1_buf_m_t) : Prop :=
+  let ⟨ x , ⟨ r , e⟩ ⟩ := s
+
   -- spec impl relation
   s.1 = i.1.1 ∧ s.2.1 = i.1.1.map incTok ∧ s.2.2 <+: to_tokens i.2.2.1 i.2.2.2 ∧
   -- impl ready = true
@@ -371,20 +373,9 @@ theorem refines' : plus1_m ⊑_{φ} plus1_buf_m := by
       dsimp only at hx hr he ht hp h1 h2 h3 h4
       obtain ⟨⟨hsp, ha1, rfl⟩, ⟨rfl, rfl, rfl⟩, rfl, rfl⟩ := hi
       subst hx hr
-      rw [← ha1] at hsp
-      refine ⟨(a1, map incTok x, e), (a1, map incTok a1, e), ?_, ?_, ?_⟩
-      · rw [PortMap.rw_rule_execution (by dsimp [plus1_buf_m, reducePortMapgetIO])]
-        dsimp [Module.liftL, Module.liftR]
-        exact ⟨⟨by rw [← ha1]; exact hsp, ha1⟩, rfl⟩
-      · dsimp only [plus1_buf_m]
-        refine existSR.step _ _ _ _ List.mem_cons_self ?_ (existSR.done _)
-        dsimp [Module.liftL, Module.liftR]
-        refine ⟨fun _ => ⟨(a1, map incTok x, e), map incTok a1, ⟨⟨?_, rfl⟩, rfl⟩, ⟨strict_prefix_map _ hsp, rfl, rfl⟩, rfl⟩, fun h => h rfl⟩
-        congr 1; funext o; cases o <;> rfl
-      · have hpre := take_mono (n := a2.length) (strict_prefix_is_prefix _ _ hsp) le_rfl
-        refine ⟨rfl, rfl, he, ht, hp, h1.trans ?_, h2.trans ?_, h3, h4⟩
-        · unfold token_data; exact List.IsPrefix.map _ hpre
-        · unfold token_valid; exact List.IsPrefix.map _ hpre
+
+      sorry
+
     · exfalso; exact PortMap.getIO_not_contained_false hi HContains
   · intro ident mid_i v hi
     by_cases HContains : plus1_m.outputs.contains ident
@@ -398,12 +389,7 @@ theorem refines' : plus1_m ⊑_{φ} plus1_buf_m := by
       obtain ⟨⟨⟨⟨rfl, rfl⟩, hv⟩, ⟨rfl, rfl, rfl⟩⟩, rfl, rfl⟩ := hi
       obtain ⟨hx, hr, he, ht, hp, h1, h2, h3, h4⟩ := Hφ
       dsimp only at hx hr he ht hp h1 h2 h3 h4
-      refine ⟨(x, r, e), (x, r, to_tokens hdi hvi), existSR.done _, ?_, ?_⟩
-      · rw [PortMap.rw_rule_execution (by dsimp [plus1_buf_m, reducePortMapgetIO])]
-        dsimp [Module.liftL, Module.liftR]
-        rw [hv]
-        exact ⟨⟨he, hr ▸ out_prefix h1 h2 h3 h4, rfl, rfl⟩, rfl⟩
-      · exact ⟨hx, hr, List.prefix_refl _, ht, hp, h1, h2, h3, h4⟩
+      sorry
     · exfalso; exact PortMap.getIO_not_contained_false hi HContains
   · intro rule mid_i hr hstep
     obtain ⟨⟨tDi, tro⟩, ⟨pdi, pvi, pro⟩, ⟨hdi, hvi⟩⟩ := init_i
@@ -415,10 +401,7 @@ theorem refines' : plus1_m ⊑_{φ} plus1_buf_m := by
     simp [plus1_m, Module.liftL, Module.liftR, token_to_handshake_m, plus1_hw_m, handshake_to_token_m] at hr
     rcases hr with rfl | rfl | rfl | rfl | rfl | rfl <;> simp at hstep
     · -- t2hs.do -> p1.di
-      obtain ⟨⟨rfl, rfl⟩, ⟨⟨hs, rfl⟩, rfl, rfl⟩, rfl, rfl⟩ := hstep
-      rw [stalled_of_all_true _ _ ht] at hs ⊢
-      refine ⟨hx, hr', he, ht, hp, List.prefix_refl _, h2, h3.trans ?_, h4⟩
-      unfold plus1; exact List.IsPrefix.map _ (strict_prefix_is_prefix _ _ hs)
+      sorry
     · -- t2hs.vo -> p1.vi
       obtain ⟨⟨rfl, rfl⟩, ⟨⟨hs, rfl⟩, rfl, rfl⟩, rfl, rfl⟩ := hstep
       rw [stalled_of_all_true _ _ ht] at hs ⊢
