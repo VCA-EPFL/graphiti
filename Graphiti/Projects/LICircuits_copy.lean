@@ -303,16 +303,24 @@ theorem to_tokens_plus1 (T : Tok) :
     to_tokens (plus1 (token_data T)) (token_valid T) = T.map incTok := by
   induction T with
   | nil => rfl
-  | cons x xs ih => cases x <;> simp_all [to_tokens, plus1, token_data, token_valid, incTok]
+  | cons x xs ih =>
+    cases x
+      <;> simp [to_tokens, plus1,token_data, token_valid, incTok]
+      <;>grind
+
 
 theorem to_tokens_mono {a a' : DV} {b b' : D} (ha : a <+: a') (hb : b <+: b') :
     to_tokens a b <+: to_tokens a' b' := by
-  obtain ⟨u, rfl⟩ := ha; obtain ⟨w, rfl⟩ := hb
+  obtain ⟨u, hu⟩ := ha
+  obtain ⟨w, hw⟩ := hb
+  subst hu hw
   induction a generalizing b with
   | nil => simp [to_tokens]
   | cons x xs ih => cases b with
     | nil => simp [to_tokens]
-    | cons y ys => simpa [to_tokens] using ih
+    | cons y ys =>
+      simp[to_tokens] at ih ⊢
+      grind
 
 theorem take_mono {l l' : Tok} {n n' : Nat} (hl : l <+: l') (hn : n ≤ n') :
     l.take n <+: l'.take n' := by
@@ -321,22 +329,14 @@ theorem take_mono {l l' : Tok} {n n' : Nat} (hl : l <+: l') (hn : n ≤ n') :
   rw [List.take_append]
   exact List.prefix_append _ _
 
-
-theorem out_prefix {tDi : Tok} {n : Nat} {pdi hdi : DV} {pvi hvi : D}
-    (h1 : pdi <+: token_data (tDi.take n)) (h2 : pvi <+: token_valid (tDi.take n))
-    (h3 : hdi <+: plus1 pdi) (h4 : hvi <+: pvi) :
-    to_tokens hdi hvi <+: tDi.map incTok := by
-  have h5 := to_tokens_plus1 (tDi.take n)
-  have := to_tokens_mono (a' := plus1 (token_data (tDi.take n)))
-    (h3.trans (by unfold plus1; exact List.IsPrefix.map _ h1)) (h4.trans h2)
-  rw [h5] at this
-  exact this.trans (List.IsPrefix.map _ (List.take_prefix n tDi))
-
 theorem strict_prefix_map {α β} (f : α → β) {l l' : List α} (h : l <<: l') :
     l.map f <<: l'.map f := by
   obtain ⟨hlen, heq⟩ := h
   refine ⟨by simpa using hlen, ?_⟩
   rw [List.length_map, ← List.map_take, ← heq]
+
+theorem prefix_map {α β} (f : α → β) {l l' : List α} (h : l <+: l') :
+    l.map f <+: l'.map f := by grind
 
 theorem stalled_of_all_true (xs : Tok) (r : D) (h : r = List.replicate r.length true) :
     token_to_stalled_token xs r = xs.take r.length := by
@@ -412,7 +412,33 @@ theorem refines' : plus1_m ⊑_{φ} plus1_buf_m := by
       obtain ⟨⟨⟨⟨rfl, rfl⟩, hv⟩, ⟨rfl, rfl, rfl⟩⟩, rfl, rfl⟩ := hi
       obtain ⟨hx, hr, he, ht, hp, h1, h2, h3, h4⟩ := Hφ
       dsimp only at hx hr he ht hp h1 h2 h3 h4
-      sorry
+      -- introduce almost mid and mid
+      refine ⟨⟨x, r, e⟩,⟨x, r,to_tokens hdi hvi⟩ ,?_, ?_, ?_ ⟩
+      . refine  existSR.done _
+      . -- going from almost mid to mid and output generation
+        rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]
+        dsimp; simp;
+        constructor
+        . grind
+        . constructor
+          . rw[hv, hr]
+            let n := length tro
+            have h5 := to_tokens_plus1 (tDi.take n)
+            have hhd : hdi <+:plus1 (token_data (take n tDi)) := by
+              apply h3.trans
+              unfold plus1
+              apply IsPrefix.map
+              grind
+            have hhv : hvi <+: token_valid (take (length tro) tDi):= by grind
+            have h6 := to_tokens_mono hhd hhv
+            rw [h5] at h6
+            have h7 : map incTok (take n tDi) <+: map incTok (take n tDi) := by grind
+            grind
+          . grind
+
+      . -- simulation relation holds
+        dsimp [φ]
+        grind
     · exfalso; exact PortMap.getIO_not_contained_false hi HContains
   · intro rule mid_i hr hstep
     obtain ⟨⟨tDi, tro⟩, ⟨pdi, pvi, pro⟩, ⟨hdi, hvi⟩⟩ := init_i
@@ -424,7 +450,13 @@ theorem refines' : plus1_m ⊑_{φ} plus1_buf_m := by
     simp [plus1_m, Module.liftL, Module.liftR, token_to_handshake_m, plus1_hw_m, handshake_to_token_m] at hr
     rcases hr with rfl | rfl | rfl | rfl | rfl | rfl <;> simp at hstep
     · -- t2hs.do -> p1.di
-      sorry
+      obtain ⟨⟨rfl, rfl⟩, ⟨⟨hs, rfl⟩, rfl, rfl⟩, rfl, rfl⟩ := hstep
+      rw[stalled_of_all_true _ _ ht ] at hs ⊢
+      dsimp [φ]
+      refine ⟨hx, hr', he, ht, hp, by simp,by grind , h3.trans ?_, h4⟩
+      simp only[plus1]
+      apply prefix_map
+      exact h1
     · -- t2hs.vo -> p1.vi
       obtain ⟨⟨rfl, rfl⟩, ⟨⟨hs, rfl⟩, rfl, rfl⟩, rfl, rfl⟩ := hstep
       rw [stalled_of_all_true _ _ ht] at hs ⊢
