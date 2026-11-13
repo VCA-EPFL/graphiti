@@ -184,10 +184,15 @@ def plus1_s := [graphEnv|
 
 def plus1_s_lowered := plus1_s.1.lower_TR |>.get rfl
 
+def incTok : Option (BitVec 32) → Option (BitVec 32)
+  | some x => some (x + 1)
+  | none => none
+
+
 -- Data flow plus1 : specification
 def plus1_df : StringModule Tok where
   inputs := [ (↑"ai", ⟨ Tok, λ s tt s' => s <<: tt ∧ s' = tt ⟩)].toAssocList
-  outputs := [ (↑"bo", ⟨ Tok, λ s tt s' => tt = s.map (fun | .some x => some (x+1) | x=>x) ∧ s = s'⟩)].toAssocList
+  outputs := [ (↑"bo", ⟨ Tok, λ s tt s' => tt = s.map incTok ∧ s = s'⟩)].toAssocList
   internals := []
   init_state s := s = ([])
 
@@ -286,10 +291,6 @@ instance : MatchInterface plus1_m plus1_df := by
 
 -- Refinement of the handshake circuit against the buffered dataflow spec
 
-def incTok : Option (BitVec 32) → Option (BitVec 32)
-  | some x => some (x + 1)
-  | none => none
-
 theorem stalled_all_true (xs : Tok) (n : Nat) :
     token_to_stalled_token xs (List.replicate n true) = xs.take n := by
   induction n generalizing xs with
@@ -347,6 +348,7 @@ instance : MatchInterface plus1_m plus1_buf_m := by
 
 def φ (i : plus1_m_t) (s : plus1_buf_m_t) : Prop :=
   let ⟨ x , ⟨ r , e⟩ ⟩ := s
+  let ⟨⟨ tDi,tro⟩, ⟨⟨pdi, ⟨pvi,pro⟩⟩,⟨ hdi,hri⟩⟩⟩ := i
 
   -- spec impl relation
   s.1 = i.1.1 ∧ s.2.1 = i.1.1.map incTok ∧ s.2.2 <+: to_tokens i.2.2.1 i.2.2.2 ∧
@@ -373,8 +375,29 @@ theorem refines' : plus1_m ⊑_{φ} plus1_buf_m := by
       dsimp only at hx hr he ht hp h1 h2 h3 h4
       obtain ⟨⟨hsp, ha1, rfl⟩, ⟨rfl, rfl, rfl⟩, rfl, rfl⟩ := hi
       subst hx hr
+      rw[←ha1 ] at hsp
+      refine ⟨⟨a1, map incTok x, e⟩,⟨a1, map incTok a1, e⟩ ,?_, ?_, ?_ ⟩
+      · -- generate almost_mid
+        rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]
+        dsimp; simp; grind
+      . -- almost_mid ->  mid
+        dsimp only [plus1_buf_m]
+        dsimp [Module.liftL, Module.liftR]
+        simp
+        -- use the connection rule
+        refine existSR.step _ _ _ _ List.mem_cons_self ?_ (existSR.done _)
+        exists map incTok x
+        dsimp
+        grind[strict_prefix_map]
 
-      sorry
+      · -- simulation relation holds
+        dsimp [φ]
+        simp
+        refine ⟨ he, ht, hp, h1.trans ?_, h2.trans ?_ , h3, h4⟩ <;>
+        . simp only[token_data, token_valid]
+          apply IsPrefix.map _
+          have hsp' : x <+: a1 := strict_prefix_is_prefix x a1 hsp
+          grind
 
     · exfalso; exact PortMap.getIO_not_contained_false hi HContains
   · intro ident mid_i v hi
