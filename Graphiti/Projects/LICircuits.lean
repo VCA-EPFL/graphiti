@@ -280,17 +280,19 @@ def plus1_df : StringModule Tok where
   internals := []
   init_state s := s = ([])
 
--- Data flow plus1 followed by a buffer : specification
+-- Data flow plus1 followed by a buffer and a delay: specification
 def plus1_buf_s := [graphEnv|
     ai [type="io"];
     bo [type="io"];
 
     p1 [type="plus1_df", typeImp=$(⟨_, plus1_df⟩)];
     buf [type="buffer_spec_m", typeImp=$(⟨_, buffer_spec_m "buf"⟩)];
+    delay [type="delay_m", typeImp=$(⟨_, delay_m "delay"⟩)];
 
     ai -> p1 [to="ai"];
     p1 -> buf [from="bo",to="in"];
-    buf -> bo [from="out"];
+    buf -> delay [from="out", to= "in"];
+    delay -> bo [from="out"];
   ]
 
 def plus1_buf_s_lowered := plus1_buf_s.1.lower_TR |>.get rfl
@@ -336,6 +338,7 @@ def env_buf := plus1_buf_s.2
 
 @[drenv] theorem find?_plus1_df : (Batteries.AssocList.find? "plus1_df" env_buf) = .some ⟨_, plus1_df⟩ := rfl
 @[drenv] theorem find?_buf_m : (Batteries.AssocList.find? "buffer_spec_m" env_buf) = .some ⟨_, buffer_spec_m "buf"⟩ := rfl
+@[drenv] theorem find?_delay_m : (Batteries.AssocList.find? "delay_m" env_buf) = .some ⟨_, delay_m "delay"⟩ := rfl
 
 seal env_buf in
 def_module plus1_buf_m_t : Type :=
@@ -368,70 +371,14 @@ reduction_by
         dsimp [toString]
         )
 
-
-instance : MatchInterface plus1_m plus1_buf_m := by
-  dsimp [plus1_m, plus1_buf_m]
-  solve_match_interface
-
 -- Refinement of the handshake circuit against the buffered dataflow spec
-
-theorem stalled_all_true (xs : Tok) (n : Nat) :
-    token_to_stalled_token xs (List.replicate n true) = xs.take n := by
-  induction n generalizing xs with
-  | zero => cases xs <;> rfl
-  | succ n ih => cases xs with
-    | nil => rfl
-    | cons x xs => simp [token_to_stalled_token, List.replicate_succ, ih]
-
-theorem to_tokens_plus1 (T : Tok) (r : D):
-    to_tokens (plus1 (token_data T)) (token_valid T) r = T.map incTok := by
-  induction T with
-  | nil => rfl
-  | cons x xs ih =>
-    cases x
-      <;> simp [to_tokens, plus1,token_data, token_valid, incTok]
-      <;>sorry
-
-
-theorem to_tokens_mono {a a' : DV} {b b' c c' : D} (ha : a <+: a') (hb : b <+: b') (hc : c <+: c'):
-    to_tokens a b c <+: to_tokens a' b' c':= by
-  obtain ⟨u, hu⟩ := ha
-  obtain ⟨w, hw⟩ := hb
-  subst hu hw
-  induction a generalizing b with
-  | nil => simp [to_tokens]
-  | cons x xs ih => cases b with
-    | nil => simp [to_tokens]
-    | cons y ys =>
-      simp[to_tokens] at ih ⊢
-      sorry
-
-theorem take_mono {l l' : Tok} {n n' : Nat} (hl : l <+: l') (hn : n ≤ n') :
-    l.take n <+: l'.take n' := by
-  refine (List.take_prefix_take_left hn).trans ?_
-  obtain ⟨u, rfl⟩ := hl
-  rw [List.take_append]
-  exact List.prefix_append _ _
-
-theorem strict_prefix_map {α β} (f : α → β) {l l' : List α} (h : l <<: l') :
-    l.map f <<: l'.map f := by
-  obtain ⟨hlen, heq⟩ := h
-  refine ⟨by simpa using hlen, ?_⟩
-  rw [List.length_map, ← List.map_take, ← heq]
-
-theorem prefix_map {α β} (f : α → β) {l l' : List α} (h : l <+: l') :
-    l.map f <+: l'.map f := by grind
-
-theorem stalled_of_all_true (xs : Tok) (r : D) (h : r = List.replicate r.length true) :
-    token_to_stalled_token xs r = xs.take r.length := by
-  rw [h, stalled_all_true]; simp
 
 instance : MatchInterface plus1_m plus1_buf_m := by
   dsimp [plus1_m, plus1_buf_m]
   solve_match_interface
 
 def φ (i : plus1_m_t) (s : plus1_buf_m_t) : Prop :=
-  let ⟨ s_Di , ⟨ s_r , s_e⟩ ⟩ := s
+  let ⟨ s_Di , ⟨ s_r , s_e⟩, ⟨ s_d1 , s_d2⟩ ⟩ := s
   let ⟨⟨ i_1Di, i_1ro⟩, ⟨⟨ i_2di, ⟨ i_2vi, i_2ro⟩⟩,⟨ i_3di, i_3vi, i_3ri⟩⟩⟩ := i
   -- spec impl relation
   s_Di = i_1Di ∧
