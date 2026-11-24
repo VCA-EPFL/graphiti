@@ -7,7 +7,56 @@ open Graphiti.CombModule.List
 -- todo check
 open Batteries (AssocList)
 
+namespace Similarity
 
+variable {α : Type _}
+
+
+def similar : List (Option α) → List (Option α) → Prop -- s1 ≲ s2
+  | [], []                     => True
+  | [], none :: ys             => similar [] ys
+  | [], some _ :: _            => False
+  | _ :: _, []                 => False
+  | none :: xs, none :: ys     => similar xs ys
+  | none :: xs, some b :: ys   => False
+  | some a :: xs, none :: ys   => similar (some a :: xs) ys
+  | some a :: xs, some b :: ys => a = b ∧ similar xs ys
+termination_by x y => x.length + y.length
+
+inductive similarP : List (Option α) → List (Option α) → Prop where
+  | empty : similarP [] []
+  | sym {xs ys a} : similarP xs ys -> similarP (a :: xs) (a :: ys)
+  | noneRight {xs ys} : similarP xs ys -> similarP xs (none :: ys)
+
+
+infix:50 " ≲ " => similarP
+
+theorem similar_is_reflexive (s :  List (Option α)) : similarP s s := by
+  induction s with
+  | nil => exact similarP.empty
+  | cons x xs ih => exact similarP.sym ih
+
+theorem similar_is_transitive : ∀ {s1 s2 s3 : List (Option α)}, similarP s1 s2 → similarP s2 s3 → similarP s1 s3
+  | _, _, _, .empty, h2 => h2
+  | _, _, _, .sym h, .sym h2' => .sym (similar_is_transitive h h2')
+  | _, _, _, .sym h, .noneRight h2' => .noneRight (similar_is_transitive (.sym h) h2')
+  | _, _, _, .noneRight h, .sym h2' => .noneRight (similar_is_transitive h h2')
+  | _, _, _, .noneRight h, .noneRight h2' => .noneRight (similar_is_transitive (.noneRight h) h2')
+termination_by s1 s2 s3 _ _ => s1.length + s2.length + s3.length
+
+theorem similar_map {α β} (f : α → β) {s1 s2 : List (Option α)} (h : similarP s1 s2) :
+    similarP (s1.map (Option.map f)) (s2.map (Option.map f)) := by
+    induction h
+    case empty => simp ; exact similarP.empty
+    case sym xs ys a h1 ih => unfold List.map; exact similarP.sym ih
+    case noneRight xs ys h1 ih => simp only [List.map_cons, Option.map_none]; exact similarP.noneRight ih
+
+theorem similar_length_le  {s1 s2:  List (Option α) } (h1 : similarP s1 s2): s1.length ≤ s2.length := by
+  induction h1 <;>grind
+
+end Similarity
+
+-- abbrev D := List Bool
 abbrev N := List Nat
 abbrev DV := List (BitVec 32)               --  data vector
 abbrev Tok := List (Option (BitVec 32))     --  data tocken
@@ -19,9 +68,22 @@ def buffer_spec_m (s : String := "") : StringModule (Named s (Tok × Tok)) :=
   init_state := λ s => s = default
  }
 
+def delay_m (s : String := "") : StringModule (Named s (Tok × Tok)) :=
+ {
+  inputs := [(↑"in", ⟨ Named s!"{s}.in" Tok, λ s tt s' => s.1 <<: tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩)].toAssocList,
+  outputs := [(↑"out", ⟨ Named s!"{s}.out" Tok, λ s tt s' => s.2 <+: tt ∧ s.1 ≲ tt ∧ s'.2 = tt ∧ s'.1 = s.1⟩)].toAssocList,
+  init_state := λ s => s = default
+ }
 
-def to_tokens (d: DV) (v: D): Tok :=
-  List.zipWith (λ x y => if y then x else none) d v
+-- Implementation of 𝒜(·)
+def to_tokens (d: DV) (v r: D)
+              (v0: Bool:= false) (r0: Bool:= false): Tok :=
+  match d, v, r   with
+  | [], _, _ => []
+  | _, [], _ => []
+  | _, _, [] => []
+  | dh :: dt, vh :: vt, rh :: rt =>
+    (if (¬vh ∨ (v0 ∧ ¬r0)) then none else some dh) :: to_tokens dt vt rt vh rh
 
 def token_to_stalled_token : Tok → D → Tok
   | [], _ => []
@@ -30,21 +92,43 @@ def token_to_stalled_token : Tok → D → Tok
     x :: (if r || x.isNone then token_to_stalled_token xs rs        -- advace
           else token_to_stalled_token (x :: xs) rs)                  -- stay on the same data
 
+def token_compact (s : Tok) : DV := s.reduceOption -- removes none from Tok
 def token_valid (s : Tok) : D := s.map Option.isSome
-def token_data (s : Tok) : DV := s.map (fun x => x.getD 0) -- default value should not matter
+def token_data (D : Tok) (d : DV) : Prop :=
+  match D, d with
+  | [], []                 => True
+  | [], _ :: _             => False
+  | _ :: _, []             => False
+  | none :: xs, _ :: ys    => token_data xs ys
+  | some x :: xs, y::ys    => x = y ∧  token_data xs ys
 
-def handshake_to_token_m (s : String := "") : StringModule (Named s (DV × D)) :=
+
+def vr_stable (v r: D) (vstay rstay: Bool): Prop:=
+  match v, r with
+  | [], _              => True
+  | _, []              => True
+  | v0 :: vs, r0 :: rs =>
+      (vstay -> v0 = true) ∧  (rstay -> r0 = true) ∧
+      (if (r0 == v0) then vr_stable vs rs false false  -- if there were any data it is transfered
+      else if (r0 = true ∧ v0 = false) then vr_stable vs rs false true
+      else vr_stable vs rs false true  -- r0 = false ∧ v0 = true
+      )
+
+
+def handshake_to_token_m (s : String := "") : StringModule (Named s (DV × D × D)) := -- (d, v, r)
   { inputs := [(↑"di", ⟨ Named s!"{s}.di" DV, λ s tt s' => s.1 <<: tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
-               (↑"vi", ⟨ Named s!"{s}.vi" D, λ s tt s' => s.2 <<: tt ∧ s'.2 = tt ∧ s'.1 = s.1 ⟩)].toAssocList,
-    outputs := [(↑"Do", ⟨ Named s!"{s}.Do" Tok, λ s tt s' => s = s' ∧ tt = to_tokens s.1 s.2 ⟩),
-                (↑"ri", ⟨ Named s!"{s}.ri" D, λ s tt s' => s = s' ∧ tt = List.replicate (s.2.length +1) true ⟩)].toAssocList -- TODOcheck: size of ri
+               (↑"vi", ⟨ Named s!"{s}.vi" D, λ s tt s' => s.2.1 <<: tt ∧ s'.2.1 = tt ∧ s'.1 = s.1 ∧ s'.2.2 = s.2.2 ⟩)].toAssocList,
+    outputs := [(↑"Do", ⟨ Named s!"{s}.Do" Tok, λ s tt s' => s = s' ∧ tt = to_tokens s.1 s.2.1 s.2.2⟩),
+                (↑"ri", ⟨ Named s!"{s}.ri" D, λ s tt s' => s.2.2 <+: s'.2.2 ∧ vr_stable s'.2.1 s'.2.2 false false ∧ s'.2.2 = tt ∧ s'.1 = s.1 ∧ s'.2.1 = s.2.1 ⟩)].toAssocList -- TODOcheck:
     init_state := λ s => s = default
   }
 
-def token_to_handshake_m (s : String := "") : StringModule (Named s (Tok × D)) :=
+-- Note: we are assuming that input D is comming from a source outputting asap.
+-- We need to make sure that input ready is not faster than D
+def token_to_handshake_m (s : String := "") : StringModule (Named s (Tok × D)) := -- (Di , r)
   { inputs := [(↑"Di", ⟨ Named s!"{s}.Di" Tok, λ s tt s' => s.1 <<: tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
-               (↑"ro", ⟨ Named s!"{s}.ro" D, λ s tt s' => s.2 <<: tt ∧ s'.2 = tt ∧ s'.1 = s.1 ⟩)].toAssocList,
-    outputs := [(↑"do", ⟨ Named s!"{s}.do" DV, λ s tt s' => s = s' ∧ tt = token_data (token_to_stalled_token s.1 s.2) ⟩),
+               (↑"ro", ⟨ Named s!"{s}.ro" D, λ s tt s' => s.2 <<: tt ∧ s'.2 = tt ∧ s'.1 = s.1  ∧ vr_stable ⟩)].toAssocList,
+    outputs := [(↑"do", ⟨ Named s!"{s}.do" DV, λ s tt s' => s = s' ∧ token_data (token_to_stalled_token s.1 s.2) tt ⟩),
                 (↑"vo", ⟨ Named s!"{s}.vo" D, λ s tt s' => s = s' ∧ tt = token_valid (token_to_stalled_token s.1 s.2)⟩)].toAssocList
     init_state := λ s => s = default
   }
@@ -283,10 +367,10 @@ reduction_by
         unfold Module.connect''
         dsimp [toString]
         )
-#print plus1_m
 
-instance : MatchInterface plus1_m plus1_df := by
-  dsimp [plus1_m, plus1_df]
+
+instance : MatchInterface plus1_m plus1_buf_m := by
+  dsimp [plus1_m, plus1_buf_m]
   solve_match_interface
 
 -- Refinement of the handshake circuit against the buffered dataflow spec
@@ -299,18 +383,18 @@ theorem stalled_all_true (xs : Tok) (n : Nat) :
     | nil => rfl
     | cons x xs => simp [token_to_stalled_token, List.replicate_succ, ih]
 
-theorem to_tokens_plus1 (T : Tok) :
-    to_tokens (plus1 (token_data T)) (token_valid T) = T.map incTok := by
+theorem to_tokens_plus1 (T : Tok) (r : D):
+    to_tokens (plus1 (token_data T)) (token_valid T) r = T.map incTok := by
   induction T with
   | nil => rfl
   | cons x xs ih =>
     cases x
       <;> simp [to_tokens, plus1,token_data, token_valid, incTok]
-      <;>grind
+      <;>sorry
 
 
-theorem to_tokens_mono {a a' : DV} {b b' : D} (ha : a <+: a') (hb : b <+: b') :
-    to_tokens a b <+: to_tokens a' b' := by
+theorem to_tokens_mono {a a' : DV} {b b' c c' : D} (ha : a <+: a') (hb : b <+: b') (hc : c <+: c'):
+    to_tokens a b c <+: to_tokens a' b' c':= by
   obtain ⟨u, hu⟩ := ha
   obtain ⟨w, hw⟩ := hb
   subst hu hw
@@ -320,7 +404,7 @@ theorem to_tokens_mono {a a' : DV} {b b' : D} (ha : a <+: a') (hb : b <+: b') :
     | nil => simp [to_tokens]
     | cons y ys =>
       simp[to_tokens] at ih ⊢
-      grind
+      sorry
 
 theorem take_mono {l l' : Tok} {n n' : Nat} (hl : l <+: l') (hn : n ≤ n') :
     l.take n <+: l'.take n' := by
@@ -347,33 +431,38 @@ instance : MatchInterface plus1_m plus1_buf_m := by
   solve_match_interface
 
 def φ (i : plus1_m_t) (s : plus1_buf_m_t) : Prop :=
-  let ⟨ x , ⟨ r , e⟩ ⟩ := s
-  let ⟨⟨ tDi,tro⟩, ⟨⟨pdi, ⟨pvi,pro⟩⟩,⟨ hdi,hri⟩⟩⟩ := i
-
+  let ⟨ s_Di , ⟨ s_r , s_e⟩ ⟩ := s
+  let ⟨⟨ i_1Di, i_1ro⟩, ⟨⟨ i_2di, ⟨ i_2vi, i_2ro⟩⟩,⟨ i_3di, i_3vi, i_3ri⟩⟩⟩ := i
   -- spec impl relation
-  s.1 = i.1.1 ∧ s.2.1 = i.1.1.map incTok ∧ s.2.2 <+: to_tokens i.2.2.1 i.2.2.2 ∧
-  -- impl ready = true
-  i.1.2 = List.replicate i.1.2.length true ∧ i.2.1.2.2 = List.replicate i.2.1.2.2.length true ∧
+  s_Di = i_1Di ∧
+  s_r = i_1Di.map incTok ∧
+    -- s_r <+: i_1Di.map incTok ∧
+  s_e <+: to_tokens i_3di i_3vi i_3ri ∧
+    -- check if needed : s_e <+: s_r ∧
+  -- impl ready
+  i_1ro <+: i_2ro ∧ i_2ro <+: i_3ri ∧
+    -- ready_property i_3ri i_3vi ?!
   -- impl states relation
-  i.2.1.1 <+: token_data (i.1.1.take i.1.2.length) ∧
-  i.2.1.2.1 <+: token_valid (i.1.1.take i.1.2.length) ∧
-  i.2.2.1 <+: plus1 i.2.1.1 ∧ i.2.2.2 <+: i.2.1.2.1
+  i_2di <+: token_data ( token_to_stalled_token i_1Di i_1ro) ∧
+  i_2vi <+: token_valid ( token_to_stalled_token i_1Di i_1ro) ∧
+  i_3di <+: plus1 i_2di ∧ i_3vi <+: i_2vi
+  -- check if we need ready in plus
 
 theorem refines' : plus1_m ⊑_{φ} plus1_buf_m := by
   intro init_i init_s Hφ
   apply Module.comp_refines.mk
-  · intro ident mid_i v hi
+  · -- Input
+    intro ident mid_i v hi
     by_cases HContains : plus1_m.inputs.contains ident
-    · obtain ⟨⟨tDi, tro⟩, ⟨pdi, pvi, pro⟩, ⟨hdi, hvi⟩⟩ := init_i
+    · obtain ⟨⟨tDi, tro⟩, ⟨pdi, pvi, pro⟩, ⟨hdi, hvi, hri⟩⟩ := init_i
       obtain ⟨x, r, e⟩ := init_s
       simp [plus1_m] at HContains; subst HContains
       rw [PortMap.rw_rule_execution (by dsimp [plus1_m, reducePortMapgetIO])] at hi
-      obtain ⟨⟨a1, a2⟩, ⟨b1, b2, b3⟩, ⟨c1, c2⟩⟩ := mid_i
+      obtain ⟨⟨a1, a2⟩, ⟨b1, b2, b3⟩, ⟨c1, c2, c3⟩⟩ := mid_i
       dsimp [Module.liftL, Module.liftR] at hi
       simp at hi
       obtain ⟨hx, hr, he, ht, hp, h1, h2, h3, h4⟩ := Hφ
-      dsimp only at hx hr he ht hp h1 h2 h3 h4
-      obtain ⟨⟨hsp, ha1, rfl⟩, ⟨rfl, rfl, rfl⟩, rfl, rfl⟩ := hi
+      obtain ⟨⟨hsp, ha1, rfl⟩, ⟨rfl, rfl, rfl⟩, rfl, rfl, rfl⟩ := hi
       subst hx hr
       rw[←ha1 ] at hsp
       refine ⟨⟨a1, map incTok x, e⟩,⟨a1, map incTok a1, e⟩ ,?_, ?_, ?_ ⟩
@@ -397,12 +486,16 @@ theorem refines' : plus1_m ⊑_{φ} plus1_buf_m := by
         . simp only[token_data, token_valid]
           apply IsPrefix.map _
           have hsp' : x <+: a1 := strict_prefix_is_prefix x a1 hsp
+          unfold token_to_stalled_token
+          have hstalled : (xx yy : Tok) → (zz : D) →
+            xx <+: yy → token_to_stalled_token xx zz <+: token_to_stalled_token yy zz := by sorry
           grind
 
     · exfalso; exact PortMap.getIO_not_contained_false hi HContains
-  · intro ident mid_i v hi
+  · -- Output
+    intro ident mid_i v hi
     by_cases HContains : plus1_m.outputs.contains ident
-    · obtain ⟨⟨tDi, tro⟩, ⟨pdi, pvi, pro⟩, ⟨hdi, hvi⟩⟩ := init_i
+    · obtain ⟨⟨tDi, tro⟩, ⟨pdi, pvi, pro⟩, ⟨hdi, hvi, hri⟩⟩ := init_i
       obtain ⟨x, r, e⟩ := init_s
       simp [plus1_m] at HContains; subst HContains
       rw [PortMap.rw_rule_execution (by dsimp [plus1_m, reducePortMapgetIO])] at hi
@@ -411,9 +504,8 @@ theorem refines' : plus1_m ⊑_{φ} plus1_buf_m := by
       simp at hi
       obtain ⟨⟨⟨⟨rfl, rfl⟩, hv⟩, ⟨rfl, rfl, rfl⟩⟩, rfl, rfl⟩ := hi
       obtain ⟨hx, hr, he, ht, hp, h1, h2, h3, h4⟩ := Hφ
-      dsimp only at hx hr he ht hp h1 h2 h3 h4
       -- introduce almost mid and mid
-      refine ⟨⟨x, r, e⟩,⟨x, r,to_tokens hdi hvi⟩ ,?_, ?_, ?_ ⟩
+      refine ⟨⟨x, r, e⟩,⟨x, r,to_tokens hdi hvi hri⟩ ,?_, ?_, ?_ ⟩
       . refine  existSR.done _
       . -- going from almost mid to mid and output generation
         rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]
@@ -422,35 +514,34 @@ theorem refines' : plus1_m ⊑_{φ} plus1_buf_m := by
         . grind
         . constructor
           . rw[hv, hr]
-            let n := length tro
-            have h5 := to_tokens_plus1 (tDi.take n)
-            have hhd : hdi <+:plus1 (token_data (take n tDi)) := by
+            -- have h5 := to_tokens_plus1 (tDi)
+            have hhd : hdi <+:plus1 (token_data (token_to_stalled_token tDi tro)) := by
               apply h3.trans
               unfold plus1
               apply IsPrefix.map
               grind
-            have hhv : hvi <+: token_valid (take (length tro) tDi):= by grind
-            have h6 := to_tokens_mono hhd hhv
-            rw [h5] at h6
-            have h7 : map incTok (take n tDi) <+: map incTok (take n tDi) := by grind
-            grind
+            have hhv : hvi <+: token_valid (token_to_stalled_token tDi tro):= by grind
+            -- have h6 := to_tokens_mono hhd hhv --find proper ready
+            -- rw [h5] at h6
+
+            sorry
           . grind
 
       . -- simulation relation holds
         dsimp [φ]
         grind
     · exfalso; exact PortMap.getIO_not_contained_false hi HContains
-  · intro rule mid_i hr hstep
-    obtain ⟨⟨tDi, tro⟩, ⟨pdi, pvi, pro⟩, ⟨hdi, hvi⟩⟩ := init_i
+  · -- Internal
+    intro rule mid_i hr hstep
+    obtain ⟨⟨tDi, tro⟩, ⟨pdi, pvi, pro⟩, ⟨hdi, hvi, hri⟩⟩ := init_i
     obtain ⟨x, r, e⟩ := init_s
-    obtain ⟨⟨a1, a2⟩, ⟨b1, b2, b3⟩, ⟨c1, c2⟩⟩ := mid_i
+    obtain ⟨⟨a1, a2⟩, ⟨b1, b2, b3⟩, ⟨c1, c2, c3⟩⟩ := mid_i
     obtain ⟨hx, hr', he, ht, hp, h1, h2, h3, h4⟩ := Hφ
-    dsimp only at hx hr' he ht hp h1 h2 h3 h4
     refine ⟨(x, r, e), existSR.done _, ?_⟩
     simp [plus1_m, Module.liftL, Module.liftR, token_to_handshake_m, plus1_hw_m, handshake_to_token_m] at hr
     rcases hr with rfl | rfl | rfl | rfl | rfl | rfl <;> simp at hstep
     · -- t2hs.do -> p1.di
-      obtain ⟨⟨rfl, rfl⟩, ⟨⟨hs, rfl⟩, rfl, rfl⟩, rfl, rfl⟩ := hstep
+      obtain ⟨⟨rfl, rfl⟩, ⟨⟨hs, rfl⟩, rfl, rfl ,rfl⟩, rfl, rfl⟩ := hstep
       rw[stalled_of_all_true _ _ ht ] at hs ⊢
       dsimp [φ]
       refine ⟨hx, hr', he, ht, hp, by simp,by grind , h3.trans ?_, h4⟩
@@ -458,38 +549,214 @@ theorem refines' : plus1_m ⊑_{φ} plus1_buf_m := by
       apply prefix_map
       exact h1
     · -- t2hs.vo -> p1.vi
-      obtain ⟨⟨rfl, rfl⟩, ⟨⟨hs, rfl⟩, rfl, rfl⟩, rfl, rfl⟩ := hstep
+      obtain ⟨⟨rfl, rfl⟩, ⟨⟨hs, rfl⟩, rfl, rfl, rfl⟩, rfl, rfl⟩ := hstep
       rw [stalled_of_all_true _ _ ht] at hs ⊢
       exact ⟨hx, hr', he, ht, hp, h1, List.prefix_refl _, h3, h4.trans (strict_prefix_is_prefix _ _ hs)⟩
     · -- p1.ri -> t2hs.ro
-      obtain ⟨⟨⟨⟨rfl, rfl, rfl⟩, rfl, rfl⟩, rfl⟩, hs, rfl⟩ := hstep
+      obtain ⟨⟨⟨⟨rfl, rfl, rfl⟩, rfl, rfl, rfl⟩, rfl⟩, hs, rfl⟩ := hstep
       have hle := hs.1.le
-      refine ⟨hx, hr', he, hp, hp, h1.trans ?_, h2.trans ?_, h3, h4⟩
+      simp only[φ]
+      refine ⟨hx, hr', he, List.prefix_refl a2, hp, h1.trans ?_, h2.trans ?_, h3, h4⟩
+      -- todo: monotonic :token_to_stalled_token tDi tro <+: token_to_stalled_token tDi a2
       · unfold token_data; exact List.IsPrefix.map _ (take_mono (List.prefix_refl _) hle)
       · unfold token_valid; exact List.IsPrefix.map _ (take_mono (List.prefix_refl _) hle)
     · -- p1.do -> hs2t.di
-      obtain ⟨rfl, ⟨⟨hs, rfl⟩, rfl, rfl, rfl⟩, rfl, rfl⟩ := hstep
-      exact ⟨hx, hr', he.trans (to_tokens_mono (strict_prefix_is_prefix _ _ hs) (List.prefix_refl _)),
+      obtain ⟨ ⟨⟨hs, rfl , rfl, rfl⟩, rfl, rfl, rfl⟩, rfl, rfl⟩ := hstep
+      simp only[φ]
+      exact ⟨hx, hr', he.trans (to_tokens_mono (strict_prefix_is_prefix _ _ hs) (List.prefix_refl _) (List.prefix_refl _)),
         ht, hp, h1, h2, List.prefix_refl _, h4⟩
     · -- p1.vo -> hs2t.vi
-      obtain ⟨rfl, ⟨⟨hs, rfl⟩, rfl, rfl, rfl⟩, rfl, rfl⟩ := hstep
-      exact ⟨hx, hr', he.trans (to_tokens_mono (List.prefix_refl _) (strict_prefix_is_prefix _ _ hs)),
+      obtain ⟨⟨rfl, rfl⟩, ⟨⟨hs, rfl⟩, rfl, rfl, rfl⟩, rfl, rfl⟩ := hstep
+      simp only[φ]
+      exact ⟨hx, hr', he.trans (to_tokens_mono (List.prefix_refl _) (strict_prefix_is_prefix _ _ hs) (List.prefix_refl _)),
         ht, hp, h1, h2, h3, List.prefix_refl _⟩
     · -- hs2t.ri -> p1.ro
-      obtain ⟨⟨rfl, rfl⟩, ⟨⟨hs, rfl⟩, rfl, rfl⟩, rfl, rfl⟩ := hstep
-      exact ⟨hx, hr', he, ht, by simp, h1, h2, h3, h4⟩
+      obtain ⟨⟨hs, rfl, rfl⟩, ⟨hs2, rfl, rfl, rfl⟩, rfl, rfl⟩ := hstep
+      simp only[φ]
+      have he': e <+: to_tokens hdi hvi b3 :=
+        he.trans (to_tokens_mono (List.prefix_refl hdi) (List.prefix_refl hvi) hs)
+      exact ⟨hx, hr', he', by grind, by simp, h1, h2, h3, h4⟩
 
 theorem refines_init : Module.refines_initial plus1_m plus1_buf_m φ := by
   intro i hi
-  obtain ⟨⟨tDi, tro⟩, ⟨pdi, pvi, pro⟩, ⟨hdi, hvi⟩⟩ := i
+  obtain ⟨⟨tDi, tro⟩, ⟨pdi, pvi, pro⟩, ⟨hdi, hvi, hri⟩⟩ := i
   simp [plus1_m, token_to_handshake_m, plus1_hw_m, handshake_to_token_m] at hi
   refine ⟨([], [], []), by simp [plus1_buf_m, buffer_spec_m, plus1_df]; rfl, ?_⟩
-  obtain ⟨⟨rfl, rfl⟩, ⟨rfl, rfl, rfl⟩, rfl, rfl⟩ := hi
+  obtain ⟨⟨rfl, rfl⟩, ⟨rfl, rfl, rfl⟩, rfl, rfl, rfl⟩ := hi
   simp [φ, to_tokens, token_data, token_valid, plus1]
-  exact ⟨rfl, rfl, List.nil_prefix, List.nil_prefix, List.nil_prefix⟩
+  refine ⟨rfl, List.nil_prefix, List.nil_prefix, List.nil_prefix ⟩
 
 theorem refines : plus1_m ⊑ plus1_buf_m := ⟨inferInstance, φ, refines', refines_init⟩
 
 end Plus1
+
+namespace InterfaceCancellation
+
+open List
+
+def wire_m (s : String := "") : StringModule (Named s (DV × (D × D))) :=
+{ inputs := [(↑"di", ⟨ Named s!"{s}.di" DV, λ s tt s' => s.1 <<: tt ∧ s'.1 = tt ∧ s'.2.1 = s.2.1 ∧ s'.2.2 = s.2.2 ⟩),
+            (↑"vi", ⟨ Named s!"{s}.vi" D, λ s tt s' => s.2.1 <<: tt ∧ s'.2.1 = tt ∧ s'.1 = s.1 ∧ s'.2.2 = s.2.2 ⟩),
+            (↑"ro", ⟨ Named s!"{s}.ro" D, λ s tt s' => s.2.2 <<: tt ∧ s'.2.2 = tt ∧ s'.1 = s.1 ∧ s'.2.1 = s.2.1 ⟩)].toAssocList,
+  outputs := [(↑"do", ⟨ Named s!"{s}.do" DV, λ s tt s' => s = s' ∧ tt = s.1 ⟩),
+              (↑"vo", ⟨ Named s!"{s}.vo" D, λ s tt s' => s = s' ∧ tt = s.2.1 ⟩),
+              (↑"ri", ⟨ Named s!"{s}.ri" D, λ s tt s' => s = s' ∧ tt = s.2.2 ⟩)].toAssocList
+  init_state := λ s => s = default
+}
+
+def wire_s := [graphEnv|
+    dti [type="io"];
+    vi [type="io"];
+    ro [type="io"];
+
+    dto [type="io"];
+    vo [type="io"];
+    ri [type="io"];
+
+    wire [type="wire_m", typeImp=$(⟨_, wire_m "wire"⟩)];
+
+    dti -> wire [to="di"];
+    vi -> wire [to="vi"];
+    ro -> wire [to="ro"];
+
+    wire -> dto [from="do"];
+    wire -> vo [from="vo"];
+    wire -> ri [from="ri"];
+  ]
+
+def wire_s_lowered := wire_s.1.lower_TR |>.get rfl
+
+def env_wire := wire_s.2
+
+@[drenv] theorem find?_wire_m : (Batteries.AssocList.find? "wire_m" env_wire) = .some ⟨_, wire_m⟩ := rfl
+
+seal env_wire in
+def_module wire_top_m_t : Type :=
+  [T| wire_s_lowered, env_wire.find? ]
+reduction_by
+  dsimp [wire_s_lowered]
+  dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
+  dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
+  dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
+  simp only [drenv]
+  dsimp
+
+seal env_wire in
+def_module wire_top_m : StringModule wire_top_m_t :=
+  [e| wire_s_lowered, env_wire.find? ]
+reduction_by
+       dsimp [wire_s_lowered]
+       (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
+        dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
+        dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
+        rw [rw_opaque (by simp only [drenv]; rfl)]; dsimp
+        dsimp [Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts, Module.mapInputPorts, reduceAssocListfind?]
+        simp (disch := decide) only [AssocList.bijectivePortRenaming_invert]
+        dsimp [Module.product]
+        )
+
+def h2t_t2h_s := [graphEnv|
+    dti [type="io"];
+    vi [type="io"];
+    ro [type="io"];
+
+    dto [type="io"];
+    vo [type="io"];
+    ri [type="io"];
+
+    h2t [type="handshake_to_token_m", typeImp=$(⟨_, handshake_to_token_m "h2t"⟩)];
+    t2h [type="token_to_handshake_m", typeImp=$(⟨_, token_to_handshake_m "t2h"⟩)];
+
+    dti -> h2t [to="di"];
+    vi -> h2t [to="vi"];
+    h2t -> ri [from="ri"];
+
+    h2t -> t2h [from="Do",to="Di"];
+
+    t2h -> dto [from="do"];
+    t2h -> vo [from="vo"];
+    ro -> t2h [to="ro"];
+  ]
+
+def h2t_t2h_s_lowered := h2t_t2h_s.1.lower_TR |>.get rfl
+
+def env_h2t_t2h := h2t_t2h_s.2
+
+@[drenv] theorem find?_handshake_to_token_m : (Batteries.AssocList.find? "handshake_to_token_m" env_h2t_t2h) = .some ⟨_, handshake_to_token_m⟩ := rfl
+@[drenv] theorem find?_token_to_handshake_m : (Batteries.AssocList.find? "token_to_handshake_m" env_h2t_t2h) = .some ⟨_, token_to_handshake_m⟩ := rfl
+
+seal env_h2t_t2h in
+def_module h2t_t2h_m_t : Type :=
+  [T| h2t_t2h_s_lowered, env_h2t_t2h.find? ]
+reduction_by
+  dsimp [h2t_t2h_s_lowered]
+  dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
+  dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
+  dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
+  simp only [drenv]
+  dsimp
+
+seal env_h2t_t2h in
+def_module h2t_t2h_m : StringModule h2t_t2h_m_t :=
+  [e| h2t_t2h_s_lowered, env_h2t_t2h.find? ]
+reduction_by
+       dsimp [h2t_t2h_s_lowered]
+       (dsimp -failIfUnchanged [drunfold_defs, toString, reduceAssocListfind?, reduceListPartition]
+        dsimp -failIfUnchanged [reduceExprHighLower, reduceExprHighLowerProdTR, reduceExprHighLowerConnTR]
+        dsimp [ ExprHigh.uncurry, ExprLow.build_module_expr, ExprLow.build_module_type, ExprLow.build_module, ExprLow.build_module', toString]
+        rw [rw_opaque (by simp only [drenv]; rfl)]; dsimp
+        dsimp [Module.renamePorts, Module.mapPorts2, Module.mapOutputPorts, Module.mapInputPorts, reduceAssocListfind?]
+        simp (disch := decide) only [AssocList.bijectivePortRenaming_invert]
+        dsimp [Module.product]
+        dsimp only [reduceModuleconnect'2]
+        dsimp only [reduceEraseAll]
+        dsimp; dsimp [reduceAssocListfind?]
+
+        unfold Module.connect''
+        dsimp [toString]
+        )
+
+instance : MatchInterface wire_top_m h2t_t2h_m := by
+  dsimp [wire_top_m, h2t_t2h_m]
+  solve_match_interface
+
+-- Refinement of the
+#print Graphiti.LICircuits.InterfaceCancellation.h2t_t2h_m_t
+def φ (i : wire_top_m_t) (s : h2t_t2h_m_t) : Prop :=
+  let ⟨ i_d , i_v , i_r⟩ := i
+
+  let ⟨⟨ s_D, s_ro ⟩ , ⟨ s_d , s_v , s_ri ⟩⟩:= s -- TODO : why order is this?!
+
+  s_d = i_d ∧
+  s_v = i_v ∧
+  s_ri = i_r ∧
+
+  s_ro = s_ri ∧ -- todo : check if prefix or eq
+
+  s_D = to_tokens i_d i_v s_ro
+
+
+theorem refines' : wire_top_m ⊑_{φ} h2t_t2h_m := by
+  sorry
+
+theorem refines_init : Module.refines_initial wire_top_m h2t_t2h_m φ := by
+  intro i hi
+  obtain ⟨ d,v,r⟩ := i
+  simp[wire_top_m, wire_m] at hi
+
+  refine ⟨ ⟨⟨ [],[]⟩ ,⟨[], [], []⟩⟩ ,?_, ?_⟩
+  <;> obtain ⟨ rfl, rfl, rfl⟩:= hi
+  . simp[h2t_t2h_m, token_to_handshake_m, handshake_to_token_m]
+    exact ⟨ rfl, rfl⟩
+  . simp[φ]
+    exact ⟨ rfl, rfl,rfl⟩
+
+
+
+
+
+theorem refines : wire_top_m ⊑ h2t_t2h_m := ⟨inferInstance, φ, refines', refines_init⟩
+
+end InterfaceCancellation
 
 end Graphiti.LICircuits
