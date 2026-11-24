@@ -246,6 +246,7 @@ example {s1 s2 s3} :
 namespace Plus1
 
 open List
+open Similarity
 
 def plus1_s := [graphEnv|
     ai [type="io"];
@@ -388,18 +389,15 @@ def φ (i : plus1_m_t) (s : plus1_buf_m_t) : Prop :=
   -- Output
   s_d2 = to_tokens i_3di i_3vi i_3ri ∧ -- = or <+: ??
   -- Spec internals
-  s_r = i_1Di.map incTok ∧ -- other version : s_r <+: i_1Di.map incTok ∧
+  s_r = i_1Di.map incTok ∧ --  = or <+: ??   s_r <+: i_1Di.map incTok ∧.
   s_e <+: s_r ∧
   s_d1 <+: s_e ∧
   s_d1 ≲ s_d2 ∧
   -- Impl  internals
   i_1ro <+: i_2ro ∧ i_2ro <+: i_3ri ∧
-  -- Impl
-  token_data ( token_to_stalled_token i_1Di i_1ro) i_2di' ∧ --TODO
-  i_2di <+: i_2di'∧
   i_2vi <+: token_valid ( token_to_stalled_token i_1Di i_1ro) ∧
-  i_3di <+: plus1 i_2di ∧ i_3vi <+: i_2vi
-  -- check if we need ready in plus
+  i_3di <+: plus1 i_2di ∧ i_3vi <+: i_2vi ∧
+  ∃ i_2di', token_data ( token_to_stalled_token i_1Di i_1ro) i_2di' ∧ i_2di <+: i_2di'
 
 theorem refines' : plus1_m ⊑_{φ} plus1_buf_m := by
   intro init_i init_s Hφ
@@ -534,10 +532,14 @@ theorem refines_init : Module.refines_initial plus1_m plus1_buf_m φ := by
   intro i hi
   obtain ⟨⟨tDi, tro⟩, ⟨pdi, pvi, pro⟩, ⟨hdi, hvi, hri⟩⟩ := i
   simp [plus1_m, token_to_handshake_m, plus1_hw_m, handshake_to_token_m] at hi
-  refine ⟨([], [], []), by simp [plus1_buf_m, buffer_spec_m, plus1_df]; rfl, ?_⟩
+  refine ⟨([], ⟨[], []⟩ , ⟨[], []⟩), by simp [plus1_buf_m, buffer_spec_m, plus1_df, delay_m]; rfl, ?_⟩
   obtain ⟨⟨rfl, rfl⟩, ⟨rfl, rfl, rfl⟩, rfl, rfl, rfl⟩ := hi
-  simp [φ, to_tokens, token_data, token_valid, plus1]
-  refine ⟨rfl, List.nil_prefix, List.nil_prefix, List.nil_prefix ⟩
+  simp [φ, to_tokens, token_data, token_valid, plus1, token_to_stalled_token]
+  refine ⟨rfl, rfl, rfl, similarP.empty, List.nil_prefix, List.nil_prefix, ?_⟩
+  refine⟨ [], ?_, List.nil_prefix⟩
+  simp [token_to_stalled_token, default ,token_data]
+
+
 
 theorem refines : plus1_m ⊑ plus1_buf_m := ⟨inferInstance, φ, refines', refines_init⟩
 
