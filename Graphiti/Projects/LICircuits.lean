@@ -94,6 +94,7 @@ def token_to_stalled_token : Tok → D → Tok
 
 def token_compact (s : Tok) : DV := s.reduceOption -- removes none from Tok
 def token_valid (s : Tok) : D := s.map Option.isSome
+-- token_data : when D has some value, d is the same value otherwise d can be anything
 def token_data (D : Tok) (d : DV) : Prop :=
   match D, d with
   | [], []                 => True
@@ -103,7 +104,7 @@ def token_data (D : Tok) (d : DV) : Prop :=
   | some x :: xs, y::ys    => x = y ∧  token_data xs ys
 
 
-def vr_stable (v r: D) (vstay rstay: Bool): Prop:=
+def vr_stable (v r: D) (vstay : Bool := false ) (rstay: Bool := false): Prop:=
   match v, r with
   | [], _              => True
   | _, []              => True
@@ -119,7 +120,7 @@ def handshake_to_token_m (s : String := "") : StringModule (Named s (DV × D × 
   { inputs := [(↑"di", ⟨ Named s!"{s}.di" DV, λ s tt s' => s.1 <<: tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
                (↑"vi", ⟨ Named s!"{s}.vi" D, λ s tt s' => s.2.1 <<: tt ∧ s'.2.1 = tt ∧ s'.1 = s.1 ∧ s'.2.2 = s.2.2 ⟩)].toAssocList,
     outputs := [(↑"Do", ⟨ Named s!"{s}.Do" Tok, λ s tt s' => s = s' ∧ tt = to_tokens s.1 s.2.1 s.2.2⟩),
-                (↑"ri", ⟨ Named s!"{s}.ri" D, λ s tt s' => s.2.2 <+: s'.2.2 ∧ vr_stable s'.2.1 s'.2.2 false false ∧ s'.2.2 = tt ∧ s'.1 = s.1 ∧ s'.2.1 = s.2.1 ⟩)].toAssocList -- TODOcheck:
+                (↑"ri", ⟨ Named s!"{s}.ri" D, λ s tt s' => s.2.2 <+: s'.2.2 ∧ vr_stable s'.2.1 s'.2.2 ∧ s'.2.2 = tt ∧ s'.1 = s.1 ∧ s'.2.1 = s.2.1 ⟩)].toAssocList -- TODOcheck:
     init_state := λ s => s = default
   }
 
@@ -127,7 +128,8 @@ def handshake_to_token_m (s : String := "") : StringModule (Named s (DV × D × 
 -- We need to make sure that input ready is not faster than D
 def token_to_handshake_m (s : String := "") : StringModule (Named s (Tok × D)) := -- (Di , r)
   { inputs := [(↑"Di", ⟨ Named s!"{s}.Di" Tok, λ s tt s' => s.1 <<: tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
-               (↑"ro", ⟨ Named s!"{s}.ro" D, λ s tt s' => s.2 <<: tt ∧ s'.2 = tt ∧ s'.1 = s.1  ∧ vr_stable ⟩)].toAssocList,
+               (↑"ro", ⟨ Named s!"{s}.ro" D, λ s tt s' => s.2 <<: tt ∧ s'.2 = tt ∧ s'.1 = s.1  ∧
+                          vr_stable (token_valid (token_to_stalled_token s.1 s.2)) tt⟩)].toAssocList, -- vr_stable of outputed valid and the ready in the input
     outputs := [(↑"do", ⟨ Named s!"{s}.do" DV, λ s tt s' => s = s' ∧ token_data (token_to_stalled_token s.1 s.2) tt ⟩),
                 (↑"vo", ⟨ Named s!"{s}.vo" D, λ s tt s' => s = s' ∧ tt = token_valid (token_to_stalled_token s.1 s.2)⟩)].toAssocList
     init_state := λ s => s = default
@@ -380,17 +382,21 @@ instance : MatchInterface plus1_m plus1_buf_m := by
 def φ (i : plus1_m_t) (s : plus1_buf_m_t) : Prop :=
   let ⟨ s_Di , ⟨ s_r , s_e⟩, ⟨ s_d1 , s_d2⟩ ⟩ := s
   let ⟨⟨ i_1Di, i_1ro⟩, ⟨⟨ i_2di, ⟨ i_2vi, i_2ro⟩⟩,⟨ i_3di, i_3vi, i_3ri⟩⟩⟩ := i
-  -- spec impl relation
+
+  -- Input
   s_Di = i_1Di ∧
-  s_r = i_1Di.map incTok ∧
-    -- s_r <+: i_1Di.map incTok ∧
-  s_e <+: to_tokens i_3di i_3vi i_3ri ∧
-    -- check if needed : s_e <+: s_r ∧
-  -- impl ready
+  -- Output
+  s_d2 = to_tokens i_3di i_3vi i_3ri ∧ -- = or <+: ??
+  -- Spec internals
+  s_r = i_1Di.map incTok ∧ -- other version : s_r <+: i_1Di.map incTok ∧
+  s_e <+: s_r ∧
+  s_d1 <+: s_e ∧
+  s_d1 ≲ s_d2 ∧
+  -- Impl  internals
   i_1ro <+: i_2ro ∧ i_2ro <+: i_3ri ∧
-    -- ready_property i_3ri i_3vi ?!
-  -- impl states relation
-  i_2di <+: token_data ( token_to_stalled_token i_1Di i_1ro) ∧
+  -- Impl
+  token_data ( token_to_stalled_token i_1Di i_1ro) i_2di' ∧ --TODO
+  i_2di <+: i_2di'∧
   i_2vi <+: token_valid ( token_to_stalled_token i_1Di i_1ro) ∧
   i_3di <+: plus1 i_2di ∧ i_3vi <+: i_2vi
   -- check if we need ready in plus
