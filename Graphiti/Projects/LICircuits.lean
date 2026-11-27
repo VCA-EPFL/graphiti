@@ -142,7 +142,7 @@ def handshake_to_token_m (s : String := "") : StringModule (Named s (DV × D × 
   { inputs := [(↑"di", ⟨ Named s!"{s}.di" DV, λ s tt s' => s.1 <<: tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
                (↑"vi", ⟨ Named s!"{s}.vi" D, λ s tt s' => s.2.1 <<: tt ∧ s'.2.1 = tt ∧ s'.1 = s.1 ∧ s'.2.2 = s.2.2 ⟩)].toAssocList,
     outputs := [(↑"Do", ⟨ Named s!"{s}.Do" Tok, λ s tt s' => s = s' ∧ tt = to_tokens s.1 s.2.1 s.2.2⟩),
-                (↑"ri", ⟨ Named s!"{s}.ri" D, λ s tt s' => s.2.2 <+: s'.2.2 ∧ vr_stable s'.2.1 s'.2.2 ∧ s'.2.2 = tt ∧ s'.1 = s.1 ∧ s'.2.1 = s.2.1 ⟩)].toAssocList -- TODOcheck:
+                (↑"ri", ⟨ Named s!"{s}.ri" D, λ s tt s' => s.2.2 <+: s'.2.2 ∧ vr_stable s'.2.1 s'.2.2 ∧ s'.2.2 = tt ∧ s'.1 = s.1 ∧ s'.2.1 = s.2.1 ⟩)].toAssocList
     init_state := λ s => s = default
   }
 
@@ -151,7 +151,7 @@ def handshake_to_token_m (s : String := "") : StringModule (Named s (DV × D × 
 def token_to_handshake_m (s : String := "") : StringModule (Named s (Tok × D)) := -- (Di , r)
   { inputs := [(↑"Di", ⟨ Named s!"{s}.Di" Tok, λ s tt s' => s.1 <<: tt ∧ s'.1 = tt ∧ s'.2 = s.2 ⟩),
                (↑"ro", ⟨ Named s!"{s}.ro" D, λ s tt s' => s.2 <<: tt ∧ s'.2 = tt ∧ s'.1 = s.1  ∧
-                          vr_stable (token_valid (token_to_stalled_token s.1 s.2)) tt⟩)].toAssocList, -- vr_stable of outputed valid and the ready in the input
+                          vr_stable (token_valid (token_to_stalled_token s.1 tt)) tt⟩)].toAssocList, -- vr_stable of outputed valid and the ready in the input
     outputs := [(↑"do", ⟨ Named s!"{s}.do" DV, λ s tt s' => s = s' ∧ token_data (token_to_stalled_token s.1 s.2) tt ⟩),
                 (↑"vo", ⟨ Named s!"{s}.vo" D, λ s tt s' => s = s' ∧ tt = token_valid (token_to_stalled_token s.1 s.2)⟩)].toAssocList
     init_state := λ s => s = default
@@ -320,7 +320,7 @@ def plus1_buf_s := [graphEnv|
     delay -> bo [from="out"];
   ]
 
-def plus1_buf_s_lowered := plus1_buf_s.1.lower_TR |>.get rfl
+def plus1_buf_s_lowered := plus1_buf_s.1.extract ["delay", "buf", "p1"] |>.get rfl |>.1.lower_TR |>.get rfl
 
 def env := plus1_s.2
 
@@ -395,7 +395,7 @@ reduction_by
         unfold Module.connect''
         dsimp [toString]
         )
-
+#print plus1_buf_m
 -- Refinement of the handshake circuit against the buffered dataflow spec
 theorem strict_prefix_map {α β} (f : α → β) {l l' : List α} (h : l <<: l') :
     l.map f <<: l'.map f := by
@@ -440,7 +440,7 @@ def φ (i : plus1_m_t) (s : plus1_buf_m_t) : Prop :=
   -- Output
   s_d2 = to_tokens i_3di i_3vi i_3ri ∧ -- = or <+: ??
   -- Spec internals
-  s_r <+: i_1Di.map incTok ∧ --  = or <+: ??
+  s_r <+: i_1Di.map incTok ∧ --  = or <+: ?? <+: with no almostmid
   s_e <+: s_r ∧
   s_d1 <+: s_e ∧
   s_d1 ≲ s_d2 ∧
@@ -450,6 +450,7 @@ def φ (i : plus1_m_t) (s : plus1_buf_m_t) : Prop :=
   i_3di <+: plus1 i_2di ∧ i_3vi <+: i_2vi ∧
   ∃ i_2di', token_data ( token_to_stalled_token i_1Di i_1ro) i_2di' ∧ i_2di <+: i_2di'
 #print φ
+#print plus1_m_t
 theorem refines' : plus1_m ⊑_{φ} plus1_buf_m := by
   intro init_i init_s Hφ
   apply Module.comp_refines.mk
@@ -457,7 +458,7 @@ theorem refines' : plus1_m ⊑_{φ} plus1_buf_m := by
     intro ident mid_i v hi
     by_cases HContains : plus1_m.inputs.contains ident
     · obtain ⟨⟨tDi, tro⟩, ⟨pdi, pvi, pro⟩, ⟨hdi, hvi, hri⟩⟩ := init_i
-      obtain ⟨x, ⟨ r, e⟩ , ⟨ d1, d2⟩ ⟩ := init_s
+      obtain ⟨x , ⟨ r, e⟩, ⟨ d1, d2⟩⟩ := init_s
       simp [plus1_m] at HContains; subst HContains
       rw [PortMap.rw_rule_execution (by dsimp [plus1_m, reducePortMapgetIO])] at hi
       -- obtain ⟨⟨a1, a2⟩, ⟨b1, b2, b3⟩, ⟨c1, c2, c3⟩⟩ := mid_i
@@ -467,7 +468,7 @@ theorem refines' : plus1_m ⊑_{φ} plus1_buf_m := by
       obtain ⟨hx, hd2, hr, he, hd1, hd12, htr, hpr, hpv, hdata, hv, h2di⟩ := Hφ
       obtain ⟨⟨hsp, rfl, rfl⟩, ⟨rfl, rfl, rfl⟩, rfl, rfl, rfl⟩ := hi
       subst hx
-      refine ⟨⟨m1D, ⟨ r, e⟩ , ⟨ d1, d2⟩ ⟩, ⟨m1D, ⟨ r, e⟩ , ⟨ d1, d2⟩ ⟩, ?_, existSR.done _, ?_⟩
+      refine ⟨⟨m1D, ⟨ r, e⟩, ⟨ d1, d2⟩⟩, ⟨m1D , ⟨ r, e⟩, ⟨ d1, d2⟩⟩, ?_, existSR.done _, ?_⟩
       · -- generate almost_mid
         rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]
         dsimp; simp; grind
@@ -494,37 +495,25 @@ theorem refines' : plus1_m ⊑_{φ} plus1_buf_m := by
     intro ident mid_i v hi
     by_cases HContains : plus1_m.outputs.contains ident
     · obtain ⟨⟨tDi, tro⟩, ⟨pdi, pvi, pro⟩, ⟨hdi, hvi, hri⟩⟩ := init_i
-      obtain ⟨x, ⟨ r, e⟩ , ⟨ d1, d2⟩ ⟩:= init_s
+      obtain ⟨x, ⟨ r, e⟩, ⟨ d1, d2⟩ ⟩:= init_s
       simp [plus1_m] at HContains; subst HContains
       rw [PortMap.rw_rule_execution (by dsimp [plus1_m, reducePortMapgetIO])] at hi
-      obtain ⟨⟨a1, a2⟩, ⟨b1, b2, b3⟩, ⟨c1, c2⟩⟩ := mid_i
+      obtain ⟨⟨a1, a2⟩, ⟨b1, b2, b3⟩, ⟨c1, c2, c3⟩⟩ := mid_i
       dsimp [Module.liftL, Module.liftR] at hi
       simp at hi
-      obtain ⟨⟨⟨⟨rfl, rfl⟩, hv⟩, ⟨rfl, rfl, rfl⟩⟩, rfl, rfl⟩ := hi
-      obtain ⟨hx, hr, he, ht, hp, h1, h2, h3, h4⟩ := Hφ
-      -- introduce almost mid and mid
-      refine ⟨⟨x, r, e⟩,⟨x, r,to_tokens hdi hvi hri⟩ ,?_, ?_, ?_ ⟩
+      obtain ⟨⟨⟨⟨rfl, rfl, rfl⟩, rfl⟩, rfl, rfl, rfl⟩, rfl, rfl⟩ := hi
+      obtain ⟨hx, hd2, hr, he, hd1, hd12, htr, hpr, hpv, hdata, hv, h2di⟩ := Hφ
+      -- introduce almost_mid and mid (almost_mid = init_s, no internal step needed)
+      refine ⟨⟨x, ⟨ r, e⟩, ⟨d1, d2⟩ ⟩, ⟨x, ⟨ r, e⟩, ⟨d1, to_tokens hdi hvi hri⟩⟩, ?_, ?_, ?_⟩
       . refine  existSR.done _
       . -- going from almost mid to mid and output generation
         rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]
-        dsimp; simp;
+        dsimp [Module.liftL, Module.liftR]
+        simp
         constructor
         . grind
-        . constructor
-          . rw[hv, hr]
-            -- have h5 := to_tokens_plus1 (tDi)
-            have hhd : hdi <+:plus1 (token_data (token_to_stalled_token tDi tro)) := by
-              apply h3.trans
-              unfold plus1
-              apply IsPrefix.map
-              grind
-            have hhv : hvi <+: token_valid (token_to_stalled_token tDi tro):= by grind
-            -- have h6 := to_tokens_mono hhd hhv --find proper ready
-            -- rw [h5] at h6
-
-            sorry
-          . grind
-
+        . rw[hd2] at hd12
+          exact hd12
       . -- simulation relation holds
         dsimp [φ]
         grind
