@@ -103,6 +103,28 @@ def token_data (D : Tok) (d : DV) : Prop :=
   | none :: xs, _ :: ys    => token_data xs ys
   | some x :: xs, y::ys    => x = y ∧  token_data xs ys
 
+theorem token_data_default (C : Tok) : token_data C (C.map (fun x => x.getD 0)) := by
+  induction C with
+  | nil => trivial
+  | cons x xs ih =>
+    cases x with
+    | none => simpa [token_data] using ih
+    | some v => simpa [token_data] using ih
+
+theorem token_data_append {A C : Tok} {d e : DV} (hd : token_data A d) (he : token_data C e) :
+    token_data (A ++ C) (d ++ e) := by
+    induction A generalizing d with
+  | nil =>
+    cases d with
+    | nil => simpa [token_data] using he
+    | cons _ _ => simp [token_data] at hd
+  | cons x xs ih =>
+    cases d with
+    | nil => simp [token_data] at hd
+    | cons y ys =>
+      cases x with
+      | none => exact ih hd
+      | some v => exact ⟨hd.1, ih hd.2⟩
 
 def vr_stable (v r: D) (vstay : Bool := false ) (rstay: Bool := false): Prop:=
   match v, r with
@@ -375,6 +397,35 @@ reduction_by
         )
 
 -- Refinement of the handshake circuit against the buffered dataflow spec
+theorem strict_prefix_map {α β} (f : α → β) {l l' : List α} (h : l <<: l') :
+    l.map f <<: l'.map f := by
+  obtain ⟨hlen, heq⟩ := h
+  refine ⟨by simpa using hlen, ?_⟩
+  rw [List.length_map, ← List.map_take, ← heq]
+
+theorem prefix_map {α β} (f : α → β) {l l' : List α} (h : l <+: l') :
+    l.map f <+: l'.map f := by grind
+
+theorem token_to_stalled_token_mono :
+    ∀ (xx yy : Tok) (zz : D), xx <+: yy →
+      token_to_stalled_token xx zz <+: token_to_stalled_token yy zz := by
+  intro xx yy zz h
+  induction zz generalizing xx yy with
+  | nil => cases xx <;> simp [token_to_stalled_token]
+  | cons r rs ih =>
+    cases xx with
+    | nil => simp [token_to_stalled_token]
+    | cons x xs =>
+      obtain ⟨t, rfl⟩ := h
+      simp only [List.cons_append]
+      unfold token_to_stalled_token
+      split_ifs with hcond
+      · obtain ⟨t', heq⟩ := ih xs (xs ++ t) (List.prefix_append xs t)
+        exact ⟨t', by simp [List.cons_append, heq]⟩
+      · obtain ⟨t', heq⟩ := ih (x :: xs) (x :: xs ++ t) (List.prefix_append (x :: xs) t)
+        exact ⟨t', by simp [List.cons_append, heq]⟩
+
+
 
 instance : MatchInterface plus1_m plus1_buf_m := by
   dsimp [plus1_m, plus1_buf_m]
@@ -389,7 +440,7 @@ def φ (i : plus1_m_t) (s : plus1_buf_m_t) : Prop :=
   -- Output
   s_d2 = to_tokens i_3di i_3vi i_3ri ∧ -- = or <+: ??
   -- Spec internals
-  s_r = i_1Di.map incTok ∧ --  = or <+: ??   s_r <+: i_1Di.map incTok ∧.
+  s_r <+: i_1Di.map incTok ∧ --  = or <+: ??
   s_e <+: s_r ∧
   s_d1 <+: s_e ∧
   s_d1 ≲ s_d2 ∧
@@ -398,7 +449,7 @@ def φ (i : plus1_m_t) (s : plus1_buf_m_t) : Prop :=
   i_2vi <+: token_valid ( token_to_stalled_token i_1Di i_1ro) ∧
   i_3di <+: plus1 i_2di ∧ i_3vi <+: i_2vi ∧
   ∃ i_2di', token_data ( token_to_stalled_token i_1Di i_1ro) i_2di' ∧ i_2di <+: i_2di'
-
+#print φ
 theorem refines' : plus1_m ⊑_{φ} plus1_buf_m := by
   intro init_i init_s Hφ
   apply Module.comp_refines.mk
@@ -406,48 +457,44 @@ theorem refines' : plus1_m ⊑_{φ} plus1_buf_m := by
     intro ident mid_i v hi
     by_cases HContains : plus1_m.inputs.contains ident
     · obtain ⟨⟨tDi, tro⟩, ⟨pdi, pvi, pro⟩, ⟨hdi, hvi, hri⟩⟩ := init_i
-      obtain ⟨x, r, e⟩ := init_s
+      obtain ⟨x, ⟨ r, e⟩ , ⟨ d1, d2⟩ ⟩ := init_s
       simp [plus1_m] at HContains; subst HContains
       rw [PortMap.rw_rule_execution (by dsimp [plus1_m, reducePortMapgetIO])] at hi
-      obtain ⟨⟨a1, a2⟩, ⟨b1, b2, b3⟩, ⟨c1, c2, c3⟩⟩ := mid_i
+      -- obtain ⟨⟨a1, a2⟩, ⟨b1, b2, b3⟩, ⟨c1, c2, c3⟩⟩ := mid_i
+      obtain ⟨⟨m1D, m1r⟩, ⟨m2d, m2v, m2r⟩, ⟨m3d, m3v, m3r⟩⟩ := mid_i
       dsimp [Module.liftL, Module.liftR] at hi
       simp at hi
-      obtain ⟨hx, hr, he, ht, hp, h1, h2, h3, h4⟩ := Hφ
-      obtain ⟨⟨hsp, ha1, rfl⟩, ⟨rfl, rfl, rfl⟩, rfl, rfl, rfl⟩ := hi
-      subst hx hr
-      rw[←ha1 ] at hsp
-      refine ⟨⟨a1, map incTok x, e⟩,⟨a1, map incTok a1, e⟩ ,?_, ?_, ?_ ⟩
+      obtain ⟨hx, hd2, hr, he, hd1, hd12, htr, hpr, hpv, hdata, hv, h2di⟩ := Hφ
+      obtain ⟨⟨hsp, rfl, rfl⟩, ⟨rfl, rfl, rfl⟩, rfl, rfl, rfl⟩ := hi
+      subst hx
+      refine ⟨⟨m1D, ⟨ r, e⟩ , ⟨ d1, d2⟩ ⟩, ⟨m1D, ⟨ r, e⟩ , ⟨ d1, d2⟩ ⟩, ?_, existSR.done _, ?_⟩
       · -- generate almost_mid
         rw [PortMap.rw_rule_execution (by dsimp [reducePortMapgetIO])]
         dsimp; simp; grind
-      . -- almost_mid ->  mid
-        dsimp only [plus1_buf_m]
-        dsimp [Module.liftL, Module.liftR]
-        simp
-        -- use the connection rule
-        refine existSR.step _ _ _ _ List.mem_cons_self ?_ (existSR.done _)
-        exists map incTok x
-        dsimp
-        grind[strict_prefix_map]
-
       · -- simulation relation holds
         dsimp [φ]
         simp
-        refine ⟨ he, ht, hp, h1.trans ?_, h2.trans ?_ , h3, h4⟩ <;>
-        . simp only[token_data, token_valid]
-          apply IsPrefix.map _
-          have hsp' : x <+: a1 := strict_prefix_is_prefix x a1 hsp
-          unfold token_to_stalled_token
-          have hstalled : (xx yy : Tok) → (zz : D) →
-            xx <+: yy → token_to_stalled_token xx zz <+: token_to_stalled_token yy zz := by sorry
+        refine ⟨ hd2, ?_, he, hd1, hd12, htr, hpr,?_,hdata, hv,?_ ⟩
+        . have hxx : map incTok x <+: map incTok m1D := prefix_map incTok (strict_prefix_is_prefix _ _ hsp)
           grind
+        . apply hpv.trans
+          apply IsPrefix.map
+          exact token_to_stalled_token_mono _ _ _ (strict_prefix_is_prefix _ _ hsp)
+
+        . -- use i_2di' = old ++ C(use 0 for nones) as a witness
+          obtain ⟨old, hold_td, hold_pre⟩ := h2di
+          obtain ⟨C, hC⟩ := token_to_stalled_token_mono x m1D m1r (strict_prefix_is_prefix _ _ hsp)
+          refine ⟨old ++ C.map (fun a => a.getD 0), ?_, hold_pre.trans (List.prefix_append _ _)⟩
+          rw [← hC]
+          exact token_data_append hold_td (token_data_default C)
+
 
     · exfalso; exact PortMap.getIO_not_contained_false hi HContains
   · -- Output
     intro ident mid_i v hi
     by_cases HContains : plus1_m.outputs.contains ident
     · obtain ⟨⟨tDi, tro⟩, ⟨pdi, pvi, pro⟩, ⟨hdi, hvi, hri⟩⟩ := init_i
-      obtain ⟨x, r, e⟩ := init_s
+      obtain ⟨x, ⟨ r, e⟩ , ⟨ d1, d2⟩ ⟩:= init_s
       simp [plus1_m] at HContains; subst HContains
       rw [PortMap.rw_rule_execution (by dsimp [plus1_m, reducePortMapgetIO])] at hi
       obtain ⟨⟨a1, a2⟩, ⟨b1, b2, b3⟩, ⟨c1, c2⟩⟩ := mid_i
